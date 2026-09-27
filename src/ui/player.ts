@@ -37,7 +37,7 @@ export function createPluginPlayer(deps: {
 }) {
   deps.prefs.setDefault?.(PREF_PREFIX + 'readAloud.playerLayout', 'top');
   const readLayout = () => playerLayout(deps.prefs);
-  const panelHeight = (expanded: boolean, remaining = false) => (expanded ? 202 : 108) + (remaining ? 36 : 0);
+  const panelHeight = (expanded: boolean, remaining = false) => (expanded ? 202 : 108) + (remaining ? 20 : 0);
   let layout = readLayout();
   const live = (doc: Document) => isPlayerDocumentLive(doc, deps.dead);
   const settingsDocuments = new Set<Document>();

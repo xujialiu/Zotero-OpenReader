@@ -1,6 +1,6 @@
 [Checklist](../README.md)
 
-# Estimated remaining reading time (issue #148)
+# Estimated remaining reading time (issues #148, #150)
 
 The owner authorized live verification after the local checks. Follow the
 [baseline](../baseline.md) and tester workflow, including test WebDAV
@@ -17,12 +17,13 @@ Retain executed scripts and their results in the linked kit.
 
 With no user value for `readAloud.remainingTime`, the Reading checkbox is
 on. Top bar, Bottom bar and Floating panel show an estimate without
-expanding Options. The floating panel fits both estimate lines when
-collapsed and expanded; its menus and dragging account for the added row.
-The bars retain their height. Long names shorten with an ellipsis, with
-the full name in the tooltip. The duration suffix must remain inside the
-visible row bounds; checking only its text content or tooltip is not
-evidence that the time is visible. Check both ordinary and narrow widths.
+expanding Options. One line reads “Doc <N min · Section <M min”, with
+generic labels even for long section titles. Floating places it above
+speed/A/M/volume, fits it
+when collapsed (128 px) and expanded (222 px), and accounts for that height
+in menus and dragging. Bars retain 34 px height and place it immediately
+after volume. Measure the entire line's visible bounds and one-line height,
+not just text content or tooltip. Check ordinary and narrow widths.
 Switching the setting off during reading hides the estimates without stopping or
 changing reading. Switching it back on restores them. Verify the English
 and Chinese setting and messages without changing Zotero's locale live.
@@ -31,9 +32,14 @@ and Chinese setting and messages without changing Zotero's locale live.
 
 `diagnostics.engine()` exposes each session's `remainingTime` snapshot.
 Ordinary reading has `scope: document`; the EPUB's `sectionTitle` is
-`Part 1` until the first segment of Part 2, then `Part 2`. Crossing a
-nested chapter does not change that title. Section time is no greater than
-document time. Test segment boundaries on both sides, not just page turns.
+the deepest heading at the current position. Crossing a nested chapter
+changes that title. In the retained fixture, a part and its first chapter
+share their start: expect Chapter 1, then Chapter 2 within each part.
+Also verify a parent introduction and a nested introduction ending at the
+first child's start, using a controlled outline when the fixture has no
+introduction. Check the last section through document end. Section time
+is no greater than document time. Test segment boundaries on both sides,
+not just page turns.
 An absent, unresolved or unordered outline yields document time without
 section fields. Selecting text and pressing Shift+Space starts there and
 continues to document end; expect document scope for that actual UI path.
@@ -63,8 +69,10 @@ increase audio requests. Repeated snapshots do not request audio.
 
 Before text arrives, the line reads “Estimating…”. A run with no usable
 segments shows “Estimate unavailable”. A positive estimate under 60 seconds
-shows “less than 1 min”, without seconds digits. At completion, the line
-reads “Finished” and the diagnostic is `status: finished, seconds: 0`, even
+shows “<1 min”, without seconds digits. Zero before completion also uses
+“<1 min”; an exact 60-second estimate uses “<2 min”, never “<0 min”.
+At completion, the line reads “Finished” and the diagnostic is
+`status: finished, seconds: 0`, even
 though the Engine has reset the position. Play starts a fresh estimate.
 Provider errors keep the existing error and Retry controls usable.
 

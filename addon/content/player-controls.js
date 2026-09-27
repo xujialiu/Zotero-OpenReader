@@ -21,6 +21,7 @@ function field(key) {
   return `<div class="field ${key === 'voice' ? 'voice' : ''}"><button class="picker" data-pick="${key}" aria-haspopup="dialog" aria-expanded="false"><span class="value">${escapeHTML(selectedLabel(key))}</span><span class="chevron" aria-hidden="true"></span></button></div>`;
 }
 const layoutControl = `<button class="adjust layout-menu" aria-haspopup="dialog" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1" stroke="currentColor" stroke-width="1.25"/><path d="M3 7h14M3 13h14" stroke="currentColor" stroke-width="1.25"/></svg></button>`;
+const remainingControl = '<div class="remaining-time" hidden></div>';
 const playControl = '<button class="play" type="button"></button>';
 const skipControl = action => `<button class="skip" data-navigate="${action}" type="button">${nativeNavigation[action]}</button>`;
 function render() {
@@ -30,8 +31,8 @@ function render() {
     <div class="identity"><button class="options-toggle" type="button" aria-controls="player-choices">${nativeOptions}</button><span class="grip" aria-hidden="true">Zotero-TTS ⠿</span>${variant === 'B' ? layoutControl : ''}</div>
     ${variant === 'B' ? `<div class="transport">${skipControl('previousParagraph')}${skipControl('previousSentence')}${playControl}${skipControl('nextSentence')}${skipControl('nextParagraph')}</div>` : playControl}
     <div class="voice-group" id="player-choices">${field('provider')}${field('locale')}${field('voice')}</div>
-    <div class="controls"><button class="adjust" data-adjust="speed" aria-haspopup="dialog">${speedIcon}<span class="adjust-value"></span></button><button class="adjust mode"></button><button class="adjust" data-adjust="volume" aria-haspopup="dialog">${volumeIcon}<span class="adjust-value"></span></button><button class="status-button" hidden>!</button>${variant === 'B' ? '' : layoutControl}</div>
-    <div class="remaining-time" hidden></div>
+    ${variant === 'B' ? remainingControl : ''}
+    <div class="controls"><button class="adjust" data-adjust="speed" aria-haspopup="dialog">${speedIcon}<span class="adjust-value"></span></button><button class="adjust mode"></button><button class="adjust" data-adjust="volume" aria-haspopup="dialog">${volumeIcon}<span class="adjust-value"></span></button>${variant === 'B' ? '' : remainingControl}<button class="status-button" hidden>!</button>${variant === 'B' ? '' : layoutControl}</div>
   </section>`;
   document.querySelectorAll('[data-pick]').forEach(button => { button.onclick = () => openPicker(button, button.dataset.pick); });
   document.querySelectorAll('[data-adjust]').forEach(button => { button.onclick = () => openRange(button, button.dataset.adjust); });
@@ -76,11 +77,7 @@ function updateControls() {
   remaining.setAttribute('aria-label', remaining.title);
   remaining.replaceChildren(...lines.map(line => {
     const row = document.createElement('div'); row.className = 'remaining-line';
-    if (line.name !== undefined && line.duration !== undefined) {
-      const name = document.createElement('span'); name.className = 'remaining-name'; name.textContent = line.name;
-      const duration = document.createElement('span'); duration.className = 'remaining-duration'; duration.textContent = line.duration;
-      row.append(name, duration);
-    } else row.textContent = line.text;
+    row.textContent = line.text;
     return row;
   }));
   $('.voice-group').hidden = collapsed;

@@ -396,18 +396,23 @@ describe('the Engine across a plugin update', () => {
   });
 });
 
-it('publishes the document and top-level section estimates through the real manager contract', async () => {
+it('publishes the document and nested section estimates through the real manager contract', async () => {
   const t = await setup({ attachFirst: true });
   t.segments.forEach((segment, i) => Object.assign(segment, { position: { start: [i, 0, 0], end: [i, 0, segment.text.length] } }));
-  Object.assign(t.reader._internalReader, { _sdt: { structure: { catalog: { outline: [{ title: 'Part I', ref: [0] }, { title: 'Part II', ref: [2] }] } } } });
+  Object.assign(t.reader._internalReader, { _sdt: { structure: { catalog: { outline: [{ title: 'Part I', ref: [0], children: [{ title: 'Chapter 1', ref: [1] }] }, { title: 'Part II', ref: [2] }] } } } });
   t.open();
   await t.clock.advance(0);
   t.manager.pause();
   expect(t.engine.remainingTime(t.reader)).toMatchObject({ status: 'ready', scope: 'document', sectionTitle: 'Part I' });
-  expect(t.engine.remainingTime(t.reader).sectionSeconds).toBeCloseTo(1.2);
+  expect(t.engine.remainingTime(t.reader).sectionSeconds).toBeCloseTo(0.7);
   const before = t.source.getAudio.mock.calls.length;
   for (let i = 0; i < 20; i++) t.engine.remainingTime(t.reader);
   expect(t.source.getAudio).toHaveBeenCalledTimes(before);
+  t.manager.repositionTo(1);
+  await t.clock.advance(0);
+  t.manager.pause();
+  expect(t.engine.remainingTime(t.reader).sectionTitle).toBe('Chapter 1');
+  expect(t.engine.remainingTime(t.reader).sectionSeconds).toBeCloseTo(0.5);
   t.manager.repositionTo(2);
   expect(t.engine.remainingTime(t.reader).sectionTitle).toBe('Part II');
   t.engine.dispose();

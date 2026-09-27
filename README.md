@@ -218,11 +218,12 @@ for every document you have listened to.
   Language and voice search boxes stay visible while choices scroll in all
   three layouts.
 - **Estimated remaining reading time** appears in every layout, enabled by
-  default under Reading settings. It shows the document and its current
-  named section. Starting at selected text still counts to the end of the
-  document. Times follow your speed and improve while you listen; manual
-  pauses and network waits do not count down. Sections without reliable
-  boundaries are omitted.
+  default under Reading settings. One compact line shows the document and
+  the time to the next contents heading, including nested headings. It sits
+  above the speed controls in Floating and after volume in Top and Bottom.
+  Starting at selected text still counts to the end of the document. Times
+  follow your speed and improve while you listen; manual pauses and network
+  waits do not count down. Sections without reliable boundaries are omitted.
 - **Speed controls** in the player, Settings and keyboard shortcuts change
   by 0.05×, within the existing 0.5×–3× range.
 - **A / M** shows whether this document is following the narration.
