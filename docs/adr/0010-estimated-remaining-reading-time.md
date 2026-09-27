@@ -50,16 +50,21 @@ headings or a printed contents page (156705–156818). In `reader.js`,
 entries pointing to `#sdt-<ref>` (79896–80145). Segment start positions use
 the same block references, as recorded in `notes/NOTES_2026-09-21.md`.
 
-This makes intervals between consecutive top-level entries feasible
+This makes intervals between consecutive outline entries feasible
 without new document analysis. EPUB spine items alone are not chapters;
 PDF page-only destinations cannot locate a chapter starting midway down a
 page. Missing, unresolved or out-of-order boundaries must leave the
 section estimate unavailable. A mapped reference identifies a text
 boundary, not the semantic distinction between a part and a chapter.
-The owner chose the top-level entry regardless of that distinction, with
-its actual title as the display label and no depth selector. The adapter is
-implemented and covered by local and live tests; the results are recorded
-in `notes/NOTES_2026-09-26.md` and the issue's verification table.
+The original design used top-level entries. On 2026-09-27, the owner
+replaced that scope with consecutive headings at every depth: a parent's
+introduction ends at its first child, and each later interval ends at the
+next heading in document order. The last interval ends at document end.
+There is no depth selector. Invalid boundaries still suppress section
+time rather than silently reporting a larger parent interval. A parent and
+its first descendant sharing a start use the deepest title. The original
+adapter's live results are recorded in `notes/NOTES_2026-09-26.md` and
+issue #148; verification of the revised behavior belongs to issue #150.
 
 ## Implementation
 
@@ -85,10 +90,12 @@ The section cache follows outline and segment identity. An outline access
 failure is logged once per reader and leaves document estimation usable.
 
 The setting `readAloud.remainingTime` uses the ordinary backup/sync path.
-The Player snapshot carries localized lines with the section name and
-duration separate, so a long name can shrink without hiding the time. Bars
-retain their height; the floating layout adds a 36 px time row, included in
-menu placement and drag bounds. Engine diagnostics expose the same numerical snapshot.
+The Player shows one compact localized line with generic document and
+section labels, omitting the section title. Minute bounds use the next
+integer above the estimate, never less than one. Bars retain their height;
+the floating layout adds a 20 px time row above its controls, included in
+menu placement and drag bounds. Bar time follows volume in DOM order.
+Engine diagnostics expose the same numerical snapshot.
 
 ## Selection starts and bounded runs
 

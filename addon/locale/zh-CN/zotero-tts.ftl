@@ -640,6 +640,8 @@ ztts-time-unavailable = 暂无法估算
 ztts-time-finished = 已读完
 ztts-time-document = 全文
 ztts-time-selection = 所选内容
-ztts-time-minutes = 预计剩余 { $minutes } 分钟
-ztts-time-under-minute = 剩余不足 1 分钟
-ztts-time-summary = { $name }：{ $time }
+ztts-time-minutes = <{ $minutes } 分钟
+ztts-time-summary = { $name } { $time }
+
+ztts-time-section = 小节
+ztts-time-pair = { $document } · { $section }

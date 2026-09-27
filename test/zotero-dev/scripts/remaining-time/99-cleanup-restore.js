@@ -41,7 +41,11 @@
     try { reader._internalReader?.toggleReadAloudPopup(false); } catch (_) {}
     await sleep(250);
     try { reader.close?.(); } catch (_) {}
-    await waitFor(() => !Zotero.Reader?._readers?.some?.(candidate => candidate?.itemID === id), 10000, 80);
+    await waitFor(() => {
+      const readers = Zotero.Reader?._readers || [];
+      for (let i = 0; i < readers.length; i++) if (readers[i]?.itemID === id) return false;
+      return true;
+    }, 10000, 80);
     out.readersClosed++;
   }
   // Reader arrays can be compartment objects; verify by index as well.

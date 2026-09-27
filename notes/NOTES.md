@@ -652,3 +652,8 @@ then) and is in the git history before that day.
 - An open paused player can outlive its Engine session and reject listed voices (issue #149)
 - Explicit selection rebuilds an ended session while paused (issue #149)
 - Recovery passed through the player; two probe fields needed correction (issue #149)
+
+### [2026-09-27](NOTES_2026-09-27.md)
+
+- Consecutive outline headings replace outermost sections (issue #150)
+- Compact time verified; font inherits the controls (issue #150)

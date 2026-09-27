@@ -1,37 +1,36 @@
-# Scripts: estimated remaining reading time (issue #148)
+# Scripts: estimated remaining reading time (issue #150)
 
 [Case](../../cases/remaining-time.md) · [Checklist](../../README.md) · [Runner](../_shared/README.md)
 
 | Script | What it checks | What it expects | Params/state |
 | --- | --- | --- | --- |
-| `00-baseline-and-isolate.js` | Preinstall baseline, dedicated WebDAV destination and host minimization | Test destination matches; plugin sync/backup switches suspended; OpenReader Position absent; affected prefs, native voice memory, owner readers and transport state retained privately | none; writes `state.baseline`, `state.isolation` |
-| `01-identity-settings.js` | beta identity, startup, default-on setting pane and EN/ZH locale source keys | startup `failed: []`; requested XPI source and SHA-256; checkbox checked with no user value; all message keys present in both locales | `root`, `xpiPath`, `xpiSHA256`, `expectedVersion` |
-| `02-epub-scope-and-fallback.js` | Deterministic EPUB section boundaries and outline-free PDF fallback | 180 EPUB segments; Part 1/Part 2 boundary at 90; nested chapters remain Part 1; section ≤ document; PDF has document scope only | `deterministicBaseURL`; writes `state.fixtures`, `state.scopeResults` |
-| `03-ui-setting-layout.js` | Checkbox toggle during paused reading, all layouts, float expansion/drag, long title, normal/narrow widths | active/paused unchanged; bars 34 px; floating 144/238 px collapsed/expanded; title tooltip 129 chars; no clipping at 300 px | `state.fixtures.epub`; writes `state.uiResults` |
-| `04-clocks-requests-performance.js` | Audio clock, pause/gap/speed/skip/completion, no display synthesis and snapshot performance | paused delta 0; audio clock moving; exact 2× ratio; gap drops; finish `0`; fresh Play estimate; 500 snapshots below the 2,500 ms limit with no requests | `deterministicBaseURL`; writes `state.clockResults` |
-| `05-voice-recalibration-production-smoke.js` | Actual Player provider/language/voice picks, paused voice preparation, resumed handoff and configured Fish smoke | Bella clip 3 s; paused Heart pick commits after Play with Heart clip 1.5 s and `voiceSwitch` committed; listed Fish Dax clip decodes and plays with audio `running` | `deterministicBaseURL`; writes `state.voiceResults`, `state.fixtures.voice/production` |
-| `06-selection-buffering-longdoc.js` | Actual selected-text Shift+Space behavior, bounded `manager.setSegments` control, delayed-audio freeze, long scrolling EPUB performance | UI selected text starts document scope at position 0; fresh `clearSegments` + `setSegments(...,0,1)` gives selection scope, finishes at zero, then Play returns document scope; delayed estimate freezes; 801 segments / 35.2 viewports / 500 snapshots pass | `deterministicBaseURL`; writes `state.supplementResults`, `state.fixtures.selection/buffering/longdoc` |
-| `99-cleanup-restore.js` | Fixture/position teardown, pref/native/dynamic-record restoration, WebDAV and host restoration | all run-owned fixtures erased; position count restored to baseline; transports idle; all named prefs/native memory byte-identical; host minimized | `state.baseline`, `state.fixtures`, `state.isolation` |
+| `00-baseline-and-isolate.js` | Preinstall baseline and dedicated WebDAV isolation | Test destination matches; transports settle; OpenReader Position absent; original prefs, native memory, reader/session and host bounds recorded; host minimized | none; writes `state.baseline`, `state.isolation` |
+| `01-identity-settings.js` | Beta identity, startup, default-on setting and EN/ZH source keys | beta8 startup has no failed steps; XPI source/hash match; checkbox checked with no user value; all shipped remaining-time keys present | `root`, `xpiPath`, `xpiSHA256`, `expectedVersion` |
+| `02-epub-scope-and-fallback.js` | Real nested outline boundaries, controlled introductions/invalid refs, and outline-free PDF | 180 segments; Part 1/2 at 0/90; Chapter 1/2 switches at nested boundaries; same-start entries choose deepest title; last section reaches document end; invalid/unordered/crossing refs and PDF expose document scope only | `deterministicBaseURL`; writes `state.fixtures`, `state.scopeResults`, position baseline |
+| `03-ui-setting-layout.js` | Toggle during paused reading, compact text, bars/floating layouts, widths, menu and drag geometry | toggle preserves active/paused; one 16 px line; bars 34 px with time after volume; floating 128/222 px with time above controls; long headings keep generic labels; `<1 min` and `Finished`; normal/narrow line and in-viewport menu/drag | `deterministicBaseURL`; `state.fixtures.epub`; writes `state.uiResults` |
+| `04-clocks-requests-performance.js` | Audio clock, pause/gap/speed/skip/completion, no display synthesis and snapshot performance *(last run beta6; not rerun beta8)* | paused delta 0; playback clock moves; 2× halves estimate; gaps drop; finish `0`; fresh Play estimate; 500 snapshots under 2,500 ms with no requests | `deterministicBaseURL`; `state.fixtures.epub`; writes `state.clockResults` |
+| `05-voice-recalibration-production-smoke.js` | Player voice picks, paused handoff and configured Fish smoke *(last run beta6; not rerun beta8)* | Bella clip, paused Heart handoff, listed Fish Dax clip and audio running | `deterministicBaseURL`; writes `state.voiceResults`, `state.fixtures.voice/production` |
+| `06-selection-buffering-longdoc.js` | Selected-text start, bounded `setSegments`, delayed-audio freeze and long-document performance *(last run beta6; not rerun beta8)* | UI selection starts document scope; bounded range finishes at zero then Play returns document scope; delayed estimate freezes; long document snapshots pass | `deterministicBaseURL`; writes `state.supplementResults`, `state.fixtures.selection/buffering/longdoc` |
+| `99-cleanup-restore.js` | Fixture/position teardown and full state restoration | run fixtures erased; rows return to baseline; transports idle; named prefs/native memory/volume match; owner WebDAV restored; host minimized | `state.baseline`, `state.fixtures`, `state.isolation` |
 
 Before you start:
 
-- Use the exact XPI named by the brief. Run this script before installation, then list/install/list and run `diagnostics.startup()` before opening a reader.
-- The script reads `~/.secrets/Zotero-TTS/test_webdav.txt` inside Zotero and returns only match/length evidence. It suspends the three Zotero-TTS WebDAV switches and restores them after fixture and position cleanup.
-- The remaining-time run uses one temporary EPUB, one outline-free PDF, and a local deterministic Kokoro-compatible server. Production configured audio is exercised in a separate bounded smoke step.
-- Start the reusable server from this folder with `node remaining-time-deterministic-server.mjs`; it listens on `127.0.0.1:8769`, serves Bella (3 s) and Heart (1.5 s), and `/delay` holds captioned audio for 10 s. Stop it after cleanup.
-- `readAloud.volume` is muted for playback and restored with its original value and user-value flag. The native `extensions.zotero.reader.readAloudVoices` pref is restored byte-for-byte last after readers close.
+- Use the exact XPI named by the brief. Run `00` before installation, then list/install/list and run `diagnostics.startup()` before opening readers.
+- `00` reads `~/.secrets/Zotero-TTS/test_webdav.txt` inside Zotero, reports only match/length evidence, suspends the three plugin WebDAV switches, and leaves Zotero minimized.
+- Start `remaining-time-deterministic-server.mjs` from this folder on `127.0.0.1:8769`; it serves deterministic local audio and must be stopped after cleanup.
+- The scripts mute volume before playback and restore the original value/user flag. Native voice memory is restored byte-for-byte last.
+- `02` closes an owner paused player only because provider/voice isolation is required; it leaves that reader tab open, inactive, paused, and its popup closed.
 
 Limits:
 
-- Beta6's real Player path is retained in `05`; direct chrome `selectVoice()` was not used as evidence. The paused Heart pick remained Bella until Play, then committed with a documented handoff and distinct clip duration.
-- Selected-text Shift+Space is documented behavior on Zotero 10: the target is accepted, playback starts at position 0, and remaining time is document-scoped through the end. The controlled contract clears the active controller first, then binds `manager.setSegments(segments,0,1)` and verifies selection scope, early completion, and document scope after Play.
-- Delayed audio kept the remaining seconds unchanged while the delayed request was outstanding; the exposed `buffering` flag was not always true at the sampling instant and is recorded with the result.
-- Subjective listening quality is outside this kit. The retained deterministic server is stopped after cleanup.
+- The compact line intentionally uses generic `Doc`/`Section` labels; subjective voice accuracy is outside this kit.
+- This beta8 pass did not rerun the clock, provider smoke, selection, buffering, or long-document suites; the reusable beta6 scripts remain available and are marked above.
 
 Runs:
 
 | Run | Build and artifact | Result |
 | --- | --- | --- |
-| 2026-09-26 | `1.15.2-beta6`, XPI SHA-256 `fe8045caa0d2f2f6c11eadd9dcdb741c7486120c9e6ab7f6148ea07769d53bd5` | `00`/`01`/`02`/`03`/`04` PASS; `05` actual Player voice/Fish PASS; `06` selected-start + controlled bounded range PASS, delayed freeze + longdoc PASS; `99` PASS. Final audit: no run-owned IDs remain, rows 85, transports idle, native/memory restored, original WebDAV restored, host minimized. |
+| 2026-09-26 | `1.15.2-beta6`, XPI SHA-256 `fe8045caa0d2f2f6c11eadd9dcdb741c7486120c9e6ab7f6148ea07769d53bd5` | `00`/`01`/`02`/`03`/`04`/`05`/`06`/`99` PASS; [original beta6 field-by-field evidence](https://github.com/xujialiu/Zotero-TTS/issues/148#issuecomment-5845140879). |
+| 2026-09-27 | `1.15.2-beta8`, XPI SHA-256 `44f9ef22519e9e144f0ff4d48284003ddf69b5f621533a8f8d1ce723d0daa5fb` | `00`/`01`/`02`/`03`/`99` PASS; no NOT TESTABLE rows. Handoff table to issue #150 is pending the main session. |
 
-[Field-by-field verification table](https://github.com/xujialiu/Zotero-TTS/issues/148#issuecomment-5845140879).
+The beta8 UI evidence predates the follow-up font-size adjustment and must not be used as beta9 evidence for that change.

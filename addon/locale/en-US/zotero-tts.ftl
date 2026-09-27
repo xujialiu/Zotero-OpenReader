@@ -693,8 +693,10 @@ ztts-help-remaining-time =
 ztts-time-estimating = Estimating…
 ztts-time-unavailable = Estimate unavailable
 ztts-time-finished = Finished
-ztts-time-document = Document
+ztts-time-document = Doc
 ztts-time-selection = Selection
-ztts-time-minutes = about { $minutes } min left
-ztts-time-under-minute = less than 1 min left
-ztts-time-summary = { $name }: { $time }
+ztts-time-minutes = <{ $minutes } min
+ztts-time-summary = { $name } { $time }
+
+ztts-time-section = Section
+ztts-time-pair = { $document } · { $section }

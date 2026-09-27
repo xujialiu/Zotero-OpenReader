@@ -81,8 +81,8 @@ network waits.
 _Avoid_: completion time, document duration, countdown
 
 **Reading section**:
-A top-level entry in the document's table of contents, including its
-subsections. It may be a chapter, a part or another named division.
+The text from a table-of-contents heading to the next heading in reading
+order, at any depth, or to the document end for the final heading.
 _Avoid_: chapter (when the entry is not a chapter), spine item
 
 **Estimated remaining section reading time**:

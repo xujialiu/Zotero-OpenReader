@@ -10,11 +10,11 @@ controls the display in all three player layouts.
 
 Ordinary reading shows the estimated time from the current place to the
 end of the document. When a reliable table of contents is available, it
-also shows the time to the end of the current reading section: the
-top-level entry, including its later subsections. The display uses that
-entry's actual name. If the outermost entries are parts containing several
-chapters, the time covers the part; there is no choice of depth. Without
-reliable boundaries, only the document estimate is shown.
+also shows the time to the next table-of-contents heading in reading order,
+at any depth. A chapter's introduction ends at its first subsection; that
+subsection's introduction ends at its first child heading. The final
+section ends at the document end. Without reliable boundaries, only the
+document estimate is shown.
 
 Selecting text currently chooses where reading starts; reading continues
 to the end of the document, so document and section estimates still apply.
@@ -28,9 +28,13 @@ waits, during which reading does not consume the estimated time. Neither
 the full document's total duration nor a predicted clock time of completion
 is shown.
 
-The display uses minutes, with “less than 1 minute” for a positive
-remainder below one minute. It stays visible in the Top bar, Bottom bar
-and Floating panel without requiring expansion.
+The display is one line: “Doc <154 min · Section <50 min”, without section
+titles. Each number is rounded up to a whole minute, with a minimum of
+“<1 min”; an exact whole minute uses the next minute to preserve the “<”
+meaning. These remain estimates, not promised upper bounds on actual
+listening time. The line sits above the speed and volume controls in the
+Floating panel, and immediately after volume in the Top and Bottom bars.
+It stays visible without requiring expansion.
 
 ## Display boundaries
 
@@ -50,7 +54,8 @@ This gives an early answer at the cost of initial uncertainty. Waiting
 until enough audio is available would give a better first number, but
 would withhold the information when the listener first decides whether to
 continue. Showing seconds would suggest more precision than the estimate
-has, so the display stays at minutes and is explicitly an estimate.
+has, so the display stays at minutes and the settings describe it as an
+estimate.
 
 Generating the whole document's audio just to measure its length would
 take longer and could charge for text the listener never hears. The
