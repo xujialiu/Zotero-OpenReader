@@ -21,9 +21,21 @@ whose core is `MEMORY/MEMORY.md`.
   native `opus`/`sonnet` models — `zotero-tester`'s Claude definition is
   `model: sonnet` with `effort: max` since 2026-09-15, by the user's
   request after two Sonnet runs verified issue #110 (the frontmatter's
-  `effort` takes low / medium / high / xhigh / max). An explicit model or reasoning-effort
-  override requires the user's request. Check both entry points and their
-  shared targets before finishing; do not leave synchronization for later.
+  `effort` takes low / medium / high / xhigh / max). The pi definitions pin
+  `model: zai-coding-cn/glm-5.3-flash` with `thinking: max` for both agents
+  (settled 2026-09-27, by the user's request) — and only those two: every
+  other pi agent, builtin or generic, keeps pi's stock behavior and
+  inherits the session's default model and thinking; no
+  `subagents.defaultModel`, `defaultThinking` or `agentOverrides` goes in
+  project or user settings. An explicit model
+  or reasoning-effort override requires the user's request. The pi
+  definition carries `name` and a quoted `description` and bans nested
+  delegation with `excludeTools: subagent` (pi's equivalent of the Claude
+  `disallowedTools`); the `.agents/*.md` workflows themselves stay
+  frontmatter-free, because pi's legacy scan reads `.agents/**/*.md` and
+  would turn any file carrying `name` plus `description` into a pi agent.
+  Check all three entry points and their shared targets before finishing;
+  do not leave synchronization for later.
 - **Delegation is decided per agent** (settled 2026-08-28, gated
   2026-08-28, widened 2026-08-30, split 2026-09-04, a third agent
   2026-09-06, a model per agent 2026-09-08, a Codex default 2026-09-11,
