@@ -228,14 +228,15 @@ for every document you have listened to.
   estimate. Sections without reliable boundaries are omitted.
 - **Speed controls** in the player, Settings and keyboard shortcuts change
   by 0.05×, within the existing 0.5×–3× range.
-- **A / M** shows whether this document is following the narration.
-  Scrolling by hand shows **M**, even while the current sentence remains
-  visible. A later visible sentence restores **A** when following resumes.
-- **Click A to stay in manual mode** through later sentences. Click **M**,
-  press **Shift+Enter**, skip a sentence or paragraph, or resume playback
-  to return to the spoken position and restore **A**. Pausing alone keeps
-  A/M unchanged; returning or skipping while paused does not start playback.
-  Other documents keep their own following state.
+- **A / M** controls following in this document. **A** follows the narration;
+  **M** leaves scrolling to you. Scrolling by hand or clicking A enters M.
+  Later sentences, pause/resume and stopping/restarting do not restore A.
+- **Click M or press `Shift+M`** to return to the spoken sentence and follow
+  again. `Shift+M` switches both ways, like the player control.
+  `Shift+Enter` returns and switches to A; `Shift+R` returns once without
+  changing A/M. Skipping in M changes what is read without moving the page.
+  These controls do not start paused audio. Each open document keeps its
+  choice; closing and reopening uses the default from settings.
 - **Theme and controls** follow the reader's appearance. Loading and
   playback errors appear in the player; an error can be opened for details
   and a retry.
@@ -288,6 +289,14 @@ doing:
   switches only once; typing in a text field leaves the layout alone.
 - **Faster / slower — `Shift+C` / `Shift+X`** support holding the key to
   repeat at your system's keyboard rate, in 0.05× steps within 0.5×–3×.
+- **Return and follow — `Shift+Enter`** goes to the reading position and
+  switches to auto-scroll. **Return once — `Shift+R`** goes there without
+  changing A/M. Both work while reading or paused.
+- **Switch A/M — `Shift+M`** switches the current document's following
+  while the player is open. Switching to A also locates the current sentence;
+  paused audio stays paused. **Scroll style — `Shift+A`** switches between
+  centering each sentence and scrolling when outside the view, without
+  changing A/M.
 - **Custom keys** — record another binding, clear it, or restore defaults
   in Keyboard shortcuts. Held speed changes also work with custom keys.
 
@@ -425,7 +434,8 @@ provider (or Zotero's Standard / Premium), language, voice.
 - *Cache synthesized audio* — skipping back or reopening a document costs no
   new request. In memory (64 MB); a Zotero restart empties it.
 - *Auto-scroll* — for PDFs and EPUBs, choose *Center each sentence* (the default) or
-  *Scroll when outside the view* in the Highlight settings.
+  *Scroll when outside the view* in the Highlight settings. These styles
+  apply only while A (automatic) is selected.
   Press `Shift+A` to switch modes; the current mode appears briefly.
   The first centers the whole sentence when it starts; the second leaves
   fully visible sentences in place and centers them only when clipped.
@@ -434,25 +444,20 @@ provider (or Zotero's Standard / Premium), language, voice.
   the current word when real word timing is available; without it, only
   the beginning can be located reliably. Paginated EPUBs keep their pages.
   Document boundaries may limit centering.
-- *Browse while listening* — by default, manual scrolling or page navigation
-  keeps the current sentence where you put it, even if part is outside the
-  view. Moving that same sentence back into view does not recenter it.
-  Following resumes when a later sentence is visible and you finish moving
-  the page. If later sentences stay outside the view, the page stays put.
-  Normal playback without manual browsing still brings clipped text into view.
-  Turn off *Keep auto-scroll while the sentence is visible* to suspend
-  following as soon as you scroll or navigate and resume only on request.
-- *Pause and return* — while paused, the page stays where you leave it.
-  Resuming playback immediately centers the current sentence and restores
-  following, even if you have browsed away. *Go to reading position*
-  (default `Shift+Enter`) and the player's skip buttons also locate the
-  sentence and restore following, including while paused.
-  Paginated EPUBs navigate to the sentence's page; document boundaries and
-  sentences taller than the view may limit centering.
-  Changing either auto-scroll setting does not interrupt audio or override
-  manual sentence placement. Automatic scrolling, zoom and window changes
-  do not by themselves turn following off. Both settings are saved, backed
-  up and synchronized with your other settings.
+- *Default following* — *Auto-scroll in newly opened documents* is on by
+  default. Turn it off to start new PDF and EPUB tabs in M (manual).
+  Changing this setting leaves existing tabs alone. The default and scroll
+  style are backed up and synchronized; a tab's current A/M choice is not.
+- *Browse while listening* — manual scrolling or page navigation switches
+  the document to M, even if the sentence remains visible. The page stays
+  under your control through later sentences, pause/resume and stopping
+  and restarting reading. Click M or press `Shift+M` to follow again.
+  Automatic scrolling, zoom and window changes do not themselves enter M.
+- *Return and skip* — `Shift+R` locates the current sentence once and leaves
+  A/M unchanged. `Shift+Enter` locates it and switches to A. In A, skipping
+  a sentence or paragraph locates the new sentence; in M it changes only
+  what is read. Paused audio stays paused. Paginated EPUBs navigate by page;
+  document boundaries and oversized sentences may limit centering.
 - *Read a page's first line when Zotero would skip it* — a sentence that
   runs onto the next page can lose that page's first line: Zotero reads
   straight past it, and the join sounds like a sentence. On, the line is

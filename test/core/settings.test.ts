@@ -114,6 +114,8 @@ describe('loadSettings', () => {
       nextParagraph: 'Shift+ArrowRight',
       startFromSelection: 'Shift+Space',
       returnToSpoken: 'Shift+Enter',
+      goToReadingPosition: 'Shift+R',
+      toggleFollowing: 'Shift+M',
       toggleOptions: 'Shift+O',
       cyclePlayerLayout: 'Shift+P',
       stopReading: 'Shift+S',

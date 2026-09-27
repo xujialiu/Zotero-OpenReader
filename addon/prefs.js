@@ -60,6 +60,8 @@ pref('extensions.zotero.zotero-tts.shortcuts.previousParagraph', 'Shift+ArrowLef
 pref('extensions.zotero.zotero-tts.shortcuts.nextParagraph', 'Shift+ArrowRight');
 pref('extensions.zotero.zotero-tts.shortcuts.startFromSelection', 'Shift+Space');
 pref('extensions.zotero.zotero-tts.shortcuts.returnToSpoken', 'Shift+Enter');
+pref('extensions.zotero.zotero-tts.shortcuts.goToReadingPosition', 'Shift+R');
+pref('extensions.zotero.zotero-tts.shortcuts.toggleFollowing', 'Shift+M');
 pref('extensions.zotero.zotero-tts.shortcuts.toggleOptions', 'Shift+O');
 pref('extensions.zotero.zotero-tts.shortcuts.cyclePlayerLayout', 'Shift+P');
 pref('extensions.zotero.zotero-tts.shortcuts.stopReading', 'Shift+S');
@@ -86,7 +88,7 @@ pref('extensions.zotero.zotero-tts.highlight.sentence', true);
 pref('extensions.zotero.zotero-tts.highlight.word', true);
 
 pref('extensions.zotero.zotero-tts.readAloud.autoScrollMode', 'sentence');
-pref('extensions.zotero.zotero-tts.readAloud.keepFollowingWhileVisible', true);
+pref('extensions.zotero.zotero-tts.readAloud.defaultAutoScroll', true);
 pref('extensions.zotero.zotero-tts.shortcuts.toggleAutoScroll', 'Shift+A');
 pref('extensions.zotero.zotero-tts.shortcuts.previousVoice', 'Shift+,');
 pref('extensions.zotero.zotero-tts.shortcuts.nextVoice', 'Shift+.');

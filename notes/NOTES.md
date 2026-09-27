@@ -662,3 +662,6 @@ then) and is in the git history before that day.
 - Downward corrections are bounded too (remaining-time design)
 - Stable estimates use accumulated listening across transitions (issue #152)
 - Stable remaining time verified in the book (issue #152)
+
+- Explicit manual follow ends at resume or return (research)
+- Follow intent outlives the reading session (issue #153)

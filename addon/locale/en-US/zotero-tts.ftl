@@ -234,8 +234,6 @@ ztts-key-next-paragraph =
     .value = Next paragraph
 ztts-key-play =
     .value = Play / pause / resume
-ztts-key-return =
-    .value = Go to reading position
 ztts-key-options =
     .value = Player options
 ztts-key-stop =
@@ -252,7 +250,7 @@ ztts-help-key-play =
     .help = Works in every state: pauses or resumes an open session, and otherwise starts reading — from the selected text, where you last stopped, or from the visible page.
 ztts-help-key-return =
     .value = ?
-    .help = Acts only while Read Aloud is open; otherwise the key keeps its usual meaning in the reader.
+    .help = Acts only while Read Aloud is open. Return to the sentence being read and switch this document to A (automatic). Paused audio stays paused. Default: Shift+Enter.
 ztts-help-key-options =
     .value = ?
     .help = Shows or hides the floating panel's provider, language and voice rows. Acts only while Read Aloud is open.
@@ -507,7 +505,7 @@ ztts-action-next-sentence = Next sentence
 ztts-action-previous-paragraph = Previous paragraph
 ztts-action-next-paragraph = Next paragraph
 ztts-action-play = Play / pause / resume
-ztts-action-return = Go to reading position
+ztts-action-return = Go to reading position and switch to auto-scroll
 ztts-action-options = Player options
 ztts-action-stop = Stop reading everywhere
 ztts-action-word-highlight = Word highlight on / off
@@ -571,11 +569,11 @@ ztts-substitute-paid = Zotero-TTS: { $missing } is not offered here, and no othe
 
 ## Auto-scroll
 
-ztts-keep-following-visible =
-    .label = Keep auto-scroll while the sentence is visible
-ztts-help-keep-following-visible =
+ztts-default-auto-scroll =
+    .label = Auto-scroll in newly opened documents
+ztts-help-default-auto-scroll =
     .value = ?
-    .help = On by default. In PDFs and EPUBs, manual scrolling keeps the current sentence where you put it, even at the edge. Following resumes when a later sentence is visible and you finish moving the page. While paused, the page stays put. Resuming playback always returns to the current sentence. Go to reading position and skip buttons also restore following. Turn this off to suspend following on any manual navigation until you resume playback, return or skip.
+    .help = On starts new document tabs in A (automatic); off starts them in M (manual). The player's A/M changes only that tab. Existing tabs keep their choice through pause, resume and stop. Closing and reopening uses this default again. This default is included in settings backup and sync.
 
 ztts-auto-scroll =
     .value = Auto-scroll
@@ -585,10 +583,10 @@ ztts-auto-scroll-outside =
     .label = Scroll when outside the view
 ztts-help-auto-scroll-sentence =
     .value = ?
-    .help = Center the whole sentence vertically whenever a new sentence starts, even if it is already visible. Word highlights do not repeatedly recenter a fitting sentence. For PDFs and EPUBs; paginated EPUBs keep their pages. Go to reading position resumes following after you browse away.
+    .help = In A (automatic), center each new sentence even if it is already visible. In M (manual), leave the page alone. For PDFs and EPUBs; paginated EPUBs navigate by page.
 ztts-help-auto-scroll-outside =
     .value = ?
-    .help = Leave a fully visible sentence in place. Scroll to center it only when any part leaves the view. For PDFs and EPUBs; paginated EPUBs keep their pages. Sentences taller than the view start at their beginning, then follow the current word when available. Go to reading position resumes following after you browse away.
+    .help = In A (automatic), leave a fully visible sentence in place and scroll only when it is clipped. In M (manual), leave the page alone. Oversized sentences follow their beginning, then real word positions when available. Paginated EPUBs navigate by page.
 
 ztts-key-auto-scroll =
     .value = Auto-scroll mode
@@ -646,8 +644,8 @@ ztts-player-play = Play
 ztts-player-pause = Pause
 ztts-player-speed = Speed
 ztts-player-volume = Volume
-ztts-player-automatic = Following this document. Click to browse manually.
-ztts-player-manual = Manual scrolling. Click to return to the spoken position and follow.
+ztts-player-automatic = Automatic scrolling. Click to switch to manual until you explicitly switch back.
+ztts-player-manual = Manual scrolling. Click to go to the reading position and switch to automatic.
 ztts-player-search = Search
 ztts-player-empty = No matches
 ztts-player-loading = Loading voices…
@@ -700,3 +698,17 @@ ztts-time-summary = { $name } { $time }
 
 ztts-time-section = Section
 ztts-time-pair = { $document } · { $section }
+
+# Independent follow actions (#153)
+ztts-key-locate =
+    .value = Go to reading position
+ztts-action-locate = Go to reading position
+ztts-help-key-locate =
+    .value = ?
+    .help = Acts only while Read Aloud is open. Locate the sentence once without changing A/M or starting paused audio. Default: Shift+R.
+ztts-key-following =
+    .value = Switch A/M
+ztts-action-following = Switch A/M
+ztts-help-key-following =
+    .value = ?
+    .help = Switch this document between automatic and manual scrolling, like the player's A/M. Switching to A also locates the current sentence. Paused audio stays paused. Default: Shift+M.

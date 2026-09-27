@@ -315,7 +315,7 @@ function makeDeps(over: Partial<SentenceInViewDeps> = {}) {
 const A_POSITION = { pageIndex: 1, rects: [A_HEAD], nextPageRects: [A_TAIL] };
 
 describe('createSentenceInView', () => {
-  it('uses actual PDF fragments across pages, rather than the space between them', () => {
+  it('keeps manual intent across page-spanning sentence fragments', () => {
     vi.useFakeTimers();
     const module = createSentenceInView(makeDeps());
     const { reader, view, container } = fakeReader({ scrollTop: 1000 });
@@ -323,19 +323,19 @@ describe('createSentenceInView', () => {
     const position = { pageIndex: 0, rects: [[10, 900, 500, 950]], nextPageRects: [[10, 1980, 500, 2010]] };
     push(view, position); container.emit('wheel', { deltaY: 1 });
     container.emit('scroll'); vi.runAllTimers();
-    expect(module.inspect(reader)).toMatchObject({ following: true, interacting: false });
+    expect(module.inspect(reader)).toMatchObject({ following: false });
     container.emit('wheel', { deltaY: -30 }); container.scrollTop = 980;
     container.emit('scroll');
     // The viewport now lies in whitespace between the two real fragments.
     expect(module.inspect(reader).following).toBe(false);
     module.dispose(); vi.runAllTimers(); vi.useRealTimers();
   });
-  it('does not interpret unavailable next-page geometry as complete disappearance', () => {
+  it('does not need next-page geometry to stop following on manual input', () => {
     vi.useFakeTimers(); const module = createSentenceInView(makeDeps());
     const { reader, view, container } = fakeReader({ scrollTop: 1000 }); module.attach(reader);
     push(view, { pageIndex: 2, rects: [[10, 900, 500, 950]], nextPageRects: [[10, 1980, 500, 2010]] });
     container.emit('wheel', { deltaY: 1 }); container.emit('scroll'); vi.runAllTimers();
-    expect(module.inspect(reader)).toMatchObject({ following: true, interacting: false, sentenceProtected: true });
+    expect(module.inspect(reader)).toMatchObject({ following: false });
     module.dispose(); vi.runAllTimers(); vi.useRealTimers();
   });
   it('centers one time per sentence, applies mode changes and forces explicit returns', () => {
@@ -499,15 +499,15 @@ describe('createSentenceInView', () => {
     expect(module.inspect(reader)).toMatchObject({ covered: { top: 34, bottom: 0 }, sentence: { cut: true } });
   });
 
-  it('counts a sentence under a docked bar as out of view after a manual scroll (#135)', () => {
+  it('keeps manual intent regardless of docked-bar coverage (#153)', () => {
     vi.useFakeTimers();
-    for (const [covered, following] of [[{ top: 0, bottom: 0 }, true], [{ top: 34, bottom: 0 }, false]] as const) {
+    for (const covered of [{ top: 0, bottom: 0 }, { top: 34, bottom: 0 }]) {
       const module = createSentenceInView(makeDeps({ covered: () => covered }));
       const { reader, view, container } = fakeReader({ scrollTop: 1000 });
       module.attach(reader);
       push(view, { pageIndex: 0, rects: [[10, 1000, 500, 1030]] });
       container.emit('wheel', { deltaY: 1 }); container.emit('scroll'); vi.runAllTimers();
-      expect(module.inspect(reader).following).toBe(following);
+      expect(module.inspect(reader).following).toBe(false);
       module.dispose();
     }
     vi.runAllTimers(); vi.useRealTimers();

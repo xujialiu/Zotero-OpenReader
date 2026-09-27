@@ -39,20 +39,14 @@ historical values are not fresh PASS results on another build.
    its centered target, including a sentence already visible near an
    edge. Repeated word updates within the same sentence do not produce
    new centering requests. Prove audio advancement, not only word timers.
-4. **Manual intent and explicit return.** With Keep auto-scroll while the
-   sentence is visible turned off, trusted wheel or PageDown suspends
-   following in both formats. With it on, manual navigation protects the
-   current sentence's placement; run [section 3i](manual-follow.md) for
-   later-visible-sentence recovery and paused behavior (#107). With the
-   switch off, later sentences and mode changes do not reactivate following.
-   Resuming from pause always returns and restores following, even outside
-   the view; the pause half of the toggle never forces a return. Test PageDown
-   independently from wheel input and record its exact target/event path.
-   Go to reading position returns to the
-   current sentence even while paused, and resumes the selected mode.
-   Explicit previous/next sentence behaves the same. Delayed automatic
-   scroll events alone do not disengage. Ordinary clicks and zoom retain
-   following; observe animation interruption separately when possible.
+4. **Manual intent and explicit return.** Trusted wheel or PageDown enters
+   persistent M in both formats, regardless of sentence visibility. Later
+   sentences, reentry and pause/resume keep M. Shift+R locates once without
+   changing A/M; Shift+Enter locates and switches to A; Shift+M switches
+   A/M. Skip in M changes only the spoken position, whereas skip in A also
+   locates it. All keep paused audio paused. Run
+   [Player following](player-following.md) for default/tab lifetime and
+   shortcut behavior. Delayed automatic scrolling does not enter M.
 5. **Oversized sentences.** On entry, locate the first reading-order
    rect, including a column-crossing sentence whose whole box begins
    above its first line. Thereafter follow a real word only when clipped.
@@ -68,7 +62,8 @@ historical values are not fresh PASS results on another build.
    section before highlighting. Check both modes and return while paused.
 7. **Visibility and lifecycle.** Hidden playback defers movement. On
    return, following views locate the latest sentence; manually disengaged
-   views remain disengaged. Secondary views keep independent intent.
+   views remain disengaged. Split views share their document's intent;
+   separate documents remain independent.
    Dispose/reload restores native methods and helper properties without
    errors. Preserve current PDF section 3d ownership/input regressions.
 8. **Toggle shortcut.** Trusted Shift+A in PDF and EPUB switches

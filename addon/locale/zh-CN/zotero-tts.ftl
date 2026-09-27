@@ -221,8 +221,6 @@ ztts-key-next-paragraph =
     .value = 下一段
 ztts-key-play =
     .value = 播放 / 暂停 / 继续
-ztts-key-return =
-    .value = 回到朗读位置
 ztts-key-options =
     .value = 播放器选项
 ztts-key-stop =
@@ -239,7 +237,7 @@ ztts-help-key-play =
     .help = 任何状态下都生效：已打开的朗读会暂停或继续，否则开始朗读——从选中的文字、上次停下的地方，或当前可见的页面开始。
 ztts-help-key-return =
     .value = ?
-    .help = 仅在朗读打开时生效；否则这个键在阅读器里保持原来的作用。
+    .help = 仅在朗读打开时生效。返回正在朗读的句子，并将当前文档切换为 A（自动）。暂停的音频仍保持暂停。默认：Shift+Enter。
 ztts-help-key-options =
     .value = ?
     .help = 展开或收起悬浮面板的语音服务、语言和声音三行。仅在朗读打开时生效。
@@ -463,7 +461,7 @@ ztts-action-next-sentence = 下一句
 ztts-action-previous-paragraph = 上一段
 ztts-action-next-paragraph = 下一段
 ztts-action-play = 播放 / 暂停 / 继续
-ztts-action-return = 回到朗读位置
+ztts-action-return = 返回朗读位置并开启自动滚动
 ztts-action-options = 播放器选项
 ztts-action-stop = 停止所有朗读
 ztts-action-word-highlight = 单词高亮 开 / 关
@@ -517,11 +515,11 @@ ztts-substitute-paid = Zotero-TTS：这里没有提供 { $missing }，也没有 
 
 ## Auto-scroll
 
-ztts-keep-following-visible =
-    .label = 句子可见时保持自动滚动
-ztts-help-keep-following-visible =
+ztts-default-auto-scroll =
+    .label = 新打开的文档默认自动滚动
+ztts-help-default-auto-scroll =
     .value = ?
-    .help = 默认开启。在 PDF 和 EPUB 中，手动滚动后，当前句子会保持在你放置的位置，即使位于视野边缘。停止移动页面后，后续句子进入视野时恢复自动滚动。暂停期间页面保持原位；继续播放时，无论当前句子是否可见，都会立即返回。回到朗读位置或跳句也会恢复跟随。关闭此选项后，任何手动导航都会停止跟随，直到继续播放、返回或跳句。
+    .help = 开启时，新文档标签页使用 A（自动）；关闭时使用 M（手动）。播放器的 A/M 只改变当前标签页。已打开的标签页在暂停、继续和停止后保留原来的选择；关闭后重新打开则使用此默认值。默认值参与设置备份和同步。
 
 ztts-auto-scroll =
     .value = 自动滚动
@@ -531,10 +529,10 @@ ztts-auto-scroll-outside =
     .label = 超出视图时滚动
 ztts-help-auto-scroll-sentence =
     .value = ?
-    .help = 每句开始时，将整句移到视图的垂直中央，即使它已经完全可见。逐词高亮不会让能完整显示的句子反复居中。适用于 PDF 和 EPUB；EPUB 翻页模式保留原来的分页。浏览其他位置后，“回到朗读位置”可恢复跟随。
+    .help = 在 A（自动）状态下，每个新句子都会居中，即使它已经可见。在 M（手动）状态下不移动页面。适用于 PDF 和 EPUB；分页 EPUB 按页定位。
 ztts-help-auto-scroll-outside =
     .value = ?
-    .help = 整句完全可见时保持原位；只有句子有部分超出视图时，才滚动并将整句居中。适用于 PDF 和 EPUB；EPUB 翻页模式保留原来的分页。超长句子先显示句首，有逐词定位时再跟随当前单词。浏览其他位置后，“回到朗读位置”可恢复跟随。
+    .help = 在 A（自动）状态下，句子完整可见时保持不动，被截断时才滚动。在 M（手动）状态下不移动页面。超长句子先定位开头，有真实单词时间戳时再跟随单词；分页 EPUB 按页定位。
 
 ztts-key-auto-scroll =
     .value = 自动滚动模式
@@ -592,8 +590,8 @@ ztts-player-play = 播放
 ztts-player-pause = 暂停
 ztts-player-speed = 速度
 ztts-player-volume = 音量
-ztts-player-automatic = 正在跟随当前文档。点击改为手动浏览。
-ztts-player-manual = 手动浏览中。点击返回朗读位置并恢复跟随。
+ztts-player-automatic = 自动滚动。点击切换为手动，直到你主动切回自动。
+ztts-player-manual = 手动滚动。点击返回朗读位置并切换为自动。
 ztts-player-search = 搜索
 ztts-player-empty = 没有匹配结果
 ztts-player-loading = 正在加载声音…
@@ -645,3 +643,17 @@ ztts-time-summary = { $name } { $time }
 
 ztts-time-section = 小节
 ztts-time-pair = { $document } · { $section }
+
+# Independent follow actions (#153)
+ztts-key-locate =
+    .value = 返回朗读位置
+ztts-action-locate = 返回朗读位置
+ztts-help-key-locate =
+    .value = ?
+    .help = 仅在朗读打开时生效。定位当前句一次，不改变 A/M，也不开始播放暂停的音频。默认：Shift+R。
+ztts-key-following =
+    .value = 切换 A/M
+ztts-action-following = 切换 A/M
+ztts-help-key-following =
+    .value = ?
+    .help = 与播放器的 A/M 相同，在自动和手动滚动之间切换当前文档。切到 A 时也会定位当前句。暂停的音频仍保持暂停。默认：Shift+M。

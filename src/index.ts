@@ -39,6 +39,7 @@ import { forgetViewReadAloudState, readAloudViewKind, type ReadAloudViewKind } f
 import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-redelivery';
 import { createReadAloudMemorySync, type ReadAloudMemorySync } from './read-aloud/memory-sync';
 import { createHighlightStyling, type HighlightStyling } from './read-aloud/highlight-style';
+import { createFollowIntents } from './read-aloud/follow-intent';
 import { createDOMFollow } from './read-aloud/dom-follow';
 import { forEachReader, liveReaderValue, readerGone } from './read-aloud/reader-access';
 import { createResumeGuard } from './read-aloud/resume-guard';
@@ -188,6 +189,7 @@ let textSettings: ReturnType<typeof createTextSettings> | null = null;
 const readerSources = new WeakMap<object, RemoteInterface>();
 
 const prefs = createZoteroPrefs();
+const followIntents = createFollowIntents(() => prefs.get(PREF_PREFIX + 'readAloud.defaultAutoScroll') !== false);
 let liveVoiceList: ReturnType<typeof createLiveVoiceList> | null = null;
 let liveListObservers: unknown[] = [];
 const readingImpact = createReadingImpact({
@@ -206,24 +208,42 @@ const playerController = createPlayerController({
   close: (reader) => reader._internalReader.toggleReadAloudPopup(false),
   togglePaused: togglePlayerPaused,
   rememberSpeed: (speed) => readAloudMemory?.learnSpeed(speed),
-  follow: (reader) => { readAloudShortcuts?.returnToSpoken(reader); },
+  follow: (reader) => locateReadingPosition(reader, true),
   navigate: (reader, action) => { readAloudShortcuts?.navigate(reader, action); },
-  automatic: (reader) => sentenceInView?.automatic(reader) ?? domFollowing?.automatic(reader) ??
-    (reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView)?._readAloud?.positionLocked !== false,
-  manual: (reader) => {
-    sentenceInView?.manual(reader);
-    domFollowing?.manual(reader);
-    // Snapshot/Reading Mode views retain Zotero's native following.
-    if (sentenceInView?.automatic(reader) == null && domFollowing?.automatic(reader) == null) {
-      const internal = reader?._internalReader;
-      for (const view of [internal?._primaryView, internal?._secondaryView]) view?._readAloud?.setPositionLocked(false);
-    }
-  },
+  automatic: automaticFollowing,
+  manual: manualFollowing,
   anyReading: () => playerStop.open().length > 0,
   affectedTabs: readingImpact.affectedTabs,
   message: (key, args) => key.startsWith('ztts-time-') ? t(key, args) : playerMessage(key),
   remainingTime: reader => engine?.remainingTime(reader) ?? { status: 'estimating', scope: 'document', seconds: null },
 });
+function automaticFollowing(reader: any): boolean {
+  return followIntents.get(reader).automatic;
+}
+function manualFollowing(reader: any): void {
+  sentenceInView?.manual(reader);
+  domFollowing?.manual(reader);
+  followIntents.get(reader).automatic = false;
+  if (sentenceInView?.automatic(reader) == null && domFollowing?.automatic(reader) == null) {
+    const internal = reader?._internalReader;
+    for (const view of [internal?._primaryView, internal?._secondaryView]) view?._readAloud?.setPositionLocked(false);
+  }
+}
+function locateReadingPosition(reader: any, automatic: boolean): void {
+  if (automatic) followIntents.get(reader).automatic = true;
+  const pdf = sentenceInView?.attach(reader);
+  const dom = domFollowing?.attach(reader);
+  if (pdf) sentenceInView?.locate(reader, automatic);
+  if (dom) domFollowing?.locate(reader, automatic);
+  if (!pdf && !dom) {
+    // Snapshot/Reading Mode views still use Zotero's native position command.
+    const internal = reader?._internalReader;
+    internal?._lockPositionToReadAloud?.();
+    forgetViewReadAloudState(reader, waived);
+    internal?._readAloudManager?._stateChanged?.();
+    if (!automaticFollowing(reader)) for (const view of [internal?._primaryView, internal?._secondaryView]) view?._readAloud?.setPositionLocked(false);
+  }
+}
 function togglePlayerPaused(reader: any): void {
   reader?._internalReader?.toggleReadAloudPaused();
 }
@@ -477,6 +497,7 @@ function readerSignedIn(reader: any): boolean {
  * a tab's slots hold — the slot always holds a clone, never this object.
  */
 function buildReaderInterface(reader: any, targetWindow: any, native: () => unknown): unknown {
+  followIntents.get(reader);
   readAloudMemory?.attach(reader);
   const composite = createRemoteInterface({
     // Zotero's own interface is kept: its Standard and Premium voices,
@@ -735,7 +756,9 @@ function watchWindow(win: any): void {
 }
 
 function watchReader(reader: any): void {
-  if (!reader || !readAloudShortcuts) return;
+  if (!reader) return;
+  followIntents.get(reader);
+  if (!readAloudShortcuts) return;
   pluginPlayer?.attach(reader);
   watchWindow(reader._window);
   readAloudMemory?.attach(reader);
@@ -1076,7 +1099,10 @@ function startReadAloudShortcuts(pluginID: string): void {
       const doc = reader ? toastDoc(reader) : fallbackDoc;
       if (doc) showToast(doc, t('ztts-stopped-toast', { count }));
     },
-    // After a skip, what the popup's own buttons do: the view follows the spoken position again
+    // Follow intent and one-time positioning are independent of audio state (#153).
+    locate: locateReadingPosition,
+    automatic: automaticFollowing,
+    manual: manualFollowing,
     lockPosition: (reader: any) => reader?._internalReader?._lockPositionToReadAloud?.(),
     // The smart key is consumed whenever Read Aloud exists — never left to
     // the reader (notes/shift_space_logic.md)
@@ -2152,7 +2178,7 @@ function startSentenceInView(): void {
   const deps: SentenceInViewDeps = {
     resuming: (reader) => followResumeGuard?.resuming(reader) ?? false,
     mode: () => autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
-    keepFollowingWhileVisible: () => prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,
+    intents: followIntents,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     // What the reader hands an exported function arrives behind Xray wrappers (see highlight-style.ts)
     waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),

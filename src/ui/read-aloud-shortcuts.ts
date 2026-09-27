@@ -92,6 +92,10 @@ export interface ReadAloudShortcutsDeps {
   showVolumeToast?(reader: unknown, level: number): void;
   /** After a skip, what the popup's own buttons do: lock the view to the spoken position, so it follows again. */
   lockPosition?(reader: unknown): void;
+  /** Position once, optionally enabling continuous follow; never changes paused audio. */
+  locate?(reader: unknown, automatic: boolean): void;
+  automatic?(reader: unknown): boolean;
+  manual?(reader: unknown): void;
   /**
    * Whether Read Aloud exists on this reader at all (Zotero's
    * `reader.startReadAloudAtPosition` feature-detect). The smart key is
@@ -204,8 +208,10 @@ export interface ReadAloudShortcuts {
   navigate(reader: unknown, action: NavigationAction): boolean;
   /** The smart play key; false when this reader has no Read Aloud to act on, so the key is left alone. */
   smartPlay(reader: unknown): boolean;
-  /** Bring the view back to the spoken position; false when no Read Aloud session is open. */
+  /** Locate the spoken position and switch to automatic; false with no open session. */
   returnToSpoken(reader: unknown): boolean;
+  goToReadingPosition(reader: unknown): boolean;
+  toggleFollowing(reader: unknown): boolean;
   /** Unfold or fold the player's options panel; false when no player is on screen. */
   toggleOptions(reader: unknown): boolean;
   /** The stop key: close every open player and say how many; returns the count closed (0 unwired). */
@@ -312,9 +318,8 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     } catch (e) {
       log(e);
     }
-    // A paused skip emits its new segment before the lock is restored.
-    // Push again through the explicit-return path so it locates immediately.
-    returnToSpoken(reader);
+    // A paused skip still locates in A; M changes only the spoken position.
+    if (deps.automatic?.(reader) !== false) goToReadingPosition(reader);
     return true;
   }
 
@@ -372,10 +377,26 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
   }
 
   /** A session is open (the view has a spoken position to return to) and the lock is wired. */
-  const canReturnToSpoken = (reader: unknown): boolean => !!deps.lockPosition && !!managerOf(reader)?.active;
+  const canReturnToSpoken = (reader: unknown): boolean => !!(deps.locate || deps.lockPosition) && !!managerOf(reader)?.active;
 
-  function returnToSpoken(reader: unknown): boolean {
+  function toggleFollowing(reader: unknown): boolean {
+    if (!deps.automatic || !deps.manual || !deps.locate) return false;
+    try {
+      if (deps.automatic(reader)) deps.manual(reader);
+      else deps.locate(reader, true);
+      return true;
+    } catch (e) { log(e); return false; }
+  }
+
+  const returnToSpoken = (reader: unknown) => locate(reader, true);
+  const goToReadingPosition = (reader: unknown) => locate(reader, false);
+
+  function locate(reader: unknown, automatic: boolean): boolean {
     if (!canReturnToSpoken(reader)) return false;
+    if (deps.locate) {
+      try { deps.locate(reader, automatic); return true; }
+      catch (e) { log(e); return false; }
+    }
     try {
       deps.lockPosition?.(reader);
     } catch (e) {
@@ -517,7 +538,8 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (isNavigationAction(action) && !canSkip(managerOf(reader))) return false;
     if (isVolumeAction(action) && !managerOf(reader)?.active) return false;
     if (action === 'startFromSelection' && !canSmartPlay(reader)) return false;
-    if (action === 'returnToSpoken' && !canReturnToSpoken(reader)) return false;
+    if ((action === 'returnToSpoken' || action === 'goToReadingPosition') && !canReturnToSpoken(reader)) return false;
+    if (action === 'toggleFollowing' && (!deps.isPluginPlayerOpen?.(reader) || !deps.automatic || !deps.manual || !deps.locate)) return false;
     if (action === 'toggleOptions' && !optionsButton(reader)) return false;
     if (action === 'cyclePlayerLayout' && !deps.isPluginPlayerOpen?.(reader)) return false;
     if ((action === 'previousVoice' || action === 'nextVoice') && !managerOf(reader)?.active) return false;
@@ -531,6 +553,8 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     else if (isVolumeAction(action)) adjustVolume(reader, action);
     else if (action === 'startFromSelection') smartPlay(reader);
     else if (action === 'returnToSpoken') returnToSpoken(reader);
+    else if (action === 'goToReadingPosition') goToReadingPosition(reader);
+    else if (action === 'toggleFollowing') toggleFollowing(reader);
     else if (action === 'toggleOptions') toggleOptions(reader);
     else if (action === 'cyclePlayerLayout') {
       const current = playerLayout(deps.prefs);
@@ -582,7 +606,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     for (const target of [...listeners.keys()]) unlisten(target);
   }
 
-  return { handleKeyDown, adjust, adjustVolume, navigate, smartPlay, returnToSpoken, toggleOptions, stopReading, toggleWordHighlight, toggleAutoScroll, listen, unlisten, dispose };
+  return { handleKeyDown, adjust, adjustVolume, navigate, smartPlay, returnToSpoken, goToReadingPosition, toggleFollowing, toggleOptions, stopReading, toggleWordHighlight, toggleAutoScroll, listen, unlisten, dispose };
 }
 
 /** The document a key was pressed in: the listening window's, else the target's own; null when neither is reachable. */

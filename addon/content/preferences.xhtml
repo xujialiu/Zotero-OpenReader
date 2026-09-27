@@ -475,9 +475,9 @@
       </radiogroup>
     </hbox>
     <hbox align="center">
-      <checkbox id="ztts-keep-following-visible" data-l10n-id="ztts-keep-following-visible"
-                preference="extensions.zotero.zotero-tts.readAloud.keepFollowingWhileVisible"/>
-      <label class="ztts-help" value="?" data-l10n-id="ztts-help-keep-following-visible" data-l10n-attrs="help"/>
+      <checkbox id="ztts-default-auto-scroll" data-l10n-id="ztts-default-auto-scroll"
+                preference="extensions.zotero.zotero-tts.readAloud.defaultAutoScroll"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-default-auto-scroll" data-l10n-attrs="help"/>
     </hbox>
     <!-- One row per level (issue #114): its switch, then its color and opacity. The
          last switch still on is greyed by highlight-rows.ts; both off is not a state. -->
@@ -575,10 +575,22 @@
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-play" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <label data-l10n-id="ztts-key-return" style="width: 12em"/>
+      <description data-l10n-id="ztts-action-return" style="width: 12em; margin-block: 0"/>
       <button id="ztts-key-returnToSpoken" style="min-width: 10em"/>
       <button id="ztts-key-clear-returnToSpoken" data-l10n-id="ztts-clear"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-return" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-key-locate" style="width: 12em"/>
+      <button id="ztts-key-goToReadingPosition" style="min-width: 10em"/>
+      <button id="ztts-key-clear-goToReadingPosition" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-locate" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-key-following" style="width: 12em"/>
+      <button id="ztts-key-toggleFollowing" style="min-width: 10em"/>
+      <button id="ztts-key-clear-toggleFollowing" data-l10n-id="ztts-clear"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-following" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
       <label data-l10n-id="ztts-key-options" style="width: 12em"/>

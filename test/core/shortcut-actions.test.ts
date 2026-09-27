@@ -24,8 +24,8 @@ describe('shortcut actions', () => {
     expect(HIGHLIGHT_ACTIONS).toEqual(['toggleWordHighlight']);
     expect(VOLUME_ACTIONS).toEqual(['volumeDown', 'volumeUp']);
     expect(NAVIGATION_ACTIONS).toEqual(['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph']);
-    expect(POSITION_ACTIONS).toEqual(['startFromSelection', 'returnToSpoken']);
-    expect(PLAYER_ACTIONS).toEqual(['toggleOptions', 'cyclePlayerLayout', 'stopReading']);
+    expect(POSITION_ACTIONS).toEqual(['startFromSelection', 'returnToSpoken', 'goToReadingPosition']);
+    expect(PLAYER_ACTIONS).toEqual(['toggleOptions', 'cyclePlayerLayout', 'stopReading', 'toggleFollowing']);
   });
 
   it("maps each navigation action to a direction and a granularity Zotero's manager understands", () => {

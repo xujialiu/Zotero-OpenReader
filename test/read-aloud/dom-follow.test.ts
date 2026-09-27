@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createFollowIntents } from '../../src/read-aloud/follow-intent';
 import { createDOMFollow } from '../../src/read-aloud/dom-follow';
 
-function fixture() {
+function fixture(intents = createFollowIntents()) {
   const doc: any = new EventTarget();
   const win: any = new EventTarget();
   Object.assign(win, { document: doc, innerWidth: 800, innerHeight: 1000, scrollX: 0, scrollY: 1000, scrollTo: vi.fn() });
@@ -50,7 +51,7 @@ function fixture() {
   const reader = { _window: {}, _internalReader: { _primaryView: view } };
   let mode: 'outside' | 'sentence' = 'outside';
   type Covered = { top: number; bottom: number };
-  const deps = { enabled: () => true, mode: () => mode, keepFollowingWhileVisible: () => false, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn(),
+  const deps = { intents, enabled: () => true, mode: () => mode, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn(),
     covered: ((_frame: unknown, _box: Covered): Covered => ({ top: 0, bottom: 0 })) };
   const module = createDOMFollow(deps);
   const push = (key: string, word?: string) => helper.setState({ active: true, popupOpen: true, activeSegment: { position: key, sourcePosition: key }, activeWordSourcePosition: word });
@@ -67,48 +68,17 @@ describe('EPUB auto-scroll', () => {
     f.deps.enabled = () => true; f.module.refresh();
     expect(f.win.scrollTo).toHaveBeenCalled(); f.module.dispose();
   });
-  it('automatically resumes when the current sentence reenters in either EPUB flow', () => {
-    vi.useFakeTimers();
-    for (const flow of ['scrolled', 'paginated']) {
-      const f = fixture(); f.view.flowMode = flow; f.deps.keepFollowingWhileVisible = () => true;
+  it.each(['scrolled', 'paginated'])('keeps manual navigation through reentry and settings changes in %s', flow => {
+    const f = fixture(); f.view.flowMode = flow;
+    try {
       f.module.attach(f.reader); f.push(f.range('a', 100, 150)); f.view.navigateToNextPage();
-      f.range('a', -50, 0); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
-      expect(f.module.inspect(f.reader)).toMatchObject({ following: false, visibilityPaused: true });
-      f.win.scrollTo.mockClear(); f.nativeNavigate.mockClear(); f.push(f.range('b', 1100, 1150)); vi.runAllTimers();
+      f.win.scrollTo.mockClear(); f.nativeNavigate.mockClear();
+      f.range('a', -50, 0); f.win.dispatchEvent(new Event('scroll'));
+      f.push(f.range('b', 100, 150)); f.win.dispatchEvent(new Event('scroll'));
+      f.mode('sentence'); f.module.refresh();
+      expect(f.module.automatic(f.reader)).toBe(false);
       expect(f.win.scrollTo).not.toHaveBeenCalled(); expect(f.nativeNavigate).not.toHaveBeenCalled();
-      f.range('b', -49, 1); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
-      expect(f.module.inspect(f.reader)).toMatchObject({ following: true, visibilityPaused: false });
-      f.view.navigateToNextPage(); f.range('b', -50, 0); f.win.dispatchEvent(new Event('scroll'));
-      f.push(f.range('c', 100, 150)); vi.runAllTimers();
-      expect(f.module.inspect(f.reader).following).toBe(true);
-      f.module.dispose();
-    }
-    vi.runAllTimers(); vi.useRealTimers();
-  });
-  it('retains partial fragments after navigation and disengages only once all are out', () => {
-    vi.useFakeTimers(); const f = fixture(); f.deps.keepFollowingWhileVisible = () => true;
-    f.module.attach(f.reader); f.push(f.range('a', 900, 1050)); f.win.scrollTo.mockClear();
-    f.view.navigateToNextPage(); f.push('a');
-    expect(f.module.inspect(f.reader)).toMatchObject({ following: true, interacting: true });
-    expect(f.win.scrollTo).toHaveBeenCalledTimes(1);
-    f.range('a', -50, 10); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
-    expect(f.module.inspect(f.reader)).toMatchObject({ following: true, interacting: false });
-    f.view.navigateToNextPage(); f.range('a', -50, 0); f.win.dispatchEvent(new Event('scroll'));
-    expect(f.module.inspect(f.reader).following).toBe(false);
-    f.module.dispose(); vi.runAllTimers(); vi.useRealTimers();
-  });
-  it('uses sentence fragments in paginated word mode and keeps disengagement across settings', () => {
-    vi.useFakeTimers(); const f = fixture(); f.deps.keepFollowingWhileVisible = () => true;
-    f.view.flowMode = 'paginated'; f.module.attach(f.reader);
-    f.push(f.range('sentence', 900, 1020), f.range('word', 1010, 1020));
-    f.view.navigateToNextPage(); vi.runAllTimers();
-    expect(f.module.inspect(f.reader).following).toBe(true);
-    f.view.navigateToNextPage(); f.range('sentence', -100, 0); f.win.dispatchEvent(new Event('scroll'));
-    expect(f.module.inspect(f.reader).following).toBe(false);
-    f.range('sentence', 100, 200); f.deps.keepFollowingWhileVisible = () => false; f.mode('sentence'); f.module.refresh();
-    f.deps.keepFollowingWhileVisible = () => true; f.module.refresh();
-    expect(f.module.inspect(f.reader).following).toBe(false);
-    f.module.dispose(); vi.runAllTimers(); vi.useRealTimers();
+    } finally { f.module.dispose(); }
   });
   it('keeps manual disengagement through a native playback-toggle lock', () => {
     const f = fixture(); f.module.attach(f.reader); f.push(f.range('a', 700, 750));
@@ -117,7 +87,7 @@ describe('EPUB auto-scroll', () => {
     f.view.lockPositionToReadAloud(); f.push('a');
     expect(f.module.inspect(f.reader).following).toBe(false);
     f.deps.resuming = () => false;
-    f.view.lockPositionToReadAloud(); f.push('a');
+    f.module.locate(f.reader, true);
     expect(f.module.inspect(f.reader).following).toBe(true);
   });
   it('preserves native rendering and centers complete ranges only when clipped', () => {
@@ -145,7 +115,7 @@ describe('EPUB auto-scroll', () => {
     f.mode('outside'); f.push(f.range('b', 1100, 1200));
     expect(f.module.inspect(f.reader).following).toBe(false);
     expect(f.win.scrollTo).not.toHaveBeenCalled();
-    f.view.lockPositionToReadAloud(); f.push('b');
+    f.module.locate(f.reader, true);
     expect(f.win.scrollTo).toHaveBeenCalled();
   });
   it('keeps paginated layout and navigates only the head or a real clipped word', () => {
@@ -218,68 +188,6 @@ describe('EPUB auto-scroll', () => {
 });
 
 
-describe('EPUB manual sentence placement and pause (#107)', () => {
-  it.each(['scrolled', 'paginated'])('protects the current sentence in %s flow', flow => {
-    vi.useFakeTimers(); const f = fixture(); f.view.flowMode = flow; f.deps.keepFollowingWhileVisible = () => true;
-    try {
-      f.module.attach(f.reader); f.push(f.range('a', 100, 150));
-      f.view.navigateToNextPage(); f.range('a', -40, 10); f.win.dispatchEvent(new Event('scroll'));
-      f.win.scrollTo.mockClear(); f.nativeNavigate.mockClear(); vi.advanceTimersByTime(200);
-      f.push('a'); f.range('a', -50, 0); f.win.dispatchEvent(new Event('scroll')); vi.advanceTimersByTime(200);
-      f.range('a', -40, 10); f.win.dispatchEvent(new Event('scroll')); vi.advanceTimersByTime(200);
-      expect(f.win.scrollTo.mock.calls.filter((call: unknown[]) => typeof call[0] === 'object')).toHaveLength(0);
-      expect(f.nativeNavigate).not.toHaveBeenCalled();
-      f.push(f.range('b', 1100, 1150)); vi.advanceTimersByTime(200);
-      expect(f.nativeNavigate).not.toHaveBeenCalled();
-      f.range('b', -40, 10); f.win.dispatchEvent(new Event('scroll')); vi.advanceTimersByTime(200);
-      expect(flow === 'scrolled' ? f.win.scrollTo : f.nativeNavigate).toHaveBeenCalled();
-    } finally { f.module.dispose(); vi.useRealTimers(); }
-  });
-  it('does not center while paused and always centers on resume from outside', () => {
-    const f = fixture(); f.module.attach(f.reader); f.push(f.range('a', 100, 150));
-    try {
-      f.win.scrollTo.mockClear();
-      f.helper.setState({ ...f.helper.state, paused: true }); f.mode('sentence'); f.module.refresh();
-      expect(f.win.scrollTo.mock.calls.filter((call: unknown[]) => typeof call[0] === 'object')).toHaveLength(0);
-      f.view.navigateToNextPage(); f.range('a', 2000, 2050); f.win.scrollTo.mockClear();
-      f.helper.setState({ ...f.helper.state, paused: false });
-      expect(f.win.scrollTo).toHaveBeenCalledWith({ behavior: 'smooth', top: 2525 });
-    } finally { f.module.dispose(); }
-  });
-});
-
-
-describe('EPUB player A/M state', () => {
-  it.each(['scrolled', 'paginated'])('tracks manual protection and explicit recovery in %s flow', flow => {
-    vi.useFakeTimers(); const f = fixture(); f.view.flowMode = flow; f.deps.keepFollowingWhileVisible = () => true;
-    try {
-      f.module.attach(f.reader); f.push(f.range('a', 100, 150));
-      expect(f.module.automatic(f.reader)).toBe(true);
-      f.helper.setState({ ...f.helper.state, paused: true });
-      expect(f.module.automatic(f.reader)).toBe(true);
-      f.view.navigateToNextPage(); vi.runAllTimers();
-      expect(f.module.automatic(f.reader)).toBe(false);
-      f.helper.setState({ ...f.helper.state, paused: false });
-      expect(f.module.automatic(f.reader)).toBe(true);
-      f.view.navigateToNextPage(); vi.runAllTimers();
-      f.range('a', -50, 0); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
-      f.range('a', 100, 150); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
-      expect(f.module.automatic(f.reader)).toBe(false);
-      f.push(f.range('b', 100, 150)); vi.runAllTimers();
-      expect(f.module.automatic(f.reader)).toBe(true);
-      f.view.navigateToNextPage(); f.module.manual(f.reader);
-      f.push(f.range('c', 100, 150)); vi.runAllTimers();
-      expect(f.module.automatic(f.reader)).toBe(false);
-      f.helper.setState({ ...f.helper.state, paused: true });
-      f.view.lockPositionToReadAloud(); f.helper.setState({ ...f.helper.state });
-      expect(f.module.automatic(f.reader)).toBe(true);
-      expect(f.helper.state.paused).toBe(true);
-      f.module.manual(f.reader); f.helper.setState({ ...f.helper.state, paused: false });
-      expect(f.module.automatic(f.reader)).toBe(true);
-    } finally { f.module.dispose(); vi.useRealTimers(); }
-  });
-});
-
 describe('EPUB under a docked bar (#135)', () => {
   it('scrolls a sentence out from under the Top bar and the Bottom bar in a scrolled EPUB', () => {
     const top = fixture(); const covered = vi.fn(() => ({ top: 34, bottom: 0 })); top.deps.covered = covered;
@@ -303,15 +211,55 @@ describe('EPUB under a docked bar (#135)', () => {
     expect(f.win.scrollTo).not.toHaveBeenCalled();
     expect(f.module.inspect(f.reader)).toMatchObject({ covered: { top: 0, bottom: 0 } });
   });
-  it('counts a sentence under a bar as out of view after a manual scroll', () => {
+  it('keeps manual intent regardless of whether a bar covers the sentence', () => {
     vi.useFakeTimers();
-    for (const [covered, following] of [[{ top: 0, bottom: 0 }, true], [{ top: 0, bottom: 34 }, false]] as const) {
-      const f = fixture(); f.deps.keepFollowingWhileVisible = () => true; f.deps.covered = () => covered;
+    for (const covered of [{ top: 0, bottom: 0 }, { top: 0, bottom: 34 }]) {
+      const f = fixture(); f.deps.covered = () => covered;
       f.module.attach(f.reader); f.push(f.range('a', 100, 150)); f.view.navigateToNextPage();
       f.range('a', 970, 995); f.win.dispatchEvent(new Event('scroll')); vi.runAllTimers();
-      expect(f.module.inspect(f.reader).following).toBe(following);
+      expect(f.module.inspect(f.reader).following).toBe(false);
       f.module.dispose();
     }
     vi.runAllTimers(); vi.useRealTimers();
   });
+});
+
+
+describe('persistent manual EPUB follow (#153)', () => {
+  it.each(['scrolled', 'paginated'])('keeps manual across sessions and supports one-time return in %s', flow => {
+    const f = fixture(); f.view.flowMode = flow; f.module.attach(f.reader);
+    f.push(f.range('a', 1200, 1300)); f.module.manual(f.reader);
+    f.helper.setState({ ...f.helper.state, paused: true });
+    f.win.scrollTo.mockClear(); f.nativeNavigate.mockClear();
+    f.helper.setState({ ...f.helper.state, paused: false });
+    f.helper.setState({ active: false, popupOpen: false }); f.push(f.range('b', 1400, 1500));
+    expect(f.module.automatic(f.reader)).toBe(false);
+    expect(f.win.scrollTo).not.toHaveBeenCalled(); expect(f.nativeNavigate).not.toHaveBeenCalled();
+    f.module.locate(f.reader);
+    expect(f.module.automatic(f.reader)).toBe(false);
+    expect(flow === 'scrolled' ? f.win.scrollTo : f.nativeNavigate).toHaveBeenCalled();
+    f.helper.setState({ ...f.helper.state, paused: true });
+    f.module.locate(f.reader, true);
+    expect(f.module.automatic(f.reader)).toBe(true); expect(f.helper.state.paused).toBe(true);
+    f.module.dispose();
+  });
+});
+
+
+it('keeps the EPUB default snapshot through a change received before playback', () => {
+  let initial = false;
+  const intents = createFollowIntents(() => initial);
+  const first = fixture(intents); first.module.attach(first.reader);
+  initial = true;
+  const second = fixture(intents); second.module.attach(second.reader);
+  try {
+    first.push(first.range('first', 2000, 2100)); second.push(second.range('second', 2000, 2100));
+    expect(first.module.automatic(first.reader)).toBe(false);
+    expect(first.win.scrollTo).not.toHaveBeenCalled();
+    expect(second.module.automatic(second.reader)).toBe(true);
+    expect(second.win.scrollTo).toHaveBeenCalled();
+    first.module.locate(first.reader, true); second.module.manual(second.reader);
+    expect(first.module.automatic(first.reader)).toBe(true);
+    expect(second.module.automatic(second.reader)).toBe(false);
+  } finally { first.module.dispose(); second.module.dispose(); }
 });

@@ -111,7 +111,8 @@ export interface Settings {
     playerLayout: 'A' | 'B' | 'top';
     /** Follow only clipped content, or center each new sentence. */
     autoScrollMode: AutoScrollMode;
-    keepFollowingWhileVisible: boolean;
+    /** Initial choice for new reader tabs; never overrides existing tab intent. */
+    defaultAutoScroll: boolean;
     /** Expand each newly shown player once, leaving manual folding alone. */
     openExpanded: boolean;
     remainingTime: boolean;
@@ -245,6 +246,8 @@ export const DEFAULTS: Settings = {
     startFromSelection: 'Shift+Space',
     // Taken only while a Read Aloud session is open
     returnToSpoken: 'Shift+Enter',
+    goToReadingPosition: 'Shift+R',
+    toggleFollowing: 'Shift+M',
     // The player's Options panel; taken only while the player is on screen
     toggleOptions: 'Shift+O',
     cyclePlayerLayout: 'Shift+P',
@@ -262,7 +265,7 @@ export const DEFAULTS: Settings = {
   readAloud: {
     playerLayout: 'top',
     autoScrollMode: 'sentence',
-    keepFollowingWhileVisible: true,
+    defaultAutoScroll: true,
     defaultVoice: '',
     sameForAllDocuments: true,
     globalSpeed: true,
@@ -396,6 +399,8 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       nextParagraph: str(prefs, 'shortcuts.nextParagraph', DEFAULTS.shortcuts.nextParagraph),
       startFromSelection: str(prefs, 'shortcuts.startFromSelection', DEFAULTS.shortcuts.startFromSelection),
       returnToSpoken: str(prefs, 'shortcuts.returnToSpoken', DEFAULTS.shortcuts.returnToSpoken),
+      goToReadingPosition: str(prefs, 'shortcuts.goToReadingPosition', DEFAULTS.shortcuts.goToReadingPosition),
+      toggleFollowing: str(prefs, 'shortcuts.toggleFollowing', DEFAULTS.shortcuts.toggleFollowing),
       toggleOptions: str(prefs, 'shortcuts.toggleOptions', DEFAULTS.shortcuts.toggleOptions),
       cyclePlayerLayout: str(prefs, 'shortcuts.cyclePlayerLayout', DEFAULTS.shortcuts.cyclePlayerLayout),
       stopReading: str(prefs, 'shortcuts.stopReading', DEFAULTS.shortcuts.stopReading),
@@ -409,7 +414,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     readAloud: {
       playerLayout: playerLayout(prefs),
       autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
-      keepFollowingWhileVisible: prefs.get(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible') !== false,
+      defaultAutoScroll: prefs.get(PREF_PREFIX + 'readAloud.defaultAutoScroll') !== false,
       defaultVoice: str(prefs, 'readAloud.defaultVoice', DEFAULTS.readAloud.defaultVoice),
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
       globalSpeed: bool(prefs, 'readAloud.globalSpeed', DEFAULTS.readAloud.globalSpeed),

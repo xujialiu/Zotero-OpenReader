@@ -1,5 +1,20 @@
 [Checklist index](../README.md) · [Scripts](../scripts/return-key/README.md)
 
+## Current return actions (issue #153)
+
+Shift+Enter now means **Go to reading position and switch to auto-scroll**.
+Shift+R means **Go to reading position** without changing A/M. Shift+M
+switches A/M. PDF/EPUB now position through the plugin's follow adapters;
+use `diagnostics.autoScroll()` plus Player state and actual viewport/page
+movement, not native locks or the historical state-forgetting log below.
+Run [Player following, sections 3 and 6](player-following.md) for current
+expectations. Snapshot/Reading Mode retain the native return fallback.
+
+## Historical Shift+Enter verification
+
+The following records the older native return mechanism and measured timings;
+it is not the current PDF/EPUB acceptance test.
+
 ## Shift+Enter — go to reading position (issue #76, 1.11.5)
 
 Trusted presses through `nsITextInputProcessor` on the main chrome

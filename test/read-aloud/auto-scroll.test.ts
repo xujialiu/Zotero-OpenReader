@@ -41,18 +41,18 @@ describe('auto-scroll modes', () => {
 });
 
 describe('auto-scroll preference', () => {
-  it('keeps visible sentences by default and backs up/syncs an explicit opt-out', () => {
+  it('starts new documents in automatic mode by default and backs up/syncs an explicit opt-out', () => {
     const data = new Map<string, unknown>();
     const prefs = { get: (k: string) => data.get(k), set: (k: string, v: unknown) => { data.set(k, v); } };
-    expect(DEFAULTS.readAloud.keepFollowingWhileVisible).toBe(true);
-    expect(loadSettings(prefs).readAloud.keepFollowingWhileVisible).toBe(true);
-    data.set(PREF_PREFIX + 'readAloud.keepFollowingWhileVisible', false);
+    expect(DEFAULTS.readAloud.defaultAutoScroll).toBe(true);
+    expect(loadSettings(prefs).readAloud.defaultAutoScroll).toBe(true);
+    data.set(PREF_PREFIX + 'readAloud.defaultAutoScroll', false);
     const backup = parseBackup(JSON.stringify(createBackup(prefs)));
-    expect(backup.settings['readAloud.keepFollowingWhileVisible']).toBe(false);
+    expect(backup.settings['readAloud.defaultAutoScroll']).toBe(false);
     data.clear(); applyBackup(prefs, backup);
-    expect(loadSettings(prefs).readAloud.keepFollowingWhileVisible).toBe(false);
-    expect(neverSynced('readAloud.keepFollowingWhileVisible')).toBe(false);
-    const item = { key: 'readAloud.keepFollowingWhileVisible', value: false, ts: 1, by: 'test' };
+    expect(loadSettings(prefs).readAloud.defaultAutoScroll).toBe(false);
+    expect(neverSynced('readAloud.defaultAutoScroll')).toBe(false);
+    const item = { key: 'readAloud.defaultAutoScroll', value: false, ts: 1, by: 'test' };
     expect(parseSharedSettings(serializeSharedSettings([item]))).toEqual([item]);
   });
   it('defaults to sentence, validates stored values and survives backup/restore', () => {

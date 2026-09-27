@@ -38,7 +38,7 @@ import { autoScrollMode, type AutoScrollMode } from '../core/settings';
 import type { WordTiming } from '../core/highlight-level';
 import type { AnyFn } from './proto-patches';
 import { createPdfFollow } from './pdf-follow';
-import { intersectsViewport } from './manual-follow';
+import type { FollowIntents } from './follow-intent';
 export { isFollowCall } from './pdf-follow';
 
 /** A box in the container's coordinates, `[left, top, right, bottom]` in CSS px — Zotero's own shape. */
@@ -297,7 +297,7 @@ export function followTarget(input: FollowInput): FollowTarget {
 
 export interface SentenceInViewDeps {
   enabled?(): boolean;
-  keepFollowingWhileVisible?(): boolean;
+  intents?: FollowIntents;
   resuming?(reader: any): boolean;
   mode?(): AutoScrollMode;
   /** Makes a sandbox function callable from the reader's compartment (Components.utils.exportFunction). Optional for tests. */
@@ -325,6 +325,7 @@ export interface SentenceInView {
   refresh(): void;
   automatic(reader: any): boolean | null;
   manual(reader: any): void;
+  locate(reader: any, automatic?: boolean): void;
   /** Patch the reader's PDF views; true once they are. Repeat calls are cheap no-ops, so this may be called on every Read Aloud event. */
   attach(reader: unknown): boolean;
   /** What this module sees in a reader, as plain data, for `Zotero.ZoteroTTS.diagnostics.sentenceInView()`. */
@@ -351,32 +352,6 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
   const entries = new WeakMap<object, { key: string; mode: AutoScrollMode }>();
   const controller = createPdfFollow({
     ...deps,
-    captureVisibility(view) {
-      const raw = waive(waive(view._readAloudState)?.activeSegment)?.sourcePosition;
-      const position = raw ? JSON.parse(JSON.stringify(raw)) : null;
-      return () => {
-        const c = containerOf(view), pages = pagesOf(view);
-        if (!c || !pages || !position || position.rotation || !Number.isInteger(position.pageIndex) || position.pageIndex < 0) return null;
-        const b = c.getBoundingClientRect();
-        const left = b.left + (c.clientLeft || 0), top = b.top + (c.clientTop || 0);
-        if (!(c.clientWidth > 0 && c.clientHeight > 0)) return null;
-        const inset = insetOf(view, top, c.clientHeight);
-        const viewport = [left, top + inset.top, left + c.clientWidth, top + c.clientHeight - inset.bottom];
-        let missing = false, measured = false;
-        for (const [index, rects] of [[position.pageIndex, position.rects], [position.pageIndex + 1, position.nextPageRects]]) {
-          if (!rects?.length) continue;
-          const page = pages[index];
-          if (!page) { missing = true; continue; }
-          for (let i = 0; i < rects.length; i++) {
-            const box = pageBoxInContainer([rects[i]], page, { scrollLeft: 0, scrollTop: 0 });
-            if (!box || !box.every(Number.isFinite)) { missing = true; continue; }
-            measured = true;
-            if (intersectsViewport(box, viewport)) return true;
-          }
-        }
-        return missing || !measured ? null : false;
-      };
-    },
     clear(view) { delete view[LAST]; entries.delete(view); },
     follow(reader, view, originalNavigate, reset, force) {
       if (reset) delete view[LAST];
@@ -553,6 +528,7 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
     refresh: () => controller.refresh(),
     automatic: (reader: any) => controller.automatic(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView),
     manual: (reader: any) => controller.manual(reader),
+    locate: (reader: any, automatic = false) => controller.locate(reader, automatic),
     inspect,
     patchCounts: () => controller.patchCounts(),
     dispose: () => controller.dispose(),

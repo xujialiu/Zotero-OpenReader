@@ -70,6 +70,8 @@ const BINDINGS = {
   nextParagraph: 'Shift+ArrowRight',
   startFromSelection: 'Shift+Space',
   returnToSpoken: 'Shift+Enter',
+  goToReadingPosition: 'Shift+R',
+  toggleFollowing: 'Shift+M',
   toggleOptions: 'Shift+O',
   cyclePlayerLayout: 'Shift+P',
   stopReading: 'Shift+S',
@@ -1367,4 +1369,42 @@ describe('player layout key guards and customization', () => {
     expect(manager.paused).toBe(true);
     expect(manager.setSpeed).not.toHaveBeenCalled();
   });
+});
+
+
+describe('separate follow shortcuts (#153)', () => {
+  it('distinguishes combined return, one-time return and A/M without starting paused audio', () => {
+    let automatic = false;
+    const locate = vi.fn((_reader: unknown, enable: boolean) => { if (enable) automatic = true; });
+    const manual = vi.fn(() => { automatic = false; });
+    const f = setup({ locate, automatic: () => automatic, manual, isPluginPlayerOpen: () => true });
+    f.manager.paused = true;
+    for (const [key, code, enable] of [['R', 'KeyR', false], ['Enter', 'Enter', true]] as const) {
+      f.shortcuts.handleKeyDown(keyEvent({ key, code }), () => f.reader);
+      expect(locate).toHaveBeenLastCalledWith(f.reader, enable);
+      expect(automatic).toBe(enable);
+    }
+    f.shortcuts.handleKeyDown(keyEvent({ key: 'M', code: 'KeyM' }), () => f.reader);
+    expect(manual).toHaveBeenCalledOnce(); expect(automatic).toBe(false);
+    f.shortcuts.handleKeyDown(keyEvent({ key: 'M', code: 'KeyM' }), () => f.reader);
+    expect(automatic).toBe(true); expect(f.manager.paused).toBe(true);
+    expect(f.togglePaused).not.toHaveBeenCalled();
+    automatic = false; locate.mockClear(); f.shortcuts.navigate(f.reader, 'nextSentence');
+    expect(f.manager.skipAhead).toHaveBeenCalled(); expect(locate).not.toHaveBeenCalled();
+    automatic = true; f.shortcuts.navigate(f.reader, 'nextSentence');
+    expect(locate).toHaveBeenCalledWith(f.reader, false);
+  });
+});
+
+
+it('leaves the new follow keys alone in editable fields and ignores held repeats', () => {
+  const locate = vi.fn(); const manual = vi.fn();
+  const f = setup({ locate, automatic: () => true, manual, isPluginPlayerOpen: () => true });
+  for (const [key, code] of [['R', 'KeyR'], ['M', 'KeyM']]) {
+    expect(f.shortcuts.handleKeyDown(keyEvent({ key, code, target: { tagName: 'INPUT' } }), () => f.reader)).toBe(false);
+    expect(f.shortcuts.handleKeyDown(keyEvent({ key, code, repeat: true }), () => f.reader)).toBe(true);
+  }
+  expect(locate).not.toHaveBeenCalled(); expect(manual).not.toHaveBeenCalled();
+  f.manager.active = false;
+  expect(f.shortcuts.handleKeyDown(keyEvent({ key: 'R', code: 'KeyR' }), () => f.reader)).toBe(false);
 });

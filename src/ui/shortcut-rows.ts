@@ -34,6 +34,8 @@ const ACTION_NAMES: Record<ShortcutAction, () => string> = {
   nextParagraph: () => t('ztts-action-next-paragraph'),
   startFromSelection: () => t('ztts-action-play'),
   returnToSpoken: () => t('ztts-action-return'),
+  goToReadingPosition: () => t('ztts-action-locate'),
+  toggleFollowing: () => t('ztts-action-following'),
   toggleOptions: () => t('ztts-action-options'),
   cyclePlayerLayout: () => t('ztts-action-player-layout'),
   stopReading: () => t('ztts-action-stop'),

@@ -21,7 +21,7 @@ export type { HighlightAction, SpeedAction, VolumeAction };
 export type NavigationAction = 'previousSentence' | 'nextSentence' | 'previousParagraph' | 'nextParagraph';
 
 /** Actions on the reading position rather than within the segment stream. */
-export type PositionAction = 'startFromSelection' | 'returnToSpoken';
+export type PositionAction = 'startFromSelection' | 'returnToSpoken' | 'goToReadingPosition';
 
 /**
  * Actions on the player popup itself. `toggleOptions` presses its Options
@@ -32,7 +32,7 @@ export type PositionAction = 'startFromSelection' | 'returnToSpoken';
  * reader, so the routing to the speaking or selected reader does not
  * apply to it.
  */
-export type PlayerAction = 'toggleOptions' | 'cyclePlayerLayout' | 'stopReading';
+export type PlayerAction = 'toggleOptions' | 'cyclePlayerLayout' | 'stopReading' | 'toggleFollowing';
 
 /** Annotate the sentence being read: Zotero's own H and U keys, bindable (issue #145). */
 export type AnnotateAction = 'highlightSentence' | 'underlineSentence';
@@ -51,9 +51,9 @@ export type ShortcutAction =
 
 export const NAVIGATION_ACTIONS: readonly NavigationAction[] = ['previousSentence', 'nextSentence', 'previousParagraph', 'nextParagraph'];
 
-export const POSITION_ACTIONS: readonly PositionAction[] = ['startFromSelection', 'returnToSpoken'];
+export const POSITION_ACTIONS: readonly PositionAction[] = ['startFromSelection', 'returnToSpoken', 'goToReadingPosition'];
 
-export const PLAYER_ACTIONS: readonly PlayerAction[] = ['toggleOptions', 'cyclePlayerLayout', 'stopReading'];
+export const PLAYER_ACTIONS: readonly PlayerAction[] = ['toggleOptions', 'cyclePlayerLayout', 'stopReading', 'toggleFollowing'];
 
 export const ANNOTATE_ACTIONS: readonly AnnotateAction[] = ['highlightSentence', 'underlineSentence'];
 
