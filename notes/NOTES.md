@@ -656,3 +656,4 @@ then) and is in the git history before that day.
 ### [2026-09-27](NOTES_2026-09-27.md)
 
 - Consecutive outline headings replace outermost sections (issue #150)
+- Compact time verified; font inherits the controls (issue #150)

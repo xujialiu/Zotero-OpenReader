@@ -34,7 +34,7 @@
   // Verify both locale files without switching Zotero's live locale.
   const keyValues = async locale => {
     const text = await IOUtils.readUTF8(PathUtils.join(params.root, 'addon', 'locale', locale, 'zotero-tts.ftl'));
-    const keys = ['ztts-remaining-time', 'ztts-help-remaining-time', 'ztts-time-estimating', 'ztts-time-unavailable', 'ztts-time-finished', 'ztts-time-document', 'ztts-time-selection', 'ztts-time-minutes', 'ztts-time-under-minute'];
+    const keys = ['ztts-remaining-time', 'ztts-help-remaining-time', 'ztts-time-estimating', 'ztts-time-unavailable', 'ztts-time-finished', 'ztts-time-document', 'ztts-time-selection', 'ztts-time-minutes', 'ztts-time-summary', 'ztts-time-section', 'ztts-time-pair'];
     const found = {};
     for (const key of keys) {
       const line = text.split('\n').find(row => row.startsWith(key + ' ') || row.startsWith(key + ' =')) || '';

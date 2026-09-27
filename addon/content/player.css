@@ -67,7 +67,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .picker-popover input[type="search"] { flex: 0 0 auto; }
 .option-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 
-.remaining-time { display: flex; align-items: center; flex: 0 0 auto; font-size: 11px; line-height: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.remaining-time { display: flex; align-items: center; flex: 0 0 auto; font: inherit; line-height: 16px; white-space: nowrap; }
 .remaining-time[hidden] { display: none; }
 .remaining-line { white-space: nowrap; }
 .layout-B.has-remaining { height: 222px; grid-template-rows: 28px 28px 1fr 16px 26px; }
