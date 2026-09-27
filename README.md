@@ -222,8 +222,10 @@ for every document you have listened to.
   the time to the next contents heading, including nested headings. It sits
   above the speed controls in Floating and after volume in Top and Bottom.
   Starting at selected text still counts to the end of the document. Times
-  follow your speed and improve while you listen; manual pauses and network
-  waits do not count down. Sections without reliable boundaries are omitted.
+  wait for enough ordinary reading audio before appearing. During normal
+  reading they hold or decrease gradually; manual pauses and network waits
+  do not count down. Changing voice, speed or reading position starts a new
+  estimate. Sections without reliable boundaries are omitted.
 - **Speed controls** in the player, Settings and keyboard shortcuts change
   by 0.05×, within the existing 0.5×–3× range.
 - **A / M** shows whether this document is following the narration.

@@ -8,9 +8,13 @@ issue: 148
 
 *The product argument is [design 0010](../design/0010-estimated-remaining-reading-time.md).*
 
-The agreed product direction is a text-based initial estimate refined by
-audio obtained during ordinary reading, without additional synthesis for
-measurement. The owner confirmed the complete design before implementation.
+Issue #148 originally displayed a text-based initial estimate and allowed
+updates in either direction. Issue #152 replaces that behavior with
+representative-audio readiness and nonincreasing displayed estimates during
+ordinary reading. Deliberate voice/speed/position changes reset the display;
+section transitions reset only the section display. The accepted design
+came from the owner's September 27 interview and the experiments recorded
+in that day's notes.
 
 The Engine receives segments through `setSegments`
 (`src/core/engine/session.ts`). The existing heuristic in
@@ -24,7 +28,8 @@ credits on unread text.
 Use known audio durations where available and estimate the remaining text.
 Account for current audio position, playback speed and the configured gaps;
 manual pauses and buffering do not consume reading time. New audio may
-revise the estimate in either direction. A voice change must not reuse the
+revise the internal estimate in either direction, but not the displayed
+estimate during ordinary forward reading. A voice change must not reuse the
 previous voice's measured pace as though it belonged to the new voice.
 
 Ordinary reading estimates to the document end and, where reliable, the
@@ -71,10 +76,22 @@ issue #148; verification of the revised behavior belongs to issue #150.
 `RemainingTime` builds text and paragraph prefix sums once per segment
 list and keeps Fenwick sums of measured durations and their replaced text
 weights. A query is logarithmic in document length; it never rescans the
-whole document on the Player's 250 ms refresh. The initial prior is three
-space-delimited words per second and five CJK characters per second.
-Decoded non-silent clips calibrate their combined weight for this voice;
-known clips use their measured durations. These are listening estimates,
+whole document on the Player's 250 ms refresh. Text weights use three word
+tokens or five CJK characters per unit;
+these weights alone never produce a displayed estimate. Three non-silent
+clips with at least eight word-equivalent units and eight seconds of total
+original audio enable extrapolation. Numeric-only text cannot calibrate
+pace. Mixed text adds the CJK and word contributions. All known clips,
+including short titles and silent skips, use their measured durations.
+A fully measured range needs no calibration threshold.
+
+The last 16 eligible clips supply text-weighted pace, with per-clip ratios
+winsorized at the sample's 10th and 90th percentiles. The first measurement
+initializes pace; subsequent measurements move it 20 percent toward the
+weighted sample ratio. There is no assumed voice pace or absolute pace
+clamp. Calibration and known-range count are independent, so measured
+silence never trains the voice to speak infinitely fast. These are listening
+estimates,
 never word timestamps. Measurements survive eviction from the 32-clip
 cache but are discarded with the voice's store. Reading-time computation
 is lazy, and switching the display off bypasses it in the Player.
@@ -112,3 +129,36 @@ and the estimate covers that range as agreed. Its live check supplies an
 explicit bounded run through the manager and is reported as a controlled
 contract check, not a user-facing selection-only action. Adding such an
 action would be a separate playback feature, outside this time display.
+
+## Stable display and listening clock
+
+`RemainingTimeDisplay` holds the last display value and cumulative listening
+at its previous query. Each ordinary update is
+`max(previous - 1.5 * listeningDelta, min(previous, raw))`.
+The update consumes its elapsed allowance even when the number holds: it
+cannot save credit for a later correction. Document and section state are
+separate; a new section end resets only the section state. Section output
+is capped by the displayed document remainder.
+
+`EngineSession` accumulates listening at source stops, natural source ends,
+and gap ends/cancellations. While playing it reads unconsumed audio-clock
+progress divided by the source's playback rate, never wall time. Gaps add
+only their elapsed configured duration. Thus a missing display refresh
+across a pause, buffer wait, or device-clock stall cannot bank that waiting
+time. Repeated snapshots at the same audio position are idempotent. Pausing
+may drop an actual pending gap, but its display correction still obeys the
+bound instead of jumping immediately.
+
+A fresh bind, intentional skip, changed speed, voice handoff, or replay
+after completion resets the appropriate display state. Ordinary pause and
+resume, same-speed writes, and carried-on controllers preserve it. Voice
+stores still keep their own calibration. Diagnostics expose
+`remainingCalibration` next to the displayed `remainingTime` for readiness
+evidence without generating speech.
+
+The experiment's English thresholds were extended through the existing
+mixed-script weights for CJK. Generated steady-prose traces had no display
+increases; an adversarial faster-then-slower trace had almost six minutes
+of unchanged display. These findings justify stability behavior, not a
+claim of full-book accuracy. Live integration results are recorded on
+issue #152 after verification.

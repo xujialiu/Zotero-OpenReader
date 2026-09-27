@@ -1,6 +1,6 @@
 [Checklist](../README.md)
 
-# Estimated remaining reading time (issues #148, #150)
+# Estimated remaining reading time (issues #148, #150, #152)
 
 The owner authorized live verification after the local checks. Follow the
 [baseline](../baseline.md) and tester workflow, including test WebDAV
@@ -51,14 +51,22 @@ controlled contract check, not a user-facing selection-only feature.
 
 ### 3. Clocks, pace and no extra synthesis
 
-At an early held audio response, text already gives a finite estimate.
-Waiting without new audio measurements does not consume it. With all audio
+At an early held audio response, show `status: estimating, seconds: null`.
+Text alone must not give a numeric duration. Short titles and numeric-only
+segments do not calibrate pace. For extrapolation, wait for at least three
+representative clips totaling eight seconds of original audio; inspect
+`remainingCalibration` for sample count, audio seconds, factor, and ready.
+A completely measured short range can show its exact duration without
+three representative clips. No extra requests are made to reach readiness.
+With all audio
 needed for the check ready, pause and sample the numeric estimate twice:
 it stays still. At 2×, speech and future configured gaps take half as long
 as at 1× for the same position. A known gap counts only its unconsumed part;
-a manual pause drops that gap, matching existing reading behavior.
+a manual pause drops that actual gap, matching existing reading behavior,
+but the displayed correction remains bounded rather than jumping at pause.
 
-Change voice: the new voice's measured pace replaces the old voice's.
+Change voice: without enough new-voice audio the display returns to
+Estimating; old-voice calibration must not carry over.
 Skipping recomputes from the new position. Verify through finite numeric
 snapshots and deterministic audio where timing needs exact comparison;
 play ordinary configured audio separately to prove the production path.
@@ -85,3 +93,40 @@ layout and paused state as the workflow requires. Remove fixture items and
 positions before restoring ordinary WebDAV destinations, finish playback
 item 3.26's teardown, and run [cleanup](../cleanup.md). Human judgment of
 estimate accuracy across voices is separate from these mechanism checks.
+
+### 6. Stable document and section display
+
+On a temporary copy of Four Thousand Weeks, use an already configured
+voice. The title/contents opening may remain Estimating: do not call that
+numeric stability evidence. Also start at body prose so that calibration
+becomes ready. Capture at least 30 seconds and multiple natural sentence
+boundaries after readiness. With voice/speed/position unchanged, Doc and
+the same Section never increase (allow numerical tolerance 1e-6). Their
+maximum decrease is 1.5 times the diagnostic `listeningTime` delta, including
+consumed
+configured gaps, not paused, stalled or buffering wall time. Diagnostic
+snapshots and the rendered minute text must agree. No new synthesis is
+caused by the time display.
+
+Use controlled deterministic audio to provoke upward and downward raw
+revisions. After readiness, newly decoded slow audio must not raise the
+number; fast audio cannot drop it immediately. Pause while read-ahead
+finishes and verify the displayed number holds. Delay a response at a
+later sentence and verify buffering adds no correction budget, including
+when snapshots were absent during the wait. Exact stalled-clock coverage
+belongs to the virtual-audio unit test when the live device cannot be
+safely stalled.
+
+An explicit slower speed or backward jump can increase Doc. A same-speed
+write and ordinary pause/resume cannot reset the envelope. Entering a new
+section resets Section alone, so it can increase for a longer new section
+while Doc remains nonincreasing. Reaching completion immediately shows
+Finished even if the envelope would otherwise retain time. Replay starts
+fresh. Unit tests additionally cover CJK/mixed-script readiness, rejection
+of numeric-only calibration, outlier resistance, exact short ranges,
+source and gap boundaries with no intervening display query.
+
+Restore and erase the temporary book copy and its position rows; never
+change the original book's position. Keep WebDAV isolated throughout and
+restore volume, voice memory, provider settings, original destinations,
+and local position state before restoring automatic transports.

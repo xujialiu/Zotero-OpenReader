@@ -657,3 +657,7 @@ then) and is in the git history before that day.
 
 - Consecutive outline headings replace outermost sections (issue #150)
 - Compact time verified; font inherits the controls (issue #150)
+- New audio recalibrates the unread book at once (remaining-time research)
+- Stability trades upward correction for waiting (remaining-time experiments)
+- Downward corrections are bounded too (remaining-time design)
+- Stable estimates use accumulated listening across transitions (issue #152)

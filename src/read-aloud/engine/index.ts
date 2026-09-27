@@ -564,6 +564,8 @@ export function createEngine(deps: EngineDeps): Engine {
         session: session
           ? {
               remainingTime: remainingTime(reader),
+              remainingCalibration: session.store?.remainingTime.calibration ?? null,
+              listeningTime: session.listeningTime,
               voice: session.voice?.id ?? null,
               position: session.position,
               currentIndex: session.currentIndex,

@@ -38,24 +38,52 @@ It stays visible without requiring expansion.
 
 ## Display boundaries
 
-While the text is loading, show “Estimating.” If no estimate can be made,
+While the text is loading or no audio is available for the selected voice,
+show “Estimating.” If no estimate can be made,
 show that it is unavailable rather than a number. At the end of the reading
 range, show “Finished”; resetting the reading place must not make the
 finished time jump back up. Turning the setting off hides all estimates.
 
-## Useful early, corrected as reading continues
+## Audio before a number
 
-The first estimate appears as soon as the reading text is available.
-Actual audio from ordinary reading refines it as it arrives. The estimate
-can rise or fall as the voice's pace becomes clearer; changing the voice,
-speed or reading place recalculates it.
+On September 27, the owner replaced the immediate text-only estimate:
+without audio for the selected voice, show “Estimating.” Text alone must
+not produce a displayed duration. Ordinary reading supplies the audio;
+the estimate must not cause additional speech generation.
 
-This gives an early answer at the cost of initial uncertainty. Waiting
-until enough audio is available would give a better first number, but
-would withhold the information when the listener first decides whether to
-continue. Showing seconds would suggest more precision than the estimate
-has, so the display stays at minutes and the settings describe it as an
-estimate.
+The owner confirmed these stability rules on September 27:
+
+- During ordinary forward reading with the same voice and speed, the
+  displayed document estimate may hold or decrease, but never increase.
+  If it was too optimistic, it may hold while the estimate catches up.
+- Within the same reading section, the section estimate also only holds
+  or decreases. Entering the next section resets its estimate; the
+  document estimate continues without an upward reset.
+- A deliberate voice, speed, or reading-position change starts a fresh
+  estimate and may increase the number. A new voice with no audio shows
+  “Estimating” again.
+- Wait for a useful sample of reasonably complete sentences before showing
+  the first number. Titles, contents entries, and short numbers alone are
+  insufficient. This can leave “Estimating” visible for more than a minute
+  at a book's opening.
+- Downward corrections are gradual: during ordinary reading, 40 seconds
+  of listening can reduce the displayed estimate by at most one minute.
+  Manual pauses and network waits do not accumulate an allowance for a
+  later drop. An overestimate may therefore take longer to catch up.
+  Actual completion immediately shows “Finished.” Deliberate resets and
+  a new section use the reset rules above rather than this correction limit.
+
+These product requirements are implemented by the stabilization change.
+The sample thresholds and smoothing parameters are implementation defaults,
+not a guarantee of prediction accuracy. A short range whose audio is
+already entirely available uses its measured duration without waiting for
+more samples.
+
+New audio refines the internal estimate, while the displayed number follows
+the stability rules above. Waiting for samples and retaining an optimistic
+estimate can delay a useful number or leave it unchanged for some time.
+Showing seconds would suggest more precision
+than the estimate has, so the display remains in minutes.
 
 Generating the whole document's audio just to measure its length would
 take longer and could charge for text the listener never hears. The

@@ -902,9 +902,9 @@ describe('remaining reading time', () => {
     const t = setup({ texts: ['One two three.'], settings: pauses(0, 0) });
     t.fetch.hold = true;
     t.open();
-    expect(t.session.remainingTime().seconds).toBe(1);
+    expect(t.session.remainingTime()).toMatchObject({ status: 'estimating', seconds: null });
     await t.clock.advance(5000);
-    expect(t.session.remainingTime().seconds).toBe(1);
+    expect(t.session.remainingTime()).toMatchObject({ status: 'estimating', seconds: null });
     t.fetch.respond('One two three.');
     await t.clock.advance(0);
     expect(t.session.remainingTime().seconds).toBeCloseTo(0.7);
@@ -930,9 +930,9 @@ it('bounds a selected reading range and freezes while its audio is still on the 
   t.fetch.hold = true;
   t.session.bind({ voice: t.v, segments: t.list, backwardStopIndex: 1, forwardStopIndex: 2 });
   t.session.setPaused(false);
-  expect(t.session.remainingTime({ title: 'Part I', end: 3 })).toEqual({ status: 'ready', scope: 'selection', seconds: 1 });
+  expect(t.session.remainingTime({ title: 'Part I', end: 3 })).toEqual({ status: 'estimating', scope: 'selection', seconds: null });
   await t.clock.advance(1000);
-  expect(t.session.remainingTime().seconds).toBe(1);
+  expect(t.session.remainingTime()).toMatchObject({ status: 'estimating', seconds: null });
   t.fetch.respond('Four five six.');
   await t.clock.advance(701);
   expect(t.session.remainingTime()).toEqual({ status: 'finished', scope: 'selection', seconds: 0 });
@@ -946,9 +946,10 @@ it('counts only the unconsumed gap and excludes the boundary after a reading sec
   await t.clock.advance(900);
   expect(t.session.remainingTime().seconds).toBeCloseTo(1.5);
   t.session.setPaused(true);
-  expect(t.session.remainingTime().seconds).toBeCloseTo(0.7);
+  // Dropping the actual gap does not permit an instantaneous display correction.
+  expect(t.session.remainingTime().seconds).toBeCloseTo(1.5);
   await t.clock.advance(1000);
-  expect(t.session.remainingTime().seconds).toBeCloseTo(0.7);
+  expect(t.session.remainingTime().seconds).toBeCloseTo(1.5);
 });
 
 it('does not generate speech for estimation and forgets the old voice pace on a new voice', async () => {
@@ -962,7 +963,7 @@ it('does not generate speech for estimation and forgets the old voice pace on a 
   expect(t.session.remainingTime().seconds).toBeCloseTo(1.4);
   t.session.bind({ voice: voice('other'), segments: t.list, backwardStopIndex: 0, forwardStopIndex: null });
   t.session.setPaused(true);
-  expect(t.session.remainingTime().seconds).toBe(2);
+  expect(t.session.remainingTime()).toMatchObject({ status: 'estimating', seconds: null });
   expect(t.fetch.requests).toHaveLength(2);
 });
 
@@ -973,7 +974,9 @@ it('returns to document scope when Play continues beyond a completed selection',
   await t.clock.advance(701);
   expect(t.session.remainingTime()).toMatchObject({ scope: 'selection', status: 'finished' });
   t.session.setPaused(false);
-  expect(t.session.remainingTime()).toMatchObject({ scope: 'document', status: 'ready' });
+  expect(t.session.remainingTime()).toMatchObject({ scope: 'document', status: 'estimating' });
+  await t.clock.advance(0);
+  expect(t.session.remainingTime().status).toBe('ready');
 });
 
 it('estimates the document when a skip moves past the selection stop', async () => {
@@ -981,5 +984,5 @@ it('estimates the document when a skip moves past the selection stop', async () 
   t.session.bind({ voice: t.v, segments: t.list, backwardStopIndex: 0, forwardStopIndex: 1 });
   t.session.setPaused(true);
   t.session.skipAhead('sentence');
-  expect(t.session.remainingTime()).toMatchObject({ status: 'ready', scope: 'document', seconds: 2 });
+  expect(t.session.remainingTime()).toMatchObject({ status: 'estimating', scope: 'document', seconds: null });
 });

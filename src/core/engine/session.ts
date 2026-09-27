@@ -40,6 +40,7 @@ import { ClipError, ClipStore } from './clips';
 import { gapBefore, type PauseSettings } from './gap';
 import { Handoff, type HandoffOptions } from './handoff';
 import { readAheadOrder, runReadAhead } from './read-ahead';
+import { RemainingTimeDisplay } from './remaining-time';
 import { skipAheadTarget, skipBackTarget } from './skip';
 import type {
   EngineAudio,
@@ -116,6 +117,11 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   store: ClipStore<Clip> | null = null;
   position = 0;
   completed = false;
+  private readonly documentTime = new RemainingTimeDisplay();
+  private readonly sectionTime = new RemainingTimeDisplay();
+  private timeScope: string | null = null;
+  private timeSection: number | null = null;
+  private listened = 0;
   private completedScope: 'document' | 'selection' = 'document';
   backwardStopIndex: number | null = null;
   forwardStopIndex: number | null = null;
@@ -204,6 +210,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.cancelSkip();
     this.stopSource();
     this.store?.close();
+    this.resetRemainingTime();
+    this.listened = 0;
     this.settleNotice();
     this.voice = request.voice;
     this.segments = request.segments;
@@ -272,6 +280,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       }
     }
     this.paused = paused;
+    if (!paused && this.completed) this.resetRemainingTime();
     if (!paused) this.completed = false;
     this.clearGap();
     this.speak();
@@ -280,6 +289,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   /** `speed = …` (reader.js 39327-39330, 40051-40058): a clip playing is re-stretched where it is. */
   setSpeed(speed: number): void {
     this.handoff?.cancel();
+    if (speed !== this.speed) this.resetRemainingTime();
     this.speed = speed;
     if (this.ended) return;
     if (this.isPlaying && this.clip) {
@@ -408,6 +418,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
    * Aloud's would tell it.
    */
   takeOver(voice: EngineVoice, store: ClipStore<Clip>, index: number, offset: number): void {
+    this.resetRemainingTime();
     const old = this.store;
     this.voice = voice;
     this.store = store;
@@ -598,6 +609,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   private scheduleSpeak(delay: number): void {
     this.settleNotice();
     this.gapTimer = this.deps.clock.setTimeout(() => {
+      this.listened += this.gapListening();
       this.gapTimer = null;
       this.speak();
     }, delay);
@@ -605,6 +617,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
 
   /** `_skipTo` (reader.js 39460-39469). */
   private skipTo(position: number): void {
+    this.resetRemainingTime();
     this.handoff?.cancel();
     this.clearGap();
     this.position = position;
@@ -645,6 +658,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     let source: PlayingSource | null = null;
     const started = this.deps.audio.start(clip, offset, rate, () => {
       if (this.source !== source) return;
+      this.listened += this.sourceListening();
       this.isPlaying = false;
       this.clearWordClock();
       const segment = this.currentSegment;
@@ -660,12 +674,14 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
 
   /** `_stop` (reader.js 40059-40064). */
   private stop(): void {
-    if (this.isPlaying) this.playbackOffset = this.currentPlaybackTime();
+    const offset = this.currentPlaybackTime();
     this.stopSource();
+    this.playbackOffset = offset;
   }
 
   /** `_stopSource` (reader.js 40065-40078). */
   private stopSource(): void {
+    this.listened += this.sourceListening();
     if (this.source) {
       const source = this.source;
       this.source = null;
@@ -839,6 +855,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
 
   private clearGap(): void {
     if (this.gapTimer !== null) {
+      this.listened += this.gapListening();
       this.deps.clock.clearTimeout(this.gapTimer);
       this.gapTimer = null;
     }
@@ -859,6 +876,28 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     return -1;
   }
 
+  private sourceListening(): number {
+    return this.isPlaying && this.clip
+      ? Math.max(0, this.currentPlaybackTime() - this.playbackOffset) / this.playbackRate : 0;
+  }
+
+  private gapListening(): number {
+    return this.inGap && this.lastGap
+      ? Math.max(0, Math.min(this.lastGap.ms, this.deps.clock.now() - this.lastGap.at)) / 1000 : 0;
+  }
+
+  /** Cumulative audible-source progress and consumed configured gaps, in listening seconds. */
+  get listeningTime(): number {
+    return this.listened + this.sourceListening() + this.gapListening();
+  }
+
+  private resetRemainingTime(): void {
+    this.documentTime.reset();
+    this.sectionTime.reset();
+    this.timeScope = null;
+    this.timeSection = null;
+  }
+
   /** Listening time, read without fetching audio or walking the document again. */
   remainingTime(section?: { title: string; end: number }): RemainingSnapshot {
     const scope = this.completed ? this.completedScope
@@ -873,11 +912,18 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     const pauses = this.deps.pauses();
     const estimate = (to: number) => this.store!.remainingTime.seconds(this.position, to, this.speed, pauses, offset);
     const seconds = estimate(end);
-    if (seconds === null) return { status: 'unavailable', scope, seconds: null };
-    const result: RemainingSnapshot = { status: 'ready', scope, seconds: seconds + gap };
+    if (seconds === null) return { status: 'estimating', scope, seconds: null };
+    const scopeKey = `${scope}:${end}`;
+    if (this.timeScope !== scopeKey) { this.resetRemainingTime(); this.timeScope = scopeKey; }
+    const listening = this.listeningTime;
+    const result: RemainingSnapshot = { status: 'ready', scope, seconds: this.documentTime.update(seconds + gap, listening) };
     if (scope === 'document' && section) {
       const remaining = estimate(section.end);
-      if (remaining !== null) { result.sectionSeconds = remaining + gap; result.sectionTitle = section.title; }
+      if (this.timeSection !== section.end) { this.sectionTime.reset(); this.timeSection = section.end; }
+      if (remaining !== null) {
+        result.sectionSeconds = Math.min(result.seconds!, this.sectionTime.update(remaining + gap, listening));
+        result.sectionTitle = section.title;
+      }
     }
     return result;
   }

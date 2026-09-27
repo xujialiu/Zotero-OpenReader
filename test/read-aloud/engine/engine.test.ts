@@ -414,6 +414,7 @@ it('publishes the document and nested section estimates through the real manager
   expect(t.engine.remainingTime(t.reader).sectionTitle).toBe('Chapter 1');
   expect(t.engine.remainingTime(t.reader).sectionSeconds).toBeCloseTo(0.5);
   t.manager.repositionTo(2);
+  await t.clock.advance(0);
   expect(t.engine.remainingTime(t.reader).sectionTitle).toBe('Part II');
   t.engine.dispose();
 });
@@ -422,6 +423,7 @@ it('keeps document time when a chapter adapter cannot read Zotero state, reporti
   const t = await setup({ attachFirst: true });
   Object.defineProperty(t.reader._internalReader, '_sdt', { get() { throw new Error('outline unavailable'); } });
   t.open();
+  await t.clock.advance(0);
   for (let i = 0; i < 3; i++) expect(t.engine.remainingTime(t.reader)).toMatchObject({ status: 'ready', scope: 'document' });
   expect(t.errors).toHaveLength(1);
   t.engine.dispose();
