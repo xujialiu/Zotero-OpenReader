@@ -71,9 +71,12 @@ describe('stable remaining time across playback transitions', () => {
     t.session.setSpeed(0.5);
     expect(t.session.remainingTime().seconds).toBeCloseTo(start.seconds! * 2);
     t.session.setSpeed(1);
+    const beforeSection = t.session.remainingTime({ title: 'First', end: 1 });
+    // A new section must not rebase Doc onto a newly increased raw estimate.
+    t.session.store!.remainingTime.record(3, 600);
     await t.clock.advance(60000);
     const next = t.session.remainingTime({ title: 'Second', end: 20 });
-    expect(next.seconds).toBeLessThanOrEqual(start.seconds!);
+    expect(next.seconds).toBeLessThanOrEqual(beforeSection.seconds!);
     expect(next.sectionSeconds).toBeGreaterThan(start.sectionSeconds!);
     t.session.setPaused(true);
     t.session.skipBack('sentence');

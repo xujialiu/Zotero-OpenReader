@@ -130,3 +130,11 @@ Restore and erase the temporary book copy and its position rows; never
 change the original book's position. Keep WebDAV isolated throughout and
 restore volume, voice memory, provider settings, original destinations,
 and local position state before restoring automatic transports.
+
+
+Beta12 verification of #152 is recorded in the kit. Live evidence covers
+body-prose monotonicity and both correction bounds, voice reset/readiness,
+paused delayed read-ahead, rendered-line agreement, speed, completion and
+restoration. The delayed-response live probe paused before its held-value
+samples; unpaused buffering and exact device stalls remain virtual-Engine
+coverage, not a separate live PASS.

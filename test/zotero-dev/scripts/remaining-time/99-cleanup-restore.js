@@ -93,6 +93,18 @@
     const now = readTyped(prefix + suffix);
     out.prefs[suffix] = { matchesValue: now.value === snap.value, matchesUser: now.user === snap.user, value: now.value };
   }
+  // The stable-document and buffering scripts also snapshot provider fields
+  // that the older baseline script did not enumerate. Restore those exact
+  // user/value states while every transport is still suspended.
+  out.tempPrefs = {};
+  for (const [suffix, snap] of Object.entries(state.tempPrefs || {})) {
+    restoreTyped(prefix + suffix, snap);
+    const now = readTyped(prefix + suffix);
+    const secret = suffix.endsWith('.headers') || suffix.endsWith('.baseURL') || suffix === 'readAloud.memory';
+    out.tempPrefs[suffix] = secret
+      ? { matchesValue: now.value === snap.value, matchesUser: now.user === snap.user, length: String(now.value || '').length }
+      : { matchesValue: now.value === snap.value, matchesUser: now.user === snap.user, value: now.value };
+  }
 
   // Dynamic per-document voice records are not part of the named prefs.
   const originalRecords = baseline.documentRecords || {};
@@ -118,16 +130,18 @@
 
   // Restore the native voice pref exactly before the plugin memory (memory is
   // the final pref write, per the workflow).
-  restoreTyped(nativeKey, baseline.native);
+  restoreTyped(nativeKey, state.tempNative || baseline.native);
   const nativeNow = readTyped(nativeKey);
-  out.native = { matchesValue: nativeNow.value === baseline.native?.value, matchesUser: nativeNow.user === baseline.native?.user, length: String(nativeNow.value || '').length };
-  const memorySnap = baseline.prefs?.['readAloud.memory'];
+  const nativeSnap = state.tempNative || baseline.native;
+  out.native = { matchesValue: nativeNow.value === nativeSnap?.value, matchesUser: nativeNow.user === nativeSnap?.user, length: String(nativeNow.value || '').length };
+  const memorySnap = state.tempPrefs?.['readAloud.memory'] || baseline.prefs?.['readAloud.memory'];
   if (memorySnap) restoreTyped(prefix + 'readAloud.memory', memorySnap);
   const memoryNow = readTyped(prefix + 'readAloud.memory');
   out.memory = { matchesValue: memoryNow.value === memorySnap?.value, matchesUser: memoryNow.user === memorySnap?.user, length: String(memoryNow.value || '').length };
   const namedPrefsMatch = Object.entries(out.prefs).every(([suffix, row]) => row.matchesUser && (row.matchesValue || suffix === 'readAloud.remainingTime'));
-  if (!namedPrefsMatch || !out.native?.matchesValue || !out.native?.matchesUser || !out.memory?.matchesValue || !out.memory?.matchesUser || out.dynamicRecords?.matches !== true || out.positions?.rowsBackToBaseline !== true || !out.transports?.idle) {
-    throw new Error('local cleanup verification failed; leaving WebDAV switches off: ' + JSON.stringify({ namedPrefsMatch, native: out.native, memory: out.memory, dynamicRecords: out.dynamicRecords, positions: out.positions, transports: out.transports }));
+  const tempPrefsMatch = Object.values(out.tempPrefs || {}).every(row => row.matchesUser && row.matchesValue);
+  if (!namedPrefsMatch || !tempPrefsMatch || !out.native?.matchesValue || !out.native?.matchesUser || !out.memory?.matchesValue || !out.memory?.matchesUser || out.dynamicRecords?.matches !== true || out.positions?.rowsBackToBaseline !== true || !out.transports?.idle) {
+    throw new Error('local cleanup verification failed; leaving WebDAV switches off: ' + JSON.stringify({ namedPrefsMatch, tempPrefsMatch, native: out.native, memory: out.memory, dynamicRecords: out.dynamicRecords, positions: out.positions, transports: out.transports }));
   }
 
   // Restore WebDAV destination and switches only after fixture data and all

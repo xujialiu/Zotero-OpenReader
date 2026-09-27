@@ -661,3 +661,4 @@ then) and is in the git history before that day.
 - Stability trades upward correction for waiting (remaining-time experiments)
 - Downward corrections are bounded too (remaining-time design)
 - Stable estimates use accumulated listening across transitions (issue #152)
+- Stable remaining time verified in the book (issue #152)
