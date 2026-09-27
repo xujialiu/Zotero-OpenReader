@@ -57,6 +57,20 @@ Scrolling the document so the sentence being read stays on screen, and
 the choice between automatic and manual following.
 _Avoid_: tracking
 
+**Follow choice**:
+Whether a document follows the narration automatically (A) or leaves
+scrolling to the reader (M).
+_Avoid_: scroll style, playback state
+
+**Default follow choice**:
+The initial follow choice for a newly opened document.
+_Avoid_: global follow state
+
+**Scroll style**:
+How automatic following positions the sentence: center each sentence, or
+scroll when outside the view.
+_Avoid_: follow choice, manual mode
+
 **Player**:
 The visible controls: play, pause, skip, speed, volume, the provider,
 language and voice choices.

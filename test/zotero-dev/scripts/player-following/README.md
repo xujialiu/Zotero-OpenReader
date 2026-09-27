@@ -1,58 +1,74 @@
-# Player following verification kit (issue #117)
+# Player following verification evidence
 
-[Case](../../cases/player-following.md) · [Checklist index](../../README.md) · [Runner](../_shared/README.md)
+[Case](../../cases/player-following.md) · [Checklist index](../../README.md)
 
-| Script | What it checks | What it expects | Params read |
-|---|---|---|---|
-| `107-00-baseline.js` | Named prefs/user flags, owner readers, selected tab and error baseline | Exact values and flags are saved; secrets are represented by presence/length only | none |
-| `107-01-close-preferences.js` | Closes an open Preferences window before install/fixtures | No Preferences window remains | none |
-| `107-02-startup.js` | Candidate startup diagnostic | `1.12.12-beta`, every step `ok`, `failed: []` | none |
-| `107-04-prepare-and-helpers.js` | Mute and isolate WebDAV; installs fixture/diagnostic helpers | Volume `0`; three WebDAV switches `false`; configured plugin voice available | none |
-| `107-03-settings-ui.js` | Mode/keep-following controls and help text | `sentence`/`outside`, keep on, settings values restored | none |
-| `107-05-import-fixtures.js` | Disposable PDF, scrolled EPUB and paginated EPUB imports | Three timestamped fixture ids/keys | `fixturesDir` |
-| `107-06-open-readers.js` | Reader and view readiness | PDF plus scrolled/paginated EPUB readers and managers exist | fixture state |
-| `107-07-open-players-paused.js` | Fixture player sessions | All three players active and paused with plugin voice and segments | fixture state |
-| `107-08-audio-clock.js` | Audio-device gate | Two clock samples per reader; frozen/suspended clocks are reported | fixture state |
-| `107-09-current-and-later.js` | Trusted gesture protection, same-sentence reentry and later visibility recovery | Both modes; PDF/EPUB diagnostics correlate protected/suspended/recovered states | fixture state/helpers |
-| `107-10-paused-stillness.js` | Paused manual movement and mode changes | No automatic target or resume while paused; state remains paused | fixture state/helpers |
-| `107-11-resume-matrix.js` | Native resume from visible/partial/outside positions | Playing resume restores following and target; pause half stays still; both modes/flows | fixture state/helpers |
-| `107-12-explicit-and-clipping.js` | Paused/playing return and skips, keep-off persistence and clipping | Explicit paths restore A; keep-off persists until explicit recovery; clipping target recorded | fixture state/helpers |
-| `107-13-interior-resume.js` | Interior PDF/scrolled EPUB geometry | Native center target within 1 px and pause-half movement `0`; both modes | fixture state/helpers |
-| `117-player-ui-and-isolation.js` | A/M DOM snapshot, all layouts, pause, explicit mode, stale pref, two-reader isolation, close/reopen | UI text/tooltip/ARIA agree with `pluginPlayer().readers[].state.automatic`; A/M is reader-local; old pref ignored | fixture state/helpers |
-| `117-trusted-shortcuts.js` | Trusted Shift+Enter and sentence/paragraph shortcuts | `keydown() === 1`; paused fixture remains paused, moves as requested, and returns to A/following | fixture state/helpers |
-| `117-return-path-compare.js` | Direct lock versus trusted return and real play-button resume | Direct and trusted paths both restore A; playback resume restores A | fixture state/helpers |
-| `117-boundary-diagnostic.js` | Selected/visible PDF preconditions, fixed helper vs readiness-gated boundary resume/reentry | Records window/view/iframe visibility, pending and visibility events for 2.6 s | fixture state/helpers |
-| `117-boundary-assert.js` | Asserts the readiness-gated boundary expectations | Throws on missing visible preconditions or failure to recover/target | diagnostic state |
-| `107-90-cleanup.js` | Closes/erases fixtures and restores user state | No fixture readers/items; exact prefs/flags, memory, volume, sync switches, tab and owner state restored; no new relevant errors | baseline/state |
+The current acceptance criteria are issue #153's persistent manual follow.
+The older `107-*` and `117-*` scripts in this directory are historical and
+contain superseded recovery expectations. They are not a current runnable
+acceptance kit. Do not use their old hard-coded identities or restoration
+values for a new run.
 
-Before you start:
+## September 27, 2026: issue #153
 
-- Verify the XPI and embedded bundle SHA-256, run `zotero_ping` and
-  `zotero_plugin_list`, install the exact XPI, then run `107-02-startup.js`
-  before opening a reader.
-- Use only `fixture-a.pdf` and `return-key/return-key.epub` from
-  `params.fixturesDir`. The three fixture slots use separate disposable items;
-  the owner reader is never pressed or repositioned.
-- Run with `stopOnError: true`. Start with `107-00`, `107-01`, `107-02`,
-  `107-04`; finish with `107-90`, including after any failed focused script.
-- The kit mutes `readAloud.volume`, turns off the three WebDAV switches and
-  restores values and user flags in cleanup. `readAloud.memory` and native
-  `reader.readAloudVoices` are restored after all fixture players close.
+Tested implementation: `c6e99a9`, `1.16.1-beta`; XPI SHA prefix `221876b4`,
+embedded bundle SHA prefix `c2e00f6c`. The unit suite passed 2,755 tests,
+typecheck and build. No production code changed during live verification.
 
-Limits:
+| Area | Accepted evidence | Limit |
+| --- | --- | --- |
+| Startup | No failed startup steps; expected bundle symbols present | Version alone was not the identity check |
+| A/M | Player and follow diagnostics agreed in PDF and both EPUB flows; M survived later reading, pause/resume and Player reopen | Smooth visual following was not established in PDF/scrolled EPUB |
+| Defaults | Default off produced new-tab M, default on new-tab A; existing choices stayed unchanged | Live settings-sync round-trip was not run; serialization has unit coverage |
+| Keys and UI | Shift+Enter/R/M/A routing, skips, custom return, editable guard, checkbox and wrapped label observed | First scripts returned unconditional PASS; the report relies on individual recorded observations |
+| Actual positioning | Paginated native flow offset moved 0 to 53995, then Shift+R returned to 0 | PDF and scrolled EPUB controls are bounded below |
+| Current-state cleanup | Fresh private typed baseline restored exactly; fixture readers/items absent, position rows 85, transports idle, host minimized | This does not restore or prove the original pre-incident state |
 
-- `diagnostics.autoScroll()`/`pluginPlayer()` prove controlled state and
-  viewport changes. Trusted key/button execution is recorded separately.
-  All fixture AudioContexts were `suspended` with `currentTime:0`; natural
-  listening progression and perceived animation remain NOT TESTABLE.
-- The original fixed-wait rows in `107-09`/`107-11` could sample a PDF while
-  its selected iframe was still `hidden`. The focused boundary diagnostic now
-  requires selected/nonminimized/visible state and records a bounded timeline;
-  both disputed rows recovered under that precondition.
-- Static DOM labels are checked for equality with their own tooltip and the
-  diagnostic A/M state; translated wording is recorded verbatim.
+The final controls started PDF at scrollTop 2129 and scrolled EPUB at
+scrollY 6984. Native positional scrolling reached 0 in both. Native smooth
+scrolling stayed at those starting offsets after 1.2 seconds; plugin
+Shift+R also stayed there while recording a return request. Subsequent M
+segment changes kept the viewport stable. Therefore physical PDF/scrolled
+EPUB return remains NOT TESTABLE in this environment; paginated return was
+observed. Neither target diagnostics nor unchanged offsets alone prove a
+successful visible return.
 
-Runs:
+## Isolation incident and unresolved restoration
+
+The first fixture import ran with Zotero core auto-sync enabled. Disposable
+fixture metadata reached the owner API/test WebDAV; the tester subsequently
+acknowledged deletes and found no fixture items, cache rows or deletion logs.
+The original baseline retained summaries instead of private raw values.
+The first cleanup reconstructed voice memory/native voice values and used
+an unrelated earlier value for the owner WebDAV URL. Exact original-state
+restoration cannot be established. The September 22 profile backup was
+excluded because it differs from the known September 27 state.
+
+The test did not directly write WebDAV username/password or machine ID.
+It did change the URL and voices; syncState changed during the run. Core
+auto-sync was observed enabled without a user value when the incident was
+discovered, but was not captured before the run. It remains disabled with
+a user value. Plugin sync switches remain off. The owner paused Player was
+closed for testing and was intentionally not reopened.
+
+Later probes took exact private CURRENT-state snapshots, kept core/plugin
+sync off, and restored those snapshots exactly. This is evidence of safe
+later cleanup, not recovery of missing original values. The original-state
+uncertainty and decision about re-enabling sync are still open with the owner.
+
+## Scripts and next run
+
+The proposed replacement `153-*` kit was rewritten after the first pass but
+never rerun as a kit. It is not published here as verified reusable code.
+Unverified drafts are retained in the worktree's ignored
+`.tmp/zotero-dev/player-following-153-unverified/`; executed control probes
+are `.tmp/zotero-dev/current-position-{setup,check,finalize}.js`.
+They are diagnostic artifacts, not a safe reusable setup/cleanup contract.
+A future driver must capture exact typed private state and validate isolation
+before importing fixtures, restore only its own fixture records, and retain
+the final scripts that actually pass. Never infer secret equality from length
+or restore values from another session's globals.
+
+## Historical runs (superseded behavior)
 
 | Date/build | Coverage and result | Run |
 |---|---|---|
