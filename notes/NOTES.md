@@ -666,3 +666,5 @@ then) and is in the git history before that day.
 - Explicit manual follow ends at resume or return (research)
 - Follow intent outlives the reading session (issue #153)
 - Live follow checks exposed a test-isolation failure (issue #153)
+- Default scrolling becomes an explicit choice (issue #153)
+- The owner authorizes the manual-follow release (issue #153)

@@ -444,8 +444,8 @@ provider (or Zotero's Standard / Premium), language, voice.
   the current word when real word timing is available; without it, only
   the beginning can be located reliably. Paginated EPUBs keep their pages.
   Document boundaries may limit centering.
-- *Default following* — *Auto-scroll in newly opened documents* is on by
-  default. Turn it off to start new PDF and EPUB tabs in M (manual).
+- *Default scrolling* — choose *Auto-scroll* (the default) or *Manual-scroll*
+  for newly opened PDF and EPUB tabs. Manual-scroll starts them in M.
   Changing this setting leaves existing tabs alone. The default and scroll
   style are backed up and synchronized; a tab's current A/M choice is not.
 - *Browse while listening* — manual scrolling or page navigation switches

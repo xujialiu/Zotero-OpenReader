@@ -1,3 +1,4 @@
+import { initFollowChoice } from './follow-choice';
 import { readDefaultVoice, DEFAULT_VOICE_KEY } from '../core/document-voices';
 import type { FlatSettings } from '../core/settings-backup';
 import { initBracketRows } from './bracket-rows';
@@ -507,6 +508,10 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   };
   const providerDeps = (): ProviderDeps =>
     hooks.providerDeps?.() ?? { fetch, getWebSocket: getChromeWebSocket, newRequestId, newAbortController: newPaneAbortController };
+  const followChoice = initFollowChoice(doc as unknown as Parameters<typeof initFollowChoice>[0], prefs, (name, changed) => {
+    const token = Zotero.Prefs.registerObserver(name, changed);
+    return () => Zotero.Prefs.unregisterObserver(token);
+  });
   const shortcutRows = initShortcutRows(doc, prefs, Zotero.isMac ? 'Cmd' : Zotero.isWin ? 'Win' : 'Super');
   // The ? icons: their text opens at once, not after Zotero's tooltip delay (ui/help-tips.ts)
   initHelpTips(doc);
@@ -664,6 +669,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   win?.addEventListener(
     'unload',
     () => {
+      followChoice.dispose();
       fishVoiceSources.dispose();
       voiceBrowserRows.dispose();
       prefetchRows.dispose();

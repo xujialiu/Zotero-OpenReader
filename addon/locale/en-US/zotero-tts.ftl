@@ -570,13 +570,17 @@ ztts-substitute-paid = Zotero-TTS: { $missing } is not offered here, and no othe
 ## Auto-scroll
 
 ztts-default-auto-scroll =
-    .label = Auto-scroll in newly opened documents
+    .value = Default scrolling
+ztts-follow-auto =
+    .label = Auto-scroll
+ztts-follow-manual =
+    .label = Manual-scroll
 ztts-help-default-auto-scroll =
     .value = ?
-    .help = On starts new document tabs in A (automatic); off starts them in M (manual). The player's A/M changes only that tab. Existing tabs keep their choice through pause, resume and stop. Closing and reopening uses this default again. This default is included in settings backup and sync.
+    .help = Auto-scroll starts new document tabs in A (automatic); Manual-scroll starts them in M (manual). The player's A/M changes only that tab. Existing tabs keep their choice through pause, resume and stop. Closing and reopening uses this default again. This default is included in settings backup and sync.
 
 ztts-auto-scroll =
-    .value = Auto-scroll
+    .value = Auto-scroll style
 ztts-auto-scroll-sentence =
     .label = Center each sentence
 ztts-auto-scroll-outside =

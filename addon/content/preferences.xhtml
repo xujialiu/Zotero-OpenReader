@@ -462,6 +462,14 @@
   <groupbox>
     <label><html:h2 data-l10n-id="ztts-heading-highlight"/></label>
     <hbox align="center">
+      <label data-l10n-id="ztts-default-auto-scroll" control="ztts-default-auto-scroll" style="width: 8em"/>
+      <radiogroup id="ztts-default-auto-scroll" orient="horizontal">
+        <radio value="auto" data-l10n-id="ztts-follow-auto"/>
+        <radio value="manual" data-l10n-id="ztts-follow-manual"/>
+      </radiogroup>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-default-auto-scroll" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center">
       <label data-l10n-id="ztts-auto-scroll" control="ztts-auto-scroll-mode" style="width: 8em"/>
       <radiogroup id="ztts-auto-scroll-mode" preference="extensions.zotero.zotero-tts.readAloud.autoScrollMode">
         <hbox align="center">
@@ -473,11 +481,6 @@
           <label class="ztts-help" value="?" data-l10n-id="ztts-help-auto-scroll-outside" data-l10n-attrs="help"/>
         </hbox>
       </radiogroup>
-    </hbox>
-    <hbox align="center">
-      <checkbox id="ztts-default-auto-scroll" data-l10n-id="ztts-default-auto-scroll"
-                preference="extensions.zotero.zotero-tts.readAloud.defaultAutoScroll"/>
-      <label class="ztts-help" value="?" data-l10n-id="ztts-help-default-auto-scroll" data-l10n-attrs="help"/>
     </hbox>
     <!-- One row per level (issue #114): its switch, then its color and opacity. The
          last switch still on is greyed by highlight-rows.ts; both off is not a state. -->
@@ -575,7 +578,7 @@
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-play" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <description data-l10n-id="ztts-action-return" style="width: 12em; margin-block: 0"/>
+      <description data-l10n-id="ztts-action-return" style="width: 12em; margin-block: 0; margin-inline: 0 5px"/>
       <button id="ztts-key-returnToSpoken" style="min-width: 10em"/>
       <button id="ztts-key-clear-returnToSpoken" data-l10n-id="ztts-clear"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-key-return" data-l10n-attrs="help"/>

@@ -72,16 +72,17 @@ not verification of #153. Retain the scripts actually run in this case's kit.
 
 ## 5. Default choice and settings
 
-- The new default checkbox is on on a fresh install. Turn it off, open new
+- The default radio group selects Auto-scroll on a fresh install. Choose
+  Manual-scroll, open new
   PDF/EPUB tabs and start reading: M, with no automatic jump. Existing tabs
-  keep their choices. Toggle the default back on: only later opened tabs
+  keep their choices. Choose Auto-scroll again: only later opened tabs
   start in A. Closing/reopening a document uses the new default.
 - Default on/off and the scroll-style controls are independent. Their help
   explains scope. The old keep-following checkbox is absent. Neither
   default changes nor settings sync may change existing tab intent.
 - Settings backup/restore and shared-settings round-trips include
   `readAloud.defaultAutoScroll`. Tab A/M is absent from serialized settings.
-  Schema round-trips are unit-covered; verify the actual checkbox binding
+  Schema round-trips are unit-covered; verify the actual radio-group binding
   and live tab isolation, reporting live sync separately if not exercised.
 
 ## 6. Shortcut settings and labels

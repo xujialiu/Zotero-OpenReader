@@ -3,7 +3,9 @@
 The default follow choice determines whether a newly opened document starts
 in automatic or manual follow. The player's A/M control changes the current
 document without changing that default or other open documents.
-The initial default is automatic follow; the reader can change it to manual.
+Settings offers two explicit choices, Auto-scroll and Manual-scroll.
+Auto-scroll is the initial default. The separate Auto-scroll style choice
+controls sentence placement while automatic following is active.
 
 Automatic follow uses the chosen scroll style: center each sentence, or
 scroll when the sentence extends outside the view. Manual follow leaves

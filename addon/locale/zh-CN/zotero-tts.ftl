@@ -516,13 +516,17 @@ ztts-substitute-paid = Zotero-TTS：这里没有提供 { $missing }，也没有 
 ## Auto-scroll
 
 ztts-default-auto-scroll =
-    .label = 新打开的文档默认自动滚动
+    .value = 默认滚动方式
+ztts-follow-auto =
+    .label = 自动滚动
+ztts-follow-manual =
+    .label = 手动滚动
 ztts-help-default-auto-scroll =
     .value = ?
-    .help = 开启时，新文档标签页使用 A（自动）；关闭时使用 M（手动）。播放器的 A/M 只改变当前标签页。已打开的标签页在暂停、继续和停止后保留原来的选择；关闭后重新打开则使用此默认值。默认值参与设置备份和同步。
+    .help = 选择自动滚动时，新文档标签页使用 A（自动）；选择手动滚动时使用 M（手动）。播放器的 A/M 只改变当前标签页。已打开的标签页在暂停、继续和停止后保留原来的选择；关闭后重新打开则使用此默认值。默认值参与设置备份和同步。
 
 ztts-auto-scroll =
-    .value = 自动滚动
+    .value = 自动滚动方式
 ztts-auto-scroll-sentence =
     .label = 每句居中
 ztts-auto-scroll-outside =
