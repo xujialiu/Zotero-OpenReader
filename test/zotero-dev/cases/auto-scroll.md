@@ -11,7 +11,9 @@ not permission to run the entire checklist.
 
 Recorded runs: beta2 failure and routing correction (2026-09-12, 1.12.3-beta2),
 beta3 verification (2026-09-12, 1.12.3-beta3),
-per-option help verification (2026-09-12, 1.12.3-beta4).
+per-option help verification (2026-09-12, 1.12.3-beta4),
+reading line verification (2026-09-29, 1.16.2-beta2, issue #155's
+closing comment).
 Reusable scripts: beta2 probes (2026-09-12, 1.12.3-beta2),
 beta3 probes (2026-09-12, 1.12.3-beta3),
 help probes (2026-09-12, 1.12.3-beta4).
@@ -92,7 +94,11 @@ historical values are not fresh PASS results on another build.
    (clientHeight − covered.top − covered.bottom − height) × 0.10`,
    within 1 px, or clamped at the document's start or end. State the
    expected value from `diagnostics.sentenceInView()` (PDF) or the
-   range (EPUB) before reading the actual one. Changing the line to 90
+   range (EPUB) before reading the actual one. The PDF row's `last` is
+   rewritten by every word push, so catch the issued decision by fast
+   sampling and the `sentence in view:` debug line, not a later read;
+   the EPUB follow runs only with the player open. Settled offsets are
+   not observable on the test machine (kit Limits). Changing the line to 90
    while a sentence is followed issues one new target for it at once.
    In Scroll when outside the view a line change leaves a visible
    sentence in place, and a clipped one goes to the line. Shift+R
