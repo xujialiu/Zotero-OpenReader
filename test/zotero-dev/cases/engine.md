@@ -60,10 +60,10 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
 ### 3
 
 3. **The pause between sentences.** The pane's two settings, read at every
-   boundary (issue #44): at the defaults `gaps.last` is `{ms: 0,
-   paragraph: false}` between sentences and `{ms: round(200/speed),
-   paragraph: true}` before a paragraph; sentence 1000 and paragraph 400
-   at 2× give `ms` 500 and 200 from the next boundary (issue #142: the
+   boundary (issue #44): at the defaults `gaps.last` is `{ms:
+   round(200/speed), paragraph: false}` between sentences and `{ms:
+   round(200/speed), paragraph: true}` before a paragraph; sentence 1000
+   and paragraph 400 at 2× give `ms` 500 and 200 from the next boundary (issue #142: the
    paragraph pause alone); both switches off give 0 everywhere at every
    speed. A pause inside the gap drops the rest of it:
    `inGap` false at once, and Play starts the next sentence from 0.

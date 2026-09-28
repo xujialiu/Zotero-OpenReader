@@ -238,10 +238,10 @@ describe('readAloud.sameForAllDocuments', () => {
 describe('readAloud pauses', () => {
   const key = (name: string) => PREF_PREFIX + name;
 
-  it('default to on, 0 ms between sentences and 200 ms more at a paragraph', () => {
+  it('default to on, 200 ms between sentences and 200 ms at a paragraph', () => {
     const s = loadSettings(fakePrefs()).readAloud;
     expect(s.sentenceDelayEnabled).toBe(true);
-    expect(s.sentenceDelayMs).toBe(0);
+    expect(s.sentenceDelayMs).toBe(200);
     expect(s.paragraphDelayEnabled).toBe(true);
     expect(s.paragraphDelayMs).toBe(200);
   });
@@ -264,7 +264,7 @@ describe('readAloud pauses', () => {
   it('clamp the numbers into 0..MAX_PAUSE_MS and fall back on a value of the wrong kind', () => {
     expect(loadSettings(fakePrefs({ [key('readAloud.sentenceDelayMs')]: 99_999 })).readAloud.sentenceDelayMs).toBe(MAX_PAUSE_MS);
     expect(loadSettings(fakePrefs({ [key('readAloud.paragraphDelayMs')]: -5 })).readAloud.paragraphDelayMs).toBe(0);
-    expect(loadSettings(fakePrefs({ [key('readAloud.sentenceDelayMs')]: '300' })).readAloud.sentenceDelayMs).toBe(0);
+    expect(loadSettings(fakePrefs({ [key('readAloud.sentenceDelayMs')]: '300' })).readAloud.sentenceDelayMs).toBe(200);
     expect(loadSettings(fakePrefs({ [key('readAloud.paragraphDelayMs')]: NaN })).readAloud.paragraphDelayMs).toBe(200);
   });
 

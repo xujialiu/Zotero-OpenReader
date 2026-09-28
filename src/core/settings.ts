@@ -281,12 +281,12 @@ export const DEFAULTS: Settings = {
     globalSpeed: true,
     favoriteVoices: '',
     favoritesOnly: false,
-    // On at 0 by the owner's decision (issue #44): every voice runs sentence
-    // to sentence, the Premium voices' 300 ms included; Zotero's own pacing
-    // is the off state. The paragraph default equals Zotero's own 200 ms at
-    // 1× and, unlike Zotero's, shrinks with the speed.
+    // On at 200 ms by the owner's decision (issue #44 set 0, changed
+    // 2026-09-29): every voice pauses alike, the Premium voices' 300 ms
+    // included. The paragraph default equals Zotero's own 200 ms at 1× and,
+    // unlike Zotero's, shrinks with the speed.
     sentenceDelayEnabled: true,
-    sentenceDelayMs: 0,
+    sentenceDelayMs: 200,
     paragraphDelayEnabled: true,
     paragraphDelayMs: 200,
     volume: VOLUME_DEFAULT,

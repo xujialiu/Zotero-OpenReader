@@ -72,7 +72,7 @@ pref('extensions.zotero.zotero-tts.readAloud.globalSpeed', true);
 pref('extensions.zotero.zotero-tts.readAloud.favoriteVoices', '');
 pref('extensions.zotero.zotero-tts.readAloud.favoritesOnly', false);
 pref('extensions.zotero.zotero-tts.readAloud.sentenceDelayEnabled', true);
-pref('extensions.zotero.zotero-tts.readAloud.sentenceDelayMs', 0);
+pref('extensions.zotero.zotero-tts.readAloud.sentenceDelayMs', 200);
 pref('extensions.zotero.zotero-tts.readAloud.paragraphDelayEnabled', true);
 pref('extensions.zotero.zotero-tts.readAloud.paragraphDelayMs', 200);
 pref('extensions.zotero.zotero-tts.readAloud.volume', 100);

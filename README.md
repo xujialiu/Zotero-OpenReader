@@ -415,8 +415,8 @@ provider (or Zotero's Standard / Premium), language, voice.
   Off, Zotero keeps a speed per document language.
 - *Pause between sentences* — how long every voice waits before the next
   sentence of the same paragraph, whatever its provider, at 1× speed;
-  reading faster shortens it in step. On at 0 by default, so every voice
-  runs sentence to sentence. Off, no pause.
+  reading faster shortens it in step. On at 200 ms by default. Off, no
+  pause.
 - *Pause between paragraphs* — the whole pause where a paragraph begins, in
   place of the pause between sentences there, even when it is the shorter
   one; at 1× speed, shortened in step with the speed. On at 200 ms by
