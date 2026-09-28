@@ -2179,7 +2179,7 @@ function startSentenceInView(): void {
   const deps: SentenceInViewDeps = {
     resuming: (reader) => followResumeGuard?.resuming(reader) ?? false,
     mode: () => autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
-    line: () => readingLine(prefs.get(PREF_PREFIX + 'readAloud.readingLine')),
+    line: () => readingLine(prefs.get(PREF_PREFIX + 'readAloud.readingLine'), DEFAULTS.readAloud.readingLine),
     intents: followIntents,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     // What the reader hands an exported function arrives behind Xray wrappers (see highlight-style.ts)

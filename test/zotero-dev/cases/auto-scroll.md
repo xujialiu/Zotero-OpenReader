@@ -81,8 +81,8 @@ historical values are not fresh PASS results on another build.
 9. **Scrolling section (issue #155).** The pane has a Scrolling section
    (滚动) between Reading and Highlight holding, in this order, Default
    scrolling, Auto-scroll style and Reading line; Highlight holds no
-   scrolling row. The reading line row reads `Reading line  at [50] %
-   from the top` (`阅读线  距顶部 [50] %` in zh-CN), its `?` hover shows
+   scrolling row. The reading line row reads `Reading line  at [30] %
+   from the top` (`阅读线  距顶部 [30] %` in zh-CN; 30 is the default), its `?` hover shows
    the reading line help, and `diagnostics.l10n()` reports no blank
    element and no `?` without its glyph. Typing 10 into the field sets
    `readAloud.readingLine` to 10, and `diagnostics.autoScroll()` then

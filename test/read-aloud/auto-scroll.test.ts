@@ -104,17 +104,19 @@ describe('auto-scroll preference', () => {
     const item = { key: 'readAloud.autoScrollMode', value: 'sentence', ts: 1, by: 'test' };
     expect(parseSharedSettings(serializeSharedSettings([item]))).toEqual([item]);
   });
-  it('keeps the reading line at 50 by default, whole and within 0 to 100, through backup and sync', () => {
+  it('keeps the reading line at 30 by default, whole and within 0 to 100, through backup and sync', () => {
     const data = new Map<string, unknown>();
     const prefs = { get: (k: string) => data.get(k), set: (k: string, v: unknown) => { data.set(k, v); } };
-    expect(DEFAULTS.readAloud.readingLine).toBe(50);
-    expect(loadSettings(prefs).readAloud.readingLine).toBe(50);
-    for (const [stored, read] of [[150, 100], [-5, 0], [12.6, 13], ['10', 50], [Number.NaN, 50]] as const) {
+    expect(DEFAULTS.readAloud.readingLine).toBe(30);
+    expect(loadSettings(prefs).readAloud.readingLine).toBe(30);
+    for (const [stored, read] of [[150, 100], [-5, 0], [12.6, 13], ['10', 30], [Number.NaN, 30]] as const) {
       data.set(PREF_PREFIX + 'readAloud.readingLine', stored);
       expect(loadSettings(prefs).readAloud.readingLine).toBe(read);
-      expect(readingLine(stored)).toBe(read);
+      expect(readingLine(stored, 30)).toBe(read);
     }
+    // The geometry left without a line centers
     expect(readingLine(undefined)).toBe(50);
+    expect(readingLine('10')).toBe(50);
     data.set(PREF_PREFIX + 'readAloud.readingLine', 10);
     const backup = parseBackup(JSON.stringify(createBackup(prefs)));
     expect(backup.settings['readAloud.readingLine']).toBe(10);

@@ -2,7 +2,7 @@
 // Opens the imported PDF in its own tab, polls the reader to readiness, then
 // proves the installed build by mechanism: the autoScroll and sentenceInView
 // rows for the patched view carry `line` (older builds have none), and the
-// readingLine pref reads its int default 50 without a user value.
+// readingLine pref reads its int default (30; 50 on beta2) without a user value.
 return (async () => {
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const state = Zotero.ZoteroTTSRun.state;

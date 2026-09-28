@@ -47,7 +47,7 @@ return (async () => {
   const restored = {};
   const lineName = prefix + 'readAloud.readingLine';
   if (p.prefHasUserValue(lineName)) p.clearUserPref(lineName);
-  restored.readingLine = { value: p.getIntPref(lineName, -1), user: p.prefHasUserValue(lineName), expected: '50, no user value' };
+  restored.readingLine = { value: p.getIntPref(lineName, -1), user: p.prefHasUserValue(lineName), expected: 'the default (30), no user value' };
   const modeName = prefix + 'readAloud.autoScrollMode';
   p.setStringPref(modeName, String(baseline['readAloud.autoScrollMode'].value));
   restored.autoScrollMode = { value: p.getStringPref(modeName), user: p.prefHasUserValue(modeName), expectedValue: baseline['readAloud.autoScrollMode'].value, expectedUser: baseline['readAloud.autoScrollMode'].hasUser };

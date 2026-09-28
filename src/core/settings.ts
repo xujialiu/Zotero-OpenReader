@@ -25,9 +25,13 @@ export const zoteroSwitchTier = (id: ZoteroSwitchId): ZoteroTier => (id === 'zot
 
 export type AutoScrollMode = 'outside' | 'sentence';
 export const autoScrollMode = (value: unknown): AutoScrollMode => value === 'outside' ? 'outside' : 'sentence';
-/** The reading line (#155): a whole percentage from 0 to 100; anything but a number reads as 50, the center. */
-export const readingLine = (value: unknown): number =>
-  typeof value === 'number' && Number.isFinite(value) ? Math.round(Math.min(100, Math.max(0, value))) : 50;
+/**
+ * The reading line (#155): a whole percentage from 0 to 100; anything but a
+ * number reads as `fallback` — 50, the center, for the geometry left without
+ * a line; the setting passes its own default, 30.
+ */
+export const readingLine = (value: unknown, fallback = 50): number =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.round(Math.min(100, Math.max(0, value))) : fallback;
 
 export interface Settings {
   /**
@@ -270,7 +274,7 @@ export const DEFAULTS: Settings = {
   readAloud: {
     playerLayout: 'top',
     autoScrollMode: 'sentence',
-    readingLine: 50,
+    readingLine: 30,
     defaultAutoScroll: true,
     defaultVoice: '',
     sameForAllDocuments: true,
@@ -420,7 +424,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     readAloud: {
       playerLayout: playerLayout(prefs),
       autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
-      readingLine: readingLine(prefs.get(PREF_PREFIX + 'readAloud.readingLine')),
+      readingLine: readingLine(prefs.get(PREF_PREFIX + 'readAloud.readingLine'), DEFAULTS.readAloud.readingLine),
       defaultAutoScroll: prefs.get(PREF_PREFIX + 'readAloud.defaultAutoScroll') !== false,
       defaultVoice: str(prefs, 'readAloud.defaultVoice', DEFAULTS.readAloud.defaultVoice),
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),

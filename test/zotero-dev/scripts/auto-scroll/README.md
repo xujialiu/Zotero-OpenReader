@@ -27,7 +27,8 @@ with the Engine-era fields they read; git history before 2026-09-29 has them.
   The two readers the owner had open are observed and never operated.
 - **Build proof is by mechanism** (`155-05`): `autoScroll()` and
   `sentenceInView()` rows carry `line` (older builds have none) and
-  `readingLine` reads its int default 50 without a user value. The PDF
+  `readingLine` reads its int default without a user value (50 on beta2,
+  30 since). The PDF
   follow's ownership (`patched`) engages when a session exists; the EPUB
   follow attaches on the player popup open (`155-11` ensures it and
   requires `patched: true`).
@@ -51,9 +52,9 @@ with the Engine-era fields they read; git history before 2026-09-29 has them.
 | Script | What it checks | Items | Expects |
 | --- | --- | --- | --- |
 | [155-00-baseline-and-isolate.js](155-00-baseline-and-isolate.js) | Prefs with user flags, fixtures, owner readers, WebDAV isolation, minimize | setup | Destination matches the file; switches suspended; `memoryVoiceSafe` true |
-| [155-01-startup.js](155-01-startup.js) | `diagnostics.startup()` after the exact install | setup | Version matches; every step `ok`, `failed: []` (24 steps on beta2); `readingLine` 50, no user |
+| [155-01-startup.js](155-01-startup.js) | `diagnostics.startup()` after the exact install | setup | Version matches; every step `ok`, `failed: []` (24 steps on beta2); `readingLine` at its default (30 since beta2), no user |
 | [155-02-import-fixtures.js](155-02-import-fixtures.js) | Imports the two substitutes into `state.fixturesImported` | setup | Two itemIDs; originals recorded absent |
-| [155-03-pane-structure.js](155-03-pane-structure.js) | Pane: headings order, Scrolling rows, Highlight free of them, radio labels, reading-line row, `l10n()` | 9 | Reading → Scrolling → Highlight; rows `ztts-default-auto-scroll`, `ztts-auto-scroll-mode`, `ztts-reading-line` in order; labels "Scroll at every sentence"/"Scroll when outside the view"; field 50 (0–100); `blank: []`, `questionless: []` |
+| [155-03-pane-structure.js](155-03-pane-structure.js) | Pane: headings order, Scrolling rows, Highlight free of them, radio labels, reading-line row, `l10n()` | 9 | Reading → Scrolling → Highlight; rows `ztts-default-auto-scroll`, `ztts-auto-scroll-mode`, `ztts-reading-line` in order; labels "Scroll at every sentence"/"Scroll when outside the view"; field at its default, 30 since beta2 (0–100); `blank: []`, `questionless: []` |
 | [155-04-pane-help-and-binding.js](155-04-pane-help-and-binding.js) | Hovers the three `?` icons; clicks both radios; restores | 1, 9 | Tips open; sentence/outside/reading-line help matches the FTL; default tooltip closed; row texts "Reading line" · "at" · "% from the top" via the XUL `value` attr; pref and radio move together, user flag only on `outside` |
 | [155-05-open-pdf-proof.js](155-05-open-pdf-proof.js) | Opens the PDF; mechanism proof of the build | setup, 9 | `autoScroll` row has `line`; pref default 50 |
 | [155-06-pdf-audio-probe.js](155-06-pdf-audio-probe.js) | Mutes, starts with a trusted Shift+Space, samples 2 s, pauses | setup | `keydownReturn: 1`; clock moves; `audioState: running` |

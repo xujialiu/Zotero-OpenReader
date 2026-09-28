@@ -470,12 +470,13 @@ provider (or Zotero's Standard / Premium), language, voice.
   the current word when real word timing is available; without it, only
   the beginning can be located reliably. Paginated EPUBs keep their pages.
 - *Reading line* — how far down the view auto-scroll places the sentence:
-  0% against the top, 50% centered (the default), 100% against the bottom.
-  A lower value leaves more of the text ahead in view. Both styles and
-  returning to the reading position use it, and a sentence that fits the
-  view is never cut off. The player's top or bottom bar does not count as
-  view. Near the start or the end of a document the sentence may stop
-  short of the line. Paginated EPUBs turn by page and are unaffected.
+  0% against the top, 50% centered, 100% against the bottom; 30% by
+  default. A lower value leaves more of the text ahead in view. Both
+  styles and returning to the reading position use it, and a sentence
+  that fits the view is never cut off. The player's top or bottom bar
+  does not count as view. Near the start or the end of a document the
+  sentence may stop short of the line. Paginated EPUBs turn by page and
+  are unaffected.
 - *Browse while listening* — manual scrolling or page navigation switches
   the document to M, even if the sentence remains visible. The page stays
   under your control through later sentences, pause/resume and stopping
