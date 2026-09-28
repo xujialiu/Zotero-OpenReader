@@ -680,3 +680,4 @@ then) and is in the git history before that day.
 - One unanchored PDF bookmark hid section time for the whole book (issue #156)
 - Verified live: the reading line lands exactly, and `last` is not a decision stream (issue #155)
 - Verified live: section time survives unanchored bookmarks (issue #156)
+- Scroll at every line: the manager clears the word at every segment event, and a pref at its default holds no choice (issue #157)

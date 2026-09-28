@@ -165,7 +165,7 @@ let sentenceInView: SentenceInView | null = null;
 let domFollowing: ReturnType<typeof createDOMFollow> | null = null;
 let followResumeGuard: ReturnType<typeof createResumeGuard> | null = null;
 let selectionStart: ReturnType<typeof createSelectionStart> | null = null;
-/** The auto-scroll style's and the reading line's observers: a change re-places the sentence being followed. */
+/** The auto-scroll style's, the reading line's and the Word switch's observers: a change re-places the sentence or line being followed. */
 let autoScrollObservers: unknown[] = [];
 /** A page's first line Zotero's document analysis threw out, put back before the sentences are cut (read-aloud/skipped-lines.ts, issue #87). */
 let skippedLines: SkippedLines | null = null;
@@ -1158,7 +1158,7 @@ function startReadAloudShortcuts(pluginID: string): void {
     findOptionsButton: (reader: any) => findOptionsButton(reader?._iframeWindow?.document),
     showAutoScrollToast: (reader: any, mode) => {
       const doc = toastDoc(reader);
-      if (doc) showToast(doc, mode === 'sentence' ? t('ztts-auto-scroll-toast-sentence') : t('ztts-auto-scroll-toast-outside'));
+      if (doc) showToast(doc, mode === 'line' ? t('ztts-auto-scroll-toast-line') : mode === 'sentence' ? t('ztts-auto-scroll-toast-sentence') : t('ztts-auto-scroll-toast-outside'));
     },
     // The highlight key's toast (issues #67 and #114): what is highlighted
     // now, and, on a voice without word timing, why nothing on screen
@@ -2192,6 +2192,9 @@ function startSentenceInView(): void {
     isDead: (value) => Components.utils.isDeadWrapper(value),
     // Only a real word is followed; the whole-segment stand-in of a wordless voice is not one
     wordTiming: (reader) => highlightStyling?.wordTiming(reader) ?? 'none',
+    // Scroll at every line (#157): lines only of a word the Word switch draws, the first awaited only of real timings
+    segmentTiming: (reader) => highlightStyling?.segmentTiming(reader) ?? 'none',
+    wordShown: () => readHighlightLevels(prefs).word,
     // A docked bar lies over the document's edge (#135)
     covered: (frame, box) => pluginPlayer?.covered(frame, box) ?? { top: 0, bottom: 0 },
     error: (e) => Zotero.logError(e),
@@ -2204,7 +2207,8 @@ function startSentenceInView(): void {
   eachReader((reader) => followResumeGuard?.attach(reader));
   eachReader((reader) => sentenceInView?.attach(reader));
   eachReader((reader) => domFollowing?.attach(reader));
-  autoScrollObservers = ['autoScrollMode', 'readingLine'].map((name) => Zotero.Prefs.registerObserver(`zotero-tts.readAloud.${name}`, () => {
+  // The Word switch too: at every line, it decides between lines and sentences (#157)
+  autoScrollObservers = ['readAloud.autoScrollMode', 'readAloud.readingLine', 'highlight.word'].map((name) => Zotero.Prefs.registerObserver(`zotero-tts.${name}`, () => {
     sentenceInView?.refresh();
     domFollowing?.refresh();
   }));

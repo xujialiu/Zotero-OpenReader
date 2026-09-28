@@ -211,6 +211,13 @@ export interface HighlightStyling {
   inspect(reader: unknown): Record<string, unknown>;
   /** What the reader's active word timestamp is — the reading `demote()` makes, for the highlight key's toast (issue #67). */
   wordTiming(reader: unknown): WordTiming;
+  /**
+   * What the active segment's clip carries, read the way wordTiming reads
+   * the word: real word timings, the whole-segment stand-in, or none — no
+   * segment, no clip yet, or a clip without timings. Scroll at every line
+   * (#157) reads it before the first word of a sentence is spoken.
+   */
+  segmentTiming(reader: unknown): WordTiming;
   /** Prototypes held, and how many of them a closed tab has not taken with it. */
   patchCounts(): { total: number; live: number };
   /** Put every patched prototype back. */
@@ -322,6 +329,22 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     return { kind, timestamp };
   };
   const activeWordTimestamp = (reader: any): WordTiming => activeWordInfo(reader).kind;
+  /** The controller's timings for the active segment (reader.js 40381-40385; the Engine's controller answers the same). */
+  const segmentTiming = (reader: any): WordTiming => {
+    try {
+      const manager = reader?._internalReader?._readAloudManager;
+      const controller = manager?._controller;
+      const segment = manager?._activeSegment;
+      if (!segment || typeof controller?.getTimestampsForSegment !== 'function') return 'none';
+      const timings: any = Reflect.apply(controller.getTimestampsForSegment, controller, [segment]);
+      if (!timings?.length) return 'none';
+      const first = timings[0];
+      return timings.length === 1 && first?.start === 0 && first?.end === WHOLE_SEGMENT_END_SECONDS ? 'stand-in' : 'real';
+    } catch (e) {
+      deps.error(e);
+      return 'none';
+    }
+  };
   const demote = (g: Granularity | null, reader: unknown): Granularity | null => (g === 'word' && activeWordTimestamp(reader) !== 'real' ? 'sentence' : g);
   const pdfRawGranularity = (view: any) => granularityOf(view?._effectiveReadAloudPrimaryGranularity, view, view?._readAloudState);
   const domRawGranularity = (helper: any) => granularityOf(helper?._effectivePrimaryGranularity, helper, helper?.state);
@@ -1024,5 +1047,5 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     patches.restoreAll();
   }
 
-  return { attach, inspect, wordTiming: activeWordTimestamp, patchCounts: patches.counts, dispose };
+  return { attach, inspect, wordTiming: activeWordTimestamp, segmentTiming, patchCounts: patches.counts, dispose };
 }

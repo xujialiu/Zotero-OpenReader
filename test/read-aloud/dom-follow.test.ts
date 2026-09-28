@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createFollowIntents } from '../../src/read-aloud/follow-intent';
 import { createDOMFollow } from '../../src/read-aloud/dom-follow';
+import type { WordTiming } from '../../src/core/highlight-level';
 
 function fixture(intents = createFollowIntents()) {
   const doc: any = new EventTarget();
@@ -49,10 +50,11 @@ function fixture(intents = createFollowIntents()) {
   }
   const helper = view._readAloud = new Helper();
   const reader = { _window: {}, _internalReader: { _primaryView: view } };
-  let mode: 'outside' | 'sentence' = 'outside';
+  let mode: 'outside' | 'sentence' | 'line' = 'outside';
   let line = 50;
   type Covered = { top: number; bottom: number };
-  const deps = { intents, enabled: () => true, mode: () => mode, line: () => line, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn(),
+  const deps = { intents, enabled: () => true, mode: () => mode, line: () => line, resuming: () => false, error: vi.fn(),
+    wordTiming: (): WordTiming => 'real', segmentTiming: (): WordTiming => 'real', wordShown: () => true,
     covered: ((_frame: unknown, _box: Covered): Covered => ({ top: 0, bottom: 0 })) };
   const module = createDOMFollow(deps);
   const push = (key: string, word?: string) => helper.setState({ active: true, popupOpen: true, activeSegment: { position: key, sourcePosition: key }, activeWordSourcePosition: word });
@@ -209,6 +211,78 @@ describe('EPUB auto-scroll', () => {
     handlers.pointermove({ buttons: 1, clientX: 1, clientY: 1 });
     expect(module.inspect(f.reader).following).toBe(false);
     module.dispose();
+  });
+});
+
+
+// Issue #157: a 20 px word line leaves 980 px free, 294 of it above at 30%
+describe('EPUB scroll at every line', () => {
+  function lines(flow = 'scrolled') {
+    const f = fixture(); f.view.flowMode = flow; f.mode('line'); f.line(30); f.module.attach(f.reader);
+    const top = () => f.win.scrollTo.mock.lastCall?.[0]?.top;
+    return { ...f, top };
+  }
+  it('places the line of each new word and holds still along a line in a scrolled EPUB', () => {
+    const f = lines(); const key = f.range('s', 700, 760);
+    f.push(key, f.range('w1', 700, 720));
+    expect(f.top()).toBe(1406);
+    f.push(key, f.range('w2', 702, 720));
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(1);
+    f.push(key, f.range('w3', 720, 740));
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(2);
+    expect(f.top()).toBe(1426);
+    expect(f.module.inspect(f.reader)).toMatchObject({ mode: 'line', words: 'word', placedLine: [10, 1720, 700, 1740], last: { reason: 'line' } });
+    f.module.dispose();
+  });
+  it('waits for the first word of a timed sentence, and places a wordless one as at every sentence', () => {
+    const f = lines(); const key = f.range('s', 700, 760);
+    f.deps.wordTiming = () => 'none';
+    f.push(key);
+    expect(f.win.scrollTo).not.toHaveBeenCalled();
+    f.deps.wordTiming = () => 'real';
+    f.push(key, f.range('w1', 700, 720));
+    expect(f.top()).toBe(1406);
+    f.deps.wordTiming = () => 'stand-in'; f.deps.segmentTiming = () => 'stand-in';
+    const next = f.range('next', 800, 860);
+    f.push(next, next); f.push(next, next);
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(2);
+    // The whole 60 px sentence: 940 px free, 282 above
+    expect(f.top()).toBe(1800 - 282);
+    expect(f.module.inspect(f.reader)).toMatchObject({ words: 'sentence' });
+    f.module.dispose();
+  });
+  it('scrolls at every sentence with the Word switch off, and places the line when it comes back on', () => {
+    const f = lines(); const key = f.range('s', 700, 760);
+    f.deps.wordShown = () => false;
+    f.push(key, f.range('w3', 720, 740)); f.push(key, f.range('w4', 740, 760));
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(1);
+    expect(f.top()).toBe(1700 - 282);
+    f.deps.wordShown = () => true; f.module.refresh();
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(2);
+    expect(f.top()).toBe(1740 - 294);
+    f.module.dispose();
+  });
+  it('places the line again on a return', () => {
+    const f = lines(); const key = f.range('s', 700, 760);
+    f.push(key, f.range('w1', 700, 720));
+    f.view.lockPositionToReadAloud(); f.push(key, 'w1');
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(2);
+    expect(f.top()).toBe(1406);
+    f.module.dispose();
+  });
+  it('turns a paginated page only when the word leaves it, to the word', () => {
+    const f = lines('paginated'); const key = f.range('span', 100, 300);
+    f.push(key, f.range('pw1', 100, 120)); f.push(key, f.range('pw2', 280, 300));
+    expect(f.nativeNavigate).not.toHaveBeenCalled();
+    f.push(key, f.range('pw3', 1100, 1120));
+    expect(f.nativeNavigate).toHaveBeenCalledTimes(1);
+    expect(f.nativeNavigate).toHaveBeenLastCalledWith('pw3', expect.objectContaining({ block: 'start' }));
+    expect(f.win.scrollTo).not.toHaveBeenCalled();
+    f.deps.wordTiming = () => 'stand-in'; f.deps.segmentTiming = () => 'stand-in';
+    f.push(f.range('page', 100, 150));
+    expect(f.nativeNavigate).toHaveBeenCalledTimes(2);
+    expect(f.nativeNavigate).toHaveBeenLastCalledWith('page', expect.anything());
+    f.module.dispose();
   });
 });
 

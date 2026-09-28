@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { followTarget, type Box, type FollowInput } from '../../src/read-aloud/sentence-in-view';
+import { followTarget, lineWords, sameLine, type Box, type FollowInput } from '../../src/read-aloud/sentence-in-view';
 import { DEFAULTS, loadSettings, PREF_PREFIX, readingLine } from '../../src/core/settings';
 import { createBackup, parseBackup, applyBackup } from '../../src/core/settings-backup';
 import { neverSynced, parseSharedSettings, serializeSharedSettings } from '../../src/core/settings-sync';
@@ -72,6 +72,74 @@ describe('reading line', () => {
   });
 });
 
+// Issue #157: the line of text the highlighted word moves onto goes to the reading line
+describe('scroll at every line', () => {
+  const line = (extra: Partial<FollowInput>) => decide([10, 1750, 700, 1800], { mode: 'line', line: 30, ...extra });
+  // The free space around a 20 px word line is 980 px: 294 of it above, at 30%
+  const word: Box = [10, 1500, 60, 1520];
+
+  it('takes a word as highlighted only with the Word switch on, and waits for one only when the sentence has real timings', () => {
+    expect(lineWords({ wordShown: true, active: 'real', segment: 'real' })).toBe('word');
+    expect(lineWords({ wordShown: true, active: 'none', segment: 'real' })).toBe('coming');
+    expect(lineWords({ wordShown: true, active: 'stand-in', segment: 'stand-in' })).toBe('sentence');
+    expect(lineWords({ wordShown: true, active: 'none', segment: 'stand-in' })).toBe('sentence');
+    expect(lineWords({ wordShown: true, active: 'none', segment: 'none' })).toBe('sentence');
+    for (const active of ['real', 'stand-in', 'none'] as const) {
+      expect(lineWords({ wordShown: false, active, segment: 'real' })).toBe('sentence');
+    }
+  });
+  it('tells a line of text by vertical overlap, a raised or lowered glyph included', () => {
+    expect(sameLine(word, [70, 1502, 120, 1522])).toBe(true);
+    expect(sameLine(word, [70, 1495, 80, 1505])).toBe(true);
+    expect(sameLine(word, [10, 1524, 60, 1544])).toBe(false);
+    expect(sameLine(word, [10, 1519, 60, 1539])).toBe(false);
+  });
+  it('places the first line of a sentence, then each new line, and holds still along a line', () => {
+    expect(line({ words: 'word', wordLine: word, placedLine: null, entered: true })).toMatchObject({ reason: 'line', top: 1206, placedLine: word });
+    const along = line({ words: 'word', wordLine: [70, 1500, 120, 1520], placedLine: word });
+    expect(along).toMatchObject({ reason: 'none', handled: true });
+    expect(along.top).toBeUndefined();
+    expect(along.placedLine).toBeUndefined();
+    const next: Box = [10, 1524, 60, 1544];
+    expect(line({ words: 'word', wordLine: next, placedLine: word })).toMatchObject({ reason: 'line', top: 1230, placedLine: next });
+  });
+  it('places a new line even when it is already in view, and records a line already at the reading line', () => {
+    expect(line({ words: 'word', wordLine: [10, 1100, 60, 1120], placedLine: word }).top).toBe(806);
+    const there = decide([10, 1750, 700, 1800], { mode: 'line', line: 30, words: 'word', wordLine: word, placedLine: null,
+      viewport: { ...viewport, scrollTop: 1206 } });
+    expect(there).toMatchObject({ reason: 'none', placedLine: word });
+    expect(there.top).toBeUndefined();
+  });
+  it('places the line on a return even when the line has not changed', () => {
+    expect(line({ words: 'word', wordLine: word, placedLine: word, force: true })).toMatchObject({ reason: 'return', top: 1206, placedLine: word });
+  });
+  it('waits for the first word of a timed sentence, and a return meanwhile places its first line', () => {
+    const head: Box = [10, 1600, 700, 1620];
+    const waiting = line({ head, words: 'coming', entered: true });
+    expect(waiting).toMatchObject({ reason: 'none', handled: true });
+    expect(waiting.top).toBeUndefined();
+    expect(line({ head, words: 'coming', force: true })).toMatchObject({ reason: 'return', top: 1306 });
+  });
+  it('scrolls at every sentence without a highlighted word', () => {
+    const sentence = decide([10, 1750, 700, 1800], { mode: 'sentence', line: 30, entered: true });
+    expect(sentence.top).toBe(1465);
+    for (const extra of [{ words: 'sentence' as const }, { words: 'word' as const, wordLine: null }, {}]) {
+      expect(line({ ...extra, entered: true })).toEqual(sentence);
+      expect(line({ ...extra, entered: false }).reason).toBe('none');
+    }
+  });
+  it('follows the lines of a sentence taller than the view instead of opening at its head', () => {
+    const whole: Box = [10, 1000, 700, 2800];
+    const head: Box = [10, 1600, 700, 1620];
+    expect(decide(whole, { head, mode: 'line', line: 30, words: 'word', wordLine: [10, 2000, 60, 2020], placedLine: null, entered: true }))
+      .toMatchObject({ reason: 'line', top: 1706, fits: false });
+  });
+  it('measures the line in the part a docked bar leaves uncovered, and brings a word in sideways', () => {
+    expect(line({ words: 'word', wordLine: word, inset: { top: 40, bottom: 0 } }).top).toBe(1178);
+    expect(line({ words: 'word', wordLine: [820, 1500, 870, 1520], placedLine: [10, 1500, 60, 1520] })).toMatchObject({ reason: 'cut', left: 80 });
+  });
+});
+
 describe('auto-scroll preference', () => {
   it('starts new documents in automatic mode by default and backs up/syncs an explicit opt-out', () => {
     const data = new Map<string, unknown>();
@@ -87,12 +155,14 @@ describe('auto-scroll preference', () => {
     const item = { key: 'readAloud.defaultAutoScroll', value: false, ts: 1, by: 'test' };
     expect(parseSharedSettings(serializeSharedSettings([item]))).toEqual([item]);
   });
-  it('defaults to sentence, validates stored values and survives backup/restore', () => {
+  it('defaults to line (#157), validates stored values and survives backup/restore', () => {
     const data = new Map<string, unknown>();
     const prefs = { get: (k: string) => data.get(k), set: (k: string, v: unknown) => { data.set(k, v); } };
-    expect(DEFAULTS.readAloud.autoScrollMode).toBe('sentence');
-    expect(loadSettings(prefs).readAloud.autoScrollMode).toBe('sentence');
+    expect(DEFAULTS.readAloud.autoScrollMode).toBe('line');
+    expect(loadSettings(prefs).readAloud.autoScrollMode).toBe('line');
     data.set(PREF_PREFIX + 'readAloud.autoScrollMode', 'unsupported');
+    expect(loadSettings(prefs).readAloud.autoScrollMode).toBe('line');
+    data.set(PREF_PREFIX + 'readAloud.autoScrollMode', 'sentence');
     expect(loadSettings(prefs).readAloud.autoScrollMode).toBe('sentence');
     data.set(PREF_PREFIX + 'readAloud.autoScrollMode', 'outside');
     const backup = parseBackup(JSON.stringify(createBackup(prefs)));

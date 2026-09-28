@@ -55,8 +55,35 @@ export interface Viewport {
   scrollHeight: number;
 }
 
-/** Why following moved: sentence entry, explicit return, clipped content or a real word. */
-export type FollowReason = 'sentence' | 'return' | 'cut' | 'part' | 'none';
+/** Why following moved: sentence entry, explicit return, clipped content, a real word, or a new line of text (#157). */
+export type FollowReason = 'sentence' | 'return' | 'cut' | 'part' | 'line' | 'none';
+
+/**
+ * Scroll at every line (#157): whether the sentence being read has a
+ * highlighted word now (`word`), will have one once its first word is
+ * spoken (`coming`), or has none to follow and scrolls at every sentence
+ * (`sentence`).
+ */
+export type LineWords = 'word' | 'coming' | 'sentence';
+
+/**
+ * Which of the three a sentence is in. A word counts only while the Word
+ * switch draws it; the whole-segment stand-in of a wordless voice is no
+ * word; a sentence whose clip has real timings but no word active yet waits
+ * for its first.
+ */
+export function lineWords(input: { wordShown: boolean; active: WordTiming; segment: WordTiming }): LineWords {
+  if (!input.wordShown) return 'sentence';
+  if (input.active === 'real') return 'word';
+  if (input.active === 'stand-in') return 'sentence';
+  return input.segment === 'real' ? 'coming' : 'sentence';
+}
+
+/** Whether two boxes lie on one line of text: they overlap vertically by at least half the shorter one's height. */
+export function sameLine(a: Box, b: Box): boolean {
+  const overlap = Math.min(a[3], b[3]) - Math.max(a[1], b[1]);
+  return overlap > 0 && overlap >= Math.min(a[3] - a[1], b[3] - b[1]) / 2;
+}
 
 export interface FollowInput {
   mode?: AutoScrollMode;
@@ -75,6 +102,12 @@ export interface FollowInput {
   margin?: number;
   /** The px a docked player bar lies over at the viewport's top and bottom (#135); none when left out. */
   inset?: { top: number; bottom: number };
+  /** Scroll at every line (#157): what the sentence has to follow; `sentence` when left out. */
+  words?: LineWords;
+  /** Scroll at every line: the box of the highlighted word's first rect, the line it starts on. */
+  wordLine?: Box | null;
+  /** Scroll at every line: the line last placed in this sentence; null for none yet. */
+  placedLine?: Box | null;
 }
 
 export interface FollowTarget {
@@ -88,6 +121,8 @@ export interface FollowTarget {
   handled: boolean;
   top?: number;
   left?: number;
+  /** Scroll at every line: the line now placed at the reading line, scrolled to or already there. */
+  placedLine?: Box;
 }
 
 const MARGIN_MIN = 8;
@@ -252,10 +287,19 @@ function inlineNearest(box: Box, v: Viewport): number | undefined {
  * the same way; without a word its head goes to
  * the top edge plus the margin, once. A target that is where the view
  * already stands is no scroll.
+ *
+ * Scroll at every line (#157) places the line the highlighted word starts
+ * on whenever it is not the line last placed, and on a return, whatever
+ * that leaves of the sentence above it; before the first word of a timed
+ * sentence it waits, a return meanwhile placing the sentence's first line;
+ * a sentence with no word to follow is placed exactly as at every sentence.
  */
 export function followTarget(input: FollowInput): FollowTarget {
   const { head, whole, part, viewport: v } = input;
   const mode = autoScrollMode(input.mode);
+  if (mode === 'line' && (input.words === undefined || input.words === 'sentence' || (input.words === 'word' && !input.wordLine))) {
+    return followTarget({ ...input, mode: 'sentence' });
+  }
   const CH = v.clientHeight;
   const ST = v.scrollTop;
   if (!(CH > 0)) return { reason: 'none', fits: false, handled: false };
@@ -274,7 +318,24 @@ export function followTarget(input: FollowInput): FollowTarget {
   let reason: FollowReason = 'none';
   let focus = whole;
   let top: number | undefined;
-  if (fits) {
+  let placedLine: Box | undefined;
+  if (mode === 'line') {
+    if (input.words === 'word') {
+      const wordLine = input.wordLine!;
+      focus = wordLine;
+      if (input.force || !input.placedLine || !sameLine(wordLine, input.placedLine)) {
+        reason = input.force ? 'return' : 'line';
+        top = placeOn(wordLine);
+        placedLine = wordLine;
+      }
+    } else if (input.force) {
+      reason = 'return';
+      focus = head;
+      top = placeOn(head);
+    } else {
+      return { reason: 'none', fits, handled: true };
+    }
+  } else if (fits) {
     if (input.force || (mode === 'sentence' && input.entered) || isOutside(whole, seen, 0)) {
       reason = input.force ? 'return' : mode === 'sentence' && input.entered ? 'sentence' : 'cut';
       top = placeOn(whole);
@@ -296,10 +357,11 @@ export function followTarget(input: FollowInput): FollowTarget {
   const left = inlineNearest(focus, v);
   if (top !== undefined) top = clamp(top, 0, Math.max(0, v.scrollHeight - CH));
   if (top !== undefined && Math.abs(top - ST) < 1) top = undefined;
-  if (top === undefined && left === undefined) return { reason: 'none', fits, handled: true };
+  if (top === undefined && left === undefined) return { reason: 'none', fits, handled: true, ...(placedLine ? { placedLine } : {}) };
   const target: FollowTarget = { reason: reason === 'none' ? 'cut' : reason, fits, handled: true };
   if (top !== undefined) target.top = top;
   if (left !== undefined) target.left = left;
+  if (placedLine) target.placedLine = placedLine;
   return target;
 }
 
@@ -320,6 +382,10 @@ export interface SentenceInViewDeps {
   isDead?(value: unknown): boolean;
   /** What the reader's active word timestamp is (highlight-style.ts): only a real word is followed. Optional: without it no word is. */
   wordTiming?(reader: unknown): WordTiming;
+  /** What the active segment's clip carries (highlight-style.ts): Scroll at every line waits for the first word only of real timings (#157). Optional: none. */
+  segmentTiming?(reader: unknown): WordTiming;
+  /** Whether the Word switch draws the word: Scroll at every line follows only a highlighted word (#157). Optional: on. */
+  wordShown?(): boolean;
   /** The clock of the re-target window. Optional: Date.now. */
   now?(): number;
   /**
@@ -356,11 +422,43 @@ interface LastDecision {
   left: number | null;
   /** Whether a scroll was issued for it (false: a repeat inside the window, or nothing to do). */
   issued: boolean;
+  /** Scroll at every line (#157): what the sentence had to follow, and the line placed last; null in the other styles. */
+  words: LineWords | null;
+  placedLine: Box | null;
+}
+
+/**
+ * What following remembers of the sentence on a view: its key, the style and
+ * reading line it was placed by, and for Scroll at every line (#157) the
+ * regime it was last placed in and the line placed last.
+ */
+interface Entry {
+  key: string;
+  mode: string;
+  regime: 'line' | 'sentence' | null;
+  placedLine: Box | null;
+}
+
+/**
+ * Scroll at every line's inputs for one push, and what it changes in the
+ * entry: `entered` is true on the first push of a sentence in the sentence
+ * regime, and a turn into the line regime forgets the line placed before.
+ */
+export function lineInputs(
+  entry: { regime: 'line' | 'sentence' | null; placedLine: Box | null },
+  words: LineWords,
+  wordLine: Box | null,
+): { words: LineWords; wordLine: Box | null; entered: boolean } {
+  const regime = words === 'coming' ? entry.regime : words === 'word' && wordLine ? 'line' : 'sentence';
+  const turned = regime !== entry.regime;
+  if (turned && regime === 'line') entry.placedLine = null;
+  entry.regime = regime;
+  return { words, wordLine, entered: turned && regime === 'sentence' };
 }
 
 export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
   /** The sentence last followed on a view, and the style and reading line it was placed by. */
-  const entries = new WeakMap<object, { key: string; mode: string }>();
+  const entries = new WeakMap<object, Entry>();
   const controller = createPdfFollow({
     ...deps,
     clear(view) { delete view[LAST]; entries.delete(view); },
@@ -400,7 +498,7 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
   }
 
   /** The sentence and the word against the container, or null for what Zotero should handle. */
-  function measure(reader: unknown, view: any, position: unknown): { extent: Extent; part: Box | null; viewport: Viewport; inset: { top: number; bottom: number } } | null {
+  function measure(reader: unknown, view: any, position: unknown): { extent: Extent; part: Box | null; wordLine: Box | null; viewport: Viewport; inset: { top: number; bottom: number } } | null {
     const container = containerOf(view);
     const pages = pagesOf(view);
     if (!container || !pages) return null;
@@ -419,14 +517,17 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
     const c = container.getBoundingClientRect();
     const inset = insetOf(view, Number(c.top) + (Number(container.clientTop) || 0), viewport.clientHeight);
     let part: Box | null = null;
+    let wordLine: Box | null = null;
     if (deps.wordTiming?.(reader) === 'real') {
       const word = waive(waive(view._readAloudState)?.activeWordSourcePosition);
       if (word && typeof word.pageIndex === 'number') {
         const page = pageAt(word.pageIndex);
         if (page) part = pageBoxInContainer(word.rects, page, scroll);
+        // The line the word starts on: a hyphenated word's first rect (#157)
+        if (page && part) wordLine = pageBoxInContainer([word.rects[0]], page, scroll);
       }
     }
-    return { extent, part, viewport, inset };
+    return { extent, part, wordLine, viewport, inset };
   }
 
   /** The follow's call: true when answered here, false when Zotero's method should run. */
@@ -441,14 +542,20 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
     // A new reading line re-places the sentence as a new style does
     const changedMode = previous?.mode !== `${mode}@${line}`;
     if (changedMode) delete view[LAST];
-    entries.set(view, { key, mode: `${mode}@${line}` });
+    const entry: Entry = previous && !entered && !changedMode ? previous : { key, mode: `${mode}@${line}`, regime: null, placedLine: null };
+    entries.set(view, entry);
+    const lines = mode === 'line'
+      ? lineInputs(entry, lineWords({ wordShown: deps.wordShown?.() ?? true, active: deps.wordTiming?.(reader) ?? 'none',
+        segment: deps.segmentTiming?.(reader) ?? 'none' }), m.wordLine)
+      : null;
     // First rect is the reading-order head, even when a column-crossing
     // sentence's union starts at the top of its second column.
     let head = m.extent.head;
     const page = pagesOf(view)?.[position.pageIndex];
     if (page && position.rects?.length) head = pageBoxInContainer([position.rects[0]], page, m.viewport) ?? head;
     const target = followTarget({ head, whole: m.extent.whole, part: m.part, viewport: m.viewport,
-      mode, line, entered: entered || changedMode, force, inset: m.inset });
+      mode, line, entered: entered || changedMode, force, inset: m.inset, ...(lines ? { ...lines, placedLine: entry.placedLine } : {}) });
+    if (target.placedLine) entry.placedLine = target.placedLine;
     const last: LastDecision | undefined = view[LAST];
     const at = now();
     const decision: LastDecision = {
@@ -459,6 +566,8 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
       top: target.top ?? null,
       left: target.left ?? null,
       issued: false,
+      words: lines?.words ?? null,
+      placedLine: lines ? entry.placedLine : null,
     };
     if (!target.handled || target.reason === 'none') {
       view[LAST] = decision;

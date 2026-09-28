@@ -375,6 +375,91 @@ describe('createSentenceInView', () => {
     expect(module.inspect(reader)).toMatchObject({ mode: 'sentence', line: 90 });
     module.dispose();
   });
+  // Issue #157: three lines of one sentence, the words the voice reads on them
+  describe('scroll at every line', () => {
+    const sentence = { pageIndex: 1, rects: [[100, 3000, 1000, 3015], [100, 3020, 1000, 3035], [100, 3040, 600, 3055]] };
+    const w = (x: number, top: number) => ({ pageIndex: 1, rects: [[x, top, x + 60, top + 15]] });
+    // A 15 px line leaves 979 px free: 293.7 of it above, at 30%
+    const LINE1 = 3000 - 293.7;
+    const LINE2 = 3020 - 293.7;
+    function lines(over: Partial<SentenceInViewDeps> = {}) {
+      const t = { timing: 'real' as 'real' | 'stand-in' | 'none', segment: 'real' as 'real' | 'stand-in' | 'none', shown: true };
+      const state: any = { activeSegment: { sourcePosition: sentence }, activeWordSourcePosition: null };
+      const module = createSentenceInView(makeDeps({ mode: () => 'line', line: () => 30, wordTiming: () => t.timing,
+        segmentTiming: () => t.segment, wordShown: () => t.shown, ...over }));
+      const f = fakeReader({ scrollTop: 2600, state });
+      module.attach(f.reader);
+      const top = () => f.container.scrollTo.mock.lastCall?.[0]?.cloned?.top;
+      return { ...f, t, state, module, top };
+    }
+
+    it('places the line of each new word and holds still along a line', () => {
+      const f = lines();
+      f.state.activeWordSourcePosition = w(100, 3000); push(f.view, sentence);
+      expect(f.top()).toBeCloseTo(LINE1);
+      f.state.activeWordSourcePosition = w(170, 3000); push(f.view, sentence);
+      expect(f.container.scrollTo).toHaveBeenCalledTimes(1);
+      f.state.activeWordSourcePosition = w(100, 3020); push(f.view, sentence);
+      expect(f.container.scrollTo).toHaveBeenCalledTimes(2);
+      expect(f.top()).toBeCloseTo(LINE2);
+      expect((f.module.inspect(f.reader) as any).last).toMatchObject({ reason: 'line', words: 'word', placedLine: [100, 3020, 160, 3035] });
+      f.module.dispose();
+    });
+    it('takes the line a hyphenated word starts on', () => {
+      const f = lines();
+      f.state.activeWordSourcePosition = { pageIndex: 1, rects: [[940, 3000, 1000, 3015], [100, 3020, 130, 3035]] };
+      push(f.view, sentence);
+      expect(f.top()).toBeCloseTo(LINE1);
+      f.state.activeWordSourcePosition = w(140, 3020); push(f.view, sentence);
+      expect(f.top()).toBeCloseTo(LINE2);
+      f.module.dispose();
+    });
+    it('waits for the first word of a timed sentence, and places a wordless one as at every sentence', () => {
+      const f = lines();
+      f.t.timing = 'none'; push(f.view, sentence);
+      expect(f.container.scrollTo).not.toHaveBeenCalled();
+      expect((f.module.inspect(f.reader) as any).last).toMatchObject({ reason: 'none', words: 'coming' });
+      f.t.timing = 'real'; f.state.activeWordSourcePosition = w(100, 3000); push(f.view, sentence);
+      expect(f.top()).toBeCloseTo(LINE1);
+      // The next sentence, from a voice without word timing: two lines, 35 px, placed whole
+      const next = { pageIndex: 1, rects: [[100, 3100, 1000, 3115], [100, 3120, 500, 3135]] };
+      f.t.timing = 'stand-in'; f.t.segment = 'stand-in'; f.state.activeWordSourcePosition = next;
+      f.state.activeSegment = { sourcePosition: next }; push(f.view, next);
+      expect(f.container.scrollTo).toHaveBeenCalledTimes(2);
+      expect(f.top()).toBeCloseTo(3100 - 287.7);
+      push(f.view, next);
+      expect(f.container.scrollTo).toHaveBeenCalledTimes(2);
+      expect((f.module.inspect(f.reader) as any).last).toMatchObject({ words: 'sentence' });
+      f.module.dispose();
+    });
+    it('scrolls at every sentence with the Word switch off, and places the line at once when it comes back on', () => {
+      const f = lines();
+      f.t.shown = false; f.state.activeWordSourcePosition = w(100, 3020); push(f.view, sentence);
+      // The whole 55 px sentence: 939 px free, 281.7 above
+      expect(f.top()).toBeCloseTo(3000 - 281.7);
+      f.state.activeWordSourcePosition = w(100, 3040); push(f.view, sentence);
+      expect(f.container.scrollTo).toHaveBeenCalledTimes(1);
+      f.t.shown = true; f.module.refresh();
+      expect(f.container.scrollTo).toHaveBeenCalledTimes(2);
+      expect(f.top()).toBeCloseTo(3040 - 293.7);
+      f.module.dispose();
+    });
+    it('places the same line again on a return, and the first line before a word', () => {
+      const f = lines();
+      f.state.activeWordSourcePosition = w(100, 3000); push(f.view, sentence);
+      f.view.lockPositionToReadAloud(); push(f.view, sentence);
+      expect(f.container.scrollTo).toHaveBeenCalledTimes(2);
+      expect(f.top()).toBeCloseTo(LINE1);
+      f.t.timing = 'none'; f.state.activeWordSourcePosition = null;
+      f.container.scrollTop = 1000;
+      f.view.lockPositionToReadAloud(); push(f.view, sentence);
+      expect(f.container.scrollTo).toHaveBeenCalledTimes(3);
+      expect(f.top()).toBeCloseTo(LINE1);
+      expect((f.module.inspect(f.reader) as any).last).toMatchObject({ reason: 'return', words: 'coming' });
+      f.module.dispose();
+    });
+  });
+
   it("shadows the PDF view's navigateToPosition once per prototype, and only on a PDF view", () => {
     const deps = makeDeps();
     const module = createSentenceInView(deps);

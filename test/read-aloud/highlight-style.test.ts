@@ -1192,6 +1192,29 @@ describe('word mode with the whole-segment stand-in timestamp', () => {
     expect(s.wordTiming(null)).toBe('none');
     expect(s.wordTiming({})).toBe('none');
   });
+
+  // Scroll at every line (#157): whether the sentence being read will have a word, before its first
+  it("segmentTiming() says what the active segment's clip carries: real timings, the stand-in, or none", () => {
+    const pdf = fakePDF('word');
+    const { styling: s, deps } = styling();
+    const segment = { text: 'One sentence.' };
+    let timings: unknown = [real, { ...real, start: 0.4, end: 0.8 }];
+    const getTimestampsForSegment = vi.fn(() => timings);
+    Object.assign(pdf.reader._internalReader._readAloudManager, { _activeSegment: segment, _controller: { getTimestampsForSegment } });
+    expect(s.segmentTiming(pdf.reader)).toBe('real');
+    expect(getTimestampsForSegment).toHaveBeenLastCalledWith(segment);
+    timings = [whole];
+    expect(s.segmentTiming(pdf.reader)).toBe('stand-in');
+    for (timings of [null, []]) expect(s.segmentTiming(pdf.reader)).toBe('none');
+    (pdf.reader._internalReader._readAloudManager as any)._activeSegment = null;
+    expect(s.segmentTiming(pdf.reader)).toBe('none');
+    expect(s.segmentTiming(null)).toBe('none');
+    expect(s.segmentTiming({})).toBe('none');
+    getTimestampsForSegment.mockImplementation(() => { throw new Error('dead'); });
+    (pdf.reader._internalReader._readAloudManager as any)._activeSegment = segment;
+    expect(s.segmentTiming(pdf.reader)).toBe('none');
+    expect(deps.error).toHaveBeenCalled();
+  });
 });
 
 // ---- issue #2: the gap between segments -----------------------------------

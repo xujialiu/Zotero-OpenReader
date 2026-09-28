@@ -1,6 +1,6 @@
 /** EPUB following with explicit input intent and whole-range geometry (#93). */
 import { autoScrollMode, readingLine } from '../core/settings';
-import { followTarget, RETARGET_MS, type Box, type SentenceInViewDeps } from './sentence-in-view';
+import { followTarget, lineInputs, lineWords, RETARGET_MS, type Box, type LineWords, type SentenceInViewDeps } from './sentence-in-view';
 import { createFollowIntents, type FollowIntent } from './follow-intent';
 
 interface Owned {
@@ -9,6 +9,8 @@ interface Owned {
   active: boolean; paused: boolean; force: boolean;
   key: string | null; mode: string; line: number; pending: boolean; reason: string;
   last: { at: number; top?: number; left?: number; reason: string } | null;
+  /** Scroll at every line (#157): the regime the sentence was last placed in, the line placed last, and what it had to follow. */
+  regime: 'line' | 'sentence' | null; placedLine: Box | null; words: LineWords | null;
   navigating: number; undo: Array<() => void>;
 }
 
@@ -104,6 +106,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     const changedMode = r.mode !== mode || (r.view.flowMode !== 'paginated' && r.line !== line);
     const reset = r.pending || changedMode || r.force;
     if (reset) r.last = null;
+    if (entered || changedMode) { r.regime = null; r.placedLine = null; }
     let range = r.view.toDisplayedRange(selector);
     // Unmounted EPUB sections have no displayed range. Native navigation
     // mounts the section before highlighting; remeasure the complete range.
@@ -117,18 +120,29 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     const height = doc.documentElement.clientHeight || win.innerHeight;
     const whole = union(boxes);
     let part: Box | null = null;
+    let wordLine: Box | null = null;
     let wordSelector: any = null;
     if (deps.wordTiming?.(r.reader) === 'real' && state.activeWordSourcePosition) {
       wordSelector = r.helper._positionToSelector(state.activeWordSourcePosition);
       const words = rects(wordSelector && r.view.toDisplayedRange(wordSelector));
-      if (words.length) part = union(words);
+      // The line a word starts on: a hyphenated word's first rect (#157)
+      if (words.length) { part = union(words); wordLine = words[0]; }
     }
+    const lines = mode === 'line'
+      ? lineInputs(r, lineWords({ wordShown: deps.wordShown?.() ?? true, active: deps.wordTiming?.(r.reader) ?? 'none',
+        segment: deps.segmentTiming?.(r.reader) ?? 'none' }), wordLine)
+      : null;
+    r.words = lines?.words ?? null;
+    const fresh = lines ? lines.entered : entered || changedMode;
     const outside = (b: Box) => b[0] < 0 || b[1] < 0 || b[2] > width || b[3] > height;
     if (r.view.flowMode === 'paginated') {
       // A spread-crossing sentence cannot fit on one page. Start at its
       // first rect, then turn only for a real word that leaves the spread.
       const fits = whole[2] - whole[0] <= width && whole[3] - whole[1] <= height;
-      const target = r.force || ((entered || changedMode) && (mode === 'sentence' || !fits || outside(whole))) ? selector :
+      // At every line, a highlighted word turns to its own page when it leaves this one (#157)
+      const target = lines?.words === 'word' && part ? (r.force || outside(part) ? wordSelector : null) :
+        lines?.words === 'coming' ? (r.force ? selector : null) :
+        r.force || (fresh && (mode !== 'outside' || !fits || outside(whole))) ? selector :
         !fits ? (part && outside(part) ? wordSelector : null) : outside(whole) ? selector : null;
       if (target) {
         navigate(r, target);
@@ -138,8 +152,10 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const translate = (b: Box): Box => [b[0] + win.scrollX, b[1] + win.scrollY, b[2] + win.scrollX, b[3] + win.scrollY];
       const target = followTarget({ head: translate(boxes[0]), whole: translate(whole), part: part && translate(part),
         viewport: { scrollTop: win.scrollY, scrollLeft: win.scrollX, clientWidth: width, clientHeight: height,
-          scrollHeight: root.scrollHeight, scrollWidth: root.scrollWidth }, mode, line, entered: entered || changedMode, force: r.force,
-        inset: insetOf(r, height) });
+          scrollHeight: root.scrollHeight, scrollWidth: root.scrollWidth }, mode, line, entered: fresh, force: r.force,
+        inset: insetOf(r, height),
+        ...(lines ? { words: lines.words, wordLine: lines.wordLine && translate(lines.wordLine), placedLine: r.placedLine } : {}) });
+      if (target.placedLine) r.placedLine = target.placedLine;
       const now = deps.now?.() ?? Date.now();
       if (target.reason !== 'none' && !(r.last && r.last.top === target.top && r.last.left === target.left && now - r.last.at < RETARGET_MS)) {
         const options: Record<string, unknown> = { behavior: 'smooth' };
@@ -196,7 +212,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const state = waive(helper.state);
       const r: Owned = { reader, view, helper, intent: intents.get(reader),
         active: !!state?.active, paused: !!state?.paused, force: false, key: null, mode: autoScrollMode(deps.mode?.()), line: readingLine(deps.line?.()),
-        pending: false, reason: 'initial', last: null, navigating: 0, undo: [] };
+        pending: false, reason: 'initial', last: null, navigating: 0, undo: [], regime: null, placedLine: null, words: null };
       try {
         own(r, 'positionLocked', false);
         // Native scroll handlers are already bound. This flag bypasses only
@@ -290,7 +306,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
       const r = records.get(view);
       return r ? { kind: 'epub', patched: true, following: r.intent.automatic, paused: r.paused, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
-        line: readingLine(deps.line?.()), flow: r.view.flowMode, reason: r.reason, last: r.last,
+        line: readingLine(deps.line?.()), flow: r.view.flowMode, reason: r.reason, last: r.last, words: r.words, placedLine: r.placedLine,
         covered: insetOf(r, r.view.iframeDocument.documentElement.clientHeight || r.view.iframeWindow.innerHeight) } : { kind: 'dom', patched: false };
     },
     dispose() { disposed = true; for (const r of [...records.values()]) release(r); },

@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/auto-scroll/README.md)
 
-## 3f. Auto-scroll modes and the reading line (issues #93, #155)
+## 3f. Auto-scroll modes and the reading line (issues #93, #155, #157)
 
 Run baseline section 0 and cleanup section 7. Use one PDF with a real
 cross-page or cross-column sentence and one EPUB; record title, viewport,
@@ -13,20 +13,22 @@ Recorded runs: beta2 failure and routing correction (2026-09-12, 1.12.3-beta2),
 beta3 verification (2026-09-12, 1.12.3-beta3),
 per-option help verification (2026-09-12, 1.12.3-beta4),
 reading line verification (2026-09-29, 1.16.2-beta2, issue #155's
-closing comment).
+closing comment); Scroll at every line (issue #157) is new on 1.16.2-beta4.
 Reusable scripts: beta2 probes (2026-09-12, 1.12.3-beta2),
 beta3 probes (2026-09-12, 1.12.3-beta3),
 help probes (2026-09-12, 1.12.3-beta4).
 These records distinguish observed behavior from untested cases; their
 historical values are not fresh PASS results on another build.
 
-1. **Setting and persistence.** Scrolling offers two radio options,
-   Scroll at every sentence and Scroll when outside the view. The former
-   is the default (named Center each sentence, in Highlight, before
-   issue #155). Each option has its own adjacent help icon; hovering
-   them displays different explanations for that option. Changing the
-   choice updates the preference
-   `readAloud.autoScrollMode` to `sentence` or `outside`, is reflected in
+1. **Setting and persistence.** Scrolling offers three radio options,
+   in this order: Scroll at every line, Scroll at every sentence and
+   Scroll when outside the view. Scroll at every line is the default
+   since issue #157 (every sentence before it, named Center each
+   sentence, in Highlight, before issue #155): without a user value the
+   pref reads `line`. Each option has its own adjacent help icon;
+   hovering them displays different explanations for that option.
+   Changing the choice updates the preference
+   `readAloud.autoScrollMode` to `line`, `sentence` or `outside`, is reflected in
    open readers, and does not change the audio controller or playback
    clock. File backup includes it; restore and sync use the existing
    settings path. Do not upload to the user's WebDAV during this pass;
@@ -70,9 +72,11 @@ historical values are not fresh PASS results on another build.
    separate documents remain independent.
    Dispose/reload restores native methods and helper properties without
    errors. Preserve current PDF section 3d ownership/input regressions.
-8. **Toggle shortcut.** Trusted Shift+A in PDF and EPUB switches
-   `outside` to `sentence` and back, with a localized toast naming the
-   new mode and the settings radio group following the change. Works
+8. **Toggle shortcut.** Trusted Shift+A in PDF and EPUB cycles
+   `line` → `sentence` → `outside` → `line` (issue #157), with a
+   localized toast naming the new mode ("Auto-scroll: scroll at every
+   line" / "自动滚动：每行都滚动" for `line`) and the settings radio
+   group following the change. Works
    while playing, paused and before playback; does not alter audio,
    position lock or manual disengagement. Holding the key produces one
    switch. Typing in editable controls is unaffected. The shortcut row
@@ -107,6 +111,33 @@ historical values are not fresh PASS results on another build.
 11. **Paginated EPUB and the reading line (issue #155).** In paginated
    flow a change of the line turns no page, and item 6 holds unchanged
    at line 10.
+12. **Scroll at every line, PDF and scrolled EPUB (issue #157).** With a
+   word-timed voice, the Word switch on and the default line 30, sample
+   `last` fast (PDF: `diagnostics.sentenceInView()`, EPUB:
+   `diagnostics.autoScroll()`). While the word moves along one line
+   nothing is issued and `placedLine` stays. When it moves onto a new
+   line, one target is issued, reason `line`: the word's first rect top
+   − `covered.top` − (`clientHeight` − `covered.top` − `covered.bottom` −
+   the rect's height) × 0.30, within 1 px or clamped; `words: 'word'`
+   and `placedLine` equal to that rect. A new sentence starting on the
+   line the previous one ended issues nothing at its start; its first
+   push reads `words: 'coming'` with nothing issued until its first
+   word. A move to the next column or page up the view issues a target
+   above the current offset. State each expected value before reading
+   the actual one.
+13. **Without a highlighted word (issue #157).** With the Word switch off
+   (Shift+W) the rows read `words: 'sentence'`, and each new sentence
+   issues item 3's sentence target once and nothing more; Shift+W back
+   on issues the current word's line at once. With a voice without word
+   timing (its active timestamp reads `stand-in`), each sentence is
+   placed whole once, `words: 'sentence'`.
+14. **Return at every line (issue #157).** Shift+R, while a word is
+   active, issues its line's target with reason `return` even when that
+   line was already placed; A/M and paused audio unchanged.
+15. **Paginated EPUB at every line (issue #157).** A word moving within
+   the page turns nothing; the word reaching the next page navigates to
+   the word's page once (`last.reason: 'page'`). Without a highlighted
+   word, item 6's sentence paging holds.
 
 Keep the scripts that worked in `test/zotero-dev/scripts/auto-scroll/` with
 prerequisites, expected results and restoration; the run's table is on the
@@ -114,7 +145,7 @@ issue. Restore only state touched by the pass:
 preferences, voice/speed, flow, zoom, player, position and temporary items.
 Preserve the original transport/bookmark snapshot throughout retries.
 
-Human judgment: comfort of per-sentence movement, smoothness, interruption
+Human judgment: comfort of per-sentence and per-line movement, smoothness, interruption
 while an animation is visibly moving, and whether highlights feel stable.
 Synthetic errors, invalid preference values and exact boundary arithmetic
 are unit checks; do not relabel them as live results.

@@ -499,7 +499,8 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     let next: AutoScrollMode;
     try {
       const current = autoScrollMode(deps.prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode'));
-      next = current === 'outside' ? 'sentence' : 'outside';
+      // Most scrolling to least, and around (#157)
+      next = current === 'line' ? 'sentence' : current === 'sentence' ? 'outside' : 'line';
       deps.prefs.set(PREF_PREFIX + 'readAloud.autoScrollMode', next);
     } catch (e) { log(e); return null; }
     try { deps.showAutoScrollToast?.(reader, next); } catch (e) { log(e); }

@@ -15,15 +15,19 @@ function setup() {
 }
 
 describe('auto-scroll shortcut', () => {
-  it('defaults to Shift+A and toggles the shared persistent mode in an idle reader', () => {
+  it('defaults to Shift+A and cycles the shared persistent style in an idle reader: line, sentence, outside (#157)', () => {
     const f = setup();
     expect(DEFAULTS.shortcuts.toggleAutoScroll).toBe('Shift+A');
     expect(f.shortcuts.handleKeyDown(f.event(), () => f.reader)).toBe(true);
+    expect(loadSettings(f.prefs).readAloud.autoScrollMode).toBe('sentence');
+    expect(f.showAutoScrollToast).toHaveBeenLastCalledWith(f.reader, 'sentence');
+    f.shortcuts.handleKeyDown(f.event(), () => f.reader);
     expect(loadSettings(f.prefs).readAloud.autoScrollMode).toBe('outside');
     expect(f.showAutoScrollToast).toHaveBeenLastCalledWith(f.reader, 'outside');
     f.shortcuts.handleKeyDown(f.event(), () => f.reader);
-    expect(loadSettings(f.prefs).readAloud.autoScrollMode).toBe('sentence');
-    expect(f.showAutoScrollToast).toHaveBeenLastCalledWith(f.reader, 'sentence');
+    expect(loadSettings(f.prefs).readAloud.autoScrollMode).toBe('line');
+    expect(f.showAutoScrollToast).toHaveBeenLastCalledWith(f.reader, 'line');
+    expect(f.showAutoScrollToast).toHaveBeenCalledTimes(3);
     expect(f.lockPosition).not.toHaveBeenCalled();
     expect(f.emitState).not.toHaveBeenCalled();
     expect(f.startReadAloud).not.toHaveBeenCalled();

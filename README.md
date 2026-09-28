@@ -294,9 +294,9 @@ doing:
   changing A/M. Both work while reading or paused.
 - **Switch A/M — `Shift+M`** switches the current document's following
   while the player is open. Switching to A also locates the current sentence;
-  paused audio stays paused. **Scroll style — `Shift+A`** switches between
-  scrolling at every sentence and scrolling when outside the view, without
-  changing A/M.
+  paused audio stays paused. **Scroll style — `Shift+A`** cycles through
+  scrolling at every line, at every sentence and when outside the view,
+  without changing A/M.
 - **Custom keys** — record another binding, clear it, or restore defaults
   in Keyboard shortcuts. Held speed changes also work with custom keys.
 
@@ -459,24 +459,33 @@ provider (or Zotero's Standard / Premium), language, voice.
   auto-scroll style and the reading line are backed up and synchronized;
   a tab's current A/M choice is not.
 - *Auto-scroll style* — for PDFs and EPUBs, choose *Scroll at every
-  sentence* (the default) or *Scroll when outside the view*. These styles
-  apply only while A (automatic) is selected.
-  Press `Shift+A` to switch styles; the current style appears briefly.
-  The first brings the whole sentence to the reading line when it starts;
-  the second leaves fully visible sentences in place and brings them to
-  the reading line only when clipped.
-  Word highlighting does not move a fitting sentence word by word.
+  line* (the default), *Scroll at every sentence* or *Scroll when outside
+  the view*. These styles apply only while A (automatic) is selected.
+  Press `Shift+A` to cycle through them; the current style appears briefly.
+- *Scroll at every line* — each time the highlighted word moves onto a
+  new line, that line comes to the reading line, so the line being read
+  stays at one height. A sentence that starts on the line where the last
+  one ended does not move the page. Without a highlighted word (a voice
+  without word timing, or the word highlight switched off) it scrolls at
+  every sentence instead. Paginated EPUBs turn the page when the word
+  reaches the next one.
+- *Scroll at every sentence* brings the whole sentence to the reading line
+  when it starts; *Scroll when outside the view* leaves fully visible
+  sentences in place and brings them to the reading line only when
+  clipped. Neither moves a fitting sentence word by word.
   Sentences taller than the view start at their beginning, then follow
   the current word when real word timing is available; without it, only
   the beginning can be located reliably. Paginated EPUBs keep their pages.
-- *Reading line* — how far down the view auto-scroll places the sentence:
-  0% against the top, 50% centered, 100% against the bottom; 30% by
-  default. A lower value leaves more of the text ahead in view. Both
-  styles and returning to the reading position use it, and a sentence
-  that fits the view is never cut off. The player's top or bottom bar
-  does not count as view. Near the start or the end of a document the
-  sentence may stop short of the line. Paginated EPUBs turn by page and
-  are unaffected.
+- *Reading line* — how far down the view auto-scroll places the sentence,
+  or with Scroll at every line the line being read: 0% against the top,
+  50% centered, 100% against the bottom; 30% by default. A lower value
+  leaves more of the text ahead in view. Every style and returning to the
+  reading position use it. A sentence that fits the view is never cut
+  off, except with Scroll at every line, where the earlier lines of a
+  sentence can leave the top when the line is near 0%. The player's top
+  or bottom bar does not count as view. Near the start or the end of a
+  document the sentence may stop short of the line. Paginated EPUBs turn
+  by page and are unaffected.
 - *Browse while listening* — manual scrolling or page navigation switches
   the document to M, even if the sentence remains visible. The page stays
   under your control through later sentences, pause/resume and stopping
@@ -485,9 +494,10 @@ provider (or Zotero's Standard / Premium), language, voice.
 - *Return and skip* — `Shift+R` locates the current sentence once and leaves
   A/M unchanged. `Shift+Enter` locates it and switches to A. In A, skipping
   a sentence or paragraph locates the new sentence; in M it changes only
-  what is read. Paused audio stays paused. Paginated EPUBs navigate by page;
-  document boundaries and oversized sentences may keep the sentence short
-  of the reading line.
+  what is read. With Scroll at every line, a return brings the line being
+  read to the reading line. Paused audio stays paused. Paginated EPUBs
+  navigate by page; document boundaries and oversized sentences may keep
+  the sentence short of the reading line.
 
 </details>
 

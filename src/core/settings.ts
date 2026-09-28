@@ -23,8 +23,9 @@ export const isZoteroSwitch = (id: string): id is ZoteroSwitchId => (ZOTERO_SWIT
 /** The tier a Zotero switch stands for. */
 export const zoteroSwitchTier = (id: ZoteroSwitchId): ZoteroTier => (id === 'zotero-standard' ? 'standard' : 'premium');
 
-export type AutoScrollMode = 'outside' | 'sentence';
-export const autoScrollMode = (value: unknown): AutoScrollMode => value === 'outside' ? 'outside' : 'sentence';
+/** The auto-scroll style: at every line of text (#157, the default), at every sentence, or only when outside the view. */
+export type AutoScrollMode = 'line' | 'sentence' | 'outside';
+export const autoScrollMode = (value: unknown): AutoScrollMode => value === 'outside' || value === 'sentence' ? value : 'line';
 /**
  * The reading line (#155): a whole percentage from 0 to 100; anything but a
  * number reads as `fallback` — 50, the center, for the geometry left without
@@ -116,7 +117,7 @@ export interface Settings {
   shortcuts: Record<ShortcutAction, string>;
   readAloud: {
     playerLayout: 'A' | 'B' | 'top';
-    /** Follow only clipped content, or place each new sentence at the reading line. */
+    /** Place each new line of text, or each new sentence, at the reading line, or follow only clipped content. */
     autoScrollMode: AutoScrollMode;
     /** How far down the view, in percent, automatic following places a sentence: the share of the free space above it. */
     readingLine: number;
@@ -273,7 +274,7 @@ export const DEFAULTS: Settings = {
   },
   readAloud: {
     playerLayout: 'top',
-    autoScrollMode: 'sentence',
+    autoScrollMode: 'line',
     readingLine: 30,
     defaultAutoScroll: true,
     defaultVoice: '',
