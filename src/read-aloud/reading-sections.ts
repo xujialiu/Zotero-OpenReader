@@ -18,7 +18,15 @@ function contains(ref: ArrayLike<number>, point: ArrayLike<number>): boolean {
   return true;
 }
 
-/** Zotero 10 SDT refs, not page destinations or EPUB spine files. Reader arrays are read by index. */
+/**
+ * Zotero 10 SDT refs, not page destinations or EPUB spine files. Reader arrays are read by index.
+ *
+ * An entry whose place in the text is unknown — no ref (a PDF bookmark Zotero could not anchor
+ * keeps only its page destination), a ref without text of its own, or a ref inside a segment —
+ * drops only the section before it, whose end is then unknown; the text up to the next located
+ * entry belongs to no section (issue #156). Located entries that contradict reading order still
+ * refuse the whole outline.
+ */
 export function readingSections(outline: ArrayLike<OutlineEntry> | undefined, segments: ArrayLike<PositionedSegment>): ReadingSection[] {
   if (!outline?.length || !segments.length) return [];
   let previous: ArrayLike<number> | undefined;
@@ -30,16 +38,25 @@ export function readingSections(outline: ArrayLike<OutlineEntry> | undefined, se
   const result: ReadingSection[] = [];
   const stack = [{ entries: outline, index: 0 }];
   const visited = new Set<OutlineEntry>();
+  // The last located entry, and whether its section is still open (no unlocated entry since).
   let previousDepth = 0;
   let previousRef: ArrayLike<number> | undefined;
+  let previousStart = -1;
+  let open: ReadingSection | undefined;
+  const unlocated = () => {
+    if (open) result.pop();
+    open = undefined;
+  };
   while (stack.length) {
     const frame = stack[stack.length - 1];
     if (frame.index >= frame.entries.length) { stack.pop(); continue; }
     const entry = frame.entries[frame.index++];
     const depth = stack.length;
-    if (!entry || typeof entry.title !== 'string' || !entry.title.trim() || !validRef(entry.ref)) return [];
+    if (!entry || typeof entry.title !== 'string' || !entry.title.trim()) return [];
     if (visited.has(entry)) return [];
     visited.add(entry);
+    if (entry.children?.length) stack.push({ entries: entry.children, index: 0 });
+    if (!validRef(entry.ref)) { unlocated(); continue; }
     const ref = entry.ref;
     if (previousRef && compare(previousRef, ref) > 0) return [];
     let low = 0, high = segments.length;
@@ -47,23 +64,23 @@ export function readingSections(outline: ArrayLike<OutlineEntry> | undefined, se
       const mid = (low + high) >>> 1;
       if (compare(segments[mid].position!.start!, ref) < 0) low = mid + 1; else high = mid;
     }
-    if (low === segments.length || !contains(ref, segments[low].position!.start!)) return [];
-
     const priorEnd = low > 0 ? segments[low - 1].position?.end : undefined;
-    if (priorEnd && compare(priorEnd, ref) >= 0) return [];
-    const last = result[result.length - 1];
-    if (last && low === last.start) {
+    if (low === segments.length || !contains(ref, segments[low].position!.start!)
+      || (priorEnd && compare(priorEnd, ref) >= 0)) { unlocated(); continue; }
+
+    if (low === previousStart) {
       // A parent without introductory text can share its first child's start.
       if (depth <= previousDepth || !previousRef || !contains(previousRef, ref)) return [];
-      last.title = entry.title.trim();
+      if (open) open.title = entry.title.trim();
+      else result.push(open = { title: entry.title.trim(), start: low, end: segments.length });
     } else {
-      if (last && low < last.start) return [];
-      if (last) last.end = low;
-      result.push({ title: entry.title.trim(), start: low, end: segments.length });
+      if (low < previousStart) return [];
+      if (open) open.end = low;
+      result.push(open = { title: entry.title.trim(), start: low, end: segments.length });
     }
     previousDepth = depth;
     previousRef = ref;
-    if (entry.children?.length) stack.push({ entries: entry.children, index: 0 });
+    previousStart = low;
   }
   return result;
 }

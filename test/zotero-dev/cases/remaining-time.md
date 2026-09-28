@@ -1,6 +1,6 @@
 [Checklist](../README.md)
 
-# Estimated remaining reading time (issues #148, #150, #152)
+# Estimated remaining reading time (issues #148, #150, #152, #156)
 
 The owner authorized live verification after the local checks. Follow the
 [baseline](../baseline.md) and tester workflow, including test WebDAV
@@ -40,8 +40,8 @@ first child's start, using a controlled outline when the fixture has no
 introduction. Check the last section through document end. Section time
 is no greater than document time. Test segment boundaries on both sides,
 not just page turns.
-An absent, unresolved or unordered outline yields document time without
-section fields. Selecting text and pressing Shift+Space starts there and
+An absent or unordered outline yields document time without section
+fields; a partly anchored one is item 7. Selecting text and pressing Shift+Space starts there and
 continues to document end; expect document scope for that actual UI path.
 Zotero currently provides no selection-only UI action. Separately supply
 a bounded run through the manager's `setSegments` contract: expect
@@ -138,3 +138,34 @@ paused delayed read-ahead, rendered-line agreement, speed, completion and
 restoration. The delayed-response live probe paused before its held-value
 samples; unpaused buffering and exact device stalls remain virtual-Engine
 coverage, not a separate live PASS.
+
+### 7. Partly anchored outline (issue #156)
+
+Use temporary copies of both attachments of the item titled *The
+Well-Spoken Thesaurus* (EPUB and PDF), never the originals; the owner may
+have the PDF open, and its player is left alone. Open each copy's player
+muted with an already configured voice, pause at once, and move the
+session with `manager.repositionTo(index)`; no estimate readiness is
+needed. `diagnostics.engine()` gives each session's `readingSection`
+(`{ title, start, end }` or `null`) from the same lookup the estimate uses.
+
+On the PDF copy, of 55 outline entries 11 carry only a page `target` and
+no `ref` (Title Page, Copyright, Contents, Lesson 2, 8, 9, 10, 13, Jj, Rr,
+Back Cover). Expect 38 located sections. At the start segment of each
+located section below, `readingSection.title` is that entry and `start`
+the same index; inside the stretches next to an unanchored entry it is
+`null`:
+
+| Position | Expected `readingSection` |
+| --- | --- |
+| First segment of Lesson 3, of Aa, of Kk | that title |
+| First segment of Lesson 1, of Ii, of About the Author; the segment just before Lesson 3 (Lesson 2's text) | `null` |
+| Segment 0 (before Acknowledgments) | `null` |
+
+Find each index by walking the manager's segments against the outline
+refs by index, not by a hard-coded number; report the indexes found.
+Where a snapshot is `ready`, `sectionTitle` matches `readingSection.title`
+and is absent where it is `null`. On the EPUB copy all 57 entries carry
+refs: Lesson 1, Lesson 2, Ii and Jj each have their own `readingSection`.
+Erase both copies and their position rows; the original PDF tab's state
+(active, paused, popup) is unchanged.

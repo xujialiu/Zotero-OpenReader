@@ -16,6 +16,16 @@ subsection's introduction ends at its first child heading. The final
 section ends at the document end. Without reliable boundaries, only the
 document estimate is shown.
 
+A table of contents can be only partly reliable: in a PDF, Zotero often
+cannot find where a few of the book's own bookmarks begin. Such a heading
+costs only the section just before it, whose end is then unknown, and the
+text up to the next heading that was found; everywhere else the section
+time stays. The listener therefore sees no section time in those stretches
+rather than a wrong one: running the previous section on would show a
+chapter's time under the chapter before it, and guessing where the heading
+sits on its page would show a confident, wrong number. A table of contents
+whose order contradicts the text still hides section time everywhere.
+
 Selecting text currently chooses where reading starts; reading continues
 to the end of the document, so document and section estimates still apply.
 If reading is limited to selected content, its estimate is labeled as

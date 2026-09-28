@@ -419,6 +419,26 @@ it('publishes the document and nested section estimates through the real manager
   t.engine.dispose();
 });
 
+it('reports the reading section and drops only the one before an unanchored outline entry (#156)', async () => {
+  const t = await setup({ attachFirst: true });
+  t.segments.forEach((segment, i) => Object.assign(segment, { position: { start: [i, 0, 0], end: [i, 0, segment.text.length] } }));
+  Object.assign(t.reader._internalReader, { _sdt: { structure: { catalog: { outline: [
+    { title: 'A', ref: [0] }, { title: 'Bookmark', source: 'native', target: { position: { pageIndex: 3 } } }, { title: 'C', ref: [2] },
+  ] } } } });
+  t.open();
+  await t.clock.advance(0);
+  t.manager.pause();
+  expect(t.engine.inspect(t.reader).session?.readingSection).toBeNull();
+  expect(t.engine.remainingTime(t.reader)).toMatchObject({ status: 'ready', scope: 'document' });
+  expect(t.engine.remainingTime(t.reader).sectionTitle).toBeUndefined();
+  t.manager.repositionTo(2);
+  await t.clock.advance(0);
+  t.manager.pause();
+  expect(t.engine.inspect(t.reader).session?.readingSection).toEqual({ title: 'C', start: 2, end: 4 });
+  expect(t.engine.remainingTime(t.reader).sectionTitle).toBe('C');
+  t.engine.dispose();
+});
+
 it('keeps document time when a chapter adapter cannot read Zotero state, reporting the failure once', async () => {
   const t = await setup({ attachFirst: true });
   Object.defineProperty(t.reader._internalReader, '_sdt', { get() { throw new Error('outline unavailable'); } });

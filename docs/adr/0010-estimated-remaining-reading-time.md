@@ -58,8 +58,9 @@ the same block references, as recorded in `notes/NOTES_2026-09-21.md`.
 This makes intervals between consecutive outline entries feasible
 without new document analysis. EPUB spine items alone are not chapters;
 PDF page-only destinations cannot locate a chapter starting midway down a
-page. Missing, unresolved or out-of-order boundaries must leave the
-section estimate unavailable. A mapped reference identifies a text
+page. An interval without a located start and end must leave the section
+estimate unavailable, and out-of-order boundaries leave it unavailable for
+the whole outline. A mapped reference identifies a text
 boundary, not the semantic distinction between a part and a chapter.
 The original design used top-level entries. On 2026-09-27, the owner
 replaced that scope with consecutive headings at every depth: a parent's
@@ -70,6 +71,34 @@ time rather than silently reporting a larger parent interval. A parent and
 its first descendant sharing a start use the deepest title. The original
 adapter's live results are recorded in `notes/NOTES_2026-09-26.md` and
 issue #148; verification of the revised behavior belongs to issue #150.
+
+## Unlocated entries cost only their neighbors
+
+Issue #156 narrowed that suppression. Zotero anchors a PDF's own
+bookmarks by title match near the destination, a detected heading, or a
+heading block within 24 points of it; any other entry "keeps only its
+destination as a target" (`resource/document-worker/worker.js`
+147497–147502, `OUTLINE_GEOMETRIC_SNAP_DISTANCE` 147337) and is projected
+with `target: { position: { pageIndex, rect } }` and no `ref`
+(`projectNativeSkeleton`, 147584–147610). Measured on 2026-09-29 in
+*The Well-Spoken Thesaurus*: the PDF's outline has 55 entries, 11 of them
+`target`-only (title page, contents, five lessons, two letters, back
+cover), while the EPUB's 57 all carry refs. With one unlocated entry
+suppressing the whole outline, the PDF showed no section time anywhere.
+
+An unlocated boundary is now an entry without a valid ref, a ref with no
+segment of its own, or a ref inside a segment. It drops only the interval
+before it, whose end is unknown; text up to the next located entry has no
+section. Located entries that contradict reading order — reversed refs,
+a start mapped before the previous one, a repeated entry, a non-descendant
+sharing a start, a title-less entry — still refuse the whole outline,
+since no boundary in it can then be trusted. The ordering and
+shared-start checks compare located entries only. On that PDF 38 of the 55
+entries keep section time. Locating a page destination ourselves was
+rejected: it is the snap Zotero declined, and a wrong guess would show a
+confident wrong number. Letting the previous interval run over an
+unlocated entry was rejected: it would time and title the next chapter as
+the previous one.
 
 ## Implementation
 
@@ -102,7 +131,9 @@ outstanding gap. Future gaps use `computeGap`; a manual pause drops the
 outstanding gap because that is the Engine's existing behavior. The
 Zotero adapter reads `_internalReader._sdt.structure.catalog.outline` and
 uses validated refs and ordered segment positions; entries without a
-matching start or boundaries crossed by a segment suppress section time.
+matching start or boundaries crossed by a segment suppress the section
+time of the interval they end (issue #156). Engine diagnostics expose the
+lookup as `readingSection` even before audio allows an estimate.
 The section cache follows outline and segment identity. An outline access
 failure is logged once per reader and leaves document estimation usable.
 

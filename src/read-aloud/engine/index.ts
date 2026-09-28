@@ -565,6 +565,11 @@ export function createEngine(deps: EngineDeps): Engine {
           ? {
               remainingTime: remainingTime(reader),
               remainingCalibration: session.store?.remainingTime.calibration ?? null,
+              // The section lookup alone, even before audio allows an estimate (issue #156).
+              readingSection: read(() => {
+                const section = session.segments ? sectionFor(reader, session.segments, session.position) : undefined;
+                return section ? { title: section.title, start: section.start, end: section.end } : null;
+              }),
               listeningTime: session.listeningTime,
               voice: session.voice?.id ?? null,
               position: session.position,
