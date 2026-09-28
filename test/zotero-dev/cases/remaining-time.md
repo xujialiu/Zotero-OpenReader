@@ -159,7 +159,7 @@ the same index; inside the stretches next to an unanchored entry it is
 | Position | Expected `readingSection` |
 | --- | --- |
 | First segment of Lesson 3, of Aa, of Kk | that title |
-| First segment of Lesson 1, of Ii, of About the Author; the segment just before Lesson 3 (Lesson 2's text) | `null` |
+| First segment of Lesson 1, Lesson 7, Lesson 12, Ii, Qq and About the Author (each followed by an unanchored entry); the segment just before Lesson 3 (Lesson 2's text) | `null` |
 | Segment 0 (before Acknowledgments) | `null` |
 
 Find each index by walking the manager's segments against the outline

@@ -679,3 +679,4 @@ then) and is in the git history before that day.
 - The reading line splits the free space, and a blank message is a missing one (issue #155)
 - One unanchored PDF bookmark hid section time for the whole book (issue #156)
 - Verified live: the reading line lands exactly, and `last` is not a decision stream (issue #155)
+- Verified live: section time survives unanchored bookmarks (issue #156)
