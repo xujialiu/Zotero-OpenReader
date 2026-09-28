@@ -1,8 +1,74 @@
-# Scripts: voice switching (issues #95, #108, #149)
+# Scripts: voice switching (issues #95, #108, #149, #154)
 
 [Case](../../cases/voice-switch.md) · [Checklist index](../../README.md) · [Runner](../_shared/README.md)
 
-## Issue #149 beta5 verification
+## Issue #154 kit (added 2026-09-28)
+
+| Script | Checks | Expected | Params/state |
+| --- | --- | --- | --- |
+| `154-00-baseline-and-isolate.js` | Private baseline and dedicated test-WebDAV isolation before install | Destination matches; transports idle; no OpenReader Position; host minimized; position rows recorded | private `Zotero.__ztts154`, `hold` config |
+| `154-01-mute-import-open-seed.js` | Mute, import fixture-a.pdf, open player paused on a free voice, pick the Shift+. pair, favorites-only | Engine session voice A paused; cycle list exactly [A, B] | `fixturesDir`; private fixtures |
+| `154-02-postinstall-probe.js` | Installed version, adjacency, audio device probe | 1.16.2-beta; `audio.state` `running`, playbackTime advances; iframe `notifyUserGestureActivation()` before play | private state |
+| `154-03-skip-left-commits.js` | Held pick with Shift+., then trusted ←: skip commits the switch | At once: voice B, `handoff: null`, playing false, `skipPending: true`, `carriedOn` +1, started flat, `last.kind: "skip"` with from/to; B reads the previous sentence from offset 0; notice `selected`; only B sampled after the key | keys via `nsITextInputProcessor` on the reader iframe |
+| `154-04-skip-variants.js` | Shift+←, →, Shift+→: each takes the pending switch | Same immediate pattern; landing = sentence rule from the position at key time; notice `selected` | per-variant reset |
+| `154-05-player-skip-button.js` | The player's "Skip to Previous Sentence" button takes the pending switch | Same pattern (button click → manager skipBack shadow) | popup open |
+| `154-06-prepared-reuse.js` | Prepared audio reused: paused pick (armWord stands down while paused), wait `handoff.prepared` holds position+1, →, Play | Commit at once; zero fetches after the key (wrapper log, text-matched); Play reads the prepared sentence from offset 0 with no refetch | wrapper logs request text |
+| `154-07-paused-skip.js` | Paused: pick, ←: commit with `notice: "selected"` at once, no request before Play, Play from offset 0. Variant "lands-on-paused-in" pins sentence 0 mid-clip | `skipPending` then silent debounce; Play fetches the unprepared sentence and starts it fresh (pt < 1 s) | two variants |
+| `154-08-speed-cancel.js` | A speed change during a pending switch still cancels | `stage: "cancelled"`, `pending: null`, notice `cancelled` (`last` keeps the previous boundary); old voice reads on; stats flat | |
+| `154-09-ordinary-handoff.js` | Control: playing switch with no skip still hands over through the Handoff | `last.kind` word or sentence (`wordDecision` recorded), `carriedOn` +1, started flat, notice `selected` | no hold |
+| `154-99-cleanup-and-restore.js` | Fixtures out, prefs byte-identical, WebDAV restored, host minimized | Erased rows back to baseline; memory/readAloudVoices/favorites equal baseline; switches restored last but memory | deletes `__ztts154` on success |
+
+Before you start: bridge up; `154-00` before installing; install the xpi, `zotero_plugin_list` = manifest `-betaN`, `diagnostics.startup()` all ok; then `154-01`, `154-02`, the behavior scripts, `154-99`. State lives in `Zotero.__ztts154` (`baseline`, `fixtures`, `voiceA/voiceB`, `hold`); results under `.tmp/zotero-dev/<runId>/`.
+
+Limits and notes (2026-09-28 run):
+
+- The local (Kokoro) tier was disabled on this profile; the run enabled
+  `local.enabled` (configured provider, restore covered by the baseline) and used
+  the pair `local::af_bella` / `local::af_alloy` (the configured h200-kokoro
+  server, free). Fish free voices were the fallback.
+- Favorites + favoritesOnly shape the cycle list only after a popup cycle; the
+  seed polls and rebuilds once. Voice entries carry their language in
+  `language` (not `lang`).
+- A script-started play/resume needs the reader iframe's
+  `notifyUserGestureActivation()` (autoplay gate): without it the session says
+  `playing` while `audio.state` stays `suspended` and playbackTime freezes.
+  The seed resets pin sentence 1 (pause, `repositionTo`, play) because the
+  persisted reading position resumes wherever the last run left it.
+- The committed switch persists its voice into Zotero's native per-language
+  map, so a later popup reopen may start on the OTHER pair member; the scripts
+  therefore treat the observed session voice as the old voice X and B as the
+  pair's other member.
+- Playing picks with two word-timed Kokoro voices arm a word cut
+  (`wordDecision: "shared-word-boundary"`) and never fill `prepared` ahead, so
+  the prepared-reuse row runs paused, where `armWord()` stands down and
+  `prepared` fills. Read-ahead inflates `store.requests` after Play: the reuse
+  check text-matches the fetch log instead.
+- On cancel, `voiceSwitch()` keeps the previous switch's `last`; only
+  `pending` clears and `stage`/`notice` become `cancelled`.
+
+## Runs
+
+| Run | Build | Result |
+| --- | --- | --- |
+| 2026-09-26 | 1.15.2-beta5 | #149: startup, four UI recoveries, ordinary handoff, cleanup PASS; [table](https://github.com/xujialiu/Zotero-TTS/issues/149#issuecomment-5845582557) |
+| 2026-09-28 | 1.16.2-beta (xpi `c8a1c103…`, bundle 4× `commitNow\|adoptVoice`, commit fcfa451) | #154: 00/01/02, 03 (←), 04 (Shift+←, →, Shift+→), 05 (player button), 06 (prepared reuse, paused), 07 (paused × 2), 08 (speed cancel), 09 (ordinary control), 99 cleanup all PASS; [table](https://github.com/xujialiu/Zotero-TTS/issues/154#issuecomment-5865908183). Cleanup: rows 86→86, memory/native voices/favorites byte-identical, WebDAV restored, host minimized. Human checks open: whether any old-voice sound slips out after the key; perceived voice quality. |
+
+## Historical kits (issues #95/#108/#149, 1.12.x–1.15.x)
+
+The `native-*`, `regional-*`, `kokoro-*`, `108-*`, `cancel-*`, `alignment-*`,
+`official-*`, `providers-*`, and `149-*` scripts remain from earlier runs; the
+#149 beta5 set (2026-09-26) measured the four recovery variants and the
+ordinary Fish handoff — Albert/Ava/Samantha rebuilds paused at segment 2, zero
+pre-Play requests, `notice: "selected"`, `recoveries` counting only UI
+recoveries, cleanup with rows 85 (baseline not captured), one diagnostic-only
+dead object at `zotero-tts.js:18117` before stale-wrapper pruning. Per-script
+`switchOf()` helpers filtered by `itemID` while `voiceSwitch()` indexes by
+array index: their `switch: null` fields are not evidence. Older run order and
+preparation are in repository history; the linked issue comments hold their
+tables.
+
+The #149 set, in its run order (after `149-01`/`149-02`, the player seed was a
+manual foreground step):
 
 | Script | Checks | Expected | Params/state |
 | --- | --- | --- | --- |
@@ -18,80 +84,3 @@
 | `149-12-same-voice-retained-ava.js` | Retained-ID same-voice row | Same Ava pick rebuilds paused at segment 2 | PDF player |
 | `149-13-stale-ui-samantha.js` | Stale-unpaused Samantha row | Samantha rebuilds paused at segment 2; no pre-Play requests | PDF player |
 | `149-99-cleanup-and-restore.js` | Fixture, records, transports, prefs, host teardown | Fixtures gone; exact named state restored; host minimized | private baseline |
-
-Before installing beta5, run `149-00` and require matching test WebDAV,
-suspended switches, settled transports, and no OpenReader Position add-on. Run
-the install/list/startup check, then `149-01` and `149-02`. The player seed is a
-foreground step: select the PDF, call its `_loadSDT()`, open and pause Read
-Aloud, wait for 538 voices/17 segments, choose an English Fish voice, pause,
-and restore the exact baseline `readAloud.memory`. This seed remains manual
-because the first scripted refresh encountered a stale closed EPUB wrapper; no
-untested replacement script is claimed. `149-06` onward assumes that state.
-
-The run used PDF `Z4PND7VY` and EPUB `3Q89U6MX`. It never played or repositioned
-the owner reader. A request wrapper did not survive the native interface rebuild
-(`installed:false` by identity); Engine session store counts are authoritative.
-
-### Exact field results
-
-| Variant | Actual action | Precondition | After pick | Requests / result |
-| --- | --- | --- | --- | --- |
-| Albert (`149-08`) | System provider row, Albert row, then Play | `selected:null`, active/paused, controller false, ended true, position 2 | Albert controller true, paused, ended false, position 2 | Engine store 0 before Play; after Play `requests:8`, `clips:8`, `timings:8`; capture later saw position 6. Wrapper calls were empty, so its `requested:false` is not used. |
-| Ava stale (`149-11`) | System Ava voice row | `selected:null`, active true, paused false, controller false, ended true, position 2 | Ava controller true, paused, ended false, position 2 | Engine requests 0; wrapper calls 0; PASS |
-| Ava retained (`149-12`) | Same Ava row after controller destruction | Ava retained, active/paused, controller false, ended true, position 2 | Same Ava controller true, paused, ended false, position 2 | Engine requests 0; wrapper calls 0; PASS |
-| Samantha stale (`149-13`) | System Samantha voice row | `selected:null`, active true, paused false, controller false, ended true, position 2 | Samantha controller true, paused, ended false, position 2 | Engine requests 0; wrapper calls 0; PASS |
-| Direct Samantha (`149-10`) | Chrome `manager.selectVoice`, no player row | Same stale-unpaused shape | Engine rebuilt and paused at position 2, zero requests | Mechanical PASS, but recovery counter did not advance; excluded from the four UI recoveries. |
-
-The stable `voiceSwitch()` report after the UI variants was
-`notice:"selected"`, `recoveries:4`: Albert, stale Ava, retained Ava, and
-stale Samantha. Its retained `last` trace belonged to the earlier ordinary
-Fish handoff. That control changed Fish `en/9fa4…` to Abel `en/8634…` while
-`playing:true` at position/currentIndex 2; after commit it remained at position
-2, with `carriedOn` `1→2`, target store `requests:4`, `clips:4`, `inflight:0`,
-and no recovery.
-
-The inline per-script `switchOf()` helpers filtered diagnostic rows by
-`itemID`, although `voiceSwitch()` identifies rows by array index; their
-`switch:null` fields are therefore not evidence. The aggregate direct query
-above is authoritative. Likewise, `documentVoices().records` are JSON strings;
-the helper's normalized per-script record fields were null, so the direct
-record values stated below are the evidence.
-
-The first stable `documentVoices()` comparison showed global default
-`local::af_bella`, PDF fixture Albert `manual:true`, and EPUB
-`local::af_bella` `manual:false`; later manual choices stayed on the PDF
-record. Cleanup erased both fixture records and restored the prior records.
-
-Cleanup passed with `fixtureReadersRemaining:0`, `fixtureItemsRemaining:0`,
-`pendingClean:true`, volume `100`/user `false`, exact memory (62 chars) and
-native voice map (1257 chars), WebDAV destination/switches restored, and host
-minimized. The after position-store row count was 85, but the baseline count
-was not captured (`null`), so row-count equality is not claimed. Restoring
-switches logged settings sync `72 remote, 0 applied/deferred/pushed/skipped`,
-shared positions `16 remote, 16 merged, 0 adopted/dropped`, and positions
-`100 remote, 100 merged, 0 adopted/dropped`.
-
-One diagnostic-only dead-object error occurred before stale-wrapper pruning:
-`TypeError: can't access dead object` at
-`.../zotero-tts@xujialiu.top.xpi!/content/zotero-tts.js:18117:5`, stack
-`readAloudManager (18117:5) → voiceSwitch/<.readers (19752:19) → voiceSwitch
-(19750:27)`. Removing the stale EPUB wrapper made `diagnostics.voiceSwitch()`
-return normally; Engine recovery/audio state was unaffected. Zotero's own
-reader dead-object, locale, and guidance-panel messages also remained in the
-final error ring.
-
-The legacy `native-*`, `108-*`, and `kokoro-*` scripts remain in this folder
-as historical checks. The [independent #108 beta2 report](https://github.com/xujialiu/Zotero-TTS/issues/108#issuecomment-5674194936)
-records their last verification: six `108-*` scripts, all PASS, with PDF
-resume offset .700 and EPUB .830; the provider group proved abort and
-ordinary-request isolation. Those checks were not rerun for #149; their
-earlier run order and preparation remain in repository history. This README records the current #149 run and its preparation gap.
-
-## Run
-
-[Verification table and limitations](https://github.com/xujialiu/Zotero-TTS/issues/149#issuecomment-5845582557).
-
-2026-09-26 · 1.15.2-beta5 · XPI `218e2bb7…` · bundle `f1101efa…` · startup,
-four UI recoveries, ordinary handoff, cleanup PASS. The run does not establish
-which upstream action originally ended the session, and subjective voice
-quality/handoff gap remain human checks.

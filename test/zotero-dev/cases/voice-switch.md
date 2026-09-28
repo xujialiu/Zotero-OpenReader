@@ -188,14 +188,19 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
     never starts the target. Repeat with `Shift+←`, `→`, `Shift+→` and one
     of the player's skip buttons. **Prepared audio reused:** let the new
     voice's next sentence arrive (`handoff.prepared` holds it) before `→`:
-    that sentence plays with no second request (`store.requests`
-    unchanged). **Paused:** pause, pick, `←`: `selected` and
+    that sentence plays with no second request. Two word-timed voices arm a
+    word cut while playing and never prepare ahead, so this row runs paused;
+    read-ahead after Play raises `store.requests`, so count the requests for
+    that sentence's text in a fetch log. **Paused:** pause, pick, `←`: `selected` and
     `notice: selected` at once, no request for the target before Play,
     and Play reads the target in the new voice from offset 0 even when
     `←` lands on the sentence paused in. **Still cancelled:** a speed
     change during a pending switch reports `cancelled` and the old voice
-    reads on. Only a human can hear whether any old-voice sound slips out
-    after the key.
+    reads on (`last` keeps the previous switch's boundary). Only a human
+    can hear whether any old-voice sound slips out after the key. Verified
+    on macOS, 2026-09-28, 1.16.2-beta, with a cold request to the
+    configured Kokoro server as the pending window: all five keys, paused
+    and prepared reuse PASS; the kit README has the run.
 
 Unit tests cover artificial timer delays, timeout exhaustion, cross-realm
 array callback traps and malformed timestamp combinations. Real bridge
