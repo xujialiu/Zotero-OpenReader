@@ -10,16 +10,16 @@ const zoteros = settings([false, 0], [false, 0]);
 const defaults = pauseSettingsOf(DEFAULTS.readAloud);
 
 describe('pauseSettingsOf', () => {
-  it('reads the four prefs: on at 0 between sentences, on at 200 before a paragraph', () => {
-    expect(defaults).toEqual(settings([true, 0], [true, 200]));
+  it('reads the four prefs: on at 200 between sentences, on at 200 before a paragraph', () => {
+    expect(defaults).toEqual(settings([true, 200], [true, 200]));
   });
 });
 
 describe('computeGap', () => {
   const zeros = settings([false, 0], [false, 0]);
 
-  it('at the defaults runs sentence to sentence and waits 200 before a paragraph at 1×', () => {
-    expect(computeGap({ paragraph: false, speed: 1, settings: defaults })).toBe(0);
+  it('at the defaults waits 200 between sentences and 200 before a paragraph at 1×', () => {
+    expect(computeGap({ paragraph: false, speed: 1, settings: defaults })).toBe(200);
     expect(computeGap({ paragraph: true, speed: 1, settings: defaults })).toBe(200);
   });
 
