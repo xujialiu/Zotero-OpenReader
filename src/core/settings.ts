@@ -25,6 +25,9 @@ export const zoteroSwitchTier = (id: ZoteroSwitchId): ZoteroTier => (id === 'zot
 
 export type AutoScrollMode = 'outside' | 'sentence';
 export const autoScrollMode = (value: unknown): AutoScrollMode => value === 'outside' ? 'outside' : 'sentence';
+/** The reading line (#155): a whole percentage from 0 to 100; anything but a number reads as 50, the center. */
+export const readingLine = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.round(Math.min(100, Math.max(0, value))) : 50;
 
 export interface Settings {
   /**
@@ -109,8 +112,10 @@ export interface Settings {
   shortcuts: Record<ShortcutAction, string>;
   readAloud: {
     playerLayout: 'A' | 'B' | 'top';
-    /** Follow only clipped content, or center each new sentence. */
+    /** Follow only clipped content, or place each new sentence at the reading line. */
     autoScrollMode: AutoScrollMode;
+    /** How far down the view, in percent, automatic following places a sentence: the share of the free space above it. */
+    readingLine: number;
     /** Initial choice for new reader tabs; never overrides existing tab intent. */
     defaultAutoScroll: boolean;
     /** Expand each newly shown player once, leaving manual folding alone. */
@@ -265,6 +270,7 @@ export const DEFAULTS: Settings = {
   readAloud: {
     playerLayout: 'top',
     autoScrollMode: 'sentence',
+    readingLine: 50,
     defaultAutoScroll: true,
     defaultVoice: '',
     sameForAllDocuments: true,
@@ -414,6 +420,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     readAloud: {
       playerLayout: playerLayout(prefs),
       autoScrollMode: autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
+      readingLine: readingLine(prefs.get(PREF_PREFIX + 'readAloud.readingLine')),
       defaultAutoScroll: prefs.get(PREF_PREFIX + 'readAloud.defaultAutoScroll') !== false,
       defaultVoice: str(prefs, 'readAloud.defaultVoice', DEFAULTS.readAloud.defaultVoice),
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),

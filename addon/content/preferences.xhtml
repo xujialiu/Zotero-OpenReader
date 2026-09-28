@@ -456,11 +456,12 @@
     </hbox>
   </groupbox>
 
-  <!-- The two highlight levels as switches (issue #114) and Zotero's Read Aloud highlight colors,
-       applied per reader by read-aloud/highlight-style.ts; the switches' greying, the preview and
-       the Restore button are wired by ui/highlight-rows.ts -->
+  <!-- Scrolling (issue #155): its own section, out of Highlight. The reading line
+       is a whole percentage; an entry out of 0 to 100 is used clamped, as the
+       pause fields are. The words before and after the field are two
+       messages, so each language puts "from the top" on its own side. -->
   <groupbox>
-    <label><html:h2 data-l10n-id="ztts-heading-highlight"/></label>
+    <label><html:h2 data-l10n-id="ztts-heading-scrolling"/></label>
     <hbox align="center">
       <label data-l10n-id="ztts-default-auto-scroll" control="ztts-default-auto-scroll" style="width: 8em"/>
       <radiogroup id="ztts-default-auto-scroll" orient="horizontal">
@@ -482,6 +483,21 @@
         </hbox>
       </radiogroup>
     </hbox>
+    <hbox align="center">
+      <label data-l10n-id="ztts-reading-line" control="ztts-reading-line" style="width: 8em"/>
+      <label data-l10n-id="ztts-reading-line-before"/>
+      <html:input id="ztts-reading-line" type="number" min="0" max="100" step="1" style="width: 5em"
+                  preference="extensions.zotero.zotero-tts.readAloud.readingLine"/>
+      <label data-l10n-id="ztts-reading-line-after"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-reading-line" data-l10n-attrs="help"/>
+    </hbox>
+  </groupbox>
+
+  <!-- The two highlight levels as switches (issue #114) and Zotero's Read Aloud highlight colors,
+       applied per reader by read-aloud/highlight-style.ts; the switches' greying, the preview and
+       the Restore button are wired by ui/highlight-rows.ts -->
+  <groupbox>
+    <label><html:h2 data-l10n-id="ztts-heading-highlight"/></label>
     <!-- One row per level (issue #114): its switch, then its color and opacity. The
          last switch still on is greyed by highlight-rows.ts; both off is not a state. -->
     <hbox align="center">

@@ -82,7 +82,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [3a. The whole sentence on screen (issue #83, 1.11.7)](cases/whole-sentence.md)
 - [3c. The colors follow the first page (issue #88, 1.11.7)](cases/page-colors.md)
 - [3d. Plugin-owned PDF following (issue #90, 1.12.1-beta3)](cases/pdf-follow.md)
-- [3f. Auto-scroll modes (issue #93)](cases/auto-scroll.md)
+- [3f. Auto-scroll modes and the reading line (issues #93, #155)](cases/auto-scroll.md)
 - [3i. Manual navigation while the sentence remains visible (issue #100)](cases/manual-follow.md)
 - [Scrolling stays smooth while the player is open (issue #125, 1.13.1)](cases/scroll-performance.md)
 

@@ -92,7 +92,7 @@ not verification of #153. Retain the scripts actually run in this case's kit.
   bindings keep that action. The full label wraps without clipping.
 - Go to reading position defaults to Shift+R; Switch A/M to Shift+M. All
   three support recording, clearing, restoring defaults and settings backup.
-- Shift+A still changes Center each sentence / Scroll when outside the view,
+- Shift+A still changes Scroll at every sentence / Scroll when outside the view,
   with its existing toast, without changing A/M. Held follow keys act only
   once and typing in editable fields is untouched.
 - Return keys fall through without an open reading session. Switch A/M

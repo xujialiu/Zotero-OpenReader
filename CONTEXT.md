@@ -67,9 +67,15 @@ The initial follow choice for a newly opened document.
 _Avoid_: global follow state
 
 **Scroll style**:
-How automatic following positions the sentence: center each sentence, or
-scroll when outside the view.
+When automatic following scrolls: at every sentence, or only when the
+sentence is outside the view.
 _Avoid_: follow choice, manual mode
+
+**Reading line**:
+How far down the view automatic following places the sentence it
+scrolls to, as a percentage: the share of the space around the sentence
+that is left above it. 50% centers it.
+_Avoid_: position (where reading stopped), offset, anchor
 
 **Player**:
 The visible controls: play, pause, skip, speed, volume, the provider,

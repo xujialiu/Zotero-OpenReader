@@ -513,8 +513,9 @@ ztts-substitute = Zotero-TTS：这里没有提供 { $missing }，改用 { $inste
 ztts-substitute-none = Zotero-TTS：这里没有提供 { $missing }，也没有 Zotero-TTS 的其他语音。由 Zotero 选择语音。
 ztts-substitute-paid = Zotero-TTS：这里没有提供 { $missing }，也没有 Zotero-TTS 的其他语音。由 Zotero 选择语音，可能会消耗额度。
 
-## Auto-scroll
+## Scrolling (issue #155: its own section, out of Highlight)
 
+ztts-heading-scrolling = 滚动
 ztts-default-auto-scroll =
     .value = 默认滚动方式
 ztts-follow-auto =
@@ -528,21 +529,30 @@ ztts-help-default-auto-scroll =
 ztts-auto-scroll =
     .value = 自动滚动方式
 ztts-auto-scroll-sentence =
-    .label = 每句居中
+    .label = 每句都滚动
 ztts-auto-scroll-outside =
     .label = 超出视图时滚动
 ztts-help-auto-scroll-sentence =
     .value = ?
-    .help = 在 A（自动）状态下，每个新句子都会居中，即使它已经可见。在 M（手动）状态下不移动页面。适用于 PDF 和 EPUB；分页 EPUB 按页定位。
+    .help = 在 A（自动）状态下，每个新句子都会滚到阅读线，即使它已经可见。在 M（手动）状态下不移动页面。适用于 PDF 和 EPUB；分页 EPUB 按页定位。
 ztts-help-auto-scroll-outside =
     .value = ?
-    .help = 在 A（自动）状态下，句子完整可见时保持不动，被截断时才滚动。在 M（手动）状态下不移动页面。超长句子先定位开头，有真实单词时间戳时再跟随单词；分页 EPUB 按页定位。
+    .help = 在 A（自动）状态下，句子完整可见时保持不动，被截断时才滚到阅读线。在 M（手动）状态下不移动页面。超长句子先定位开头，有真实单词时间戳时再跟随单词；分页 EPUB 按页定位。
+ztts-reading-line =
+    .value = 阅读线
+ztts-reading-line-before =
+    .value = 距顶部
+ztts-reading-line-after =
+    .value = %
+ztts-help-reading-line =
+    .value = ?
+    .help = 在 A（自动）状态下，自动滚动把句子停在视图的这个高度：0% 贴顶，50% 居中，100% 贴底。两种自动滚动方式都用它，回到朗读位置也用它。视图放得下的句子不会被切掉。分页 EPUB 按页翻，不受影响。
 
 ztts-key-auto-scroll =
     .value = 自动滚动模式
 ztts-help-key-auto-scroll =
     .value = ?
-    .help = 在“每句居中”和“超出视图时滚动”之间切换。选择对所有 PDF 和 EPUB 生效，并会保存。在阅读器中，朗读前或朗读时均可使用；手动浏览后不会因此恢复跟随。
+    .help = 在“每句都滚动”和“超出视图时滚动”之间切换。选择对所有 PDF 和 EPUB 生效，并会保存。在阅读器中，朗读前或朗读时均可使用；手动浏览后不会因此恢复跟随。
 ztts-action-auto-scroll = 自动滚动模式
 ztts-key-previous-voice =
     .value = 上一个声音
@@ -556,7 +566,7 @@ ztts-action-next-voice = 下一个声音
 ztts-voice-preparing = 正在准备声音：{ $voice }
 ztts-voice-failed = 无法切换到 { $voice }。已保留原来的声音，请重试。
 ztts-voice-unavailable = 声音列表尚未就绪。请打开播放器后重试。
-ztts-auto-scroll-toast-sentence = 自动滚动：每句居中
+ztts-auto-scroll-toast-sentence = 自动滚动：每句都滚动
 ztts-auto-scroll-toast-outside = 自动滚动：超出视图时滚动
 # The annotate keys (issue #145): Zotero's own H and U, bindable
 ztts-key-highlight-sentence =

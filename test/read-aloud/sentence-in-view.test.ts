@@ -358,6 +358,23 @@ describe('createSentenceInView', () => {
     expect(container.scrollTo).toHaveBeenCalledTimes(3);
     module.dispose();
   });
+  it('places each sentence at the reading line, re-places it when the line changes and reports the line (#155)', () => {
+    let line = 10;
+    const module = createSentenceInView(makeDeps({ mode: () => 'sentence', line: () => line }));
+    const { reader, view, container } = fakeReader({ scrollTop: 2600 });
+    module.attach(reader);
+    const position = { pageIndex: 1, rects: [[100, 3400, 1000, 3435]] };
+    push(view, position);
+    // 3400 less a tenth of the 959 px the 35 px sentence leaves free
+    expect(container.scrollTo).toHaveBeenLastCalledWith({ cloned: { top: 3400 - 95.9, behavior: 'smooth' } });
+    push(view, { ...position });
+    expect(container.scrollTo).toHaveBeenCalledTimes(1);
+    line = 90; module.refresh();
+    expect(container.scrollTo).toHaveBeenCalledTimes(2);
+    expect(container.scrollTo).toHaveBeenLastCalledWith({ cloned: { top: 3400 - 863.1, behavior: 'smooth' } });
+    expect(module.inspect(reader)).toMatchObject({ mode: 'sentence', line: 90 });
+    module.dispose();
+  });
   it("shadows the PDF view's navigateToPosition once per prototype, and only on a PDF view", () => {
     const deps = makeDeps();
     const module = createSentenceInView(deps);

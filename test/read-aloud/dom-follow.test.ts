@@ -50,12 +50,14 @@ function fixture(intents = createFollowIntents()) {
   const helper = view._readAloud = new Helper();
   const reader = { _window: {}, _internalReader: { _primaryView: view } };
   let mode: 'outside' | 'sentence' = 'outside';
+  let line = 50;
   type Covered = { top: number; bottom: number };
-  const deps = { intents, enabled: () => true, mode: () => mode, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn(),
+  const deps = { intents, enabled: () => true, mode: () => mode, line: () => line, resuming: () => false, wordTiming: () => 'real' as const, error: vi.fn(),
     covered: ((_frame: unknown, _box: Covered): Covered => ({ top: 0, bottom: 0 })) };
   const module = createDOMFollow(deps);
   const push = (key: string, word?: string) => helper.setState({ active: true, popupOpen: true, activeSegment: { position: key, sourcePosition: key }, activeWordSourcePosition: word });
-  return { view, helper, module, reader, range, push, win, nativeNavigate, rendered, deps, mode: (v: typeof mode) => { mode = v; } };
+  return { view, helper, module, reader, range, push, win, nativeNavigate, rendered, deps, mode: (v: typeof mode) => { mode = v; },
+    line: (v: number) => { line = v; } };
 }
 
 describe('EPUB auto-scroll', () => {
@@ -106,6 +108,29 @@ describe('EPUB auto-scroll', () => {
     expect(f.win.scrollTo).toHaveBeenCalledTimes(1);
     f.view.lockPositionToReadAloud(); f.push(key);
     expect(f.win.scrollTo).toHaveBeenCalledTimes(2);
+  });
+  it('places each sentence at the reading line and re-places it when the line changes (#155)', () => {
+    const f = fixture(); f.mode('sentence'); f.line(10); f.module.attach(f.reader);
+    const key = f.range('visible', 700, 750);
+    f.push(key);
+    // 1700 in the document, less a tenth of the 950 px the sentence leaves free
+    expect(f.win.scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ top: 1605 }));
+    f.push(key);
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(1);
+    f.line(90); f.module.refresh();
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(2);
+    expect(f.win.scrollTo).toHaveBeenLastCalledWith(expect.objectContaining({ top: 845 }));
+    expect(f.module.inspect(f.reader)).toMatchObject({ mode: 'sentence', line: 90 });
+    f.module.dispose();
+  });
+  it('turns paginated pages without regard to the reading line', () => {
+    const f = fixture(); f.view.flowMode = 'paginated'; f.mode('sentence'); f.module.attach(f.reader);
+    f.push(f.range('page', 100, 150));
+    expect(f.nativeNavigate).toHaveBeenCalledTimes(1);
+    f.line(10); f.module.refresh();
+    expect(f.nativeNavigate).toHaveBeenCalledTimes(1);
+    expect(f.win.scrollTo).not.toHaveBeenCalled();
+    f.module.dispose();
   });
   it('ignores automatic scroll callbacks but keeps manual navigation disengaged across modes and sentences', () => {
     const f = fixture(); f.mode('sentence'); f.module.attach(f.reader);

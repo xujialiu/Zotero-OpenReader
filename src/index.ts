@@ -16,7 +16,7 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { audioCacheOn, autoScrollMode, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, PREF_PREFIX, ZOTERO_SWITCH_IDS } from './core/settings';
+import { audioCacheOn, autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, PREF_PREFIX, ZOTERO_SWITCH_IDS } from './core/settings';
 import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, legacyPrefSet, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
@@ -165,7 +165,8 @@ let sentenceInView: SentenceInView | null = null;
 let domFollowing: ReturnType<typeof createDOMFollow> | null = null;
 let followResumeGuard: ReturnType<typeof createResumeGuard> | null = null;
 let selectionStart: ReturnType<typeof createSelectionStart> | null = null;
-let autoScrollObserver: unknown = null;
+/** The auto-scroll style's and the reading line's observers: a change re-places the sentence being followed. */
+let autoScrollObservers: unknown[] = [];
 /** A page's first line Zotero's document analysis threw out, put back before the sentences are cut (read-aloud/skipped-lines.ts, issue #87). */
 let skippedLines: SkippedLines | null = null;
 let systemVoiceHiding: SystemVoiceHiding | null = null;
@@ -2178,6 +2179,7 @@ function startSentenceInView(): void {
   const deps: SentenceInViewDeps = {
     resuming: (reader) => followResumeGuard?.resuming(reader) ?? false,
     mode: () => autoScrollMode(prefs.get(PREF_PREFIX + 'readAloud.autoScrollMode')),
+    line: () => readingLine(prefs.get(PREF_PREFIX + 'readAloud.readingLine')),
     intents: followIntents,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     // What the reader hands an exported function arrives behind Xray wrappers (see highlight-style.ts)
@@ -2202,17 +2204,15 @@ function startSentenceInView(): void {
   eachReader((reader) => followResumeGuard?.attach(reader));
   eachReader((reader) => sentenceInView?.attach(reader));
   eachReader((reader) => domFollowing?.attach(reader));
-  autoScrollObserver = Zotero.Prefs.registerObserver('zotero-tts.readAloud.autoScrollMode', () => {
+  autoScrollObservers = ['autoScrollMode', 'readingLine'].map((name) => Zotero.Prefs.registerObserver(`zotero-tts.readAloud.${name}`, () => {
     sentenceInView?.refresh();
     domFollowing?.refresh();
-  });
+  }));
 }
 
 function stopSentenceInView(): void {
-  if (autoScrollObserver !== null) {
-    Zotero.Prefs.unregisterObserver(autoScrollObserver);
-    autoScrollObserver = null;
-  }
+  for (const observer of autoScrollObservers) Zotero.Prefs.unregisterObserver(observer);
+  autoScrollObservers = [];
   domFollowing?.dispose();
   domFollowing = null;
   followResumeGuard?.dispose();

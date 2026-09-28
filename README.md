@@ -295,7 +295,7 @@ doing:
 - **Switch A/M — `Shift+M`** switches the current document's following
   while the player is open. Switching to A also locates the current sentence;
   paused audio stays paused. **Scroll style — `Shift+A`** switches between
-  centering each sentence and scrolling when outside the view, without
+  scrolling at every sentence and scrolling when outside the view, without
   changing A/M.
 - **Custom keys** — record another binding, clear it, or restore defaults
   in Keyboard shortcuts. Held speed changes also work with custom keys.
@@ -399,7 +399,7 @@ provider (or Zotero's Standard / Premium), language, voice.
 ### Reading
 
 <details>
-<summary><b>Expanded player, document voices, pauses, prefetch, cache, the whole sentence on screen, a page's first line, a sentence split in two</b></summary>
+<summary><b>Expanded player, document voices, pauses, prefetch, cache, a page's first line, a sentence split in two</b></summary>
 
 - *Open the player expanded* — show the floating panel's provider, language
   and voice rows whenever it opens. On by default. Options or Shift+O
@@ -435,31 +435,6 @@ provider (or Zotero's Standard / Premium), language, voice.
   cache below, and keeps it switched on.
 - *Cache synthesized audio* — skipping back or reopening a document costs no
   new request. In memory (64 MB); a Zotero restart empties it.
-- *Auto-scroll* — for PDFs and EPUBs, choose *Center each sentence* (the default) or
-  *Scroll when outside the view* in the Highlight settings. These styles
-  apply only while A (automatic) is selected.
-  Press `Shift+A` to switch modes; the current mode appears briefly.
-  The first centers the whole sentence when it starts; the second leaves
-  fully visible sentences in place and centers them only when clipped.
-  Word highlighting does not move a fitting sentence word by word.
-  Sentences taller than the view start at their beginning, then follow
-  the current word when real word timing is available; without it, only
-  the beginning can be located reliably. Paginated EPUBs keep their pages.
-  Document boundaries may limit centering.
-- *Default scrolling* — choose *Auto-scroll* (the default) or *Manual-scroll*
-  for newly opened PDF and EPUB tabs. Manual-scroll starts them in M.
-  Changing this setting leaves existing tabs alone. The default and scroll
-  style are backed up and synchronized; a tab's current A/M choice is not.
-- *Browse while listening* — manual scrolling or page navigation switches
-  the document to M, even if the sentence remains visible. The page stays
-  under your control through later sentences, pause/resume and stopping
-  and restarting reading. Click M or press `Shift+M` to follow again.
-  Automatic scrolling, zoom and window changes do not themselves enter M.
-- *Return and skip* — `Shift+R` locates the current sentence once and leaves
-  A/M unchanged. `Shift+Enter` locates it and switches to A. In A, skipping
-  a sentence or paragraph locates the new sentence; in M it changes only
-  what is read. Paused audio stays paused. Paginated EPUBs navigate by page;
-  document boundaries and oversized sentences may limit centering.
 - *Read a page's first line when Zotero would skip it* — a sentence that
   runs onto the next page can lose that page's first line: Zotero reads
   straight past it, and the join sounds like a sentence. On, the line is
@@ -470,6 +445,48 @@ provider (or Zotero's Standard / Premium), language, voice.
   sentences, with a pause between them. On, the halves are read and
   highlighted as one. Off if two paragraphs are ever read as one; a change
   applies to documents opened from then on.
+
+</details>
+
+### Scrolling
+
+<details>
+<summary><b>Default scrolling, auto-scroll style, the reading line, browsing while listening, return and skip</b></summary>
+
+- *Default scrolling* — choose *Auto-scroll* (the default) or *Manual-scroll*
+  for newly opened PDF and EPUB tabs. Manual-scroll starts them in M.
+  Changing this setting leaves existing tabs alone. The default, the
+  auto-scroll style and the reading line are backed up and synchronized;
+  a tab's current A/M choice is not.
+- *Auto-scroll style* — for PDFs and EPUBs, choose *Scroll at every
+  sentence* (the default) or *Scroll when outside the view*. These styles
+  apply only while A (automatic) is selected.
+  Press `Shift+A` to switch styles; the current style appears briefly.
+  The first brings the whole sentence to the reading line when it starts;
+  the second leaves fully visible sentences in place and brings them to
+  the reading line only when clipped.
+  Word highlighting does not move a fitting sentence word by word.
+  Sentences taller than the view start at their beginning, then follow
+  the current word when real word timing is available; without it, only
+  the beginning can be located reliably. Paginated EPUBs keep their pages.
+- *Reading line* — how far down the view auto-scroll places the sentence:
+  0% against the top, 50% centered (the default), 100% against the bottom.
+  A lower value leaves more of the text ahead in view. Both styles and
+  returning to the reading position use it, and a sentence that fits the
+  view is never cut off. The player's top or bottom bar does not count as
+  view. Near the start or the end of a document the sentence may stop
+  short of the line. Paginated EPUBs turn by page and are unaffected.
+- *Browse while listening* — manual scrolling or page navigation switches
+  the document to M, even if the sentence remains visible. The page stays
+  under your control through later sentences, pause/resume and stopping
+  and restarting reading. Click M or press `Shift+M` to follow again.
+  Automatic scrolling, zoom and window changes do not themselves enter M.
+- *Return and skip* — `Shift+R` locates the current sentence once and leaves
+  A/M unchanged. `Shift+Enter` locates it and switches to A. In A, skipping
+  a sentence or paragraph locates the new sentence; in M it changes only
+  what is read. Paused audio stays paused. Paginated EPUBs navigate by page;
+  document boundaries and oversized sentences may keep the sentence short
+  of the reading line.
 
 </details>
 

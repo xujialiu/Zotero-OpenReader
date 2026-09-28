@@ -22,9 +22,10 @@
  * preserves Zotero's state/highlight work and calls this geometry directly.
  * The native scroll/debounce branch is disabled on owned views: delayed
  * scroll events cannot disengage following, but deliberate navigation can.
- * Both pages are measured, the whole centered when it fits, else the real
- * word followed when available; unmeasurable positions and horizontal-only
- * navigation use the saved native method under the same plugin-owned lock.
+ * Both pages are measured, the whole placed at the reading line (#155) when
+ * it fits, else the real word followed when available; unmeasurable
+ * positions and horizontal-only navigation use the saved native method
+ * under the same plugin-owned lock, which still centers.
  *
  * Compartments: the shadow runs exported into the reader's compartment, so
  * `this`, the position and the options arrive behind Xray wrappers (waived
@@ -34,7 +35,7 @@
  * dictionary as empty (measured 2026-09-10).
  */
 
-import { autoScrollMode, type AutoScrollMode } from '../core/settings';
+import { autoScrollMode, readingLine, type AutoScrollMode } from '../core/settings';
 import type { WordTiming } from '../core/highlight-level';
 import type { AnyFn } from './proto-patches';
 import { createPdfFollow } from './pdf-follow';
@@ -59,6 +60,8 @@ export type FollowReason = 'sentence' | 'return' | 'cut' | 'part' | 'none';
 
 export interface FollowInput {
   mode?: AutoScrollMode;
+  /** The reading line (#155), 0 to 100: the share of the free space left above what is placed. 50, the center, when left out. */
+  line?: number;
   entered?: boolean;
   force?: boolean;
   /** The box of the sentence's rects on its first page — what Zotero measures. */
@@ -242,9 +245,11 @@ function inlineNearest(box: Box, v: Viewport): number | undefined {
 }
 
 /**
- * The follow decision: center on sentence entry in sentence mode, otherwise
- * only after actual clipping; explicit return always centers a fitting sentence. A sentence taller than the viewport follows the word being read
- * when that leaves the viewport, centered; without a word its head goes to
+ * The follow decision: place at the reading line on sentence entry in
+ * sentence mode, otherwise only after actual clipping; explicit return always
+ * places a fitting sentence. A sentence taller than the viewport follows the
+ * word being read when that leaves the viewport, placed at the reading line
+ * the same way; without a word its head goes to
  * the top edge plus the margin, once. A target that is where the view
  * already stands is no scroll.
  */
@@ -260,7 +265,10 @@ export function followTarget(input: FollowInput): FollowTarget {
   if (!(CH - above - below > 0)) above = below = 0;
   const VH = CH - above - below;
   const seen: Viewport = { ...v, scrollTop: ST + above, clientHeight: VH };
-  const centerOn = (box: Box): number => (box[1] + box[3]) / 2 - VH / 2 - above;
+  // The free space around the box is split above and below it by the
+  // reading line: 50 centers, 0 is the top edge, 100 the bottom (#155)
+  const line = readingLine(input.line);
+  const placeOn = (box: Box): number => box[1] - above - ((VH - (box[3] - box[1])) * line) / 100;
   const margin = input.margin ?? followMargin(VH);
   const fits = whole[3] - whole[1] <= VH;
   let reason: FollowReason = 'none';
@@ -269,7 +277,7 @@ export function followTarget(input: FollowInput): FollowTarget {
   if (fits) {
     if (input.force || (mode === 'sentence' && input.entered) || isOutside(whole, seen, 0)) {
       reason = input.force ? 'return' : mode === 'sentence' && input.entered ? 'sentence' : 'cut';
-      top = centerOn(whole);
+      top = placeOn(whole);
     }
   } else if (input.entered || input.force) {
     reason = input.force ? 'return' : 'cut';
@@ -279,7 +287,7 @@ export function followTarget(input: FollowInput): FollowTarget {
     focus = part;
     if (isOutside(part, seen, 0)) {
       reason = 'part';
-      top = centerOn(part);
+      top = placeOn(part);
     }
   } else {
     // No word timing: never repeatedly drag a tall sentence back to its head.
@@ -300,6 +308,8 @@ export interface SentenceInViewDeps {
   intents?: FollowIntents;
   resuming?(reader: any): boolean;
   mode?(): AutoScrollMode;
+  /** The reading line (#155), 0 to 100. Optional: 50, the center. */
+  line?(): number;
   /** Makes a sandbox function callable from the reader's compartment (Components.utils.exportFunction). Optional for tests. */
   exportFunction?(fn: AnyFn, target: object): AnyFn;
   /** Components.utils.waiveXrays: `this` and the arguments of an exported function arrive behind Xray wrappers. Optional for tests. */
@@ -349,7 +359,8 @@ interface LastDecision {
 }
 
 export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
-  const entries = new WeakMap<object, { key: string; mode: AutoScrollMode }>();
+  /** The sentence last followed on a view, and the style and reading line it was placed by. */
+  const entries = new WeakMap<object, { key: string; mode: string }>();
   const controller = createPdfFollow({
     ...deps,
     clear(view) { delete view[LAST]; entries.delete(view); },
@@ -423,19 +434,21 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
     const m = measure(reader, view, position);
     if (!m) return false;
     const mode = autoScrollMode(deps.mode?.());
+    const line = readingLine(deps.line?.());
     const key = JSON.stringify(position);
     const previous = entries.get(view);
     const entered = previous?.key !== key;
-    const changedMode = previous?.mode !== mode;
+    // A new reading line re-places the sentence as a new style does
+    const changedMode = previous?.mode !== `${mode}@${line}`;
     if (changedMode) delete view[LAST];
-    entries.set(view, { key, mode });
+    entries.set(view, { key, mode: `${mode}@${line}` });
     // First rect is the reading-order head, even when a column-crossing
     // sentence's union starts at the top of its second column.
     let head = m.extent.head;
     const page = pagesOf(view)?.[position.pageIndex];
     if (page && position.rects?.length) head = pageBoxInContainer([position.rects[0]], page, m.viewport) ?? head;
     const target = followTarget({ head, whole: m.extent.whole, part: m.part, viewport: m.viewport,
-      mode, entered: entered || changedMode, force, inset: m.inset });
+      mode, line, entered: entered || changedMode, force, inset: m.inset });
     const last: LastDecision | undefined = view[LAST];
     const at = now();
     const decision: LastDecision = {
@@ -520,7 +533,7 @@ export function createSentenceInView(deps: SentenceInViewDeps): SentenceInView {
       deps.error(e);
     }
     const last: LastDecision | undefined = view[LAST];
-    return { kind: 'pdf', mode: autoScrollMode(deps.mode?.()), patched, ...ownership, viewport, covered, sentence, part, last: last ? { ...last } : null };
+    return { kind: 'pdf', mode: autoScrollMode(deps.mode?.()), line: readingLine(deps.line?.()), patched, ...ownership, viewport, covered, sentence, part, last: last ? { ...last } : null };
   }
 
   return {

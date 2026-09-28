@@ -88,6 +88,7 @@ pref('extensions.zotero.zotero-tts.highlight.sentence', true);
 pref('extensions.zotero.zotero-tts.highlight.word', true);
 
 pref('extensions.zotero.zotero-tts.readAloud.autoScrollMode', 'sentence');
+pref('extensions.zotero.zotero-tts.readAloud.readingLine', 50);
 pref('extensions.zotero.zotero-tts.readAloud.defaultAutoScroll', true);
 pref('extensions.zotero.zotero-tts.shortcuts.toggleAutoScroll', 'Shift+A');
 pref('extensions.zotero.zotero-tts.shortcuts.previousVoice', 'Shift+,');

@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/auto-scroll/README.md)
 
-## 3f. Auto-scroll modes (issue #93)
+## 3f. Auto-scroll modes and the reading line (issues #93, #155)
 
 Run baseline section 0 and cleanup section 7. Use one PDF with a real
 cross-page or cross-column sentence and one EPUB; record title, viewport,
@@ -18,9 +18,10 @@ help probes (2026-09-12, 1.12.3-beta4).
 These records distinguish observed behavior from untested cases; their
 historical values are not fresh PASS results on another build.
 
-1. **Setting and persistence.** Highlight offers two radio options,
-   Center each sentence and Scroll when outside the view. The former is
-   the default. Each option has its own adjacent help icon; hovering
+1. **Setting and persistence.** Scrolling offers two radio options,
+   Scroll at every sentence and Scroll when outside the view. The former
+   is the default (named Center each sentence, in Highlight, before
+   issue #155). Each option has its own adjacent help icon; hovering
    them displays different explanations for that option. Changing the
    choice updates the preference
    `readAloud.autoScrollMode` to `sentence` or `outside`, is reflected in
@@ -32,7 +33,8 @@ historical values are not fresh PASS results on another build.
    sentence fully inside each viewport edge, including inside the old
    quarter-screen trigger. State/word updates cause no automatic motion.
    Clip its top or bottom, or a continuation on another PDF page/column:
-   the whole extent is centered, clamped to document limits. Record the
+   the whole extent goes to the reading line (item 10; centered at the
+   default 50), clamped to document limits. Record the
    expected target from the whole range and the actual final position.
 3. **Sentence mode, PDF and scrolled EPUB.** Natural audio advances to
    at least three distinct fitting sentences: each new sentence produces
@@ -74,6 +76,31 @@ historical values are not fresh PASS results on another build.
    switch. Typing in editable controls is unaffected. The shortcut row
    defaults to Shift+A, accepts a custom chord and supports clearing;
    restore its original binding after checking.
+9. **Scrolling section (issue #155).** The pane has a Scrolling section
+   (滚动) between Reading and Highlight holding, in this order, Default
+   scrolling, Auto-scroll style and Reading line; Highlight holds no
+   scrolling row. The reading line row reads `Reading line  at [50] %
+   from the top` (`阅读线  距顶部 [50] %` in zh-CN), its `?` hover shows
+   the reading line help, and `diagnostics.l10n()` reports no blank
+   element and no `?` without its glyph. Typing 10 into the field sets
+   `readAloud.readingLine` to 10, and `diagnostics.autoScroll()` then
+   reports `line: 10` for an open PDF and EPUB without a reinstall.
+10. **Reading line, PDF and scrolled EPUB (issue #155).** At line 10 in
+   Scroll at every sentence, each new fitting sentence's issued target
+   (`last.top`) is its top less the covered top, less a tenth of the
+   uncovered height minus the sentence's height: `top − covered.top −
+   (clientHeight − covered.top − covered.bottom − height) × 0.10`,
+   within 1 px, or clamped at the document's start or end. State the
+   expected value from `diagnostics.sentenceInView()` (PDF) or the
+   range (EPUB) before reading the actual one. Changing the line to 90
+   while a sentence is followed issues one new target for it at once.
+   In Scroll when outside the view a line change leaves a visible
+   sentence in place, and a clipped one goes to the line. Shift+R
+   returns to the line. With the Top bar docked, the line is measured
+   in the part below it. Back at 50 the targets equal item 3's centering.
+11. **Paginated EPUB and the reading line (issue #155).** In paginated
+   flow a change of the line turns no page, and item 6 holds unchanged
+   at line 10.
 
 Keep the scripts that worked in `test/zotero-dev/scripts/auto-scroll/` with
 prerequisites, expected results and restoration; the run's table is on the

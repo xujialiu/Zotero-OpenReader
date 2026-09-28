@@ -1,5 +1,5 @@
 /** EPUB following with explicit input intent and whole-range geometry (#93). */
-import { autoScrollMode } from '../core/settings';
+import { autoScrollMode, readingLine } from '../core/settings';
 import { followTarget, RETARGET_MS, type Box, type SentenceInViewDeps } from './sentence-in-view';
 import { createFollowIntents, type FollowIntent } from './follow-intent';
 
@@ -7,7 +7,7 @@ interface Owned {
   intent: FollowIntent;
   reader: any; view: any; helper: any;
   active: boolean; paused: boolean; force: boolean;
-  key: string | null; mode: string; pending: boolean; reason: string;
+  key: string | null; mode: string; line: number; pending: boolean; reason: string;
   last: { at: number; top?: number; left?: number; reason: string } | null;
   navigating: number; undo: Array<() => void>;
 }
@@ -98,8 +98,10 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     if (!selector) return;
     const key = JSON.stringify(selector);
     const mode = autoScrollMode(deps.mode?.());
+    const line = readingLine(deps.line?.());
     const entered = r.key !== key;
-    const changedMode = r.mode !== mode;
+    // A new reading line re-places the sentence as a new style does; pages have no line (#155)
+    const changedMode = r.mode !== mode || (r.view.flowMode !== 'paginated' && r.line !== line);
     const reset = r.pending || changedMode || r.force;
     if (reset) r.last = null;
     let range = r.view.toDisplayedRange(selector);
@@ -136,7 +138,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const translate = (b: Box): Box => [b[0] + win.scrollX, b[1] + win.scrollY, b[2] + win.scrollX, b[3] + win.scrollY];
       const target = followTarget({ head: translate(boxes[0]), whole: translate(whole), part: part && translate(part),
         viewport: { scrollTop: win.scrollY, scrollLeft: win.scrollX, clientWidth: width, clientHeight: height,
-          scrollHeight: root.scrollHeight, scrollWidth: root.scrollWidth }, mode, entered: entered || changedMode, force: r.force,
+          scrollHeight: root.scrollHeight, scrollWidth: root.scrollWidth }, mode, line, entered: entered || changedMode, force: r.force,
         inset: insetOf(r, height) });
       const now = deps.now?.() ?? Date.now();
       if (target.reason !== 'none' && !(r.last && r.last.top === target.top && r.last.left === target.left && now - r.last.at < RETARGET_MS)) {
@@ -150,7 +152,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
         r.last = { at: now, top: target.top, left: target.left, reason: target.reason };
       }
     }
-    r.key = key; r.mode = mode; r.force = false; r.pending = false;
+    r.key = key; r.mode = mode; r.line = line; r.force = false; r.pending = false;
   }
 
   const attempt = (r: Owned, state?: any) => { try { run(r, state); } catch (e) { deps.error(e); } };
@@ -193,7 +195,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const helper = waive(view._readAloud);
       const state = waive(helper.state);
       const r: Owned = { reader, view, helper, intent: intents.get(reader),
-        active: !!state?.active, paused: !!state?.paused, force: false, key: null, mode: autoScrollMode(deps.mode?.()),
+        active: !!state?.active, paused: !!state?.paused, force: false, key: null, mode: autoScrollMode(deps.mode?.()), line: readingLine(deps.line?.()),
         pending: false, reason: 'initial', last: null, navigating: 0, undo: [] };
       try {
         own(r, 'positionLocked', false);
@@ -288,7 +290,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
       const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
       const r = records.get(view);
       return r ? { kind: 'epub', patched: true, following: r.intent.automatic, paused: r.paused, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
-        flow: r.view.flowMode, reason: r.reason, last: r.last,
+        line: readingLine(deps.line?.()), flow: r.view.flowMode, reason: r.reason, last: r.last,
         covered: insetOf(r, r.view.iframeDocument.documentElement.clientHeight || r.view.iframeWindow.innerHeight) } : { kind: 'dom', patched: false };
     },
     dispose() { disposed = true; for (const r of [...records.values()]) release(r); },

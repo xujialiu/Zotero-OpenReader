@@ -567,8 +567,9 @@ ztts-substitute = Zotero-TTS: { $missing } is not offered here. Reading with { $
 ztts-substitute-none = Zotero-TTS: { $missing } is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice.
 ztts-substitute-paid = Zotero-TTS: { $missing } is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice; it may use credits.
 
-## Auto-scroll
+## Scrolling (issue #155: its own section, out of Highlight)
 
+ztts-heading-scrolling = Scrolling
 ztts-default-auto-scroll =
     .value = Default scrolling
 ztts-follow-auto =
@@ -582,21 +583,33 @@ ztts-help-default-auto-scroll =
 ztts-auto-scroll =
     .value = Auto-scroll style
 ztts-auto-scroll-sentence =
-    .label = Center each sentence
+    .label = Scroll at every sentence
 ztts-auto-scroll-outside =
     .label = Scroll when outside the view
 ztts-help-auto-scroll-sentence =
     .value = ?
-    .help = In A (automatic), center each new sentence even if it is already visible. In M (manual), leave the page alone. For PDFs and EPUBs; paginated EPUBs navigate by page.
+    .help = In A (automatic), bring each new sentence to the reading line even if it is already visible. In M (manual), leave the page alone. For PDFs and EPUBs; paginated EPUBs navigate by page.
 ztts-help-auto-scroll-outside =
     .value = ?
-    .help = In A (automatic), leave a fully visible sentence in place and scroll only when it is clipped. In M (manual), leave the page alone. Oversized sentences follow their beginning, then real word positions when available. Paginated EPUBs navigate by page.
+    .help = In A (automatic), leave a fully visible sentence in place and scroll it to the reading line only when it is clipped. In M (manual), leave the page alone. Oversized sentences follow their beginning, then real word positions when available. Paginated EPUBs navigate by page.
+# The reading line (issue #155): the row's label, then the words before the field
+# and the words after it, so each language can put "from the top" on its own side.
+# Neither may be empty: the pane's check reads a blank message as untranslated.
+ztts-reading-line =
+    .value = Reading line
+ztts-reading-line-before =
+    .value = at
+ztts-reading-line-after =
+    .value = % from the top
+ztts-help-reading-line =
+    .value = ?
+    .help = In A (automatic), automatic scrolling stops the sentence at this height: 0% against the top, 50% centered, 100% against the bottom. Both auto-scroll styles and returning to the reading position use it. A sentence that fits the view is never cut off. Paginated EPUBs turn by page and are unaffected.
 
 ztts-key-auto-scroll =
     .value = Auto-scroll mode
 ztts-help-key-auto-scroll =
     .value = ?
-    .help = Switch between Center each sentence and Scroll when outside the view. The choice applies to every PDF and EPUB and is saved. Works in a reader before or during playback; does not resume following after manual navigation.
+    .help = Switch between Scroll at every sentence and Scroll when outside the view. The choice applies to every PDF and EPUB and is saved. Works in a reader before or during playback; does not resume following after manual navigation.
 ztts-action-auto-scroll = Auto-scroll mode
 ztts-key-previous-voice =
     .value = Previous voice
@@ -610,7 +623,7 @@ ztts-action-next-voice = Next voice
 ztts-voice-preparing = Preparing voice: { $voice }
 ztts-voice-failed = Could not switch to { $voice }. The previous voice is kept. Please try again.
 ztts-voice-unavailable = The voice list is not ready. Open the player and try again.
-ztts-auto-scroll-toast-sentence = Auto-scroll: center each sentence
+ztts-auto-scroll-toast-sentence = Auto-scroll: scroll at every sentence
 ztts-auto-scroll-toast-outside = Auto-scroll: when outside the view
 # The annotate keys (issue #145): Zotero's own H and U, bindable
 ztts-key-highlight-sentence =

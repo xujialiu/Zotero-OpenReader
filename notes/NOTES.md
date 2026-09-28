@@ -673,3 +673,7 @@ then) and is in the git history before that day.
 
 - A skip called a pending voice switch off twice, and the Handoff never prepares behind the reading (issue #154)
 - Verified live: every skip takes the pending switch, and a word-timed pair never prepares ahead while playing (issue #154)
+
+### [2026-09-29](NOTES_2026-09-29.md)
+
+- The reading line splits the free space, and a blank message is a missing one (issue #155)
