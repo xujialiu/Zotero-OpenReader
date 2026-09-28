@@ -10,8 +10,10 @@
  * failing that, at the start of the next sentence it has audio for. Picks
  * in quick succession coalesce for 120 ms before anything is requested. A
  * request may take 60 s and the whole switch 120 s (the clock stops while
- * paused), then the switch fails and the old voice reads on. A skip, a speed
- * change, a jump or Stop calls it off.
+ * paused), then the switch fails and the old voice reads on. A speed
+ * change, a jump or Stop calls it off. A skip takes it at once instead
+ * (issue #154): the old voice stops, and the sentence skipped to is read in
+ * the new voice, with what the new voice has already prepared.
  *
  * Paused, the preparation is silent; on Play the new voice starts at the
  * paused word when that word is identified exactly in both voices' timings,
@@ -50,7 +52,7 @@ export const HANDOFF_AHEAD = 8;
 export const OUTPUT_OPEN_MS = 3000;
 
 export interface HandoffBoundary {
-  kind: 'word' | 'sentence';
+  kind: 'word' | 'sentence' | 'skip';
   index: number;
   offset: number;
   charStart: number;
@@ -324,6 +326,23 @@ export class Handoff<Clip extends EngineClip> {
     return this.commit('sentence', index, 0, 0);
   }
 
+  // ---- At a skip ------------------------------------------------------------
+
+  /**
+   * A skip is about to move the reading (issue #154): the new voice takes
+   * it now, before it has audio, so the skip reads its target in the new
+   * voice; its clips, prepared or on their way, go with it. False when the
+   * switch is no longer valid: then it is called off, as before.
+   */
+  commitNow(): boolean {
+    if (!this.valid()) {
+      this.cancel();
+      return false;
+    }
+    const s = this.session;
+    return this.handOver('skip', s.position, 0, 0, () => s.adoptVoice(this.options.target, this.store));
+  }
+
   // ---- Paused ---------------------------------------------------------------
 
   private pausedBoundary(): WordBoundary | null {
@@ -404,12 +423,17 @@ export class Handoff<Clip extends EngineClip> {
       this.cancel();
       return false;
     }
+    return this.handOver(kind, index, offset, charStart, () => s.takeOver(this.options.target, this.store, index, offset));
+  }
+
+  /** The switch is made: `take` gives the session the new voice, then the manager is told. */
+  private handOver(kind: HandoffBoundary['kind'], index: number, offset: number, charStart: number, take: () => void): boolean {
     const last: HandoffBoundary = { kind, index, offset, charStart, from: this.originalVoice, to: this.options.target.id };
     const report = this.options.report;
     this.finish('committed');
     report.last = last;
     this.deps.debug?.(`voice handoff ${kind}: ${last.from} -> ${last.to}, segment ${index}, char ${charStart}, offset ${offset}`);
-    s.takeOver(this.options.target, this.store, index, offset);
+    take();
     let taken = true;
     try {
       // The manager's own selection: its rebuild of the controller carries on (session.ts bind)
@@ -428,7 +452,7 @@ export class Handoff<Clip extends EngineClip> {
     return true;
   }
 
-  /** "Selected" once the new voice is heard; "failed" if it has not started by the deadline. */
+  /** "Selected" once the new voice is heard, or at once while paused; "failed" if it has not started by the deadline. */
   private watchStart(): void {
     const target = this.options.target.id;
     const check = (): void => {
@@ -437,7 +461,8 @@ export class Handoff<Clip extends EngineClip> {
         this.options.notice('cancelled');
         return;
       }
-      if (s.isPlaying && this.deps.audio.running()) {
+      // Paused, the new voice is selected and Play reads in it: nothing to wait for (issue #154)
+      if (s.paused || (s.isPlaying && this.deps.audio.running())) {
         this.options.notice('selected');
         return;
       }

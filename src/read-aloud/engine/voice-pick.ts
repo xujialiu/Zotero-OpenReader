@@ -17,9 +17,10 @@
  * Play then starts the sentence over with the new voice (issue #110).
  *
  * While a switch is pending, the manager's calls that call it off —
- * deactivate, a skip, a speed change, a jump, new segments, the memory
- * re-applied — cancel it first, and its `pause` and `play` go through the
- * Handoff, which decides where the new voice starts on Play.
+ * deactivate, a speed change, a jump, new segments, the memory re-applied —
+ * cancel it first; a skip takes it at once first, so the sentence skipped
+ * to is read in the new voice (issue #154); and its `pause` and `play` go
+ * through the Handoff, which decides where the new voice starts on Play.
  *
  * What moved out, with read-aloud/voice-switch.ts: the second controller of
  * Read Aloud's the switch was prepared in, and the sixteen of its fields it
@@ -68,7 +69,14 @@ export interface VoicePick {
 }
 
 /** The manager's calls that call a pending switch off, before they run. */
-const CANCELLING = ['deactivate', 'applyPersistedVoices', 'skipBack', 'skipAhead', 'setSpeed', 'jumpTo', 'repositionTo', 'clearSegments'];
+const CANCELLING = ['deactivate', 'applyPersistedVoices', 'setSpeed', 'jumpTo', 'repositionTo', 'clearSegments'];
+/**
+ * The manager's calls that make a pending switch at once, before they run:
+ * the skips, so they reach the new voice's controller (issue #154). Made
+ * here, not in the session's skip, so the manager's selection never runs
+ * inside its own controller's call.
+ */
+const COMMITTING = ['skipBack', 'skipAhead'];
 
 /** The manager fields a dry-run resolution may move, put back after it. */
 const CHOICE_FIELDS = ['_voiceID', '_lang', '_region', '_selectedTier', '_persistedVoices', '_pendingSetVoice'] as const;
@@ -320,6 +328,16 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
         undo.push(
           shadow(manager, name, function (this: unknown, ...args: unknown[]) {
             handoff.cancel();
+            return Reflect.apply(original, this, args);
+          }),
+        );
+      }
+      for (const name of COMMITTING) {
+        const original = manager[name];
+        if (typeof original !== 'function') continue;
+        undo.push(
+          shadow(manager, name, function (this: unknown, ...args: unknown[]) {
+            handoff.commitNow();
             return Reflect.apply(original, this, args);
           }),
         );

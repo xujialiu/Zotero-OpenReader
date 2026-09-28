@@ -668,3 +668,7 @@ then) and is in the git history before that day.
 - Live follow checks exposed a test-isolation failure (issue #153)
 - Default scrolling becomes an explicit choice (issue #153)
 - The owner authorizes the manual-follow release (issue #153)
+
+### [2026-09-28](NOTES_2026-09-28.md)
+
+- A skip called a pending voice switch off twice, and the Handoff never prepares behind the reading (issue #154)

@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/voice-switch/README.md)
 
-# 4a. Voice switching (issues #95, #108)
+# 4a. Voice switching (issues #95, #108, #154)
 
 Run the [baseline](../baseline.md) first and [cleanup](../cleanup.md) last.
 
@@ -90,8 +90,9 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
    Reading continues, the switch prepares farther ahead, and the adopted
    segment is never behind the current reading position.
 6. **Cancellation and failure.** Rapid keys retain only the latest target;
-   returning to the current voice cancels. Skip, speed, stop, tab close and
-   shutdown remove pending work. Pause keeps preparation silent and disarms
+   returning to the current voice cancels. Speed, stop, tab close and
+   shutdown remove pending work; a skip makes the switch at once instead
+   (item 14, issue #154). Pause keeps preparation silent and disarms
    a scheduled stop; a manual pick replaces the pending target. A stale
    result never plays. A rejected request leaves old audio playing, reports
    `failed`, and shows a failure notice. Repeat after a word stop is armed
@@ -169,6 +170,32 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
     Only successful rebuilding reports recovery. Never strand the owner's
     reader for this check. Restore the request counter/wrapper, erase fixture records,
     and complete WebDAV cleanup before restoring automatic sync.
+
+14. **A skip takes a pending switch (#154).** On an isolated PDF fixture,
+    read a plugin voice past the first sentence, then pick another voice
+    with trusted `Shift+.` while its audio is still on its way (a held or
+    delayed fixture request, as in item 12, or a cold real request):
+    `voiceSwitch()` `handoff.pending` is the target, `stage: preparing`.
+    Press trusted `←`. At once, before any new audio: `engine()`
+    `session.voice` is the target, `handoff: null`, `playing: false`,
+    `skipPending: true`, `stats.carriedOn` up one and `stats.started`
+    unchanged; `voiceSwitch()` reports `selected` = the target,
+    `handoff.last.kind: skip` with `from` / `to`, and the old voice's source
+    has stopped. After Read Aloud's 600 ms skip debounce the new voice's
+    store asks for the previous sentence, the first source started plays
+    it in the new voice from offset 0, `session.position` is that sentence,
+    and `handoff.notice` turns `selected` once it is heard. The old voice
+    never starts the target. Repeat with `Shift+←`, `→`, `Shift+→` and one
+    of the player's skip buttons. **Prepared audio reused:** let the new
+    voice's next sentence arrive (`handoff.prepared` holds it) before `→`:
+    that sentence plays with no second request (`store.requests`
+    unchanged). **Paused:** pause, pick, `←`: `selected` and
+    `notice: selected` at once, no request for the target before Play,
+    and Play reads the target in the new voice from offset 0 even when
+    `←` lands on the sentence paused in. **Still cancelled:** a speed
+    change during a pending switch reports `cancelled` and the old voice
+    reads on. Only a human can hear whether any old-voice sound slips out
+    after the key.
 
 Unit tests cover artificial timer delays, timeout exhaustion, cross-realm
 array callback traps and malformed timestamp combinations. Real bridge

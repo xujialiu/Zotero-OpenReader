@@ -329,9 +329,11 @@ instead. With no reading open the keys keep their usual meaning.
   the old voice finishes the sentence before switching.
 - **While a voice is preparing**, another selection cancels the previous
   request and only the latest choice takes effect. A failed preparation
-  keeps the original voice and shows a message. Skipping, changing speed
-  or closing the player cancels the pending switch. Preparation may use
-  your provider's quota even if you change your mind.
+  keeps the original voice and shows a message. Skipping switches to the
+  new voice at once: the sentence you skip to is read in it, after a
+  short wait if its audio is not ready yet. Changing speed or closing the
+  player cancels the pending switch. Preparation may use your provider's
+  quota even if you change your mind.
 
 ### Voice browser
 

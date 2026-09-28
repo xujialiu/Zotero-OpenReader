@@ -418,6 +418,27 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
    * Aloud's would tell it.
    */
   takeOver(voice: EngineVoice, store: ClipStore<Clip>, index: number, offset: number): void {
+    this.swapVoice(voice, store);
+    this.stopSource();
+    this.resumePoint = { index, offset, at: this.deps.clock.now() };
+    if (!this.paused) this.speakInternal();
+  }
+
+  /**
+   * The handoff's new voice takes the reading before a skip moves it
+   * (issue #154): its clips become the session's and the old voice stops,
+   * but nothing plays — the skip that follows says where the new voice
+   * starts.
+   */
+  adoptVoice(voice: EngineVoice, store: ClipStore<Clip>): void {
+    this.swapVoice(voice, store);
+    this.clearGap();
+    this.stop();
+    // A paused offset is a place in the old voice's clip
+    this.resumePoint = null;
+  }
+
+  private swapVoice(voice: EngineVoice, store: ClipStore<Clip>): void {
     this.resetRemainingTime();
     const old = this.store;
     this.voice = voice;
@@ -425,9 +446,6 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     if (old && old !== store) old.close();
     // A new controller of Read Aloud's knows no failures of the old voice
     this.failed.clear();
-    this.stopSource();
-    this.resumePoint = { index, offset, at: this.deps.clock.now() };
-    if (!this.paused) this.speakInternal();
   }
 
   /** The source playing now, which a handoff's cut is armed on. */

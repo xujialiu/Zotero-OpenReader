@@ -168,7 +168,8 @@ describe('Handoff: called off', () => {
     expect(playing(t)).toEqual([['alloy:One two three.', 0]]);
   });
 
-  it('by a skip, a speed change or the end: the old voice reads on', async () => {
+  // The manager's skip takes the switch first (commitNow, voice-pick.ts); one reaching the session still calls it off
+  it('by a skip reaching the session, a speed change or the end: the old voice reads on', async () => {
     for (const action of ['skip', 'speed', 'end'] as const) {
       const t = setup();
       t.session.setPaused(false);
@@ -231,6 +232,73 @@ describe('Handoff: called off', () => {
     t.prepare();
     await t.clock.advance(130);
     expect(t.notices).toEqual(['preparing', 'failed']);
+  });
+});
+
+describe('Handoff: at a skip (issue #154)', () => {
+  it('takes the reading at once, before any audio: the old voice stops and the skip reads its target in the new voice', async () => {
+    const t = setup();
+    t.session.setPaused(false);
+    await t.clock.advance(800);
+    expect(t.session.position).toBe(1);
+    t.fetch.hold = true;
+    const handoff = t.prepare()!;
+    await t.clock.advance(130);
+    expect(handoff.commitNow()).toBe(true);
+    expect(t.audio.current).toBeUndefined();
+    expect(t.session.voice?.id).toBe(nova.id);
+    expect(t.commits).toEqual([nova.id]);
+    expect(t.session.handoff).toBe(null);
+    expect(t.report.last).toEqual({ kind: 'skip', index: 1, offset: 0, charStart: 0, from: alloy.id, to: nova.id });
+    t.session.skipBack('sentence');
+    await t.clock.advance(600);
+    t.fetch.respond(TEXT);
+    await t.clock.advance(25);
+    expect(playing(t).at(-1)).toEqual(['nova:One two three.', 0]);
+    expect(t.notices).toEqual(['preparing', 'selected']);
+  });
+
+  it('keeps the audio the new voice already prepared', async () => {
+    const t = setup({ newTimings: false });
+    t.session.setPaused(false);
+    const handoff = t.prepare()!;
+    await t.clock.advance(200);
+    expect(t.report.prepared).toEqual([0, 1]);
+    expect(handoff.commitNow()).toBe(true);
+    t.session.skipAhead('sentence');
+    await t.clock.advance(600);
+    expect(playing(t).at(-1)).toEqual(['nova:Four five.', 0]);
+    expect(t.fetch.requests.filter((r) => r.voice === nova.id && r.text === 'Four five.')).toHaveLength(1);
+  });
+
+  it('paused: says selected at once, and Play starts the target from its beginning, not from the old voice’s paused offset', async () => {
+    const t = setup();
+    t.session.setPaused(false);
+    await t.clock.advance(300);
+    t.session.setPaused(true);
+    const handoff = t.prepare()!;
+    await t.clock.advance(150);
+    expect(handoff.commitNow()).toBe(true);
+    // Back from the first sentence: the same sentence, which the old voice was paused in
+    t.session.skipBack('sentence');
+    await t.clock.advance(600);
+    expect(t.notices).toEqual(['preparing', 'ready', 'selected']);
+    t.session.setPaused(false);
+    await t.clock.advance(0);
+    expect(playing(t).at(-1)).toEqual(['nova:One two three.', 0]);
+  });
+
+  it('calls the switch off instead when it is no longer valid', async () => {
+    const t = setup();
+    t.session.setPaused(false);
+    const handoff = t.prepare()!;
+    await t.clock.advance(50);
+    t.setValid(false);
+    expect(handoff.commitNow()).toBe(false);
+    expect(t.notices).toEqual(['preparing', 'cancelled']);
+    expect(t.session.voice?.id).toBe(alloy.id);
+    expect(t.commits).toEqual([]);
+    expect(t.audio.current?.clip.name).toBe(`${alloy.id}:${TEXT}`);
   });
 });
 

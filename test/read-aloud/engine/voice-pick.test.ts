@@ -89,8 +89,11 @@ function setup(options: { paused?: boolean } = {}) {
       this.paused = false;
       session.setPaused(false);
     },
-    skipAhead() {
-      session.skipAhead('sentence');
+    skipBack(granularity = 'paragraph') {
+      session.skipBack(granularity);
+    },
+    skipAhead(granularity = 'paragraph') {
+      session.skipAhead(granularity);
     },
     setSpeed(rate: number) {
       this.speed = rate;
@@ -178,19 +181,69 @@ describe('voice pick', () => {
     expect(t.fetch.requests.filter((r) => r.voice === 'b')).toHaveLength(0);
   });
 
-  it('calls a pending switch off on a skip or a speed change, before they run', async () => {
-    for (const action of ['skip', 'speed'] as const) {
+  it('calls a pending switch off on a speed change, before it runs', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.manager.selectVoice('c');
+    t.manager.setSpeed(1.5);
+    expect(t.notices).toEqual(['preparing:C', 'cancelled:C']);
+    expect(t.session.handoff).toBe(null);
+    expect(t.manager.selectedVoiceID).toBe('a');
+    // The switch's shadows went with it: the manager's own methods are back
+    expect(t.manager.skipAhead.name).toBe('skipAhead');
+    expect(t.manager.pause.name).toBe('pause');
+  });
+
+  describe('a skip while a switch is pending takes the new voice at once (issue #154)', () => {
+    /** A reads "Four five."; C is picked, and its audio is still on its way. */
+    async function pending(options: { paused?: boolean } = {}) {
       const t = setup();
-      await t.clock.advance(10);
+      await t.clock.advance(800);
+      expect(t.session.position).toBe(1);
+      if (options.paused) t.manager.pause();
+      t.fetch.hold = true;
       t.manager.selectVoice('c');
-      if (action === 'skip') t.manager.skipAhead();
-      else t.manager.setSpeed(1.5);
-      expect(t.notices, action).toEqual(['preparing:C', 'cancelled:C']);
-      expect(t.session.handoff, action).toBe(null);
-      // The switch's shadows went with it: the manager's own methods are back
-      expect(t.manager.skipAhead.name, action).toBe('skipAhead');
-      expect(t.manager.pause.name, action).toBe('pause');
+      await t.clock.advance(300);
+      expect(t.session.handoff?.pending).toBe(true);
+      return t;
     }
+
+    it.each([
+      ['skipBack', 'sentence', TEXT],
+      ['skipBack', 'paragraph', TEXT],
+      ['skipAhead', 'sentence', 'Six seven.'],
+      ['skipAhead', 'paragraph', 'Six seven.'],
+    ] as const)('%s by %s stops the old voice and reads the target in the new one', async (skip, granularity, target) => {
+      const t = await pending();
+      const before = t.audio.started.length;
+      t.manager[skip](granularity);
+      expect(t.audio.current).toBeUndefined();
+      expect(t.manager.selectedVoiceID).toBe('c');
+      expect(t.manager._persistCurrentVoice).toHaveBeenCalledOnce();
+      expect(t.rebuilds).toEqual(['c:carried-on']);
+      // The switch's shadows went with it: the manager's own skip is back
+      expect(t.manager[skip].name).toBe(skip);
+      await t.clock.advance(600);
+      t.fetch.respond(target);
+      await t.clock.advance(25);
+      expect(t.audio.started.slice(before).map((s) => s.clip.name)).toEqual([`c:${target}`]);
+      expect(t.notices).toEqual(['preparing:C', 'selected:C']);
+    });
+
+    it('while paused, selects the new voice at once, and Play reads the target in it', async () => {
+      const t = await pending({ paused: true });
+      t.manager.skipBack('sentence');
+      expect(t.manager.selectedVoiceID).toBe('c');
+      await t.clock.advance(600);
+      expect(t.notices).toEqual(['preparing:C', 'selected:C']);
+      expect(t.fetch.waiting.map((p) => `${p.voice.id}:${p.segment.text}`)).toEqual(['c:Four five.']);
+      t.manager.play();
+      await t.clock.advance(0);
+      t.fetch.respond(TEXT);
+      await t.clock.advance(1);
+      expect(t.audio.current?.clip.name).toBe(`c:${TEXT}`);
+      expect(t.audio.current?.offset).toBe(0);
+    });
   });
 
   it('plays the new voice from the paused word on Play', async () => {
