@@ -13,7 +13,8 @@ Recorded runs: beta2 failure and routing correction (2026-09-12, 1.12.3-beta2),
 beta3 verification (2026-09-12, 1.12.3-beta3),
 per-option help verification (2026-09-12, 1.12.3-beta4),
 reading line verification (2026-09-29, 1.16.2-beta2, issue #155's
-closing comment); Scroll at every line (issue #157) is new on 1.16.2-beta4.
+closing comment), Scroll at every line (2026-09-29, 1.16.2-beta4,
+issue #157's closing comment).
 Reusable scripts: beta2 probes (2026-09-12, 1.12.3-beta2),
 beta3 probes (2026-09-12, 1.12.3-beta3),
 help probes (2026-09-12, 1.12.3-beta4).
@@ -119,12 +120,15 @@ historical values are not fresh PASS results on another build.
    line, one target is issued, reason `line`: the word's first rect top
    − `covered.top` − (`clientHeight` − `covered.top` − `covered.bottom` −
    the rect's height) × 0.30, within 1 px or clamped; `words: 'word'`
-   and `placedLine` equal to that rect. A new sentence starting on the
-   line the previous one ended issues nothing at its start; its first
-   push reads `words: 'coming'` with nothing issued until its first
-   word. A move to the next column or page up the view issues a target
-   above the current offset. State each expected value before reading
-   the actual one.
+   and `placedLine` equal to that rect. A new line whose clamped target
+   equals the current offset issues nothing, yet `placedLine` moves to
+   it (near the document's start at line 30). A new sentence starting on
+   the line the previous one ended issues nothing at its start (seen on
+   the EPUB on beta4; a PDF may offer none); its first push reads
+   `words: 'coming'` with nothing issued until its first word. A move
+   to the next column or page issues a target for the new line. State
+   each expected value before reading the actual one; the EPUB rows
+   update only in A (`following: true`).
 13. **Without a highlighted word (issue #157).** With the Word switch off
    (Shift+W) the rows read `words: 'sentence'`, and each new sentence
    issues item 3's sentence target once and nothing more; Shift+W back

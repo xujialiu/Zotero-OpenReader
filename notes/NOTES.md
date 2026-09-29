@@ -681,3 +681,4 @@ then) and is in the git history before that day.
 - Verified live: the reading line lands exactly, and `last` is not a decision stream (issue #155)
 - Verified live: section time survives unanchored bookmarks (issue #156)
 - Scroll at every line: the manager clears the word at every segment event, and a pref at its default holds no choice (issue #157)
+- Verified live: lines land exactly, and a clamped line still moves `placedLine` (issue #157)
