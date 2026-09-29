@@ -2,8 +2,9 @@
 
 [Case](../../cases/settings-pane.md) · [Checklist index](../../README.md) · [All scripts](../README.md)
 
-Items 1.2 and 1.4 have no scripts yet (the case's own items are still
-manual/未运行). These two scripts are what the zotero-tiers/#111
+Item 1.2's issue-#158 sentence has its own script (`03`); the rest of 1.2
+(screenshots, the About group, the button pairs) and 1.4 are still
+manual/未运行. The first two scripts are what the zotero-tiers/#111
 verification brief's C1–C4 (issue #112: the pane's Fish split, a site
 link in every provider heading, alphabetical sections) actually ran —
 not yet a numbered item of this case.
@@ -14,16 +15,21 @@ not yet a numbered item of this case.
 | --- | --- | --- | --- |
 | `01-heading-links.js` | C1 every `groupbox` id in DOM order; C2 the 6 linked headings (Azure, Cloudflare, Fish Audio, Fish Speech, Kokoro-FastAPI, Speechify) and the 3 unlinked (OpenAI, System, Zotero); C3 the Azure heading's computed style + one-line check; C4 the two Fish sections' own fields and enabled-state locking | 17 groupboxes (not 16 — see Limits); every linked heading's `href` exactly `https://<host>`; `fontSizeMatches`/`fontWeightMatches: true`, `oneLine: true`; `matchesFishEnabledExpectation`/`matchesFishSpeechDisabledExpectation: true` | — |
 | `02-screenshots.js` | A human check of C3's look: two PNGs, the pane's top and the Zotero section | Files written under `.tmp/zotero-dev/screenshots/`; a human looks | `tmpDir` |
+| `03-help-shrink-wrap.js` | Item 1.2, the issue #158 sentence: the plugin sheet's `label.ztts-help[value]` rule carries `flex-shrink: 0` and no `font-size`; every `.ztts-help` computes `flex-shrink: 0` and a 16.25 px square; the `?` after the Zotero note stays 16.25 × 16.25 px while the note is made to wrap (its text set three times over), then the note is restored with `document.l10n.translateElements` | `allFlexShrinkZero: true` (58 helps on 1.16.2-beta6, all 16.25 × 16.25); `noteGrewTaller: true`, `helpStillSquare: true`; `restored.textRestored: true` with the note's box back to its before size | — |
 
 ## Before you start
 
 - Build: `zotero_plugin_list` + `diagnostics.startup()` first (done
   directly, per the tester workflow, not a script here).
-- Opens and closes the settings window itself (`01`); `02` needs it
-  already open on the zotero-tts pane, so run `01` first or open the pane
-  by hand before `02`.
-- State touched: none. Both scripts only read the pane and take
-  screenshots; no pref is written, no switch is clicked.
+- Opens and closes the settings window itself (`01`; `03` is self-contained
+  the same way — it opens the pane fresh, polls the plugin's own sheet into
+  `doc.styleSheets`, and closes the window at the end either way); `02`
+  needs it already open on the zotero-tts pane, so run `01` first or open
+  the pane by hand before `02`.
+- State touched: none. All three scripts only read the pane (and `03`
+  briefly rewrites the Zotero note's textContent, restored and verified via
+  `document.l10n.translateElements` in the same script); no pref is
+  written, no switch is clicked.
 - The `local` (Kokoro-FastAPI) heading's link is rendered at pane load by
   `ui/section-heading.ts`'s `renderSectionHeading` via
   `doc.createXULElement('label', { is: 'zotero-text-link' })` — its
@@ -66,3 +72,4 @@ not yet a numbered item of this case.
 | --- | --- | --- | --- | --- |
 | 2026-09-15 | 1.12.11-beta, Zotero 10.0.3-beta.1+cfec88e31 | this run's reply (issue #112 verification, C1-C4) | C1 PASS (count note), C2 PASS (all 6 links + 3 unlinked), C3 PASS (style + one-line; two screenshots taken), C4 PASS (Fish Audio locked, Fish Speech unlocked) | First scripts of this kit; `01` revised once for the `html|input` selector and the `is`-attribute-vs-class finding above |
 | 2026-09-15 | 1.12.11-beta2, Zotero 10.0.3-beta.1+cfec88e31 | this run's reply (issue #112 second-pass verification, C1-C4) | C1 PASS (17 groupboxes, no `ztts-provider-fish-audio`, no `h3.ztts-subheading`), C2 PASS (all 6 links + 3 unlinked, same hrefs), C3 PASS (`fontSizeMatches`/`fontWeightMatches`/`oneLine: true`; two screenshots taken), C4 PASS (Fish Audio locked/enabled, Fish Speech unlocked/disabled) | Both scripts run unchanged, no revision needed; screenshots re-taken as `settings-pane-top-c112.png`/`settings-pane-zotero-section-c112.png` |
+| 2026-09-29 | 1.16.2-beta6, Zotero 10.0.3-beta.3+80bc5565e | this run's reply (#159/#158 continuation verification, item 1.2's #158 sentence) | PASS: 58 `.ztts-help`, all `flex-shrink: 0`, all boxes 16.25 × 16.25 px; sheet rule with `flex-shrink: 0`, no `font-size`; the Zotero note wrapped 17.33 → 52 px and its `?` stayed 16.25 × 16.25; note text and box restored | First run of `03` (written by the previous, timed-out beta5 run), executed unchanged; the same run's zotero-credits `02` read the `?` 4 px after the visible note, 16.25 × 16.25 |

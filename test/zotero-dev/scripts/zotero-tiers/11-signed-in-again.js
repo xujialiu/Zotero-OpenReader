@@ -1,5 +1,5 @@
-// Item 11 (issue #130): "Signed in again, at once." Reuses 10's settings
-// window. Puts Zotero.Sync.Data.Local.hasCredentials back with the EXACT
+// Item 11 (issue #130, updated for issue #159): "Signed in again, at
+// once." Reuses 10's settings window. Puts Zotero.Sync.Data.Local.hasCredentials back with the EXACT
 // descriptor 10 kept (Object.defineProperty, not a plain assignment, so
 // writable/enumerable/configurable are restored too), fires the api-key
 // notification again (awaited), and checks Standard's Enable ungreys, both
@@ -25,7 +25,18 @@
     const btn = doc.getElementById('ztts-enable-zotero-' + tier);
     const test = doc.getElementById('ztts-test-zotero-' + tier);
     const result = doc.getElementById('ztts-test-result-zotero-' + tier);
-    return { disabled: !!btn.disabled, label: btn.getAttribute('label'), testDisabled: !!test.disabled, resultText: result ? result.textContent : null };
+    const logIn = doc.getElementById('ztts-zotero-log-in-' + tier);
+    const creditsRow = doc.getElementById('ztts-zotero-credits-row-' + tier);
+    return {
+      disabled: !!btn.disabled,
+      label: btn.getAttribute('label'),
+      testDisabled: !!test.disabled,
+      resultText: result ? result.textContent : null,
+      // Issue #159: signed back in, the Log in links hide and the credits
+      // rows show again.
+      logIn: logIn ? { hidden: logIn.hidden === true } : null,
+      creditsRowHidden: creditsRow ? creditsRow.hidden === true : null,
+    };
   }
 
   try {
@@ -46,10 +57,26 @@
       await sleep(50);
     }
 
+    // The ungrey is immediate (the 2 s poll above); the #159 credits rows
+    // unhide only when their refresh paints (620 ms in the identical
+    // zotero-credits 07 scenario) -- give the paint its own window instead
+    // of reading it once, too early (found live 2026-09-29: a single read
+    // right after the greyed-poll saw the rows still hidden).
+    const t0b = Date.now();
+    while (Date.now() - t0b < 20000) {
+      const rowS = doc.getElementById('ztts-zotero-credits-row-standard');
+      const rowP = doc.getElementById('ztts-zotero-credits-row-premium');
+      if (rowS && rowP && rowS.hidden === false && rowP.hidden === false) break;
+      await sleep(150);
+    }
+    out.creditsRowsShownAtMs = Date.now() - t0b;
     out.standardAfterSignIn = rowState(doc, 'standard');
     out.premiumAfterSignIn = rowState(doc, 'premium');
     out.standardDisabledFalse = out.standardAfterSignIn.disabled === false;
     out.bothResultLinesEmpty = out.standardAfterSignIn.resultText === '' && out.premiumAfterSignIn.resultText === '';
+    out.bothLogInLinksHiddenAgain = out.standardAfterSignIn.logIn && out.standardAfterSignIn.logIn.hidden === true
+      && out.premiumAfterSignIn.logIn && out.premiumAfterSignIn.logIn.hidden === true;
+    out.creditsRowsShownAgain = out.standardAfterSignIn.creditsRowHidden === false && out.premiumAfterSignIn.creditsRowHidden === false;
 
     const pt = JSON.parse(await Zotero.ZoteroTTS.diagnostics.providerTiers());
     out.providerTiersSignedInEverywhere = pt.readers.map((r) => ({ title: r.title, signedIn: r.signedIn }));

@@ -1,15 +1,25 @@
-// Item 2 (issue #111): diagnostics.zoteroTiers() headless, then Test
-// connection beside Standard clicked and polled (driving notes Sec2: click
-// and poll in the SAME script) to see the "Testing..." transient and the
-// final message land in ztts-test-result-zotero-standard, matching the
-// diagnostic's own check message for that tier.
-// Reuses the settings window 01 left open. params: none. state: none.
+// Item 2 (issue #111, message format updated for issue #159):
+// diagnostics.zoteroTiers() headless, then Test connection beside Standard
+// clicked and polled (driving notes Sec2: click and poll in the SAME
+// script) to see the "Testing..." transient and the final message land in
+// ztts-test-result-zotero-standard, matching the diagnostic's own check
+// message for that tier. #159: the message is "Signed in: N <tier>
+// voices." — the credits left the message (they have their own line,
+// cases/zotero-credits.md), so the format check below fails on the old
+// "…, N credits remaining." strings. Reuses the settings window 01 left
+// open. params: none. state: none.
 (async () => {
   const out = { step: 'headless-check' };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   try {
     const zt = JSON.parse(await Zotero.ZoteroTTS.diagnostics.zoteroTiers());
     out.zoteroTiers = zt;
+    out.creditsFieldPresent = Object.prototype.hasOwnProperty.call(zt, 'credits');
+    out.messageFormats = {
+      standard: /^Signed in: [\d,]+ Standard voices\.$/.test(zt.checks['zotero-standard'].message),
+      premium: /^Signed in: [\d,]+ Premium voices\.$/.test(zt.checks['zotero-premium'].message),
+      noCreditsWord: !/credit/i.test(zt.checks['zotero-standard'].message) && !/credit/i.test(zt.checks['zotero-premium'].message),
+    };
 
     const win = Services.wm.getMostRecentWindow('zotero:pref');
     if (!win) throw new Error('settings window is not open -- run 01-pane-structure.js first');

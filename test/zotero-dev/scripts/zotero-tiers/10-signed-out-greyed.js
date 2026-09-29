@@ -1,4 +1,7 @@
-// Item 10 (issue #130): "Signed out, Enable is greyed." Opens the settings
+// Item 10 (issue #130, strings updated for issue #159): "Signed out, Enable
+// is greyed." The result line now reads "Not signed in to a Zotero
+// account." (the sign-in pointer moved out of the string into a Log in link
+// on the same row, issue #159), and each row shows that link. Opens the settings
 // window fresh (driving notes Sec1) and navigates to the plugin's pane;
 // self-heals both Zotero switches to ON first if either started off (this
 // mini-run's own precondition, since it does not run the full kit's 00/01
@@ -36,7 +39,18 @@
     const btn = doc.getElementById('ztts-enable-zotero-' + tier);
     const test = doc.getElementById('ztts-test-zotero-' + tier);
     const result = doc.getElementById('ztts-test-result-zotero-' + tier);
-    return { disabled: !!btn.disabled, label: btn.getAttribute('label'), testDisabled: !!test.disabled, resultText: result ? result.textContent : null };
+    const logIn = doc.getElementById('ztts-zotero-log-in-' + tier);
+    const creditsRow = doc.getElementById('ztts-zotero-credits-row-' + tier);
+    return {
+      disabled: !!btn.disabled,
+      label: btn.getAttribute('label'),
+      testDisabled: !!test.disabled,
+      resultText: result ? result.textContent : null,
+      // Issue #159: while signed out each switch row carries a Log in link
+      // after the result, and the tier's credits row is hidden.
+      logIn: logIn ? { hidden: logIn.hidden === true, text: logIn.textContent, onResultRow: logIn.parentNode === result.parentNode } : null,
+      creditsRowHidden: creditsRow ? creditsRow.hidden === true : null,
+    };
   }
   async function clickAndWaitForPref(doc, tier, desired) {
     const toggle = doc.getElementById('ztts-enable-zotero-' + tier);
@@ -125,6 +139,18 @@
 
     out.standardAfterSignOut = rowState(doc, 'standard');
     out.premiumAfterSignOut = rowState(doc, 'premium');
+    // Issue #159 strings/structure: the exact new reason, the old one gone,
+    // and a visible Log in link on each row.
+    const NEW_REASON = 'Not signed in to a Zotero account.';
+    const OLD_REASON = 'Not signed in to a Zotero account: sign in under Settings → Sync.';
+    out.reasonChecks = {
+      newReasonOnBothLines: out.standardAfterSignOut.resultText === NEW_REASON && out.premiumAfterSignOut.resultText === NEW_REASON,
+      oldReasonGone: out.standardAfterSignOut.resultText !== OLD_REASON && out.premiumAfterSignOut.resultText !== OLD_REASON,
+      logInShownOnBoth: out.standardAfterSignOut.logIn && out.standardAfterSignOut.logIn.hidden === false
+        && out.premiumAfterSignOut.logIn && out.premiumAfterSignOut.logIn.hidden === false,
+      logInTexts: [out.standardAfterSignOut.logIn && out.standardAfterSignOut.logIn.text, out.premiumAfterSignOut.logIn && out.premiumAfterSignOut.logIn.text],
+      creditsRowsHidden: out.standardAfterSignOut.creditsRowHidden === true && out.premiumAfterSignOut.creditsRowHidden === true,
+    };
 
     const zt = JSON.parse(await Zotero.ZoteroTTS.diagnostics.zoteroTiers());
     out.zoteroTiersSignedInFalse = zt.signedIn === false;
