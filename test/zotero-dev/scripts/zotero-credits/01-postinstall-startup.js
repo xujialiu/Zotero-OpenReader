@@ -1,18 +1,20 @@
-// Run step 2, straight after the tester's zotero_plugin_install (1.16.2-beta6
-// over 1.16.2-beta5, in place): diagnostics.startup() (synchronous — the JSON
+// Run step 2, straight after the tester's zotero_plugin_install (1.16.3-beta4
+// over 1.16.3-beta3, in place): diagnostics.startup() (synchronous — the JSON
 // string itself), every step ok / failed empty, and the BUILD PROOF the brief
 // asks for — the installed bundle, not the version string: the plugin XPI in
 // the running profile (ProfD/extensions/zotero-tts@xujialiu.top.xpi) is read
 // with nsIZipReader and content/zotero-tts.js hashed in Zotero — it must
-// equal the xpi's own entry (f23dbde3d7db55e8f5176212418c9664b7119a573ed7c4df
-// d309c9fddb0f33b1) and contain `ztts-zotero-credits-row` (issue #159's
-// zoteroCreditIds template literal, absent from every earlier commit's
-// sources by `git log -S` over all refs); content/preferences.css must carry
-// `flex-shrink: 0` in label.ztts-help[value] (issue #158) AND the #159 gap
-// rule `#ztts-zotero-section description + label[is="zotero-text-link"]`
-// with `margin-inline-start: 6px` (absent from beta5 — its links touched the
-// text, gap 0).
-// diagnostics.zoteroTiers() must carry a `credits` field.
+// equal the xpi's own entry (19b860a965ccd9a9c5b187fc1a3e7fe96d88b2e773e6cb76
+// 14a1e04e4e4e9503, issue #140's dd5f2b8) and contain BOTH #140 strings,
+// `ztts-player-time-used-up` (the used-up alert's message id) and
+// `formatOverUnlimited` (the 90d+ range top); the #159 proof
+// `ztts-zotero-credits-row` stays in the bundle too.
+// content/preferences.css must still carry `flex-shrink: 0` in
+// label.ztts-help[value] (issue #158) AND the #159 gap rule — since e86555c
+// the selector is `#ztts-zotero-section description > span + label[is="zotero-text-link"]`
+// with `margin-inline-start: 6px` — plus the red rule for `[data-ztts-none]`.
+// diagnostics.zoteroTiers() must carry `credits`, each tier's state of kind
+// 'time' (issue #140; 'left' was #159's shape).
 // (First attempt read addon.installPath — null through the AddonManager
 // wrapper in this Zotero, as in the 154 run; the profile file is the same
 // bytes AddonManager serves.) params: none. state: appends to
@@ -63,20 +65,24 @@
     const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(jsBytes));
     const hex = toHex(new Uint8Array(digest));
     const jsText = new TextDecoder().decode(new Uint8Array(jsBytes));
-    const creditsRowHits = (jsText.match(/ztts-zotero-credits-row/g) || []).length;
-    const gapRule = cssText.match(/#ztts-zotero-section description \+ label\[is="zotero-text-link"\][^}]*\{[^}]*\}/);
+    const count = (needle) => (jsText.match(new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+    const gapRule = cssText.match(/#ztts-zotero-section description > span \+ label\[is="zotero-text-link"\][^}]*\{[^}]*\}/);
     out.bundleProof = {
       jsSha256: hex,
-      jsSha256MatchesXpiEntry: hex === 'f23dbde3d7db55e8f5176212418c9664b7119a573ed7c4dfd309c9fddb0f33b1',
-      creditsRowOccurrences: creditsRowHits,
-      creditsRowPresent: creditsRowHits > 0,
+      jsSha256MatchesXpiEntry: hex === '19b860a965ccd9a9c5b187fc1a3e7fe96d88b2e773e6cb7614a1e04e4e4e9503',
+      timeUsedUpOccurrences: count('ztts-player-time-used-up'),
+      formatOverUnlimitedOccurrences: count('formatOverUnlimited'),
+      creditsRowOccurrences: count('ztts-zotero-credits-row'),
+      issue140StringsPresent: count('ztts-player-time-used-up') > 0 && count('formatOverUnlimited') > 0,
+      creditsRowPresent: count('ztts-zotero-credits-row') > 0,
       cssHelpRuleHasFlexShrinkZero: /label\.ztts-help\[value\][\s\S]*?flex-shrink: 0;/.test(cssText),
       cssZoteroLinkGapRulePresent: !!gapRule,
       cssZoteroLinkGapRule: gapRule ? gapRule[0] : null,
       cssZoteroLinkGapIs6px: !!gapRule && /margin-inline-start: 6px/.test(gapRule[0]),
+      cssNoneAttrRedRulePresent: /#ztts-zotero-section \[data-ztts-none\][^}]*\{[^}]*--accent-red/.test(cssText),
     };
 
-    // --- diagnostics.zoteroTiers() must carry `credits` (issue #159). ---
+    // --- diagnostics.zoteroTiers() must carry `credits`, state kind 'time' (#140). ---
     const zt = JSON.parse(await Zotero.ZoteroTTS.diagnostics.zoteroTiers());
     S.zoteroTiersFirst = zt;
     out.zoteroTiers = {
@@ -84,8 +90,22 @@
       hasCreditsField: Object.prototype.hasOwnProperty.call(zt, 'credits'),
       creditsShape: zt.credits && typeof zt.credits === 'object'
         ? {
-            standard: zt.credits.standard && { credits: zt.credits.standard.credits, cheapest: zt.credits.standard.cheapest, stateKind: zt.credits.standard.state ? zt.credits.standard.state.kind : null },
-            premium: zt.credits.premium && { credits: zt.credits.premium.credits, cheapest: zt.credits.premium.cheapest, stateKind: zt.credits.premium.state ? zt.credits.premium.state.kind : null },
+            standard: zt.credits.standard && {
+              credits: zt.credits.standard.credits,
+              cheapest: zt.credits.standard.cheapest,
+              dearest: zt.credits.standard.dearest,
+              stateKind: zt.credits.standard.state ? zt.credits.standard.state.kind : null,
+              state: zt.credits.standard.state,
+              text: zt.credits.standard.text,
+            },
+            premium: zt.credits.premium && {
+              credits: zt.credits.premium.credits,
+              cheapest: zt.credits.premium.cheapest,
+              dearest: zt.credits.premium.dearest,
+              stateKind: zt.credits.premium.state ? zt.credits.premium.state.kind : null,
+              state: zt.credits.premium.state,
+              text: zt.credits.premium.text,
+            },
           }
         : zt.credits,
       signedIn: zt.signedIn,

@@ -1,10 +1,11 @@
-// Item 3 (issue #159): the refresh runs again after a Test connection.
+// Item 3 (issues #159 + #140): the refresh runs again after a Test connection.
 // Blanks #ztts-zotero-credits-standard's textContent by hand, clicks Test
 // connection beside Standard, and polls (driving notes Sec2: click and poll
 // in ONE script): the result line goes Testing… → "Signed in: N Standard
 // voices.", and the credits text — which only this refresh writes — is back
-// to item 2's text within 20 s. params: none. state: reads
-// creditsTextStandard.
+// to item 2's TIME text within 20 s (since #140 the line is a time, not
+// credits: the restored text must contain no "credit"). params: none. state:
+// reads creditsTextStandard.
 (async () => {
   const out = { step: 'refresh-after-test-connection' };
   const S = Zotero.__zttsCredits159 || (Zotero.__zttsCredits159 = {});
@@ -50,6 +51,7 @@
     out.finalResult = finalResult || result.textContent;
     out.creditsRestoredAtMs = creditsRestoredAtMs;
     out.creditsRestored = creditsRestoredAtMs !== null && credits.textContent === expectedCredits;
+    out.restoredTextIsATimeNotCredits = credits.textContent !== '' && !/credit/i.test(credits.textContent);
     out.traceFirst = trace[0] || null;
     out.traceLast = trace[trace.length - 1] || null;
     out.traceCount = trace.length;

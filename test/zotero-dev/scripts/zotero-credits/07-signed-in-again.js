@@ -1,9 +1,12 @@
-// Item 6 (issue #159): signed in again, at once. Puts hasCredentials back
-// with the exact descriptor 06 kept (Object.defineProperty), fires the
-// api-key notification again, and polls up to 20 s: both Log in links
-// hidden, both credits rows shown again with item 2's exact texts. Leaves
-// hasCredentials RESTORED and both switches ON. params: none. state: reads
-// credentialsDescriptor (06) and creditsTextStandard/Premium (02).
+// Item 6 (issues #159 + #140): signed in again, at once. Puts hasCredentials
+// back with the exact descriptor 06 kept (Object.defineProperty), fires the
+// api-key notification again, and polls up to 20 s: both Log in links hidden,
+// both credits rows shown again with item 2's exact TIME texts. Leaves
+// hasCredentials RESTORED and both switches ON. diagnostics.zoteroTiers() must
+// answer signedIn: true with both tiers' credits carrying the #140 shape
+// (state kind 'time', a `text`) and no credits figure in the checks' messages.
+// params: none. state: reads credentialsDescriptor (06) and
+// creditsTextStandard/Premium (02).
 (async () => {
   const out = { step: 'signed-in-again' };
   const S = Zotero.__zttsCredits159 || (Zotero.__zttsCredits159 = {});
@@ -45,10 +48,12 @@
       const logIn = doc.getElementById('ztts-zotero-log-in-' + tier);
       const result = doc.getElementById('ztts-test-result-zotero-' + tier);
       const enable = doc.getElementById('ztts-enable-zotero-' + tier);
+      const t = text ? text.textContent : null;
       return {
         creditsRowHidden: row.hidden === true,
-        creditsText: text ? text.textContent : null,
-        creditsTextMatchesItem2: !!text && text.textContent === expected,
+        creditsText: t,
+        creditsTextMatchesItem2: !!text && t === expected,
+        textIsATimeNotCredits: !!t && t !== '' && !/credit/i.test(t),
         noneAttr: text ? text.hasAttribute('data-ztts-none') : null,
         logInHidden: logIn.hidden === true,
         resultText: result ? result.textContent : null,
@@ -60,11 +65,20 @@
     out.premium = tierState('premium', expectedPremium);
 
     const zt = JSON.parse(await Zotero.ZoteroTTS.diagnostics.zoteroTiers());
+    const tierDiag = (tier) => {
+      const c = zt.credits && zt.credits[tier];
+      return c ? {
+        credits: c.credits, cheapest: c.cheapest, dearest: c.dearest,
+        stateKind: c.state ? c.state.kind : null, state: c.state, text: c.text,
+        textMatchesPane: c.text === (tier === 'standard' ? expectedStandard : expectedPremium),
+      } : zt.credits;
+    };
     out.zoteroTiers = {
       signedIn: zt.signedIn,
-      creditsStandard: zt.credits && zt.credits.standard ? zt.credits.standard.credits : zt.credits,
-      creditsPremium: zt.credits && zt.credits.premium ? zt.credits.premium.credits : null,
+      standard: tierDiag('standard'),
+      premium: tierDiag('premium'),
       checksStandard: zt.checks['zotero-standard'],
+      checksHaveNoCreditsWord: !/credit/i.test(zt.checks['zotero-standard'].message) && !/credit/i.test(zt.checks['zotero-premium'].message),
     };
     out.status = 'PASS';
   } catch (e) {
