@@ -1,29 +1,33 @@
 [Checklist index](../README.md)
 
-## Each Zotero tier's time left in the settings, with Add more time and Log in (issues #159, #140)
+## Each Zotero tier's remaining time in the settings, with Add more time and Log in (issues #159, #140)
 
 Under each tier's name in the settings pane's **Zotero** section, a line
-with the time left on the account for it, as zotero.org writes it, and an
-**Add more time** link to `https://www.zotero.org/settings/readaloud`;
-signed out, no such line, and a **Log in** link after the switch row's
-result, which opens Zotero's Account settings with the sign-in started.
-Since #140 the line is a time, not credits: credits over each voice's
-price, rounded up, in Zotero's short form (`1h 54m`; zh-CN `1小时54分钟`),
-a range from the dearest voice to the cheapest when the tier has two
-prices (`9m – 26m left, depending on voice`), its top `90d+` when only
-the cheaper voices pass 90 days. Nothing left reads `0m left` in red with
-the link; `Unlimited`, no link, only when even the dearest voice passes 90
-days (Zotero's own line); with no price listed, the credits figure
-(`N credits left`). Read when the pane opens, after each Test connection
-or Enable of a Zotero tier, and at every sign-in or sign-out; a tier
-switched off still shows its figure. Test connection's result no longer carries the
-credits. Mechanism: `src/ui/zotero-credit-rows.ts` over the pane's
-`zoteroVoiceService()` — `tts/credits` for the figures, the `tts/voices`
-listing for the prices (`creditsPerMinute`, kept by `parseZoteroVoices`);
-wired in `src/ui/prefs-pane.ts` (load, `onChecked`, the `api-key`
-notification). `diagnostics.zoteroTiers()` reports `credits` from the
-same `readZoteroCredits`, each tier with `dearest` and the line's
-`text`.
+with the remaining time on the account for it, as zotero.org counts it:
+credits over each voice's price, rounded up, in the owner's form
+(`Remaining time: 1h 54min`; zh-CN `剩余时间：1小时54分钟`), a range
+from the dearest voice to the cheapest when the tier has two prices
+(`Remaining time: 9min – 26min, depending on voice`), its top `90d+` when
+only the cheaper voices pass 90 days. Nothing left reads `Remaining time:
+0min` in red; `Remaining time: Unlimited` only when even the dearest voice
+passes 90 days (Zotero's own line); with no price listed, the credits
+figure (`N credits left`). An **Add more time** link to
+`https://www.zotero.org/settings/readaloud` shows only when the dearest
+voice has under 3 minutes, 0 included (issue #140). Signed out, no such
+line, and a **Log in** link after the switch row's result, which opens
+Zotero's Account settings with the sign-in started. Read when the pane
+opens, after each Test connection or Enable of a Zotero tier, and at every
+sign-in or sign-out; a tier switched off still shows its figure. Enable
+and Test connection fail a tier whose credits are 0: `No remaining time on
+Premium. Add more time first.`; otherwise the result carries no credits.
+Mechanism: `src/ui/zotero-credit-rows.ts` (`creditText`,
+`offersMoreTime`) over the pane's `zoteroVoiceService()` — `tts/credits`
+for the figures, the `tts/voices` listing for the prices
+(`creditsPerMinute`, kept by `parseZoteroVoices`); wired in
+`src/ui/prefs-pane.ts` (load, `onChecked`, the `api-key` notification);
+the check in `src/ui/zotero-tier-check.ts`. `diagnostics.zoteroTiers()`
+reports `credits` from the same `readZoteroCredits`, each tier with
+`dearest` and the line's `text`.
 
 Run the baseline first. No fixture: the settings pane only. **No player
 may be open** for item 4 (the reading guard refuses the switch). The
@@ -43,10 +47,8 @@ current ones from item 2's diagnostic, not from here.
    holding `span#ztts-zotero-credits-<tier>` and, as its next sibling,
    `label#ztts-zotero-buy-<tier>` (a `zotero-text-link`, text `Add more
    time`, zh-CN `添加更多时长`, `href`
-   `https://www.zotero.org/settings/readaloud`), starting 6 px after the
-   credits text's right edge **on the same baseline**: a Range over each
-   one's text node gives equal `top` and `bottom` (0 px; as two siblings in
-   a centered hbox the link sat 1.5 px low on 1.16.2-beta6); then
+   `https://www.zotero.org/settings/readaloud`; `hidden` at 3 minutes or
+   more, its place when shown measured in item 7); then
    `hbox#ztts-provider-zotero-<tier>` holding Enable, Test connection and
    a `description` holding `span#ztts-test-result-zotero-<tier>` and
    `label#ztts-zotero-log-in-<tier>` (`hidden` while signed in). The two
@@ -54,16 +56,17 @@ current ones from item 2's diagnostic, not from here.
 2. **The time left on open.** Within 20 s of the pane's load:
    `diagnostics.zoteroTiers()` (async) → `credits.standard` =
    `{ credits: S, cheapest: 1, dearest: 1, state: { kind: "time", low: S,
-   high: S }, text: "<S minutes> left" }`, `credits.premium` = `{ credits:
-   P, cheapest: 10, dearest: 30, state: { kind: "time", low: P / 30, high:
-   P / 10 }, text: "<P/30> – <P/10> left, depending on voice" }` (each
-   rounded up, Zotero's short form: S = 114 → `1h 54m left`, P = 260 →
-   `9m – 26m left, depending on voice`; zh-CN `剩余 1小时54分钟`, `剩余
-   9分钟 – 26分钟，视语音而定`); `checks[…].message` `Signed in: N
-   Standard voices.` / `Signed in: N Premium voices.`, no credits in it.
-   The pane: both rows shown, `#ztts-zotero-credits-<tier>` reading the
-   diagnostic's `text`; both buy links shown; no `data-ztts-none` on
-   either text; both Log in links hidden.
+   high: S }, text: "Remaining time: <S>" }`, `credits.premium` = `{
+   credits: P, cheapest: 10, dearest: 30, state: { kind: "time", low: P /
+   30, high: P / 10 }, text: "Remaining time: <P/30> – <P/10>, depending
+   on voice" }` (each rounded up: S = 114 → `Remaining time: 1h 54min`, P
+   = 260 → `Remaining time: 9min – 26min, depending on voice`; zh-CN
+   `剩余时间：1小时54分钟`, `剩余时间：9分钟 – 26分钟，视语音而定`);
+   `checks[…].message` `Signed in: N Standard voices.` / `Signed in: N
+   Premium voices.`, no credits in it. The pane: both rows shown,
+   `#ztts-zotero-credits-<tier>` reading the diagnostic's `text`; both buy
+   links `hidden` (every voice has 3 minutes or more); no
+   `data-ztts-none` on either text; both Log in links hidden.
 3. **Read again after Test connection.** Blank
    `#ztts-zotero-credits-standard`'s `textContent` by hand, then click
    **Test connection** beside Standard → the result line `Testing…`, then
@@ -97,18 +100,32 @@ current ones from item 2's diagnostic, not from here.
    and wrap it so the client it returns answers
    `getReadAloudCreditsRemaining()` with `{ standardCreditsRemaining: 0,
    premiumCreditsRemaining: 200000000 }` (everything else passed
-   through). Click **Test connection** beside Standard → Standard's
-   text `0m left` (zh-CN `剩余 0分钟`) with
-   `data-ztts-none`, computed `color` Zotero's `--accent-red` (read the
-   variable on the pane's root to compare), its buy link shown; Premium's
-   text `Unlimited` (zh-CN `不限`), no `data-ztts-none`, its buy link
-   `hidden` (200,000,000 credits at 30 a minute is past 129,600
-   minutes). Then answer `{ standardCreditsRemaining: 114,
-   premiumCreditsRemaining: 1500000 }` and click Test connection again →
-   Premium `34d 17h 20m – 90d+ left, depending on voice` (zh-CN `剩余
-   34天17小时20分钟 – 90天+，视语音而定`), its link shown: 50,000 minutes
-   at 30 a minute, past 90 days at 10. Assign the kept `getAPIClient` back and click Test
-   connection again → item 2's texts, both links shown.
+   through). Click **Test connection** beside Standard → its result `No
+   remaining time on Standard. Add more time first.`; Standard's text
+   `Remaining time: 0min` (zh-CN `剩余时间：0分钟`) with `data-ztts-none`,
+   computed `color` Zotero's `--accent-red` (read the variable on the
+   pane's root to compare), its buy link shown, starting 6 px after the
+   text's right edge **on the same baseline** (a Range over each one's
+   text node gives equal `top` and `bottom`, 0 px); Premium's text
+   `Remaining time: Unlimited` (zh-CN `剩余时间：不限`), no
+   `data-ztts-none`, its buy link `hidden` (200,000,000 credits at 30 a
+   minute is past 129,600 minutes). Then answer `{
+   standardCreditsRemaining: 114, premiumCreditsRemaining: 80 }` → Test
+   connection → Premium `Remaining time: 3min – 8min, depending on voice`,
+   its link shown (2.7 minutes at 30 a minute, under 3, written 3min
+   rounded up). Then `premiumCreditsRemaining: 1500000` → Premium
+   `Remaining time: 34d 17h 20min – 90d+, depending on voice` (zh-CN
+   `剩余时间：34天17小时20分钟 – 90天+，视语音而定`), its link `hidden`:
+   50,000 minutes at 30 a minute, past 90 days at 10. Assign the kept
+   `getAPIClient` back and click Test connection again → item 2's texts,
+   both links hidden.
+8. **Enable at 0.** Premium off (as item 4), the wrapper of item 7
+   answering `premiumCreditsRemaining: 0` → **Enable** beside Premium:
+   `Checking…`, then the result `No remaining time on Premium. Add more
+   time first.` (zh-CN `高级没有剩余时间，请先添加时长。`), the switch stays
+   off (`zotero-tts.zotero-premium.enabled` unchanged), the row reads
+   `Remaining time: 0min` in red with its link. The wrapper answering 20
+   → Enable switches it on (`Signed in: N Premium voices.`). Restore.
 
 What it may touch: `zotero-tts.zotero-standard.enabled` and
 `zotero-tts.zotero-premium.enabled` (back to their values before the run:
@@ -121,7 +138,7 @@ Zotero-TTS). Nothing is written to Zotero's account; `tts/credits` and
 `tts/voices` spend nothing.
 
 Only a human can judge: how the section reads beside the other sections
-— the captions, the time line under each, the links' color — which the
+— the captions, the remaining-time line under each, the links' color — which the
 bridge cannot screenshot (it reaches the main window only).
 
 Not testable live: a real sign-out and a real sign-in started from Log

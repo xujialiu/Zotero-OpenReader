@@ -45,8 +45,8 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [One regional list for the player and shortcuts (issue #106)](cases/player-voice-list.md)
 - [One entry per provider in the player's first dropdown (issue #110)](cases/provider-tiers.md)
 - [Zotero's Standard and Premium behind switches of their own (issue #111)](cases/zotero-tiers.md)
-- [Each Zotero tier's time left in the settings, with Add more time and Log in (issues #159, #140)](cases/zotero-credits.md)
-- [A Zotero voice's time left in the player, and its used-up and daily-limit alerts (issue #140)](cases/zotero-time-left.md)
+- [Each Zotero tier's remaining time in the settings, with Add more time and Log in (issues #159, #140)](cases/zotero-credits.md)
+- [A Zotero voice's remaining time in the player, and a tier switched off when it runs out (issue #140)](cases/zotero-time-left.md)
 - [The player without a Zotero account (issue #130)](cases/signed-out-voices.md)
 - [A voice list landing on the playing voice keeps the sentence](cases/unchanged-voice.md) — 3.27
 - [The remembered voice](cases/remembered-voice.md) — 3.2, 3.11, 4.7

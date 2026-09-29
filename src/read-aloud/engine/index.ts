@@ -58,6 +58,19 @@ export interface TabVoice extends EngineVoice {
   readonly reader: any;
 }
 
+/**
+ * A Zotero voice Zotero will not read for its account (issue #140): its
+ * credits used up — as Zotero said, or as the Engine knew and never asked
+ * — or Zotero's daily limit. The plugin switches the tier off or reminds
+ * (read-aloud/zotero-refusals.ts).
+ */
+export interface ZoteroRefusal {
+  code: 'quota-exceeded' | 'daily-limit-exceeded';
+  tier: 'standard' | 'premium';
+  /** The voice's time left as the plugin knew it: 0 or less when it never asked; null unknown. */
+  minutes: number | null;
+}
+
 /** The plugin's composite interface of one reader (remote-interface.ts), called on the plugin's side. */
 export interface SegmentAudioSource {
   /** With `held`, only audio the interface already has: no provider is asked (issue #163). */
@@ -84,6 +97,13 @@ export interface EngineDeps {
   volume(): number;
   /** The playback notice of a reader (ui/voice-notice.ts). */
   notice(reader: unknown, kind: PlaybackNotice): void;
+  /**
+   * Zotero refused a Zotero voice for its account (issue #140): when the
+   * reading's own voice fails playback — not at a read-ahead, so the
+   * sentence being heard is not cut — or at once for a voice being
+   * switched to, whose switch fails while the old voice reads on.
+   */
+  refused?(reader: unknown, refusal: ZoteroRefusal): void;
   error(e: unknown): void;
   debug?(message: string): void;
   /** Injected by the tests; timers and Date.now otherwise. */
@@ -166,6 +186,38 @@ function accessorOwnerOf(obj: unknown, name: string): any {
   return null;
 }
 
+const ACCOUNT_CODES: ReadonlySet<string> = new Set(['quota-exceeded', 'daily-limit-exceeded']);
+
+/** Zotero's tier of a reader's voice (`RemoteReadAloudVoice.tier`), null for any other voice or a dead one. */
+function zoteroTierOf(readerVoice: any): ZoteroRefusal['tier'] | null {
+  try {
+    const tier = readerVoice?.tier;
+    return tier === 'standard' || tier === 'premium' ? tier : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A Zotero voice's own `minutesRemaining`: the tier's credits over its
+ * price (reader.js 39256-39263), fed by the voice list and the manager's
+ * minute-by-minute credits request; null when unknown.
+ */
+function minutesOf(readerVoice: any): number | null {
+  try {
+    const minutes = readerVoice?.minutesRemaining;
+    return typeof minutes === 'number' && Number.isFinite(minutes) ? minutes : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the plugin already knows a Zotero voice has nothing left: then Zotero is not asked at all (issue #140). */
+function usedUp(readerVoice: any): boolean {
+  const minutes = minutesOf(readerVoice);
+  return minutes !== null && minutes <= 0;
+}
+
 export function createEngine(deps: EngineDeps): Engine {
   const sectionFor = createReadingSections();
   const estimateErrors = new WeakSet<object>();
@@ -240,12 +292,24 @@ export function createEngine(deps: EngineDeps): Engine {
         } catch (e) {
           deps.error(e);
         }
+        // Playback failed on the reading's own voice: the refusal now counts (a read-ahead's did not)
+        if (kind === 'failed' && session?.voice && session.error) refused(tab, session.error, session.voice as TabVoice);
       },
       log: deps.error,
       debug: deps.debug,
     });
     tab.session = session;
     return tab;
+  }
+
+  function refused(tab: Tab, code: string, voice: TabVoice): void {
+    const tier = zoteroTierOf(voice.reader);
+    if (!tier || !ACCOUNT_CODES.has(code)) return;
+    try {
+      deps.refused?.(tab.reader, { code: code as ZoteroRefusal['code'], tier, minutes: minutesOf(voice.reader) });
+    } catch (e) {
+      deps.error(e);
+    }
   }
 
   /**
@@ -257,7 +321,12 @@ export function createEngine(deps: EngineDeps): Engine {
     const source = deps.audioSource(tab.reader);
     if (!source) return { audio: null, error: 'unknown' };
     const options = held ? { held: true } : signal ? { signal: signal as AbortSignal } : undefined;
-    const result = await source.getAudio(segment, voice.reader.impl, options);
+    // A held lookup asks nobody; otherwise a Zotero voice with nothing left is not asked for: the answer would be a refusal (issue #140)
+    const result = !held && zoteroTierOf(voice.reader) && usedUp(voice.reader)
+      ? { audio: null, error: 'quota-exceeded' }
+      : await source.getAudio(segment, voice.reader.impl, options);
+    // A voice being switched to, not the reading's own: its switch fails, so the refusal counts at once
+    if (!held && result?.error && voice.id !== tab.session?.voice?.id) refused(tab, String(result.error), voice);
     if (!alive(tab.window)) {
       // The tab closed while this was on its way: nothing is waiting for it (issue #116)
       tab.stats.late++;

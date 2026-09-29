@@ -11,13 +11,16 @@ import type { CheckOutcome } from './provider-rows';
  * (`xpcom/reader.js` 270, 2881), without which the player lists neither
  * tier — then Zotero's `tts/voices` lists at least one voice of the
  * tier. Not signed in or an empty tier fails, so the switch stays off
- * with the reason beside it; otherwise the voice count. The credits have
- * a line of their own under the tier's name (ui/zotero-credit-rows.ts,
- * issue #159), read again after each check.
+ * with the reason beside it; so does a tier whose credits Zotero gives as
+ * 0 (issue #140: one switched off because its time ran out is not switched
+ * back on before time is bought; the daily limit cannot be known ahead);
+ * otherwise the voice count. The time left has a line of its own under
+ * the tier's name (ui/zotero-credit-rows.ts, issue #159), read again after
+ * each check.
  */
 export interface ZoteroTierCheckDeps {
   signedIn(): boolean;
-  service: Pick<ZoteroVoiceService, 'listVoices'>;
+  service: Pick<ZoteroVoiceService, 'listVoices' | 'credits'>;
 }
 
 /** The tier's name as the pane's rows say it: Zotero's own word for it. */
@@ -30,5 +33,9 @@ export async function checkZoteroTier(tier: ZoteroTier, deps: ZoteroTierCheckDep
   // One entry per voice and locale: the count is of voices
   const count = new Set(voices.filter((voice) => voice.tier === tier).map((voice) => voice.id)).size;
   if (!count) return { ok: false, message: t('ztts-zotero-tier-empty', { tier: name }) };
+  // Only a known 0 fails: credits that cannot be read leave the switch to the listing
+  const credits = await deps.service.credits().catch(() => null);
+  const left = credits?.[tier] ?? null;
+  if (left !== null && left <= 0) return { ok: false, message: t('ztts-zotero-no-time', { tier: name }) };
   return { ok: true, message: t('ztts-zotero-tier-ok', { count, tier: name }) };
 }

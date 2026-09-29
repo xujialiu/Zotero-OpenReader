@@ -1,13 +1,11 @@
 /* The UI receives plain snapshots; only the host adapter can perform actions. */
 let state = { provider: '', locale: '', voice: '', speed: 1, volume: 100, automatic: true, playing: false, active: false, expanded: false,
-  buffering: false, loading: true, error: null, alert: null, providers: [], locales: [], voices: [], favorites: [] };
+  buffering: false, loading: true, error: null, providers: [], locales: [], voices: [], favorites: [] };
 let strings = {};
 let variant = new URLSearchParams(location.search).get('variant') || 'top';
 let popover = null, anchor = null, refreshPopover = null;
-// The alert last seen, so a Zotero voice's used-up or daily-limit popover opens once each time its error comes (issue #140).
-let shownAlert = null;
 const $ = selector => document.querySelector(selector);
-const text = key => strings[key] || ({ play: 'Play', pause: 'Pause', provider: 'Provider', locale: 'Locale', voice: 'Voice', speed: 'Speed', volume: 'Volume', layout: 'Layout', options: 'Options', previousParagraph: 'Skip to Previous Paragraph', previousSentence: 'Skip to Previous Sentence', nextSentence: 'Skip to Next Sentence', nextParagraph: 'Skip to Next Paragraph', automatic: 'Automatic scroll', manual: 'Manual scroll', bottom: 'Bottom bar', floating: 'Floating panel', top: 'Top bar', search: 'Search', empty: 'No matches', loading: 'Loading voices…', 'no-voices': 'No voices available', favorite: 'Favorite', unfavorite: 'Unfavorite', retry: 'Retry', buffering: 'Buffering…', addMoreTime: 'Add more time' }[key] || key);
+const text = key => strings[key] || ({ play: 'Play', pause: 'Pause', provider: 'Provider', locale: 'Locale', voice: 'Voice', speed: 'Speed', volume: 'Volume', layout: 'Layout', options: 'Options', previousParagraph: 'Skip to Previous Paragraph', previousSentence: 'Skip to Previous Sentence', nextSentence: 'Skip to Next Sentence', nextParagraph: 'Skip to Next Paragraph', automatic: 'Automatic scroll', manual: 'Manual scroll', bottom: 'Bottom bar', floating: 'Floating panel', top: 'Top bar', search: 'Search', empty: 'No matches', loading: 'Loading voices…', 'no-voices': 'No voices available', favorite: 'Favorite', unfavorite: 'Unfavorite', retry: 'Retry', buffering: 'Buffering…' }[key] || key);
 const formatSpeed = value => Number(value).toFixed(2) + '×';
 const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const choices = key => state[key === 'provider' ? 'providers' : key === 'locale' ? 'locales' : 'voices'];
@@ -119,9 +117,6 @@ function updateControls() {
   status.textContent = state.error ? '!' : '…';
   status.title = state.error || text(state.loading ? 'loading' : 'no-voices');
   status.setAttribute('aria-label', status.title);
-  const alert = state.alert?.kind || null;
-  if (alert && alert !== shownAlert && !status.hidden) { closePopover(false); openStatus(status); }
-  shownAlert = alert;
 }
 let placing = false;
 function place() {
@@ -232,13 +227,8 @@ function openLayoutMenu(button) {
 function openStatus(button) {
   if (!createPopover(button, 'Zotero-TTS')) return;
   const message = document.createElement('div'); message.className = 'error-message';
-  message.textContent = state.alert?.message || state.error || text(state.loading ? 'loading' : 'no-voices'); popover.append(message);
-  if (state.alert?.buy) {
-    const buy = document.createElement('button'); buy.className = 'buy-time'; buy.textContent = text('addMoreTime');
-    buy.onclick = () => { closePopover(); send('buy-time'); }; popover.append(buy);
-  }
-  // Retrying cannot help a used-up or daily-limit error: no Retry for either.
-  if (!state.alert && (state.error || (!state.loading && !state.voices.length))) { const retry = document.createElement('button'); retry.className = 'retry'; retry.textContent = text('retry'); retry.onclick = () => { closePopover(); send('retry'); }; popover.append(retry); }
+  message.textContent = state.error || text(state.loading ? 'loading' : 'no-voices'); popover.append(message);
+  if (state.error || (!state.loading && !state.voices.length)) { const retry = document.createElement('button'); retry.className = 'retry'; retry.textContent = text('retry'); retry.onclick = () => { closePopover(); send('retry'); }; popover.append(retry); }
   place();
 }
 function makeDraggable(handle) {

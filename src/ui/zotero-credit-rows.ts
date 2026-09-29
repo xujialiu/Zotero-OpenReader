@@ -1,5 +1,5 @@
 import { t } from '../core/l10n';
-import { formatOverUnlimited, formatTimeLeft, UNLIMITED_MINUTES } from '../core/time-left';
+import { formatOverUnlimited, formatTimeLeft, isLowTime, UNLIMITED_MINUTES } from '../core/time-left';
 import { ZOTERO_TIERS, type ZoteroTier, type ZoteroVoice, type ZoteroVoiceService } from '../read-aloud/zotero-voices';
 
 /**
@@ -9,10 +9,11 @@ import { ZOTERO_TIERS, type ZoteroTier, type ZoteroVoice, type ZoteroVoiceServic
  * account is signed in.
  *
  * Time, not credits, since issue #140, as zotero.org/settings/readaloud
- * writes it: a tier's voices cost different amounts a minute (Premium 10
+ * counts it: a tier's voices cost different amounts a minute (Premium 10
  * or 30 on 2026-09-29), so its time left is a range, from its dearest
- * voice's to its cheapest's — "9m – 26m left, depending on voice" for 260
- * Premium credits. With no price listed, the credits figure stands in.
+ * voice's to its cheapest's — "Remaining time: 9min – 26min, depending on
+ * voice" for 260 Premium credits. With no price listed, the credits figure
+ * stands in. Add more time shows only under 3 minutes (offersMoreTime).
  *
  * Read when the pane opens, after a Zotero tier's Test connection or
  * Enable, and when an account is signed in or out (ui/prefs-pane.ts). A
@@ -84,6 +85,15 @@ export async function readZoteroCredits(
   return { standard: tier('standard'), premium: tier('premium') };
 }
 
+/**
+ * Whether the line offers Add more time: nothing left, or the dearest
+ * voice under 3 minutes (issue #140) — the owner's rule, so the link shows
+ * only when it is about to be needed.
+ */
+export function offersMoreTime(state: CreditState): boolean {
+  return state.kind === 'none' || (state.kind === 'time' && isLowTime(state.low));
+}
+
 /** The line's text for a tier's state; null for unknown, which hides the line. */
 export function creditText(state: CreditState): string | null {
   switch (state.kind) {
@@ -146,7 +156,7 @@ export function initZoteroCreditRows(doc: { getElementById(id: string): any }, d
       if (state.kind === 'none') text.setAttribute(NONE_ATTR, 'true');
       else text.removeAttribute(NONE_ATTR);
     }
-    setHidden(buy, state.kind === 'unlimited');
+    setHidden(buy, !offersMoreTime(state));
     setHidden(row, false);
   }
 

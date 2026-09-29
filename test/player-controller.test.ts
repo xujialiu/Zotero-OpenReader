@@ -24,16 +24,15 @@ function fixture() {
   const prefs = { get: (key: string) => values.get(key), set: (key: string, value: unknown) => { values.set(key, value); } };
   const remainingTime = vi.fn(() => ({ status: 'ready' as const, scope: 'document' as const, seconds: 100 }));
   const message = vi.fn((key: string, _args?: Record<string, string | number>) => key);
-  const buyTime = vi.fn();
   const controller = createPlayerController({
     remainingTime,
     affectedTabs: changes => affectedReading(flattenSettings(loadSettings(prefs)), changes, manager.active ? [{ title: 'Paper', voices: [{ id: manager.selectedVoiceID, provider: 'fish' }] }] : []),
     prefs: { get: key => values.get(key), set: (key, value) => { values.set(key, value); } },
     labels: () => ({ fish: 'Fish Audio', standard: 'Zotero Standard', premium: 'Zotero Premium' }), clone: (_reader, value) => value,
     start, close, togglePaused, rememberSpeed, follow, navigate, automatic, manual, anyReading: () => manager.active,
-    message, buyTime,
+    message,
   });
-  return { remainingTime, values, manager, reader, controller, start, close, togglePaused, rememberSpeed, follow, following, manual, navigate, message, buyTime };
+  return { remainingTime, values, manager, reader, controller, start, close, togglePaused, rememberSpeed, follow, following, manual, navigate, message };
 }
 
 describe('player controller', () => {
@@ -138,7 +137,7 @@ it('shows remaining time by default, and switching it off bypasses estimation im
   expect(f.remainingTime).toHaveBeenCalledTimes(1);
 });
 
-describe('a Zotero voice’s time left and its two errors (issue #140)', () => {
+describe('a Zotero voice’s time left and its account errors (issue #140)', () => {
   /** Zotero's voice: `minutesRemaining` is a getter, credits over the voice's price (reader.js 39256-39263). */
   const zoteroVoice = (id: string, label: string, minutes: () => number | null) =>
     Object.defineProperty({ id, label, tier: 'premium' }, 'minutesRemaining', { get: minutes, enumerable: true });
@@ -156,12 +155,12 @@ describe('a Zotero voice’s time left and its two errors (issue #140)', () => {
     return f;
   }
 
-  it('gives each Zotero voice its time left as Zotero writes it, low under 3 minutes, nothing when unknown or past 90 days', () => {
+  it('gives each Zotero voice its time left in the owner’s min, low under 3 minutes, nothing when unknown or past 90 days', () => {
     const f = premium();
     expect(f.controller.snapshot(f.reader).voices).toEqual([
-      { value: 'prm-1', label: 'Premium Voice 1', time: '26m', low: false },
-      { value: 'prm-5', label: 'Premium Voice 5', time: '9m', low: false },
-      { value: 'prm-6', label: 'Premium Voice 6', time: '3m', low: true },
+      { value: 'prm-1', label: 'Premium Voice 1', time: '26min', low: false },
+      { value: 'prm-5', label: 'Premium Voice 5', time: '9min', low: false },
+      { value: 'prm-6', label: 'Premium Voice 6', time: '3min', low: true },
       { value: 'prm-7', label: 'Premium Voice 7' },
       { value: 'prm-8', label: 'Premium Voice 8' },
       { value: 'prm-9', label: 'Premium Voice 9' },
@@ -171,50 +170,28 @@ describe('a Zotero voice’s time left and its two errors (issue #140)', () => {
   it('leaves a plugin voice without a time', () => {
     const f = fixture();
     expect(f.controller.snapshot(f.reader).voices).toEqual([{ value: 'fish::one', label: 'One' }]);
-    expect(f.controller.snapshot(f.reader).alert).toBeNull();
   });
 
-  it('opens the used-up alert for a Zotero voice’s quota-exceeded, with the tier named and the link, and reads the voice as 0m', () => {
+  it('words a Zotero voice’s refusal with credits left as the reminder does, naming the tier', () => {
     const f = premium();
     f.manager.error = 'quota-exceeded' as never;
-    const state = f.controller.snapshot(f.reader);
-    expect(state.alert).toEqual({ kind: 'time-used-up', message: 'ztts-player-time-used-up', buy: true });
-    expect(f.message).toHaveBeenCalledWith('ztts-player-time-used-up', { tier: 'Zotero Premium' });
-    expect(state.error).toBe('ztts-player-time-used-up');
-    expect(state.voices[0]).toEqual({ value: 'prm-1', label: 'Premium Voice 1', time: '0m', low: true });
-    expect(state.voices[1]).toMatchObject({ time: '9m', low: false });
+    expect(f.controller.snapshot(f.reader).error).toBe('ztts-player-zotero-short');
+    expect(f.message).toHaveBeenCalledWith('ztts-player-zotero-short', { tier: 'Zotero Premium' });
   });
 
-  it('opens the daily-limit alert without a link', () => {
+  it('names Zotero’s daily limit as such', () => {
     const f = premium();
     f.manager.error = 'daily-limit-exceeded' as never;
-    const state = f.controller.snapshot(f.reader);
-    expect(state.alert).toEqual({ kind: 'daily-limit', message: 'ztts-player-daily-limit', buy: false });
-    expect(state.error).toBe('ztts-player-daily-limit');
-    expect(state.voices[0]).toMatchObject({ time: '26m', low: false });
+    expect(f.controller.snapshot(f.reader).error).toBe('ztts-player-daily-limit');
+    expect(f.message).toHaveBeenCalledWith('ztts-player-daily-limit', { tier: 'Zotero Premium' });
   });
 
-  it('keeps a plugin provider’s limit as today’s error, with no alert', () => {
+  it('keeps a plugin provider’s limit, and every other error, as they were', () => {
     const f = fixture();
     f.manager.error = 'quota-exceeded' as never;
-    const state = f.controller.snapshot(f.reader);
-    expect(state.alert).toBeNull();
-    expect(state.error).toBe('ztts-player-quota-error');
-  });
-
-  it('keeps every other error of a Zotero voice as today’s', () => {
-    const f = premium();
-    f.manager.error = 'network' as never;
-    const state = f.controller.snapshot(f.reader);
-    expect(state.alert).toBeNull();
-    expect(state.error).toBe('ztts-player-playback-error');
-  });
-
-  it('opens zotero.org’s page for more time, whatever the reader’s state', async () => {
-    const f = fixture();
-    await f.controller.command(f.reader, 'buy-time');
-    expect(f.buyTime).toHaveBeenCalledTimes(1);
-    await f.controller.command({}, 'buy-time');
-    expect(f.buyTime).toHaveBeenCalledTimes(2);
+    expect(f.controller.snapshot(f.reader).error).toBe('ztts-player-quota-error');
+    const g = premium();
+    g.manager.error = 'network' as never;
+    expect(g.controller.snapshot(g.reader).error).toBe('ztts-player-playback-error');
   });
 });

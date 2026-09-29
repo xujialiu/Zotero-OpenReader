@@ -81,5 +81,3 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .option.has-time { display: flex; align-items: center; gap: 8px; }
 .option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .option.has-time .time-left { margin-left: auto; }
-.buy-time { display: block; margin: 0 10px 8px; padding: 0; color: var(--preview-accent, #356dc2); text-decoration: underline; background: none; }
-.buy-time:hover { background: none; }

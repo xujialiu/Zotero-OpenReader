@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { ZoteroVoice } from '../../src/read-aloud/zotero-voices';
+import type { ZoteroCredits, ZoteroVoice } from '../../src/read-aloud/zotero-voices';
 import { checkZoteroTier } from '../../src/ui/zotero-tier-check';
 
 const VOICES: ZoteroVoice[] = [
@@ -9,9 +9,10 @@ const VOICES: ZoteroVoice[] = [
   { id: 'prm-aria', label: 'Aria', locale: 'en-US', tier: 'premium' },
 ];
 
-function deps(over: { signedIn?: boolean; voices?: ZoteroVoice[] } = {}) {
+function deps(over: { signedIn?: boolean; voices?: ZoteroVoice[]; credits?: ZoteroCredits } = {}) {
   const listVoices = vi.fn(async () => over.voices ?? VOICES);
-  return { signedIn: () => over.signedIn ?? true, service: { listVoices }, listVoices };
+  const credits = vi.fn(async (): Promise<ZoteroCredits> => over.credits ?? { standard: 114, premium: 260 });
+  return { signedIn: () => over.signedIn ?? true, service: { listVoices, credits }, listVoices, credits };
 }
 
 describe('checkZoteroTier', () => {
@@ -30,6 +31,20 @@ describe('checkZoteroTier', () => {
   it('passes with the voice count — one per voice, not per locale — and leaves the credits to their own line', async () => {
     expect(await checkZoteroTier('standard', deps())).toEqual({ ok: true, message: 'Signed in: 2 Standard voices.' });
     expect(await checkZoteroTier('premium', deps())).toEqual({ ok: true, message: 'Signed in: 1 Premium voices.' });
+  });
+
+  // Issue #140: a tier switched off because its time ran out is not switched back on before time is bought
+  it('fails a tier whose credits are used up, and only that tier', async () => {
+    const d = deps({ credits: { standard: 114, premium: 0 } });
+    expect(await checkZoteroTier('premium', d)).toEqual({ ok: false, message: 'No remaining time on Premium. Add more time first.' });
+    expect(await checkZoteroTier('standard', d)).toEqual({ ok: true, message: 'Signed in: 2 Standard voices.' });
+  });
+
+  it('passes when Zotero gives no figure, or the credits cannot be read: only a known 0 fails', async () => {
+    expect(await checkZoteroTier('premium', deps({ credits: { standard: null, premium: null } }))).toMatchObject({ ok: true });
+    const d = deps();
+    d.credits.mockRejectedValueOnce(new Error('credits did not answer'));
+    expect(await checkZoteroTier('premium', d)).toMatchObject({ ok: true });
   });
 
   it('lets a listing that fails reject, as a provider’s check does', async () => {

@@ -21,13 +21,23 @@ const WORDS = [
  * way the plugin attaches it, and a source answering every segment with
  * 0.05 s of audio per character.
  */
-async function setup(options: { attachFirst?: boolean; voices?: Record<string, unknown[]>; fail?: (text: string) => string | null } = {}) {
+async function setup(options: {
+  attachFirst?: boolean;
+  voices?: Record<string, unknown[]>;
+  fail?: (text: string) => string | null;
+  credits?: { standard: number | null; premium: number | null };
+  refused?: (reader: unknown, refusal: unknown) => void;
+} = {}) {
   const clock = new VirtualClock();
   FakeAudioContext.made = [];
   const window = readerWindow(clock);
   const { ReadAloudManager } = loadZoteroReadAloud();
   const remote = {
-    getVoices: async () => ({ voices: options.voices ?? voicesResponse([ALLOY, NOVA]), standardCreditsRemaining: 3, premiumCreditsRemaining: 4 }),
+    getVoices: async () => ({
+      voices: options.voices ?? voicesResponse([ALLOY, NOVA]),
+      standardCreditsRemaining: options.credits?.standard ?? 3,
+      premiumCreditsRemaining: options.credits?.premium ?? 4,
+    }),
     getAudio: vi.fn(),
     getCreditsRemaining: vi.fn(async () => ({ standardCreditsRemaining: 5, premiumCreditsRemaining: 7 })),
     resetCredits: vi.fn(async () => ({ standardCreditsRemaining: 9, premiumCreditsRemaining: null })),
@@ -64,6 +74,7 @@ async function setup(options: { attachFirst?: boolean; voices?: Record<string, u
     pauses: () => ({ sentence: { enabled: true, ms: 0 }, paragraph: { enabled: true, ms: 200 } }),
     volume: () => volume,
     notice: (_reader, kind) => notices.push(kind),
+    refused: options.refused,
     error: (e) => errors.push(e),
     clock,
   });
@@ -538,4 +549,72 @@ it('keeps document time when a chapter adapter cannot read Zotero state, reporti
   for (let i = 0; i < 3; i++) expect(t.engine.remainingTime(t.reader)).toMatchObject({ status: 'ready', scope: 'document' });
   expect(t.errors).toHaveLength(1);
   t.engine.dispose();
+});
+
+describe('a Zotero voice Zotero will not read for its account (issue #140)', () => {
+  const PREMIUM = 'zotero-premium-1';
+  /** Zotero's own voice list, priced per minute as Zotero prices it (Premium 10 or 30). */
+  const priced = (ids: string[], tier: string, creditsPerMinute: number) =>
+    Object.fromEntries(Object.entries(voicesResponse(ids, tier)).map(([key, configs]) => [key, configs.map((config) => ({ ...(config as object), creditsPerMinute }))]));
+  const voices = () => ({ ...voicesResponse([ALLOY]), ...priced([PREMIUM], 'premium', 10) });
+
+  it('does not ask Zotero for a voice with nothing left, and reports the refusal when playback fails', async () => {
+    const refused = vi.fn();
+    const t = await setup({ voices: voices(), credits: { standard: 3, premium: 0 }, refused });
+    t.engine.attach(t.reader);
+    t.manager.selectTier('premium');
+    expect(t.manager.selectedVoiceID).toBe(PREMIUM);
+    t.open(0);
+    await t.clock.advance(0);
+    expect(t.source.getAudio).not.toHaveBeenCalled();
+    expect(t.manager.error).toBe('quota-exceeded');
+    expect(refused).toHaveBeenCalledTimes(1);
+    expect(refused).toHaveBeenCalledWith(t.reader, { code: 'quota-exceeded', tier: 'premium', minutes: 0 });
+  });
+
+  it('reports Zotero’s daily limit when playback reaches the refused sentence, not at its read-ahead', async () => {
+    const refused = vi.fn();
+    const t = await setup({ voices: voices(), fail: (text) => (text === TEXTS[1] ? 'daily-limit-exceeded' : null), refused });
+    t.engine.attach(t.reader);
+    t.manager.selectTier('premium');
+    t.open(0);
+    await t.clock.advance(0);
+    expect(t.source.getAudio.mock.calls.map((call) => call[0].text)).toContain(TEXTS[1]);
+    expect(refused).not.toHaveBeenCalled();
+    await t.clock.advance(3000);
+    expect(t.manager.error).toBe('daily-limit-exceeded');
+    // 4 credits at 10 a minute
+    expect(refused).toHaveBeenCalledWith(t.reader, { code: 'daily-limit-exceeded', tier: 'premium', minutes: 0.4 });
+  });
+
+  it('never reports a plugin voice’s limit, which is a provider’s own', async () => {
+    const refused = vi.fn();
+    const t = await setup({ voices: voices(), fail: () => 'quota-exceeded', refused });
+    t.engine.attach(t.reader);
+    t.open(0);
+    await t.clock.advance(0);
+    expect(t.manager.error).toBe('quota-exceeded');
+    expect(refused).not.toHaveBeenCalled();
+  });
+
+  it('reports at once a voice being switched to, and the old voice reads on', async () => {
+    const refused = vi.fn();
+    const t = await setup({ voices: voices(), credits: { standard: 3, premium: 0 }, refused });
+    t.engine.attach(t.reader);
+    const pickNotices: string[] = [];
+    const pick = createVoicePick({ engine: t.engine, notice: (_r, kind) => pickNotices.push(kind), error: (e) => t.errors.push(e) });
+    pick.attach(t.reader);
+    t.open(0);
+    await t.clock.advance(0);
+    expect(t.manager.selectedVoiceID).toBe(ALLOY);
+    t.manager.selectTier('premium');
+    // The switch prepares its voice after the pick's own short wait
+    await t.clock.advance(1000);
+    expect(pickNotices.at(-1)).toBe('failed');
+    expect(refused).toHaveBeenCalledWith(t.reader, { code: 'quota-exceeded', tier: 'premium', minutes: 0 });
+    expect(t.manager.error).toBe(null);
+    expect(t.engine.session(t.reader)?.voice?.id).toBe(ALLOY);
+    pick.dispose();
+    t.engine.dispose();
+  });
 });

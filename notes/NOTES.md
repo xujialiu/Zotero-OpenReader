@@ -110,9 +110,11 @@ Verified by reading the unpacked `omni.ja` of both `10.0-beta.26` and
   `popupOpen`, not the popup being drawn, drives activation (83875-83878),
   the PDF view's highlight (76434) and the jump button. It has no sample
   button: picking a voice in it while paused plays one (38585-38593). Its
-  time left, low-time warning and purchase link are the Player's since
-  #140 ([2026-09-29](NOTES_2026-09-29.md)); its log-in row was left out
-  on purpose, the settings holding Log in (#159).
+  time left and low-time warning are the Player's since #140
+  ([2026-09-29](NOTES_2026-09-29.md)); a tier that runs out is switched
+  off with a reminder over the document ([2026-09-30](NOTES_2026-09-30.md));
+  its log-in row was left out on purpose, the settings holding Log in
+  (#159).
 - `manifest.json` → `applications.zotero` needs `id`, `update_url`,
   `strict_max_version`, or Zotero refuses the install with a generic message.
 - **Fluent for plugins** (issue #30, [2026-09-04](NOTES_2026-09-04.md)):
@@ -693,6 +695,8 @@ then) and is in the git history before that day.
 
 ### [2026-09-30](NOTES_2026-09-30.md)
 
+- Verified live on 1.16.3-beta4: Play replays a failed sentence's error without asking again (issue #140)
+- A Zotero tier that runs out is switched off after its players close, and the Engine reports only a refusal that fails playback (issue #140)
 - The guard's Close and continue closes by handle, and Enable never counted for much (issue #160)
 - Verified live: Close and continue closes the listed tab only, and Enable never asks (issue #160)
 - A pause sends both positions files up at once: the ten quiet seconds handed the phone its own old place (issue #161)

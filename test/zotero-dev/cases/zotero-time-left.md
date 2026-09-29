@@ -1,91 +1,131 @@
 [Checklist index](../README.md)
 
-## A Zotero voice's time left in the player, and its used-up and daily-limit alerts (issue #140)
+## A Zotero voice's remaining time in the player, and a tier switched off when it runs out (issue #140)
 
 With one of Zotero's own voices selected, the player shows that voice's
-time left at the right end of the voice button, before the chevron, the
-name truncated first; the voice list shows every Zotero voice's time left
-right-aligned in its row. Zotero's short form (`26m`, `1h 54m`; zh-CN
-`26分钟`), gray, red under 3 minutes; nothing past 90 days, when unknown,
-or for a plugin voice. When a Zotero voice's credits are used up the
-status popover opens by itself: `The time left on Zotero Premium is used
-up.` (zh-CN `Zotero 高级的剩余时间已用完。`) with an **Add more time**
-link, no Retry, and the voice reads `0m` in red; at Zotero's daily limit
-it opens with `You have reached today's limit for the Zotero voices. Try
-again tomorrow, or choose another voice.` (zh-CN `已达到 Zotero
-语音今天的限额，明天再试，或换一个语音。`), no link, no Retry. Each
-opens again every time its error comes back; every other error keeps the
-`!` only. Mechanism: `src/read-aloud/player-controller.ts` (`voicesOf`
-reads each voice's own `minutesRemaining`, credits over its price;
-`alertOf` reads `m.error`), `src/core/time-left.ts` (Zotero's
-`formatTimeRemaining`), `addon/content/player-controls.js` (the
-`.time-left` spans, the alert opening `openStatus`), the `buy-time`
-command calling `Zotero.launchURL`.
+remaining time at the right end of the voice button, before the chevron,
+the name truncated first; the voice list shows every Zotero voice's time
+right-aligned in its row. Rounded up, in the owner's form (`26min`,
+`1h 54min`; zh-CN `26分钟`), gray, red under 3 minutes; nothing past 90
+days, when unknown, or for a plugin voice.
+
+When Zotero will not read a Zotero voice for its account:
+
+- **Used up** — the tier's credits are 0 (read afresh from `tts/credits`,
+  else the plugin's own figure). A voice whose own figure is already 0 is
+  not asked for at all. Every open player reading with that tier, in every
+  tab, is closed; the tier's switch goes off; a reminder opens over the
+  document of the tab where it happened: `Zotero Premium has no remaining
+  time and has been switched off. Add more time, then enable it again in
+  Zotero-TTS settings.` (+ `Reading also stopped in N other tab(s).`),
+  with an **Add more time** link and a ✕.
+- **Short** — Zotero refused while credits are left: nothing closed or
+  switched off; the reminder `Not enough remaining time on Zotero Premium
+  for this voice. Choose a cheaper voice, or add more time.` with the link;
+  the player's ! reads `Not enough remaining time on Zotero Premium for
+  this voice.` with Retry.
+- **Daily limit** — the tier that hit it is switched off as for used up;
+  the reminder `Zotero Premium has reached today's limit and has been
+  switched off. Enable it again in Zotero-TTS settings tomorrow.`, no link;
+  the credits are not read.
+- Every other error keeps the ! with Retry, and nothing is switched off.
+
+A refusal counts when playback fails on it, not at a read-ahead; a voice
+being switched to counts at once, and the old voice reads on. Mechanism:
+`src/read-aloud/engine/index.ts` (`fetchFor`'s no-request at 0 and the
+`refused` dep), `src/read-aloud/zotero-refusals.ts` (the decision, the
+closes, the switch), `src/ui/zotero-reminder.ts` (`#ztts-zotero-reminder`),
+`src/core/time-left.ts`, `src/read-aloud/player-controller.ts`,
+`addon/content/player-controls.js`. `diagnostics.zoteroRefusals()` reports
+the last refusal acted on: `{ code, tier, credits, minutes, action,
+closed }`.
 
 Run the baseline first. The owner's profile is signed in, with both Zotero
-tier switches off (2026-09-29): a run turns Premium on and off again. Use
-`test/fixtures/fixture-a.pdf`. **No real Zotero audio**: every play in
-items 4-6 goes through a stubbed client, so no credits are spent;
-items 1-3 open the player without playing. Figures below are the owner's
-260 Premium credits on 2026-09-29; read the current ones from the
-snapshot.
+tier switches off (2026-09-29): a run turns Premium on and restores it.
+Use `test/fixtures/fixture-a.pdf` and `fixture-b.pdf` in two tabs, plus a
+third tab reading with a **free** plugin voice (System voices, or a local
+Kokoro): never a paid provider. **No real Zotero audio**: items 4 and 8
+rely on the plugin not asking (proved by a wrapped
+`Zotero.Sync.Runner.getAPIClient` counting `getReadAloudAudio()` calls),
+items 5-7 answer through that wrapper. Keep `Zotero.launchURL` and record
+its calls. Read every figure from the snapshot, not from here: 260
+Premium credits on 2026-09-29, 259 by the end of that run.
 
-1. **The voice button.** Premium on, the fixture open, the player open
-   on Zotero Premium, English (US), `Premium Voice 1` (10 credits a
-   minute) → the player's `inspect()` state (`diagnostics` of the
-   player) lists that voice with `time` = its `minutesRemaining` rounded
-   up in Zotero's form (`26m` for 260 credits) and `low: false`; plugin
-   voices have no `time`. In the frame: `[data-pick="voice"]
-   .time-left` shown, text the same, its right edge 6 px left of the
-   `.chevron` (the picker's gap), after `.value`; the button's title
-   `Voice: Premium Voice 1 · 26m`. A 30-credit voice (`Premium Voice 5`
-   in en-US) reads `9m`.
-2. **The voice list.** Open the voice picker → every Zotero voice's row
-   is `.option.has-time` with a `.option-label` and a `.time-left`; the
-   `.time-left` right edges are equal across rows (right-aligned), each
-   `.time-left`'s text the row voice's `time`. Rows without a time (a
-   plugin voice, if the language lists one) have no `.time-left`.
+1. **The voice button.** Premium on, fixture A open, the player on Zotero
+   Premium, English (US), `Premium Voice 1` (10 credits a minute) → the
+   player's state lists that voice with `time` = its `minutesRemaining`
+   rounded up, as `<N>min` (`26min` for 259-260 credits), `low: false`;
+   plugin voices have no `time`. In the frame: `[data-pick="voice"]
+   .time-left` shown, the same text, after `.value`, its right edge 6 px
+   left of `.chevron`; the title `Voice: Premium Voice 1 · 26min`. A
+   30-credit voice (`Premium Voice 5` in en-US) reads `9min`.
+2. **The voice list.** Open the voice picker → every Zotero voice's row is
+   `.option.has-time` with `.option-label` and `.time-left`; the
+   `.time-left` right edges equal across rows; each text the row voice's
+   `time`.
 3. **Low.** Keep the voice's provider `premiumCreditsRemaining`
    (`voicesForLanguage[i].provider`), set it to 25 → within 1 s
-   (the 250 ms snapshot) `Premium Voice 1` reads `3m` (2.5 minutes,
-   rounded up) with `.low`, computed color `rgb(216, 68, 68)`, and a
-   30-credit voice `1m`, low too. Assign the kept figure back → the
-   times and gray color return.
-4. **Used up.** Keep `Zotero.Sync.Runner.getAPIClient` and wrap it so
-   its client answers `getReadAloudAudio()` with `{ audio: null, error:
-   'quota-exceeded' }`; keep `Zotero.launchURL` and record its calls.
-   Press play on `Premium Voice 1` at a sentence whose audio is not
-   cached → within 2 s the status popover is open without a click:
-   `.error-message` `The time left on Zotero Premium is used up.`, a
-   `.buy-time` button `Add more time`, no `.retry`; the voice button's
-   `.time-left` reads `0m` with `.low`; the player's state has `alert: {
-   kind: 'time-used-up', buy: true }`. Click **Add more time** → the
-   popover closes, `Zotero.launchURL` recorded once with
-   `https://www.zotero.org/settings/readaloud`. Close any popover, press
-   play again → the popover opens by itself again.
-5. **Daily limit.** The same wrap answering `{ audio: null, error:
-   'daily-limit-exceeded' }`; play → the popover opens by itself with
-   `You have reached today's limit for the Zotero voices. Try again
-   tomorrow, or choose another voice.`, no `.buy-time`, no `.retry`;
-   the voice's time unchanged (item 1's).
-6. **Every other error stays as it was.** The wrap answering `{ audio:
-   null, error: 'network' }`; play → no popover opens; the `!` shows;
-   clicking it shows `Playback failed. Check your provider connection
-   and try again.` and **Retry**, no `.buy-time`.
+   `Premium Voice 1` reads `3min` with `.low`, computed color
+   `rgb(216, 68, 68)`, a 30-credit voice `1min`, low. Assign the figure
+   back → the gray times return.
+4. **Used up, never asked.** Fixture B's player paused on a Premium voice
+   (a second Premium tab), the third tab's player paused on the free
+   plugin voice. In fixture A set the provider's `premiumCreditsRemaining`
+   to 0 (kept) and wrap the client so `getReadAloudCreditsRemaining()`
+   answers `{ standardCreditsRemaining: S, premiumCreditsRemaining: 0 }`
+   and `getReadAloudAudio()` counts its calls. Press play in fixture A →
+   within 3 s: `getReadAloudAudio` called **0** times; fixture A's and
+   B's players closed (`isPlayerOpen` false), the plugin-voice tab's
+   still open; `zotero-tts.zotero-premium.enabled` false; in fixture A's
+   document `#ztts-zotero-reminder` with the used-up text and `Reading
+   also stopped in 1 other tab.`, a `Add more time` button and a ✕
+   (`aria-label` `Close`); `diagnostics.zoteroRefusals()` → `last` `{
+   code: 'quota-exceeded', tier: 'premium', credits: 0, minutes: 0,
+   action: 'used-up', closed: 2 }`. Click **Add more time** →
+   `Zotero.launchURL` once with `https://www.zotero.org/settings/readaloud`,
+   the reminder stays; click ✕ → it is gone. Settings → Zotero-TTS →
+   Premium: its row reads `Enable`, and `Remaining time: 0min` in red with
+   **Add more time**.
+5. **Short.** Premium back on (pref), the provider figure back, the
+   wrapper answering credits `premiumCreditsRemaining: 20` and
+   `getReadAloudAudio()` `{ audio: null, error: 'quota-exceeded' }`. Play
+   in fixture A → the player stays open, the pref stays true; the
+   reminder with the short text and the link, no other-tabs line; the
+   player's ! popover `Not enough remaining time on Zotero Premium for
+   this voice.` with **Retry**; `last.action` `short`, `credits: 20`,
+   `closed: 0`.
+6. **Daily limit.** Close the reminder and the player; the wrapper
+   answering `{ audio: null, error: 'daily-limit-exceeded' }`, credits
+   above 0. Play → the player closes, Premium off, the reminder with the
+   daily-limit text, **no** link; `last` `{ code:
+   'daily-limit-exceeded', credits: null, action: 'daily-limit' }`
+   (credits not read). Zotero Standard's pref untouched.
+7. **Every other error.** Premium back on; the wrapper answering `{
+   audio: null, error: 'network' }`. Play → no reminder, the pref stays
+   true, the player open with the ! and `Playback failed. Check your
+   provider connection and try again.` and **Retry**; `last` unchanged
+   from item 6.
+8. **A voice being switched to.** Premium on, its provider figure 0 as in
+   item 4. Fixture A reading (playing) with the free plugin voice; pick
+   `Zotero Premium` in the player's first dropdown → the switch fails
+   (the voice notice), the plugin voice reads on and fixture A's player
+   stays open; `getReadAloudAudio` 0 calls; Premium off; the used-up
+   reminder in fixture A, no other-tabs line; `last.closed` 0.
+9. **Enable at 0** is `cases/zotero-credits.md` item 8.
 
 What it may touch: `zotero-tts.zotero-premium.enabled` (back to its value
-before the run), the fixture document's voice and whatever voice default
-the pick writes (snapshot and restore every `readAloud.*` pref the pick
-changes), the voice's provider `premiumCreditsRemaining` (kept and
-assigned back), `Zotero.Sync.Runner.getAPIClient` and `Zotero.launchURL`
-(each kept and assigned back; no browser page is opened), the player's
-open state. Nothing is written to Zotero's account; no audio is fetched
-from Zotero.
+before the run), the three tabs' documents' voices and whatever voice
+default a pick writes (snapshot and restore every `readAloud.*` pref and
+`reader.readAloudVoices`), the provider's `premiumCreditsRemaining` (kept
+and assigned back), `Zotero.Sync.Runner.getAPIClient` and
+`Zotero.launchURL` (each kept and assigned back; no browser page opens),
+the players' open state, the reminders (closed). Nothing is written to
+Zotero's account; no audio is fetched from Zotero.
 
-Only a human can judge: how the time reads beside the voice's name —
-its gray and red against the theme, the truncation of a long name.
+Only a human can judge: how the time reads beside the voice's name, and
+the reminder's look and place over the document.
 
-Not testable live: a plugin provider's own limit (`quota-exceeded` with a
-plugin voice selected), which keeps `The provider has reached its limit or
-has insufficient credits.` and no alert; `test/player-controller.test.ts`
-covers it with every state of the snapshot.
+Not testable live: a refusal on a read-ahead that playback then reaches
+(the unit test in `test/read-aloud/engine/engine.test.ts` covers the
+wait), a real daily limit, and a plugin provider's own `quota-exceeded`
+(`test/player-controller.test.ts`).

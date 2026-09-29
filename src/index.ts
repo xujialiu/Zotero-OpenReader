@@ -95,6 +95,8 @@ import {
 } from './ui/read-aloud-shortcuts';
 import { findOptionsButton, hasPlayer, isOptionsPanelOpen } from './ui/player-options';
 import { removeSpeedToast, showSpeedToast, showToast, SPEED_TOAST_ID } from './ui/speed-toast';
+import { removeReminder, showReminder } from './ui/zotero-reminder';
+import { createZoteroRefusals } from './read-aloud/zotero-refusals';
 import { createVoiceNotices } from './ui/voice-notice';
 import { browserVoices, createSamplePlayer, defaultVoiceRows, groupVoicesByTier, languageNameOf, listBrowserVoices, startingSpeed, statusLine } from './ui/voice-browser-rows';
 import { silentWav } from './core/silence';
@@ -216,7 +218,35 @@ const playerController = createPlayerController({
   affectedTabs: readingImpact.affectedTabs,
   message: (key, args) => key.startsWith('ztts-time-') ? t(key, args) : playerMessage(key, args),
   remainingTime: reader => engine?.remainingTime(reader) ?? { status: 'estimating', scope: 'document', seconds: null },
-  buyTime: () => Zotero.launchURL(ZOTERO_READ_ALOUD_URL),
+});
+/** Whether a reader's player reads with, or has selected, a voice of one of Zotero's tiers; a voice being switched to does not count. */
+function readerUsesTier(reader: any, tier: string): boolean {
+  try {
+    const m = reader?._internalReader?._readAloudManager;
+    return isPlayerOpen(reader) && (m?._voice?.tier === tier || m?.selectedTier === tier);
+  } catch {
+    return false;
+  }
+}
+// A Zotero voice Zotero will not read for its account: the tier switched off, or a reminder (issue #140)
+const zoteroRefusals = createZoteroRefusals<any>({
+  readers: () => Zotero.Reader._readers ?? [],
+  usesTier: readerUsesTier,
+  close: (reader) => reader._internalReader.toggleReadAloudPopup(false),
+  isOn: (tier) => loadSettings(prefs)[`zotero-${tier}`].enabled,
+  switchOff: (tier) => prefs.set(`${PREF_PREFIX}zotero-${tier}.enabled`, false),
+  credits: async (tier) => (await zoteroVoiceService().credits())[tier],
+  remind: (reader, reminder) => {
+    const doc = toastDoc(reader);
+    if (!doc) return;
+    showReminder(doc, {
+      text: reminder.text,
+      link: reminder.buy ? { label: t('ztts-zotero-add-more-time'), open: () => Zotero.launchURL(ZOTERO_READ_ALOUD_URL) } : undefined,
+      closeLabel: t('ztts-reminder-close'),
+    });
+  },
+  label: (tier) => zoteroTierLabel(tier),
+  log: (e) => Zotero.logError(e),
 });
 function automaticFollowing(reader: any): boolean {
   return followIntents.get(reader).automatic;
@@ -276,7 +306,6 @@ function playerStrings(): Record<string, string> {
     'unfavorite': t('ztts-player-unfavorite'),
     'retry': t('ztts-player-retry'),
     'buffering': t('ztts-player-buffering'),
-    'addMoreTime': t('ztts-zotero-add-more-time'),
   };
 }
 function playerMessage(key: string, args?: L10nArgs): string {
@@ -288,9 +317,9 @@ function playerMessage(key: string, args?: L10nArgs): string {
     'ztts-player-quota-error': t('ztts-player-quota-error'),
     'ztts-player-favorite-guard': t('ztts-player-favorite-guard'),
   };
-  // A Zotero voice's two alerts (issue #140); the used-up one names its tier
-  if (key === 'ztts-player-time-used-up') return t('ztts-player-time-used-up', args);
-  if (key === 'ztts-player-daily-limit') return t('ztts-player-daily-limit');
+  // A Zotero voice's account errors (issue #140) name its tier
+  if (key === 'ztts-player-zotero-short') return t('ztts-player-zotero-short', args);
+  if (key === 'ztts-player-daily-limit') return t('ztts-player-daily-limit', args);
   return messages[key] ?? key;
 }
 
@@ -1217,6 +1246,7 @@ function stopReadAloudShortcuts(): void {
   for (const win of mainWindows()) {
     try {
       removeSpeedToast(win.document);
+      removeReminder(win.document);
     } catch {
       // A window torn down mid-shutdown has nothing left to clean
     }
@@ -1225,7 +1255,10 @@ function stopReadAloudShortcuts(): void {
     try {
       // The chrome document too: a separate reader window is not a main window
       for (const doc of [reader._iframeWindow?.document, reader._window?.document]) {
-        if (doc) removeSpeedToast(doc);
+        if (doc) {
+          removeSpeedToast(doc);
+          removeReminder(doc);
+        }
       }
     } catch {
       // Same: a closed reader is already clean
@@ -2356,6 +2389,7 @@ function startEngine(): void {
     pauses: () => pauseSettingsOf(loadSettings(prefs).readAloud),
     volume: () => loadSettings(prefs).readAloud.volume,
     notice: (reader, kind) => voiceNotices?.playback(reader, kind),
+    refused: (reader, refusal) => void zoteroRefusals.refused(reader, refusal).catch((e: unknown) => Zotero.logError(e)),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
   });
@@ -3062,6 +3096,8 @@ const diagnostics = {
    * and the line's text (a time left since issue #140), or the error; null
    * while signed out, when the pane shows Log in instead.
    */
+  /** The last time Zotero would not read a Zotero voice for its account and what the plugin did (issue #140): the code, the tier, the credits read afresh, the action, the players closed. */
+  zoteroRefusals: () => JSON.stringify({ feature: 'zotero-refusals', last: zoteroRefusals.last() }, null, 1),
   zoteroTiers: async () => {
     const settings = loadSettings(prefs);
     const checks: Record<string, unknown> = {};

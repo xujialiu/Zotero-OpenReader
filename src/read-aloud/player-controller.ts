@@ -10,23 +10,13 @@ import { baseLanguage, dropdownLabels, languageDisplayName } from './language-dr
 import { compareVoiceLabels } from './voice-catalog';
 import { formatTimeLeft, isLowTime } from '../core/time-left';
 
-/** `time` and `low`: a Zotero voice's time left, as Zotero writes it, and whether it is under 3 minutes (issue #140). */
+/** `time` and `low`: a Zotero voice's time left, rounded up, and whether it is under 3 minutes (issue #140). */
 export interface PlayerOption { value: string; label: string; time?: string; low?: boolean }
-/**
- * A Zotero voice's two errors that open the Player's status popover by
- * themselves (issue #140): its credits used up (Zotero's `quota-exceeded`,
- * which a plugin provider's rate limit also reads as, so only with Zotero's
- * Standard or Premium selected) and Zotero's daily limit
- * (`daily-limit-exceeded`, syncAPIClient.js 717-721). `buy`: the popover
- * links to zotero.org for more time.
- */
-export interface PlayerAlert { kind: 'time-used-up' | 'daily-limit'; message: string; buy: boolean }
 export interface PlayerSnapshot {
   expandOnOpen: boolean; opened: boolean; active: boolean; playing: boolean; buffering: boolean;
   provider: string; locale: string; voice: string; speed: number; volume: number; automatic: boolean;
   providers: PlayerOption[]; locales: PlayerOption[]; voices: PlayerOption[]; favorites: string[];
   error: string | null;
-  alert?: PlayerAlert | null;
   remaining?: RemainingTimeLine[];
 }
 export interface PlayerControllerDeps {
@@ -45,8 +35,6 @@ export interface PlayerControllerDeps {
   affectedTabs?(changes: FlatSettings): string[];
   message(key: string, args?: L10nArgs): string;
   remainingTime?(reader: any): RemainingSnapshot;
-  /** zotero.org's page for buying more time, in the browser (Zotero's `READ_ALOUD_URL`). */
-  buyTime?(): void;
 }
 
 /** The reader engine is isolated here; the player consumes only JSON and commands. */
@@ -82,13 +70,22 @@ export function createPlayerController(deps: PlayerControllerDeps) {
     }
     return rows.sort((a, b) => compareVoiceLabels(a.label, b.label));
   };
-  function alertOf(m: any, labels: Record<string, string>): PlayerAlert | null {
+  /**
+   * The ! of the Player. A Zotero voice's two account errors (issue #140)
+   * are worded as Zotero's: its daily limit (`daily-limit-exceeded`,
+   * syncAPIClient.js 717-721), and `quota-exceeded` with Zotero's Standard
+   * or Premium selected — which a plugin provider's rate limit also reads
+   * as, so only then. Used up or at the daily limit, the tier is switched
+   * off and the player closed (read-aloud/zotero-refusals.ts); this is the
+   * refusal with credits left, which keeps the player and Retry.
+   */
+  function errorOf(m: any, labels: Record<string, string>): string | null {
+    if (!m?.error) return null;
     const tier = String(m?.selectedTier ?? '');
-    if (m?.error === 'daily-limit-exceeded') return { kind: 'daily-limit', message: deps.message('ztts-player-daily-limit'), buy: false };
-    if (m?.error === 'quota-exceeded' && (tier === 'standard' || tier === 'premium')) {
-      return { kind: 'time-used-up', message: deps.message('ztts-player-time-used-up', { tier: labels[tier] ?? tier }), buy: true };
-    }
-    return null;
+    const name = labels[tier] ?? tier;
+    if (m.error === 'daily-limit-exceeded') return deps.message('ztts-player-daily-limit', { tier: name });
+    if (m.error === 'quota-exceeded' && (tier === 'standard' || tier === 'premium')) return deps.message('ztts-player-zotero-short', { tier: name });
+    return deps.message(m.error === 'quota-exceeded' ? 'ztts-player-quota-error' : 'ztts-player-playback-error');
   }
   function snapshot(reader: any): PlayerSnapshot {
     const m = managerOf(reader);
@@ -103,13 +100,6 @@ export function createPlayerController(deps: PlayerControllerDeps) {
     const region = m?.currentVoiceRegion ?? m?.region;
     const full = m?.lang ? String(m.lang) + (region ? '-' + region : '') : '';
     const locale = locales.some(v => v.value === full) ? full : locales.some(v => v.value === m?.lang) ? String(m.lang) : '';
-    const alert = alertOf(m, labels);
-    const voices = voicesOf(m?.voicesForLanguage);
-    // Zotero said the credits are gone: the voice reads 0m until its next credits poll says so too.
-    if (alert?.kind === 'time-used-up') {
-      const selected = voices.find(v => v.value === String(m?.selectedVoiceID ?? ''));
-      if (selected) Object.assign(selected, { time: formatTimeLeft(0), low: true });
-    }
     return {
       expandOnOpen: pref('openExpanded') === true,
       remaining: m && pref('remainingTime') !== false && deps.remainingTime ? remainingTimeLines(deps.remainingTime(reader), deps.message) : [],
@@ -118,13 +108,11 @@ export function createPlayerController(deps: PlayerControllerDeps) {
       provider: String(m?.selectedTier ?? ''), locale, voice: String(m?.selectedVoiceID ?? ''),
       speed: Number(m?.speed) || 1, volume: clampVolume(deps.prefs.get(VOLUME_PREF)),
       automatic: !!m && deps.automatic(reader), providers, locales,
-      voices, favorites: parseFavoriteVoices(pref('favoriteVoices')),
-      error: alert ? alert.message : m?.error ? deps.message(m.error === 'quota-exceeded' ? 'ztts-player-quota-error' : 'ztts-player-playback-error') : null,
-      alert,
+      voices: voicesOf(m?.voicesForLanguage), favorites: parseFavoriteVoices(pref('favoriteVoices')),
+      error: errorOf(m, labels),
     };
   }
   async function command(reader: any, action: string, value?: unknown): Promise<void> {
-    if (action === 'buy-time') { deps.buyTime?.(); return; }
     const m = managerOf(reader);
     if (!m) throw new Error(deps.message('ztts-player-unavailable'));
     const state = snapshot(reader);
