@@ -108,4 +108,11 @@ describe('the ? icons (issue #53)', () => {
     expect(size('height')).toBe(size('width'));
     expect(help?.declarations).toMatch(/line-height:\s*1\b/);
   });
+
+  // Every XUL element is a flex box in Zotero 10's toolkit, so the ? is a
+  // flex item that shrinks to its glyph beside a note that wraps, while its
+  // height stays: an oval (issue #158)
+  it('never gives up its width to the text before it', () => {
+    expect(help?.declarations).toMatch(/flex-shrink:\s*0\b/);
+  });
 });

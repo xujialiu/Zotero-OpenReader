@@ -95,10 +95,14 @@
    (0,1,1), and its sheet comes after this one), which would otherwise
    give the label its 1px/2px block margins and shift it off the row's
    center; the gap to the control before the ? is that control's own end
-   margin. */
+   margin. Every XUL element is a flex box in Zotero 10's toolkit
+   (xul.css `* { display: flex }`), so the ? is a flex item: beside a
+   note that wraps it would shrink to its glyph while its height stays,
+   an oval. It keeps its width (issue #158). */
 label.ztts-help[value] {
   width: 1.25em;
   height: 1.25em;
+  flex-shrink: 0;
   margin: 0;
   justify-content: center;
   align-items: center;

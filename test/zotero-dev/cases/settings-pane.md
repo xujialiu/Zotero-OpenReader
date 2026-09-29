@@ -28,6 +28,12 @@ Items 1.2 and 1.4 of the checklist, under their original numbers.
    issue #102); and
    `InspectorUtils.getMatchingCSSRules` lists the plugin's
    `label.ztts-help[value]` with `width: 1.25em` and no `font-size`.
+   Every `?` computes `flex-shrink: 0` and stays square beside text that
+   wraps (issue #158: a XUL row is a flex row, and the ? shrank to its
+   glyph beside the Zotero note's two lines): set the Zotero note's
+   `textContent` to its own text three times over, so it wraps → the `?`
+   after it still measures 16.25 × 16.25 px; put the note back with
+   `document.l10n.translateElements([note])`.
    The About section's three lines (`src/ui/about-rows.ts`, 1.11.7),
    the last of the pane's 17 groupboxes (counted live on 1.12.11-beta:
    Fish Audio and Fish Speech are two since #112, Zotero one more since
