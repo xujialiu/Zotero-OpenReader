@@ -74,6 +74,14 @@ the run global only after a fully successful restore.
   are this profile's standing values; read the current ones from `03`'s
   diagnostic, never from here.
 
+- **Revise `02` and `06` at the next run**: since e86555c (beta7) each
+  link is the next sibling of a `span` inside one `description`
+  (`ztts-zotero-credits-row-<t>` is that description; the result text is a
+  span), and the case asks for Range-rect `top`/`bottom` deltas of 0 between
+  text and link, not box centers within 2 px. The beta7 check ran as a
+  research probe (`.tmp/zotero-dev/credits-baseline/probe.js`): deltas 0,
+  gaps 6.00.
+
 ## Runs
 
 | Date | Build | Report | Items | Notes |
