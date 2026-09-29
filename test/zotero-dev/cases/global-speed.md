@@ -27,7 +27,9 @@ Verify the installed beta by these fields, not its version string.
    `speedPercent` the recorded speed × 100 (or `null` when it was 1.0),
    `memory.speed` the recorded speed, `startup()` failed `[]`. The
    `stamps` of `settingsSync()` have no `readAloud.speedPercent`, and the
-   shared file has no `readAloud.speedPercent` item after a sync.
+   shared file has no `readAloud.speedPercent` item after a sync. The copy
+   leaves the JSON as it was, its `speed` field included; the field goes at
+   the next write of the memory and is never read again.
 2. **A change here travels.** Change the speed with the player's slider or
    Shift+X. At once every open reader's `speed` and every
    `zotero.<lang>.speed` follow. Within about 10 s the stamps hold
@@ -50,7 +52,11 @@ Verify the installed beta by these fields, not its version string.
    `readAloud.speedPercent` differs: it applies as in item 3. With a
    fixture's player open, restoring such a backup is refused and names the
    tab; nothing changes. A backup without the key leaves the speed as it
-   is.
+   is. The restore's file picker and confirm are native dialogs a run may
+   not trigger: the live evidence is `diagnostics.readingImpact({
+   'readAloud.speedPercent': <other> })`, which names the open fixture's
+   tab and nothing once its player is closed; the write itself takes the
+   path items 3 and 4 prove.
 6. **Use one speed everywhere off.** Turn the switch off, write a newer
    item, and sync with no player open. The pref and the pane's slider
    follow; no reader's `speed` and no `zotero.<lang>.speed` change.
@@ -58,6 +64,13 @@ Verify the installed beta by these fields, not its version string.
 7. **Cleanup.** Restore every snapshotted pref, delete what the case wrote
    to the test shared file, erase the fixtures, and only then restore the
    original sync and backup settings. No new plugin errors.
+
+Verified on 2026-09-29 with 1.16.3-beta (`20e4657`), installed over
+1.16.2-beta7: items 1–7 PASS; the observed values are in the issue's
+closing comment. Every provider was off in the profile, so the run
+enabled Fish Audio for the fixtures' players and cleared it afterwards.
+Script-started sessions stayed `suspended` by the autoplay gate; no item
+needs audio to advance.
 
 Covered by unit tests only: the migration's fallback to Zotero's own
 per-language speed and its run-once marker, the JSON losing its speed

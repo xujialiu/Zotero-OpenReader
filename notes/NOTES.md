@@ -687,3 +687,4 @@ then) and is in the git history before that day.
 - Verified live: the credits lines, a link flush against its text, and a cleanup that printed secrets (issues #159, #158)
 - Two siblings in a centered row are not on one baseline: the links moved into their text's line (issue #159)
 - The global speed became a setting: the copy must come first, and one writer spreads its own (issue #82)
+- Verified live: the global speed travels, and a download during a PUT heals the file back (issue #82)

@@ -30,7 +30,9 @@ default 1.0×, which is what Zotero itself starts a language at.
 
 A one-time step, marked by the undeclared `globalSpeedMigrated`, copies the
 old JSON speed, or failing that the first speed in Zotero's
-`reader.readAloudVoices` (`memoryFromVoices`), into the new pref. It runs
+`reader.readAloudVoices` (`memoryFromVoices`), into the new pref, and
+leaves the JSON as it is: its `speed` field goes at the next `writeMemory`
+and is never read again. It runs
 first in startup, before the OpenAI split (whose `writeMemory` would
 otherwise drop the old JSON speed) and long before the `settings sync`
 step registers its per-key observers. The write therefore gets no stamp in
