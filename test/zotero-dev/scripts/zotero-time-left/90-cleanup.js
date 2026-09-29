@@ -1,11 +1,14 @@
-// Run closer for the time-left kit. Restores, in order: getAPIClient and
-// launchURL to their kept originals (identity-checked), the provider's kept
-// premiumCreditsRemaining, the fixture player CLOSED (only ever with
-// reader._internalReader.toggleReadAloudPopup(false)), the fixture tab
-// closed and the item erased (position rows back to the opener's count),
-// every snapshotted pref byte-identical — reader.readAloudVoices FIRST while
-// every tab is idle (a chrome-scope write of it is a voice pick to
-// memory-sync's observer, which moves readAloud.memory), then the typed
+// Run closer for the time-left kit (REWRITTEN for the three fixtures 04
+// sets up). Restores, in order: getAPIClient and launchURL to their kept
+// originals (identity-checked), the provider's kept premiumCreditsRemaining,
+// every fixture player CLOSED (only ever with
+// reader._internalReader.toggleReadAloudPopup(false)) and every fixture tab
+// closed, every fixture item erased (position rows back to the opener's
+// count), NO #ztts-zotero-reminder left in any document (readers and main
+// windows), every snapshotted pref byte-identical — system.enabled included
+// (04 enabled System voices for the third tab) — reader.readAloudVoices
+// FIRST while every tab is idle (a chrome-scope write of it is a voice pick
+// to memory-sync's observer, which moves readAloud.memory), then the typed
 // restore of the zotero-tts prefs with readAloud.memory LAST, then a full
 // re-read to prove each pref byte-identical (secret-bearing prefs reported
 // by length only) — transports settled (the credits kit's WebDAV isolation
@@ -44,71 +47,98 @@
     out.launchURLRestored = !S.launchURLOriginal || Zotero.launchURL === S.launchURLOriginal;
     out.launchCallsRecorded = (S.launchCalls || []).slice();
 
-    // --- The provider figure back (the reader may already be closing). ---
-    if (S.item3 && S.itemID != null) {
-      const l = Zotero.Reader._readers || [];
-      let reader = null;
-      for (let i = 0; i < l.length; i++) if (l[i] && l[i].itemID === S.itemID) reader = l[i];
-      if (reader && reader._internalReader && reader._internalReader._readAloudManager) {
+    // --- The provider figure back (on whichever manager still holds it). ---
+    if (S.item3 && typeof S.item3.keptPremium === 'number') {
+      const readers = Zotero.Reader._readers || [];
+      let done = false;
+      for (let i = 0; i < readers.length && !done; i++) {
         try {
-          const list = reader._internalReader._readAloudManager.voicesForLanguage;
-          for (let i = 0; i < (list ? list.length : 0); i++) {
-            const w = Components.utils.waiveXrays(list[i]);
-            if (String(w.id) === S.item1.voice) {
-              const prov = Components.utils.waiveXrays(w.provider);
-              prov.premiumCreditsRemaining = S.item3.keptPremium;
-              out.providerFigureRestored = prov.premiumCreditsRemaining === S.item3.keptPremium;
-              break;
+          const m = readers[i]._internalReader && readers[i]._internalReader._readAloudManager;
+          const lists = [m && m.allVoices, m && m.voicesForLanguage];
+          for (const list of lists) {
+            if (done || !list) continue;
+            for (let j = 0; j < list.length; j++) {
+              const w = Components.utils.waiveXrays(list[j]);
+              if (String(w.id) === S.item1.voice) {
+                const prov = Components.utils.waiveXrays(w.provider);
+                prov.premiumCreditsRemaining = S.item3.keptPremium;
+                out.providerFigureRestored = prov.premiumCreditsRemaining === S.item3.keptPremium;
+                done = true;
+                break;
+              }
             }
           }
         } catch (e) { out.providerFigureError = String(e); }
-      } else out.providerFigureRestored = 'reader already gone (figure was restored by 03)';
+      }
+      if (!done) out.providerFigureRestored = 'no reader holds the voice (the item was already erased; 05/08 restored the figure)';
       if (out.providerFigureRestored === false) errors.push('provider premiumCreditsRemaining not restored');
     }
 
-    // --- Close the fixture player (the only allowed close), then the tab. ---
-    const l = Zotero.Reader._readers || [];
-    let reader = null;
-    for (let i = 0; i < l.length; i++) if (l[i] && l[i].itemID === S.itemID) reader = l[i];
-    if (reader) {
-      const internal = reader._internalReader;
-      const m = internal && internal._readAloudManager;
-      if (m && m.active) {
-        try { internal.toggleReadAloudPopup(false); } catch (e) { errors.push('closing the player threw: ' + e); }
-        const gone = await waitFor(() => { const mm = reader._internalReader._readAloudManager; return !mm || !mm.active; }, 12000, 200);
-        if (!gone) errors.push('the fixture session is still active after the popup close');
-      }
-      out.playerClosed = true;
-      const host = Services.wm.getMostRecentWindow('navigator:browser');
-      if (host && host.Zotero_Tabs && S.tabID) {
-        host.Zotero_Tabs.close(S.tabID);
-        await waitFor(() => { const ll = Zotero.Reader._readers || []; for (let i = 0; i < ll.length; i++) if (ll[i] && ll[i].itemID === S.itemID) return false; return true; }, 12000, 200);
-      }
-      out.tabClosed = true;
-    } else out.playerClosed = 'already gone';
-
-    // --- Erase the fixture item; position rows back to the opener's count. ---
-    if (S.itemID != null) {
-      const item = Zotero.Items.get(S.itemID);
-      if (item) {
-        await item.eraseTx();
-        out.itemErased = Zotero.Items.get(S.itemID) === null || Zotero.Items.get(S.itemID) == null;
-      } else out.itemErased = 'already gone';
-      if (out.itemErased === false) errors.push('the fixture item was not erased');
-      const diagnostics = Zotero.ZoteroTTS.diagnostics;
-      const pos = JSON.parse(await diagnostics.position());
-      out.positionRowsAfter = pos.database ? pos.database.rows : null;
-      out.positionRowsBefore = S.positionRowsBefore;
-      if (S.positionRowsBefore != null && out.positionRowsAfter !== S.positionRowsBefore) {
-        // The reader's close may flush its position write a beat later; wait once.
-        const settled = await waitFor(async () => {
-          const pos2 = JSON.parse(await Zotero.ZoteroTTS.diagnostics.position());
-          return pos2.database && pos2.database.rows === S.positionRowsBefore;
-        }, 10000, 300);
-        if (!settled) errors.push('position rows did not return to the opener count: ' + S.positionRowsBefore + ' -> ' + out.positionRowsAfter);
-        else { const pos3 = JSON.parse(await Zotero.ZoteroTTS.diagnostics.position()); out.positionRowsAfter = pos3.database.rows; }
-      }
+    // --- Every fixture: player closed (the only allowed close), tab closed. ---
+    const items = [];
+    if (S.itemID != null) items.push({ itemID: S.itemID, tabID: S.tabID, name: 'A' });
+    if (S.itemB) items.push({ itemID: S.itemB.itemID, tabID: S.itemB.tabID, name: 'B' });
+    if (S.itemC) items.push({ itemID: S.itemC.itemID, tabID: S.itemC.tabID, name: 'C' });
+    out.fixtures = [];
+    for (const it of items) {
+      const entry = { name: it.name, itemID: it.itemID };
+      const l = Zotero.Reader._readers || [];
+      let reader = null;
+      for (let i = 0; i < l.length; i++) if (l[i] && l[i].itemID === it.itemID) reader = l[i];
+      if (reader) {
+        const internal = reader._internalReader;
+        const m = internal && internal._readAloudManager;
+        if (m && m.active) {
+          try { internal.toggleReadAloudPopup(false); } catch (e) { errors.push('closing the player threw (' + it.name + '): ' + e); }
+          const gone = await waitFor(() => { const mm = reader._internalReader._readAloudManager; return !mm || !mm.active; }, 12000, 200);
+          if (!gone) errors.push('the fixture ' + it.name + ' session is still active after the popup close');
+        }
+        entry.playerClosed = true;
+        const host = Services.wm.getMostRecentWindow('navigator:browser');
+        if (host && host.Zotero_Tabs && it.tabID) {
+          host.Zotero_Tabs.close(it.tabID);
+          await waitFor(() => { const ll = Zotero.Reader._readers || []; for (let i = 0; i < ll.length; i++) if (ll[i] && ll[i].itemID === it.itemID) return false; return true; }, 12000, 200);
+        }
+        entry.tabClosed = true;
+      } else entry.playerClosed = 'already gone';
+      out.fixtures.push(entry);
     }
+
+    // --- Erase the fixture items; position rows back to the opener's count. ---
+    let erasedAny = false;
+    for (const it of items) {
+      const item = Zotero.Items.get(it.itemID);
+      if (item) { await item.eraseTx(); erasedAny = true; }
+    }
+    out.itemsErased = items.every((it) => Zotero.Items.get(it.itemID) == null);
+    if (!out.itemsErased) errors.push('a fixture item was not erased');
+    const diagnostics = Zotero.ZoteroTTS.diagnostics;
+    if (erasedAny || S.positionRowsBefore != null) {
+      const settled = await waitFor(async () => {
+        const pos = JSON.parse(await diagnostics.position());
+        return pos.database && pos.database.rows === S.positionRowsBefore;
+      }, 12000, 300);
+      const pos = JSON.parse(await diagnostics.position());
+      out.positionRows = { before: S.positionRowsBefore, after: pos.database ? pos.database.rows : null };
+      if (!settled) errors.push('position rows did not return to the opener count: ' + S.positionRowsBefore + ' -> ' + out.positionRows.after);
+    }
+
+    // --- No reminder left in any document. ---
+    const leftovers = [];
+    const docs = [];
+    const rl = Zotero.Reader._readers || [];
+    for (let i = 0; i < rl.length; i++) {
+      if (rl[i]._iframeWindow && rl[i]._iframeWindow.document) docs.push(rl[i]._iframeWindow.document);
+      if (rl[i]._window && rl[i]._window.document) docs.push(rl[i]._window.document);
+    }
+    const host = Services.wm.getMostRecentWindow('navigator:browser');
+    if (host && host.document) docs.push(host.document);
+    for (const d of docs) {
+      const box = d.getElementById ? d.getElementById('ztts-zotero-reminder') : null;
+      if (box) { leftovers.push('reminder'); box.remove(); }
+    }
+    out.remindersLeft = leftovers.length;
+    if (leftovers.length) errors.push('a #ztts-zotero-reminder was left in a document (removed ad hoc)');
 
     // --- Typed restore: reader.readAloudVoices FIRST (tabs idle), memory LAST. ---
     const readTyped = (key) => {
@@ -156,7 +186,6 @@
 
     // --- Settle the plugin's transports (the WebDAV isolation itself belongs to the credits kit's 99). ---
     try {
-      const diagnostics = Zotero.ZoteroTTS.diagnostics;
       const settled = await waitFor(async () => {
         const position = JSON.parse(await diagnostics.position());
         const settings = JSON.parse(await diagnostics.settingsSync());
@@ -168,12 +197,12 @@
     } catch (e) { out.transportsError = String(e); }
 
     // --- Leave the host minimized (the owner's standing exception). ---
-    const host = Services.wm.getMostRecentWindow('navigator:browser');
-    if (host && host.windowState !== 2) {
-      if (host.minimize) host.minimize(); else host.windowState = host.STATE_MINIMIZED;
+    const host2 = Services.wm.getMostRecentWindow('navigator:browser');
+    if (host2 && host2.windowState !== 2) {
+      if (host2.minimize) host2.minimize(); else host2.windowState = host2.STATE_MINIMIZED;
       await sleep(500);
     }
-    out.hostMinimizedAtEnd = host ? host.windowState === 2 || host.windowState === host.STATE_MINIMIZED : 'no host window';
+    out.hostMinimizedAtEnd = host2 ? host2.windowState === 2 || host2.windowState === host2.STATE_MINIMIZED : 'no host window';
 
     out.errors = errors;
     if (errors.length === 0) {

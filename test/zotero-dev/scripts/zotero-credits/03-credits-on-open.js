@@ -1,17 +1,19 @@
-// Item 2 (issues #159 + #140): the TIME left on open. Reuses the window 02
-// left open. diagnostics.zoteroTiers() (async) must answer credits.standard
+// Item 2 (issues #159 + #140 beta5): the TIME left on open. Reuses the window
+// 02 left open. diagnostics.zoteroTiers() (async) must answer credits.standard
 // = { credits: S, cheapest: 1, dearest: 1, state: { kind: 'time', low: S,
-// high: S }, text: '<S minutes in Zotero's short form> left' } and
+// high: S }, text: 'Remaining time: <S in the plugin's own form>' } and
 // credits.premium = { credits: P, cheapest: 10, dearest: 30,
-// state: { kind: 'time', low: P/30, high: P/10 }, text: '<P/30> – <P/10>
-// left, depending on voice' } — each minute count rounded up, formatted by
-// Intl.DurationFormat narrow exactly as src/core/time-left.ts does (the
-// expected strings are computed here from the same figures, in this app's
-// locale). The checks' messages are "Signed in: N Standard voices." /
-// "… Premium voices." with no credits in them (the #159 change). The pane:
-// both credits rows shown, each text the diagnostic's `text` (a time since
-// #140), no data-ztts-none anywhere, both buy links shown, both Log in links
-// hidden. params: none. state: writes zoteroTiersFull; reads
+// state: { kind: 'time', low: P/30, high: P/10 }, text: 'Remaining time:
+// <P/30> – <P/10>, depending on voice' } — each minute count rounded up,
+// written by the plugin's OWN messages (ztts-duration-*: '1h 54min', NOT
+// Zotero's narrow Intl '1h 54m'; the expected strings are computed here from
+// the same figures with a mirror of those messages). The checks' messages are
+// "Signed in: N Standard voices." / "… Premium voices." with no credits in
+// them (the #159 change). The pane: both credits rows shown, each text the
+// diagnostic's `text`, no data-ztts-none, both buy links HIDDEN — since beta5
+// Add more time shows only when the dearest voice is under 3 minutes
+// (offersMoreTime); at the owner's figures (114min / 8.6min) neither shows —
+// both Log in links hidden. params: none. state: writes zoteroTiersFull; reads
 // creditsTextStandard/Premium written by 02.
 (async () => {
   const out = { step: 'credits-on-open' };
@@ -25,30 +27,46 @@
     const zt = JSON.parse(await Zotero.ZoteroTTS.diagnostics.zoteroTiers());
     S.zoteroTiersFull = zt;
 
-    // Zotero's short form (src/core/time-left.ts): minutes rounded up, split
-    // into days/hours/minutes, Intl.DurationFormat narrow with
-    // minutesDisplay 'always'; the fallback where it is missing is '1h 54m'.
-    const Format = (typeof Intl !== 'undefined' && Intl.DurationFormat) ? Intl.DurationFormat : null;
+    // The plugin's OWN form (src/core/time-left.ts mirrors ztts-duration-*):
+    // minutes rounded up, '26min' / '1h 54min' / '34d 17h 20min'; the 90d+
+    // top is '90d'. Zotero's narrow Intl.DurationFormat ('1h 54m') is what
+    // the plugin stopped using — recorded only.
     const fmtMinutes = (minutes) => {
       const rest = Math.max(0, Math.ceil(minutes));
       const days = Math.floor(rest / 1440);
       const hours = Math.floor((rest % 1440) / 60);
       const mins = rest % 60;
-      if (!Format) return days > 0 ? `${days}d ${hours}h ${mins}m` : hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-      return new Format(undefined, { style: 'narrow', daysDisplay: 'auto', hoursDisplay: 'auto', minutesDisplay: 'always' })
-        .format({ days, hours, minutes: mins });
+      if (days > 0) return `${days}d ${hours}h ${mins}min`;
+      if (hours > 0) return `${hours}h ${mins}min`;
+      return `${mins}min`;
     };
-    const overUnlimited = () => (Format
-      ? new Format(undefined, { style: 'narrow', daysDisplay: 'always', hoursDisplay: 'auto', minutesDisplay: 'auto' }).format({ days: 90, hours: 0, minutes: 0 })
-      : '90d');
-    out.formatter = { nativeDurationFormat: !!Format };
+    const UNLIMITED_MIN = 129600;
+    const overUnlimited = () => '90d';
+    out.formatter = { nativeDurationFormat: !!(typeof Intl !== 'undefined' && Intl.DurationFormat), intlNarrowProbe: (typeof Intl !== 'undefined' && Intl.DurationFormat) ? new Intl.DurationFormat(undefined, { style: 'narrow', daysDisplay: 'auto', hoursDisplay: 'auto', minutesDisplay: 'always' }).format({ days: 0, hours: 1, minutes: 54 }) : null };
 
     const cs = zt.credits && zt.credits.standard;
     const cp = zt.credits && zt.credits.premium;
     const Sfig = cs ? cs.credits : null;
     const Pfig = cp ? cp.credits : null;
-    const expectedStandardText = Sfig === null ? null : `${fmtMinutes(Sfig)} left`;
-    const expectedPremiumText = Pfig === null ? null : `${fmtMinutes(Pfig / 30)} – ${fmtMinutes(Pfig / 10)} left, depending on voice`;
+    // creditText over creditState, mirrored (src/ui/zotero-credit-rows.ts):
+    // 'none' → 0min, 'unlimited' → Unlimited, 'time' → the range with a
+    // 90d+ top when the cheapest voice's time passes 90 days.
+    const standardText = (credits) => credits === null ? null
+      : credits <= 0 ? `Remaining time: ${fmtMinutes(0)}`
+      : `Remaining time: ${fmtMinutes(credits)}`;
+    const premiumText = (credits) => {
+      if (credits === null) return null;
+      if (credits <= 0) return `Remaining time: ${fmtMinutes(0)}`;
+      const low = credits / 30;
+      if (low > UNLIMITED_MIN) return 'Remaining time: Unlimited';
+      const high = credits / 10;
+      const lowTxt = fmtMinutes(low);
+      const highTxt = high > UNLIMITED_MIN ? `${overUnlimited()}+` : fmtMinutes(high);
+      return lowTxt === highTxt ? `Remaining time: ${lowTxt}` : `Remaining time: ${lowTxt} – ${highTxt}, depending on voice`;
+    };
+    const offersMoreTime = (state) => state.kind === 'none' || (state.kind === 'time' && state.low < 3);
+    const expectedStandardText = Sfig === null ? null : standardText(Sfig);
+    const expectedPremiumText = Pfig === null ? null : premiumText(Pfig);
     out.creditsDiagnostic = {
       standard: cs, premium: cp,
       standardShapeOk: !!cs && cs.cheapest === 1 && cs.dearest === 1 && cs.state && cs.state.kind === 'time'
@@ -71,10 +89,12 @@
     const pane = {};
     for (const tier of ['standard', 'premium']) {
       const diagText = tier === 'standard' ? (cs && cs.text) : (cp && cp.text);
+      const diagState = tier === 'standard' ? (cs && cs.state) : (cp && cp.state);
       const text = doc.getElementById('ztts-zotero-credits-' + tier);
       const row = doc.getElementById('ztts-zotero-credits-row-' + tier);
       const buy = doc.getElementById('ztts-zotero-buy-' + tier);
       const logIn = doc.getElementById('ztts-zotero-log-in-' + tier);
+      const wantBuyHidden = !offersMoreTime(diagState || { kind: 'unknown' });
       pane[tier] = {
         rowHidden: row.hidden === true,
         text: text ? text.textContent : null,
@@ -82,6 +102,8 @@
         textMatchesDiagnostic: !!text && text.textContent === diagText,
         noneAttr: text ? text.hasAttribute('data-ztts-none') : null,
         buyHidden: buy.hidden === true,
+        buyHiddenMatchesOffersMoreTime: buy.hidden === true === wantBuyHidden,
+        wantBuyHidden,
         logInHidden: logIn.hidden === true,
       };
     }

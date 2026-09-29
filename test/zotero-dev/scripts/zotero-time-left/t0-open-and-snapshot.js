@@ -1,17 +1,21 @@
 // Issue #140 opener (once per run): typed snapshot of every
 // extensions.zotero.zotero-tts.readAloud.* pref plus
-// extensions.zotero.reader.readAloudVoices and the two Zotero tier switches
-// (secret-bearing values mapped to lengths in the REPORT only; the full
-// values live in this run's state for the byte-identical restore), volume
-// muted for the run, Premium verified ON, fixture-a.pdf imported and opened
-// in the selected tab, host window restored and recorded, the plugin player
-// opened and PAUSED AT ONCE (the session starts on the memory voice — it
-// must be a '::'-bearing plugin voice, checked before anything opens), then
-// the player driven to Zotero Premium / English (US) / 'Premium Voice 1'
-// while paused, so nothing of Zotero's is ever synthesized. Also measures
-// Zotero's own Intl.DurationFormat short form in this chrome (issue #140's
-// formatter). params: fixtureTitle. state: everything later scripts and the
-// cleanup need (Zotero.__zttsTimeLeft140).
+// extensions.zotero.reader.readAloudVoices, the two Zotero tier switches and
+// extensions.zotero.zotero-tts.system.enabled (item 4's third tab reads with
+// System voices — 04 enables it, 90 restores it; secret-bearing values mapped
+// to lengths in the REPORT only; the full values live in this run's state for
+// the byte-identical restore), volume muted for the run, Premium verified ON,
+// fixture-a.pdf imported and opened in the selected tab, host window restored
+// and recorded, the plugin player opened and PAUSED AT ONCE (the session
+// starts on the memory voice — it must be a '::'-bearing plugin voice, checked
+// before anything opens), then the player driven to Zotero Premium / English
+// (US) / 'Premium Voice 1' while paused, so nothing of Zotero's is ever
+// synthesized. ALSO measures BOTH time forms in this chrome: Zotero's own
+// Intl.DurationFormat narrow ('1h 54m' — what the plugin stopped using) and
+// the plugin's OWN messages' form ('1h 54min', ztts-duration-*, what every
+// expectation from here on is computed with). Fixture B and the free-voice
+// third tab are 04's setup. params: fixtureTitle. state: everything later
+// scripts and the cleanup need (Zotero.__zttsTimeLeft140).
 (async () => {
   const out = { step: 'open-and-snapshot' };
   if (Zotero.__zttsTimeLeft140 && Zotero.__zttsTimeLeft140.baseline) throw new Error('run state already holds a baseline -- 90-cleanup must run first; never snapshot over a baseline');
@@ -39,7 +43,11 @@
     }
     out.settingsWindowClosed = !Services.wm.getMostRecentWindow('zotero:pref');
 
-    // --- Zotero's own short form, measured in this chrome (the brief's probe). ---
+    // --- The two time forms, measured in this chrome. Zotero's own
+    // --- Intl.DurationFormat narrow stays '1h 54m'; the plugin writes its
+    // --- OWN messages' form since beta5 ('1h 54min') — every expected time
+    // --- string in this kit is computed with fmtMinutes below, a mirror of
+    // --- ztts-duration-* (src/core/time-left.ts).
     const Format = (typeof Intl !== 'undefined' && Intl.DurationFormat) ? Intl.DurationFormat : null;
     out.durationFormatProbe = {
       hasDurationFormat: !!Format,
@@ -51,12 +59,14 @@
       const days = Math.floor(rest / 1440);
       const hours = Math.floor((rest % 1440) / 60);
       const mins = rest % 60;
-      if (!Format) return days > 0 ? `${days}d ${hours}h ${mins}m` : hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-      return new Format(undefined, { style: 'narrow', daysDisplay: 'auto', hoursDisplay: 'auto', minutesDisplay: 'always' })
-        .format({ days, hours, minutes: mins });
+      if (days > 0) return `${days}d ${hours}h ${mins}min`;
+      if (hours > 0) return `${hours}h ${mins}min`;
+      return `${mins}min`;
     };
     S.fmtMinutes = fmtMinutes;
-    out.fmtCheck = { 114: fmtMinutes(114), '260/10': fmtMinutes(260 / 10), '260/30': fmtMinutes(260 / 30) };
+    out.fmtCheck = {
+      pluginForm: { 114: fmtMinutes(114), '259/10': fmtMinutes(259 / 10), '259/30': fmtMinutes(259 / 30), 0: fmtMinutes(0) },
+    };
 
     // --- Typed snapshot: every readAloud.* pref, reader.readAloudVoices, the tier switches. ---
     const readTyped = (key) => {
@@ -77,6 +87,7 @@
     baseline['reader.readAloudVoices'] = readTyped('extensions.zotero.reader.readAloudVoices');
     baseline['zotero-standard.enabled'] = readTyped(prefix + 'zotero-standard.enabled');
     baseline['zotero-premium.enabled'] = readTyped(prefix + 'zotero-premium.enabled');
+    baseline['system.enabled'] = readTyped(prefix + 'system.enabled');
     // Secret-bearing values are mapped to lengths before anything reaches a
     // tool result (the 00/99 rule; found live 2026-09-29 on the credits run).
     const secret = (suffix) => suffix === 'readAloud.memory' || suffix === 'reader.readAloudVoices';
@@ -250,7 +261,8 @@
       provider: state.provider, locale: state.locale, voice: state.voice,
       voiceCount: (state.voices || []).length,
       selectedRow: (state.voices || []).find((v) => v.value === state.voice) || null,
-      alert: state.alert ?? null, error: state.error ?? null,
+      alertFieldPresent: !!(state && Object.prototype.hasOwnProperty.call(state, 'alert')),
+      error: state.error ?? null,
     };
     const m = ready._internalReader._readAloudManager;
     out.managerAfterPicks = { active: !!m.active, paused: !!m.paused, tier: m && m._voice ? m._voice.tier : null };

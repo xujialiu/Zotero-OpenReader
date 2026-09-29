@@ -1,15 +1,17 @@
 // Item 1: the voice button's time left. Reads the player's inspect() state
 // (diagnostics.pluginPlayer()): every Zotero voice (no '::' in its id) lists
-// `time` (its minutesRemaining rounded up, Zotero's short form) and `low`,
-// plugin voices neither, `alert` null. The expected strings are computed from
-// the voice's own provider figure (premiumCreditsRemaining / its
-// creditsPerMinute, ceil) with Intl.DurationFormat narrow, cross-checked
-// against diagnostics.zoteroTiers()'s credits.premium. In the frame: the
-// voice button's .time-left shown with the same text, sitting AFTER .value
-// and its right edge 6 px (the picker's gap) left of the .chevron, and the
-// button's title 'Voice: Premium Voice 1 · <time>'. A 30-credit voice
-// ('Premium Voice 5' in en-US) reads the dearest price's time. The window is
-// already restored by t0 (the player mounts only in the selected tab).
+// `time` (its minutesRemaining rounded up, the plugin's OWN form since beta5:
+// '26min') and `low`; plugin voices neither; the player's `alert` field is
+// GONE since beta5 (the auto-opened alert was removed — asserted absent).
+// The expected strings are computed from the voice's own provider figure
+// (premiumCreditsRemaining / its creditsPerMinute, ceil) with the kit's
+// fmtMinutes (ztts-duration-*), cross-checked against
+// diagnostics.zoteroTiers()'s credits.premium. In the frame: the voice
+// button's .time-left shown with the same text, sitting AFTER .value and its
+// right edge 6 px (the picker's gap) left of the .chevron, and the button's
+// title 'Voice: Premium Voice 1 · 26min'. A 30-credit voice ('Premium Voice
+// 5' in en-US) reads the dearest price's time. The window is already restored
+// by t0 (the player mounts only in the selected tab).
 // params: none. state: reads itemID/pickedVoice; writes item1.
 (async () => {
   const out = { step: 'voice-button-time' };
@@ -36,9 +38,10 @@
     const state = entry.state;
     out.state = {
       provider: state.provider, locale: state.locale, voice: state.voice,
-      alert: state.alert ?? null, error: state.error ?? null, playing: state.playing, active: state.active,
+      alertFieldPresent: !!(state && Object.prototype.hasOwnProperty.call(state, 'alert')),
+      error: state.error ?? null, playing: state.playing, active: state.active,
     };
-    out.alertIsNull = state.alert == null;
+    out.alertFieldAbsent = !out.state.alertFieldPresent;
 
     // --- Voices: Zotero rows carry time+low, plugin rows neither. ---
     const voices = state.voices || [];

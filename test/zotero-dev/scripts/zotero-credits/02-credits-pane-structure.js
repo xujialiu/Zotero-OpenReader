@@ -1,15 +1,19 @@
-// Item 1 (issue #159): the Zotero section's shape. Opens the settings window
-// fresh (driving notes Sec1: close stale, open, navigateToPane regardless of
-// the pane it lands on), self-heals both tier switches ON (the run's brief:
-// both back to true; found false in this run's baseline), polls the credits
-// rows' texts to fill within 20 s of the pane's load, then reads the section
-// in document order — h2, note (one line) + ? (gap 4 px after the visible
-// note), per tier Standard first: caption (font-weight 600), credits row
-// hbox (description + Add more time zotero-text-link), switch row hbox with
-// the two buttons as its FIRST children and the Log in link hidden.
-// Also captures the section's geometry for the human's judgement (captions,
-// credits rows, switch rows). Leaves the settings window OPEN for 03-08.
-// params: none. state: creditsTextStandard/Premium for later scripts.
+// Item 1 (issue #159 + #140 beta5): the Zotero section's shape. Opens the
+// settings window fresh (driving notes Sec1: close stale, open, navigateToPane
+// regardless of the pane it lands on), self-heals both tier switches ON (the
+// run's brief: both back to true; the baseline has standard USER false,
+// premium default), polls the credits rows' texts to fill within 20 s of the
+// pane's load, then reads the section in document order — h2 + ? (no note
+// line under the heading since 7005e24), per tier Standard first: caption
+// (font-weight 600), credits row hbox (description + Add more time
+// zotero-text-link), switch row hbox with the two buttons as its FIRST
+// children and the Log in link hidden. Since beta5 the Add more time link
+// shows only when the dearest voice is under 3 minutes (offersMoreTime):
+// at the owner's figures (114 / 259 → 114min / 8.6min) BOTH links are hidden
+// here and their 6 px place is measured in 08 when the stub shows them
+// (the case: "its place when shown measured in item 7"). Leaves the settings
+// window OPEN for 03-09. params: none. state: creditsTextStandard/Premium for
+// later scripts.
 (async () => {
   const out = { step: 'credits-pane-structure' };
   const S = Zotero.__zttsCredits159 || (Zotero.__zttsCredits159 = {});
@@ -182,18 +186,23 @@
       const text = doc.getElementById('ztts-zotero-credits-' + tier);
       const buy = doc.getElementById('ztts-zotero-buy-' + tier);
       const rectOf = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return { x: +r.x.toFixed(2), y: +r.y.toFixed(2), w: +r.width.toFixed(2), h: +r.height.toFixed(2) }; };
-      // Item 1's geometry (issue #159): the Add more time link starts 6 px
-      // after the credits text's right edge (the beta5 gap rule; 0 px on
-      // 1.16.2-beta5).
+      // Item 1's geometry evidence: at the owner's figures the link is
+      // HIDDEN (offersMoreTime false since beta5) — its 6 px gap is asserted
+      // in 08 when a stub figure shows it. A hidden element's rect is 0×0,
+      // so a gap number here means nothing; record whether it is hidden and
+      // only measure a shown link.
+      const shown = buy && buy.hidden !== true;
       const tr = text ? text.getBoundingClientRect() : null;
       const br = buy ? buy.getBoundingClientRect() : null;
-      const gapBuy = tr && br ? +(br.left - tr.right).toFixed(2) : null;
+      const gapBuy = shown && tr && br ? +(br.left - tr.right).toFixed(2) : null;
       out.rectsRefreshed[tier] = {
         caption: rectOf(cap), creditsRow: rectOf(row), switchRow: rectOf(switchRow),
         creditsText: rectOf(text), buyLink: rectOf(buy),
+        buyHidden: !shown,
         gapBuyLeftMinusTextRight: gapBuy,
         gapBuyIsSixPx: gapBuy !== null && Math.abs(gapBuy - 6) <= 0.5,
       };
+      if (!shown) out.rectsRefreshed[tier].gapNote = 'link hidden at this figure; the 6 px gap is measured in 08';
     }
     out.status = 'PASS';
   } catch (e) {

@@ -697,6 +697,7 @@ then) and is in the git history before that day.
 
 - Verified live on 1.16.3-beta4: Play replays a failed sentence's error without asking again (issue #140)
 - A Zotero tier that runs out is switched off after its players close, and the Engine reports only a refusal that fails playback (issue #140)
+- Verified live on 1.16.3-beta5: a used-up tier is switched off without asking Zotero, and Zotero's own audio cache hides refusals (issue #140)
 - The guard's Close and continue closes by handle, and Enable never counted for much (issue #160)
 - Verified live: Close and continue closes the listed tab only, and Enable never asks (issue #160)
 - A pause sends both positions files up at once: the ten quiet seconds handed the phone its own old place (issue #161)

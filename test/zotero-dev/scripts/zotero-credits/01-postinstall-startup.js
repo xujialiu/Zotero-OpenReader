@@ -1,20 +1,24 @@
-// Run step 2, straight after the tester's zotero_plugin_install (1.16.3-beta4
-// over 1.16.3-beta3, in place): diagnostics.startup() (synchronous — the JSON
+// Run step 2, straight after the tester's zotero_plugin_install (1.16.3-beta5
+// over 1.16.3-beta4, in place): diagnostics.startup() (synchronous — the JSON
 // string itself), every step ok / failed empty, and the BUILD PROOF the brief
 // asks for — the installed bundle, not the version string: the plugin XPI in
 // the running profile (ProfD/extensions/zotero-tts@xujialiu.top.xpi) is read
 // with nsIZipReader and content/zotero-tts.js hashed in Zotero — it must
-// equal the xpi's own entry (19b860a965ccd9a9c5b187fc1a3e7fe96d88b2e773e6cb76
-// 14a1e04e4e4e9503, issue #140's dd5f2b8) and contain BOTH #140 strings,
-// `ztts-player-time-used-up` (the used-up alert's message id) and
-// `formatOverUnlimited` (the 90d+ range top); the #159 proof
-// `ztts-zotero-credits-row` stays in the bundle too.
+// equal the xpi's own entry (6e4cdea5ba0c875a7b6dbc2d93c20d3382a8bf317a3fd67
+// 87d04bab5bf7abf08, issue #140's c482ff3) and contain the #140 beta5 strings:
+// `ztts-reminder-used-up` (the used-up reminder's message id), `zoteroRefusals`
+// (the new diagnostic) and `ztts-duration-hm` (the plugin's own `1h 54min`
+// form), plus `formatOverUnlimited` (the 90d+ range top); the #159 proof
+// `ztts-zotero-credits-row` stays in the bundle too. `ztts-player-time-used-up`
+// and the player's `addMoreTime` string are GONE since beta5 (the player's
+// auto-opened alert and its buy-time command were removed).
 // content/preferences.css must still carry `flex-shrink: 0` in
 // label.ztts-help[value] (issue #158) AND the #159 gap rule — since e86555c
 // the selector is `#ztts-zotero-section description > span + label[is="zotero-text-link"]`
 // with `margin-inline-start: 6px` — plus the red rule for `[data-ztts-none]`.
 // diagnostics.zoteroTiers() must carry `credits`, each tier's state of kind
-// 'time' (issue #140; 'left' was #159's shape).
+// 'time' (issue #140; 'left' was #159's shape), and the new
+// diagnostics.zoteroRefusals() must answer `last: null` (nothing refused yet).
 // (First attempt read addon.installPath — null through the AddonManager
 // wrapper in this Zotero, as in the 154 run; the profile file is the same
 // bytes AddonManager serves.) params: none. state: appends to
@@ -69,11 +73,14 @@
     const gapRule = cssText.match(/#ztts-zotero-section description > span \+ label\[is="zotero-text-link"\][^}]*\{[^}]*\}/);
     out.bundleProof = {
       jsSha256: hex,
-      jsSha256MatchesXpiEntry: hex === '19b860a965ccd9a9c5b187fc1a3e7fe96d88b2e773e6cb7614a1e04e4e4e9503',
-      timeUsedUpOccurrences: count('ztts-player-time-used-up'),
+      jsSha256MatchesXpiEntry: hex === '6e4cdea5ba0c875a7b6dbc2d93c20d3382a8bf317a3fd6787d04bab5bf7abf08',
+      reminderUsedUpOccurrences: count('ztts-reminder-used-up'),
+      zoteroRefusalsOccurrences: count('zoteroRefusals'),
+      durationHmOccurrences: count('ztts-duration-hm'),
       formatOverUnlimitedOccurrences: count('formatOverUnlimited'),
       creditsRowOccurrences: count('ztts-zotero-credits-row'),
-      issue140StringsPresent: count('ztts-player-time-used-up') > 0 && count('formatOverUnlimited') > 0,
+      issue140StringsPresent: count('ztts-reminder-used-up') > 0 && count('zoteroRefusals') > 0 && count('ztts-duration-hm') > 0 && count('formatOverUnlimited') > 0,
+      playerAlertStringsGone: count('ztts-player-time-used-up') === 0 && count('addMoreTime') === 0,
       creditsRowPresent: count('ztts-zotero-credits-row') > 0,
       cssHelpRuleHasFlexShrinkZero: /label\.ztts-help\[value\][\s\S]*?flex-shrink: 0;/.test(cssText),
       cssZoteroLinkGapRulePresent: !!gapRule,
@@ -85,6 +92,10 @@
     // --- diagnostics.zoteroTiers() must carry `credits`, state kind 'time' (#140). ---
     const zt = JSON.parse(await Zotero.ZoteroTTS.diagnostics.zoteroTiers());
     S.zoteroTiersFirst = zt;
+    // --- The new refusal diagnostic exists and reports nothing yet (#140 beta5). ---
+    const zr = JSON.parse(await Zotero.ZoteroTTS.diagnostics.zoteroRefusals());
+    out.zoteroRefusals = { feature: zr.feature, last: zr.last ?? null, lastIsNull: zr.last === null };
+
     out.zoteroTiers = {
       feature: zt.feature,
       hasCreditsField: Object.prototype.hasOwnProperty.call(zt, 'credits'),

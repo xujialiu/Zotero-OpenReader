@@ -1,24 +1,32 @@
-// Item 7 (issues #159 + #140): nothing left, a 90d+ range, and Unlimited.
-// Keeps Zotero.Sync.Runner.getAPIClient and wraps it: the client it returns
-// gets its own getReadAloudCreditsRemaining replaced to answer a figure the
-// script sets (instance override, Proxy fallback; every other method of that
-// one instance passes through). Three rounds, each blanking both credits
-// texts and clicking Test connection beside Standard:
-//   1. { standard: 0, premium: 200000000 } — Standard reads "0m left" (the
-//      #140 time for zero, WAS "No credits left" before #140) WITH
-//      data-ztts-none in --accent-red and its buy link shown; Premium reads
-//      "Unlimited" without the attribute and its buy link hidden
-//      (200,000,000 credits at the dearest 30 a minute is past Zotero's own
-//      129,600 minutes = 90 days, so even the dearest voice is unlimited).
-//   2. { standard: 114, premium: 1500000 } — Standard "1h 54m left" (114 at
-//      1 a minute); Premium "34d 17h 20m – 90d+ left, depending on voice":
-//      50,000 minutes at 30 a minute (34d 17h 20m), 150,000 at 10 past 90
-//      days, so the range's top is Zotero's 90d+; its link shown.
-//   3. getAPIClient restored, click again — item 2's texts, both links shown.
-// The expected strings are computed from the figures with the same
-// Intl.DurationFormat narrow call src/core/time-left.ts makes. The wrapper
-// lives only inside this script. params: none. state: reads
-// creditsTextStandard/Premium; keeps getAPIClientOriginal (restored here).
+// Item 7 (issues #159 + #140 beta5): nothing left, the link's place when
+// shown, an under-3 range, a 90d+ range, and Unlimited. Keeps
+// Zotero.Sync.Runner.getAPIClient and wraps it (instance override, Proxy
+// fallback): the client it returns gets its own getReadAloudCreditsRemaining
+// replaced to answer a figure the script sets. Four rounds, each blanking
+// both credits texts and clicking Test connection beside Standard:
+//   1. { standard: 0, premium: 200000000 } — Standard reads "Remaining time:
+//      0min" WITH data-ztts-none in --accent-red and its buy link SHOWN
+//      (0 credits offer more time); its test result fails with "No remaining
+//      time on Standard. Add more time first." (beta5's check, #140);
+//      Premium reads "Remaining time: Unlimited" without the attribute, its
+//      buy link hidden (200,000,000 at the dearest 30 a minute is past
+//      Zotero's 129,600 minutes = 90 days).
+//   2. { standard: 114, premium: 80 } — Standard item 2's text; Premium
+//      "Remaining time: 3min – 8min, depending on voice" (80: 2.67 min at 30
+//      → written 3min, under 3 → its buy link SHOWN — measured here: 6 px
+//      after the text's right edge, same baseline (Range rects top/bottom
+//      equal)); Standard's test result "Signed in: N Standard voices."
+//   3. { standard: 114, premium: 1500000 } — Premium "Remaining time:
+//      34d 17h 20min – 90d+, depending on voice" (50,000 minutes at 30;
+//      150,000 at 10 past 90 days → the 90d+ top), its link hidden (50,000
+//      minutes is not under 3).
+//   4. getAPIClient restored, click again — item 2's texts, both links
+//      hidden (the owner's figures are 3 minutes or more).
+// The expected strings are computed from the figures with a mirror of the
+// plugin's own messages (ztts-duration-*: '0min', '3min', '1h 54min',
+// '34d 17h 20min', '90d'). The wrapper lives only inside this script.
+// params: none. state: reads creditsTextStandard/Premium; keeps
+// getAPIClientOriginal (restored here).
 (async () => {
   const out = { step: 'none-and-unlimited' };
   const S = Zotero.__zttsCredits159 || (Zotero.__zttsCredits159 = {});
@@ -32,32 +40,29 @@
     const expectedPremium = S.creditsTextPremium;
     if (!expectedStandard || !expectedPremium) throw new Error('state credits texts missing -- run 02 first');
 
-    // --- Zotero's short form, the same call src/core/time-left.ts makes. ---
-    const Format = (typeof Intl !== 'undefined' && Intl.DurationFormat) ? Intl.DurationFormat : null;
+    // --- The plugin's own form (ztts-duration-*), minutes rounded up. ---
     const fmtMinutes = (minutes) => {
       const rest = Math.max(0, Math.ceil(minutes));
       const days = Math.floor(rest / 1440);
       const hours = Math.floor((rest % 1440) / 60);
       const mins = rest % 60;
-      if (!Format) return days > 0 ? `${days}d ${hours}h ${mins}m` : hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-      return new Format(undefined, { style: 'narrow', daysDisplay: 'auto', hoursDisplay: 'auto', minutesDisplay: 'always' })
-        .format({ days, hours, minutes: mins });
+      if (days > 0) return `${days}d ${hours}h ${mins}min`;
+      if (hours > 0) return `${hours}h ${mins}min`;
+      return `${mins}min`;
     };
-    const overUnlimited = () => (Format
-      ? new Format(undefined, { style: 'narrow', daysDisplay: 'always', hoursDisplay: 'auto', minutesDisplay: 'auto' }).format({ days: 90, hours: 0, minutes: 0 })
-      : '90d');
     const UNLIMITED_MIN = 129600;
     const premiumText = (credits) => {
+      if (credits <= 0) return `Remaining time: ${fmtMinutes(0)}`;
       const low = credits / 30;
-      if (low > UNLIMITED_MIN) return 'Unlimited';
+      if (low > UNLIMITED_MIN) return 'Remaining time: Unlimited';
       const high = credits / 10;
       const lowTxt = fmtMinutes(low);
-      const highTxt = high > UNLIMITED_MIN ? `${overUnlimited()}+` : fmtMinutes(high);
-      return lowTxt === highTxt ? `${lowTxt} left` : `${lowTxt} – ${highTxt} left, depending on voice`;
+      const highTxt = high > UNLIMITED_MIN ? '90d+' : fmtMinutes(high);
+      return lowTxt === highTxt ? `Remaining time: ${lowTxt}` : `Remaining time: ${lowTxt} – ${highTxt}, depending on voice`;
     };
-    const standardText = (credits) => `${fmtMinutes(credits)} left`;
+    const standardText = (credits) => credits <= 0 ? `Remaining time: ${fmtMinutes(0)}` : `Remaining time: ${fmtMinutes(credits)}`;
 
-    // --- Wrap getAPIClient; the answer is mutable for the three rounds. ---
+    // --- Wrap getAPIClient; the answer is mutable for the rounds. ---
     const orig = Zotero.Sync.Runner.getAPIClient;
     if (typeof orig !== 'function') throw new Error('Zotero.Sync.Runner.getAPIClient is not a function');
     S.getAPIClientOriginal = orig;
@@ -85,17 +90,36 @@
     const creditsP = doc.getElementById('ztts-zotero-credits-premium');
     const button = doc.getElementById('ztts-test-zotero-standard');
     const result = doc.getElementById('ztts-test-result-zotero-standard');
-    const probeRed = () => {
-      const paneRoot = doc.querySelector('.ztts-pane');
-      const probe = doc.createElement('description');
-      paneRoot.appendChild(probe);
-      probe.style.color = 'var(--accent-red)';
-      const color = win.getComputedStyle(probe).color;
-      probe.remove();
-      return color;
+
+    // The link's place when shown: 6 px after the text's right edge, on the
+    // same baseline — Range rects over each one's text node, top/bottom equal.
+    const linkGeometry = (tier) => {
+      const text = doc.getElementById('ztts-zotero-credits-' + tier);
+      const buy = doc.getElementById('ztts-zotero-buy-' + tier);
+      if (!text || !buy || buy.hidden === true) return { shown: false };
+      const tr = text.getBoundingClientRect();
+      const br = buy.getBoundingClientRect();
+      const range = doc.createRange();
+      const textRects = (range.selectNodeContents(text), range.getClientRects());
+      const textLine = textRects.length ? textRects[0] : null;
+      const buyRects = (range.selectNodeContents(buy), range.getClientRects());
+      const buyLine = buyRects.length ? buyRects[0] : null;
+      const gap = +(br.left - tr.right).toFixed(2);
+      return {
+        shown: true,
+        gapBuyLeftMinusTextRight: gap,
+        gapIsSixPx: Math.abs(gap - 6) <= 0.5,
+        textLineTop: textLine ? +textLine.top.toFixed(2) : null,
+        textLineBottom: textLine ? +textLine.bottom.toFixed(2) : null,
+        buyLineTop: buyLine ? +buyLine.top.toFixed(2) : null,
+        buyLineBottom: buyLine ? +buyLine.bottom.toFixed(2) : null,
+        baselineDeltaTop: textLine && buyLine ? +(buyLine.top - textLine.top).toFixed(2) : null,
+        baselineDeltaBottom: textLine && buyLine ? +(buyLine.bottom - textLine.bottom).toFixed(2) : null,
+        sameBaseline: !!(textLine && buyLine) && Math.abs(buyLine.top - textLine.top) <= 0.5 && Math.abs(buyLine.bottom - textLine.bottom) <= 0.5,
+      };
     };
 
-    const round = async (stdCredits, premCredits) => {
+    const round = async (stdCredits, premCredits, wantResultRe) => {
       const wantStandard = standardText(stdCredits);
       const wantPremium = premiumText(premCredits);
       answer = { standardCreditsRemaining: stdCredits, premiumCreditsRemaining: premCredits };
@@ -117,24 +141,40 @@
           noneAttr: text ? text.hasAttribute('data-ztts-none') : null,
           computedColor: text ? win.getComputedStyle(text).color : null,
           buyHidden: buy.hidden === true,
+          link: linkGeometry(tier),
         };
       };
-      return { refreshedAtMs: at, standard: tierState('standard', wantStandard), premium: tierState('premium', wantPremium), resultLine: result.textContent };
+      return {
+        refreshedAtMs: at,
+        standard: tierState('standard', wantStandard),
+        premium: tierState('premium', wantPremium),
+        resultLine: result.textContent,
+        resultLineMatches: wantResultRe ? wantResultRe.test(result.textContent) : null,
+      };
     };
 
-    // --- Round 1: nothing left, and Unlimited. ---
-    out.round1 = await round(0, 200000000);
+    // --- Round 1: nothing left (link shown, test refused), and Unlimited. ---
+    out.round1 = await round(0, 200000000, /^No remaining time on Standard\. Add more time first\.$/);
     out.accentRedVar = win.getComputedStyle(doc.querySelector('.ztts-pane')).getPropertyValue('--accent-red').trim();
-    out.redProbeComputed = probeRed();
+    const paneRoot = doc.querySelector('.ztts-pane');
+    const probe = doc.createElement('description');
+    paneRoot.appendChild(probe);
+    probe.style.color = 'var(--accent-red)';
+    out.redProbeComputed = win.getComputedStyle(probe).color;
+    probe.remove();
     out.round1.standardColorIsAccentRed = out.round1.standard.computedColor === out.redProbeComputed;
-    out.round1.bug140ZeroForm = out.round1.standard.text === '0m left';
+    out.round1.standardLink = linkGeometry('standard');
+    out.round1.zeroForm = out.round1.standard.text === 'Remaining time: 0min';
+    out.round1.unlimitedForm = out.round1.premium.text === 'Remaining time: Unlimited';
 
-    // --- Round 2: a range whose top is 90d+. ---
-    out.round2Expected = { standard: standardText(114), premium: premiumText(1500000), overUnlimitedTop: `${overUnlimited()}+` };
-    out.round2 = await round(114, 1500000);
-    out.round2.premiumTopIs90dPlus = /90d\+|90天\+/.test(out.round2.premium.text || '');
+    // --- Round 2: a range under 3 minutes at the dearest voice — the link shows. ---
+    out.round2 = await round(114, 80, /^Signed in: [\d,]+ Standard voices\.$/);
 
-    // --- Restore getAPIClient, refresh again: item 2's texts. ---
+    // --- Round 3: a range whose top is 90d+; the link hides again. ---
+    out.round3 = await round(114, 1500000, /^Signed in: [\d,]+ Standard voices\.$/);
+    out.round3.premiumTopIs90dPlus = /90d\+/.test(out.round3.premium.text || '') && out.round3.premium.text === out.round3.premium.expectedText;
+
+    // --- Restore getAPIClient, refresh again: item 2's texts, links hidden. ---
     Zotero.Sync.Runner.getAPIClient = S.getAPIClientOriginal;
     out.getAPIClientRestored = Zotero.Sync.Runner.getAPIClient === S.getAPIClientOriginal;
     answer = { standardCreditsRemaining: null, premiumCreditsRemaining: null };

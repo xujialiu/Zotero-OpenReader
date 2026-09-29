@@ -49,7 +49,14 @@ rely on the plugin not asking (proved by a wrapped
 `Zotero.Sync.Runner.getAPIClient` counting `getReadAloudAudio()` calls),
 items 5-7 answer through that wrapper. Keep `Zotero.launchURL` and record
 its calls. Read every figure from the snapshot, not from here: 260
-Premium credits on 2026-09-29, 259 by the end of that run.
+Premium credits on 2026-09-29, 259 by the end of that run. **Zotero's own
+interface caches a Zotero voice's sentence audio** (built with its audio
+cache, `read-aloud/remote-interface.ts`): a sentence already fetched in
+that voice replays with no request, so a check that needs Zotero to
+refuse plays a sentence, or picks a voice, not fetched before (the
+1.16.3-beta5 run logged no `tts/audio` request at all). The manager's 60 s
+credits poll writes whatever the wrapper answers into the provider's
+figure: reinstall the wrapper per item with the item's answers.
 
 1. **The voice button.** Premium on, fixture A open, the player on Zotero
    Premium, English (US), `Premium Voice 1` (10 credits a minute) → the
@@ -96,8 +103,10 @@ Premium credits on 2026-09-29, 259 by the end of that run.
    `closed: 0`.
 6. **Daily limit.** Close the reminder and the player; the wrapper
    answering `{ audio: null, error: 'daily-limit-exceeded' }`, credits
-   above 0. Play → the player closes, Premium off, the reminder with the
-   daily-limit text, **no** link; `last` `{ code:
+   above 0. Play, or pick a Premium voice not fetched before (a voice
+   being switched to counts at once, so the refusal lands at the pick
+   itself, as on 1.16.3-beta5) → the player closes, Premium off, the
+   reminder with the daily-limit text, **no** link; `last` `{ code:
    'daily-limit-exceeded', credits: null, action: 'daily-limit' }`
    (credits not read). Zotero Standard's pref untouched.
 7. **Every other error.** Premium back on; the wrapper answering `{
