@@ -9,33 +9,27 @@ const VOICES: ZoteroVoice[] = [
   { id: 'prm-aria', label: 'Aria', locale: 'en-US', tier: 'premium' },
 ];
 
-function deps(over: { signedIn?: boolean; voices?: ZoteroVoice[]; credits?: { standard: number | null; premium: number | null } } = {}) {
+function deps(over: { signedIn?: boolean; voices?: ZoteroVoice[] } = {}) {
   const listVoices = vi.fn(async () => over.voices ?? VOICES);
-  const credits = vi.fn(async () => over.credits ?? { standard: 1234, premium: 56 });
-  return { signedIn: () => over.signedIn ?? true, service: { listVoices, credits }, listVoices, credits };
+  return { signedIn: () => over.signedIn ?? true, service: { listVoices }, listVoices };
 }
 
 describe('checkZoteroTier', () => {
   it('fails without a signed-in Zotero account, before asking Zotero anything', async () => {
     const d = deps({ signedIn: false });
-    expect(await checkZoteroTier('standard', d)).toEqual({ ok: false, message: 'Not signed in to a Zotero account: sign in under Settings → Sync.' });
+    expect(await checkZoteroTier('standard', d)).toEqual({ ok: false, message: 'Not signed in to a Zotero account.' });
     expect(d.listVoices).not.toHaveBeenCalled();
-    expect(d.credits).not.toHaveBeenCalled();
   });
 
   it('fails when Zotero lists no voice of the tier', async () => {
     const d = deps({ voices: VOICES.filter((v) => v.tier === 'standard') });
     expect(await checkZoteroTier('premium', d)).toEqual({ ok: false, message: 'Zotero lists no Premium voices.' });
-    expect(d.credits).not.toHaveBeenCalled();
   });
 
-  it('passes with the voice count — one per voice, not per locale — and the tier’s credits, grouped as the locale writes numbers', async () => {
-    expect(await checkZoteroTier('standard', deps())).toEqual({ ok: true, message: 'Signed in: 2 Standard voices, 1,234 credits remaining.' });
-    expect(await checkZoteroTier('premium', deps())).toEqual({ ok: true, message: 'Signed in: 1 Premium voices, 56 credits remaining.' });
-  });
-
-  it('passes without a credits figure when Zotero gives none', async () => {
-    expect(await checkZoteroTier('standard', deps({ credits: { standard: null, premium: 5 } }))).toEqual({ ok: true, message: 'Signed in: 2 Standard voices.' });
+  // The credits have a line of their own under the tier's name (issue #159)
+  it('passes with the voice count — one per voice, not per locale — and leaves the credits to their own line', async () => {
+    expect(await checkZoteroTier('standard', deps())).toEqual({ ok: true, message: 'Signed in: 2 Standard voices.' });
+    expect(await checkZoteroTier('premium', deps())).toEqual({ ok: true, message: 'Signed in: 1 Premium voices.' });
   });
 
   it('lets a listing that fails reject, as a provider’s check does', async () => {

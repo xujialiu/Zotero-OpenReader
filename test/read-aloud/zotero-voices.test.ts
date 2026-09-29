@@ -28,9 +28,9 @@ const RESPONSE = {
 describe('parseZoteroVoices', () => {
   it('flattens one entry per voice and locale, with the tier and the label', () => {
     expect(parseZoteroVoices(RESPONSE)).toEqual([
-      { id: 'std-ava', label: 'Ava', locale: 'en-US', tier: 'standard' },
-      { id: 'std-andrew', label: 'Andrew', locale: 'en-US', tier: 'standard' },
-      { id: 'std-ava', label: 'Ava', locale: 'de-DE', tier: 'standard' },
+      { id: 'std-ava', label: 'Ava', locale: 'en-US', tier: 'standard', creditsPerMinute: 1 },
+      { id: 'std-andrew', label: 'Andrew', locale: 'en-US', tier: 'standard', creditsPerMinute: 1 },
+      { id: 'std-ava', label: 'Ava', locale: 'de-DE', tier: 'standard', creditsPerMinute: 1 },
       { id: 'prm-aria', label: 'Aria', locale: 'en-US', tier: 'premium' },
       { id: 'prm-aria', label: 'Aria', locale: 'fr-FR', tier: 'premium' },
     ]);
@@ -72,6 +72,24 @@ describe('parseZoteroVoices', () => {
     expect(parsed).toHaveLength(1);
   });
 
+  // What a minute of the voice costs, for the settings' Unlimited (issue
+  // #159): Premium's voices come at 10 and 30, so the price is the config's
+  it('keeps each voice’s price per minute where the config gives a number', () => {
+    const parsed = parseZoteroVoices({
+      premium: [
+        { creditsPerMinute: 10, voices: { a: { label: 'A' } }, locales: { 'en-US': ['a'] } },
+        { creditsPerMinute: 30, voices: { b: { label: 'B' } }, locales: { 'en-US': ['b'] } },
+        { creditsPerMinute: 'ten', voices: { c: { label: 'C' } }, locales: { 'en-US': ['c'] } },
+      ],
+    });
+    expect(parsed.map((v) => [v.id, v.creditsPerMinute])).toEqual([
+      ['a', 10],
+      ['b', 30],
+      ['c', undefined],
+    ]);
+    expect('creditsPerMinute' in parsed[2]).toBe(false);
+  });
+
   it('survives a response of any other shape instead of throwing', () => {
     expect(parseZoteroVoices(undefined)).toEqual([]);
     expect(parseZoteroVoices('nope')).toEqual([]);
@@ -94,7 +112,7 @@ describe('createZoteroVoiceService', () => {
     const service = createZoteroVoiceService({ client: async () => client });
     const voices = await service.listVoices();
     expect(voices).toHaveLength(5);
-    expect(voices[0]).toEqual({ id: 'std-ava', label: 'Ava', locale: 'en-US', tier: 'standard' });
+    expect(voices[0]).toEqual({ id: 'std-ava', label: 'Ava', locale: 'en-US', tier: 'standard', creditsPerMinute: 1 });
   });
 
   it('has no voices when Zotero offers no client', async () => {

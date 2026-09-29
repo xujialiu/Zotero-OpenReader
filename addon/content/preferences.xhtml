@@ -282,12 +282,6 @@
     </hbox>
   </groupbox>
 
-  <!-- Zotero's own Standard and Premium voices (issue #111): nothing to
-       configure, the account is Zotero's and the credits are bought in the
-       player, so only a switch per tier, each an hbox provider-rows.ts
-       wires like a provider's section (ids ztts-provider-zotero-standard
-       and -premium, with no fields to lock). Off, the tier is hidden from
-       the player, the voice browser and the language dropdown. -->
   <groupbox id="ztts-provider-mimo">
     <label><html:h2>Xiaomi MiMo (<label is="zotero-text-link" href="https://platform.xiaomimimo.com">platform.xiaomimimo.com</label>)</html:h2></label>
     <hbox align="center">
@@ -310,23 +304,43 @@
       <description id="ztts-test-result-mimo"/>
     </hbox>
   </groupbox>
+
+  <!-- Zotero's own Standard and Premium voices (issue #111): nothing to
+       configure, the account is Zotero's, so only a switch per tier, each an
+       hbox provider-rows.ts wires like a provider's section (ids
+       ztts-provider-zotero-standard and -premium, with no fields to lock).
+       Off, the tier is hidden from the player, the voice browser and the
+       language list. Each tier's name is a caption, with its credits and an
+       Add more time link under it and a Log in link after the switch row's
+       result while signed out, both painted by ui/zotero-credit-rows.ts
+       (issue #159). -->
   <groupbox id="ztts-zotero-section">
     <label><html:h2>Zotero</html:h2></label>
     <hbox align="center">
       <description data-l10n-id="ztts-zotero-note"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-zotero" data-l10n-attrs="help"/>
     </hbox>
+    <label class="ztts-caption" data-l10n-id="ztts-zotero-standard"/>
+    <hbox id="ztts-zotero-credits-row-standard" align="center" hidden="true">
+      <description id="ztts-zotero-credits-standard"/>
+      <label is="zotero-text-link" id="ztts-zotero-buy-standard" href="https://www.zotero.org/settings/readaloud" data-l10n-id="ztts-zotero-add-more-time"/>
+    </hbox>
     <hbox id="ztts-provider-zotero-standard" align="center">
-      <label data-l10n-id="ztts-zotero-standard" class="ztts-field-label"/>
       <button id="ztts-enable-zotero-standard"/>
       <button id="ztts-test-zotero-standard" data-l10n-id="ztts-test-connection"/>
       <description id="ztts-test-result-zotero-standard"/>
+      <label is="zotero-text-link" id="ztts-zotero-log-in-standard" data-l10n-id="ztts-zotero-log-in" hidden="true"/>
+    </hbox>
+    <label class="ztts-caption" data-l10n-id="ztts-zotero-premium"/>
+    <hbox id="ztts-zotero-credits-row-premium" align="center" hidden="true">
+      <description id="ztts-zotero-credits-premium"/>
+      <label is="zotero-text-link" id="ztts-zotero-buy-premium" href="https://www.zotero.org/settings/readaloud" data-l10n-id="ztts-zotero-add-more-time"/>
     </hbox>
     <hbox id="ztts-provider-zotero-premium" align="center">
-      <label data-l10n-id="ztts-zotero-premium" class="ztts-field-label"/>
       <button id="ztts-enable-zotero-premium"/>
       <button id="ztts-test-zotero-premium" data-l10n-id="ztts-test-connection"/>
       <description id="ztts-test-result-zotero-premium"/>
+      <label is="zotero-text-link" id="ztts-zotero-log-in-premium" data-l10n-id="ztts-zotero-log-in" hidden="true"/>
     </hbox>
   </groupbox>
 

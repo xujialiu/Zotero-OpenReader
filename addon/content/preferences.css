@@ -125,6 +125,12 @@ label.ztts-help[value]:hover {
   margin-block: 8px 2px;
 }
 
+/* A Zotero tier with no credits left, in Zotero's own red (issue #159);
+   ui/zotero-credit-rows.ts sets the attribute */
+.ztts-pane description[data-ztts-none] {
+  color: var(--accent-red);
+}
+
 /* After a checkbox, a radio group, a radio or a plain line of text the ?
    follows text, not a border: a little more air. A radio keeps no margin at its end on
    Windows and macOS, where Zotero's preferences.css takes the toolkit's

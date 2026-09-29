@@ -84,6 +84,7 @@ import {
   type RemoteInterface,
 } from './read-aloud/remote-interface';
 import { readingTabTitle, defaultMachineName, onPaneLoad, registerPrefsPane, runConnectionCheck, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
+import { readZoteroCredits } from './ui/zotero-credit-rows';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -3051,7 +3052,10 @@ const diagnostics = {
    * Zotero's own tiers behind their switches (issue #111): each switch as
    * the prefs say, the tiers hidden from every list, whether a Zotero sync
    * account is signed in, and the check Enable runs on each tier, headless
-   * — not signed in, no voices, or the voice count and the credits.
+   * — not signed in, no voices, or the voice count. `credits` is what the
+   * settings' line under each tier is painted from (issue #159): the
+   * figure, the tier's cheapest price per minute and the state, or the
+   * error; null while signed out, when the pane shows Log in instead.
    */
   zoteroTiers: async () => {
     const settings = loadSettings(prefs);
@@ -3059,6 +3063,9 @@ const diagnostics = {
     for (const id of ZOTERO_SWITCH_IDS) {
       checks[id] = await runConnectionCheck(prefs, id, providerDeps()).catch((e: unknown) => ({ ok: false, message: String(e) }));
     }
+    const credits = Zotero.Sync?.Runner?.enabled
+      ? await readZoteroCredits(zoteroVoiceService()).catch((e: unknown) => ({ error: String(e) }))
+      : null;
     return JSON.stringify(
       {
         feature: 'zotero-tiers',
@@ -3066,6 +3073,7 @@ const diagnostics = {
         hidden: hiddenZoteroTiers(settings),
         signedIn: !!Zotero.Sync?.Runner?.enabled,
         checks,
+        credits,
       },
       null,
       1,

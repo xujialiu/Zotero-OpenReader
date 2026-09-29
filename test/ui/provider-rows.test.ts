@@ -101,11 +101,13 @@ function setup(
   const onVoicesChanged = vi.fn();
   const onUnlocked = vi.fn((_id: SwitchId) => {});
   const warn = vi.fn((_message: string) => {});
+  const onChecked = vi.fn((_id: SwitchId) => {});
   const rows = initProviderRows(doc, {
     prefs,
     check,
     onVoicesChanged,
     onUnlocked,
+    onChecked,
     readingTabs: () => options.reading ?? [],
     warn,
     ...(options.protectedProvider ? { affectedTabs: (changes: Record<string, string | number | boolean>) => affectedReading(flattenSettings(loadSettings(prefs)), changes,
@@ -128,10 +130,24 @@ function setup(
       enabled: () => prefs.store[enabledPref(id)],
     };
   };
-  return { prefs, rows, check, onVoicesChanged, onUnlocked, warn, of };
+  return { prefs, rows, check, onVoicesChanged, onUnlocked, onChecked, warn, of };
 }
 
 describe('initProviderRows', () => {
+  // The Zotero section reads its credits again after a tier's check (issue #159)
+  it('tells after every Test connection and every Enable check, passed or failed, and not on Disable', async () => {
+    const t = setup({ check: async (id) => (id === 'zotero-premium' ? REFUSED : CONNECTED) });
+    await t.of('zotero-standard').test.fire('command');
+    expect(t.onChecked.mock.calls).toEqual([['zotero-standard']]);
+    await t.of('zotero-premium').toggle.fire('command');
+    expect(t.onChecked.mock.calls).toEqual([['zotero-standard'], ['zotero-premium']]);
+    t.prefs.store[enabledPref('azure')] = true;
+    t.rows.refresh();
+    await t.of('azure').toggle.fire('command');
+    await settled();
+    expect(t.onChecked).toHaveBeenCalledTimes(2);
+  });
+
   it('never rechecks an in-use provider after restore or disables one that starts during its check', async () => {
     const pending = deferred<CheckOutcome>();
     const options = { protectedProvider: 'azure', prefs: { [enabledPref('azure')]: true, [enabledPref('local')]: true }, check: () => pending.promise };
@@ -504,7 +520,7 @@ describe('initProviderRows', () => {
   });
 
   describe('a switch that cannot go on yet: Zotero’s tiers without a Zotero account (issue #130)', () => {
-    const NOT_SIGNED_IN = 'Not signed in to a Zotero account: sign in under Settings → Sync.';
+    const NOT_SIGNED_IN = 'Not signed in to a Zotero account.';
     const zoteroOnly = (signedIn: () => boolean) => (id: SwitchId) => (id.startsWith('zotero-') && !signedIn() ? NOT_SIGNED_IN : null);
 
     it('greys Enable and says why on its line, leaving Test connection and every other switch alone', () => {

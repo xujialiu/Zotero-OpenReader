@@ -101,7 +101,8 @@ The estimated listening time left in the document, or in the selected
 content when reading only a selection, at the current speed. It includes
 pauses between sentences and paragraphs but excludes manual pauses and
 network waits.
-_Avoid_: completion time, document duration, countdown
+_Avoid_: completion time, document duration, countdown, time left (a Zotero
+voice's)
 
 **Reading section**:
 The text from a table-of-contents heading to the next heading in reading
@@ -146,6 +147,17 @@ _Avoid_: tier (Zotero's word for its own three), voice mode
 The voices Zotero itself sells, Zotero Standard and Zotero Premium, paid
 with credits on a Zotero account.
 _Avoid_: native voices, cloud voices, official voices
+
+**Credits**:
+What a Zotero account holds to pay for the Zotero voices: one amount for
+Zotero Standard and one for Zotero Premium, bought on zotero.org.
+_Avoid_: balance, quota, minutes
+
+**Time left**:
+How long one Zotero voice can still read on its credits. Two voices paid
+from the same credits can have different time left, since each has its own
+price per minute.
+_Avoid_: remaining reading time (the document's), balance
 
 ### Zotero's side and the plugin's
 

@@ -53,6 +53,8 @@ export interface ProviderRowsDeps extends ReadingGuardDeps {
   onUnlocked?(id: SwitchId): void;
   /** Why the switch cannot go on right now, or null when it can. Absent, every switch can. */
   blocked?(id: SwitchId): string | null;
+  /** A Test connection's or an Enable's check has just finished, passed or failed: the Zotero section reads its credits again (issue #159). */
+  onChecked?(id: SwitchId): void;
 }
 
 /** The section's elements: the groupbox holding the fields, the switch, Test connection, and the line both write to. */
@@ -175,6 +177,7 @@ export function initProviderRows(
     }
     busy.delete(id);
     paint(id);
+    deps.onChecked?.(id);
     if (outcome.ok && !refused) deps.onVoicesChanged();
   }
 
@@ -186,6 +189,7 @@ export function initProviderRows(
     say(id, outcome.message);
     busy.delete(id);
     paint(id);
+    deps.onChecked?.(id);
     if (outcome.ok && enabled(id)) deps.onVoicesChanged();
   }
 

@@ -100,16 +100,22 @@ ztts-help-system-voices =
 
 ## Zotero's own voices (issue #111): a switch per tier, no fields
 
-ztts-zotero-note = Zotero's own voices, with a Zotero account signed in. A tier switched off leaves the player; Standard and Premium keep separate credits, bought on zotero.org.
+ztts-zotero-note = Zotero's own voices; they need a Zotero account signed in.
 ztts-help-zotero =
     .value = ?
-    .help = Standard and Premium are the voices Zotero itself offers once you are signed in under Settings → Sync; each has its own credits, bought on zotero.org. Switch a tier off to take it out of the player's first dropdown, the voice browser and the language list; nothing Zotero remembers is lost, and switching it back on brings the tier's last voice back. Signed out, Enable is greyed; signed in, it checks that Zotero lists voices in that tier.
+    .help = Standard and Premium are the voices Zotero itself offers once you are signed in under Settings → Account. Each has its own credits, shown under its name and bought on zotero.org through Add more time; each voice spends them at its own price per minute. Switch a tier off to take it out of the player's first dropdown, the voice browser and the language list; nothing Zotero remembers is lost, and switching it back on brings the tier's last voice back. Signed out, Enable is greyed; signed in, it checks that Zotero lists voices in that tier.
 ztts-zotero-standard = Standard
 ztts-zotero-premium = Premium
-ztts-zotero-not-signed-in = Not signed in to a Zotero account: sign in under Settings → Sync.
+ztts-zotero-not-signed-in = Not signed in to a Zotero account.
+ztts-zotero-log-in = Log in
 ztts-zotero-tier-empty = Zotero lists no { $tier } voices.
-ztts-zotero-tier-ok = Signed in: { $count } { $tier } voices, { $credits } credits remaining.
-ztts-zotero-tier-ok-no-credits = Signed in: { $count } { $tier } voices.
+ztts-zotero-tier-ok = Signed in: { $count } { $tier } voices.
+# The line under each tier's name (issue #159): the account's credits for it, never minutes
+ztts-zotero-credits-left = { $credits } credits left
+ztts-zotero-credits-none = No credits left
+ztts-zotero-credits-unlimited = Unlimited
+# Zotero's own words for its link to zotero.org/settings/readaloud
+ztts-zotero-add-more-time = Add more time
 
 # The eye after a key, a gateway header line or the WebDAV password: it
 # uncovers the value so it can be read, selected and copied, and covers it

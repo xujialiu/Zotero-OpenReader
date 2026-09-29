@@ -23,7 +23,12 @@ import { withTimeout } from '../core/timeout';
 export const ZOTERO_TIERS = ['standard', 'premium'] as const;
 export type ZoteroTier = (typeof ZOTERO_TIERS)[number];
 
-export type ZoteroVoice = { id: string; label: string; locale: string; tier: ZoteroTier };
+/**
+ * One voice under one locale. `creditsPerMinute` is its price, the config's
+ * (Standard 1, Premium 10 or 30 on 2026-09-29, issue #159), absent where the
+ * config gives no number.
+ */
+export type ZoteroVoice = { id: string; label: string; locale: string; tier: ZoteroTier; creditsPerMinute?: number };
 
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
 
@@ -55,6 +60,7 @@ export function parseZoteroVoices(response: unknown): ZoteroVoice[] {
     for (const config of configs) {
       if (!isRecord(config) || !isRecord(config.locales)) continue;
       const voices = isRecord(config.voices) ? config.voices : {};
+      const price = typeof config.creditsPerMinute === 'number' && Number.isFinite(config.creditsPerMinute) ? config.creditsPerMinute : null;
       for (const [locale, entry] of Object.entries(config.locales)) {
         for (const id of localeIds(entry)) {
           const info = voices[id];
@@ -63,7 +69,7 @@ export function parseZoteroVoices(response: unknown): ZoteroVoice[] {
           if (seen.has(key)) continue;
           seen.add(key);
           const label = isRecord(info) && typeof info.label === 'string' && info.label ? info.label : id;
-          out.push({ id, label, locale, tier });
+          out.push(price === null ? { id, label, locale, tier } : { id, label, locale, tier, creditsPerMinute: price });
         }
       }
     }

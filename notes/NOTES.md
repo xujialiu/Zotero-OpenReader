@@ -683,3 +683,4 @@ then) and is in the git history before that day.
 - Scroll at every line: the manager clears the word at every segment event, and a pref at its default holds no choice (issue #157)
 - Verified live: lines land exactly, and a clamped line still moves `placedLine` (issue #157)
 - A XUL row is a flex row, and a ? beside a wrapping note shrinks to its glyph (issue #158)
+- Zotero's credits have three prices and per-locale voice names, so the settings show credits, not minutes (issue #159)

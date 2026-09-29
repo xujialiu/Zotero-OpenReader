@@ -9,7 +9,8 @@ dropdown, the voice browser's first column and the language dropdown — not
 greyed; nothing Zotero remembers is touched, and switching it back on
 brings the tier's last voice per language back. Enable checks first, as a
 provider's does: a Zotero sync account is signed in and the tier lists at
-least one voice; Test connection reports the voices and the credits.
+least one voice; Test connection reports the voices (the credits have
+their own line since #159, `cases/zotero-credits.md`).
 Without a signed-in account an off tier's Enable is greyed, the reason on
 its line, and follows a sign-in at once (issue #130, items 10-11). The
 two entries read `Zotero Standard` / `Zotero Premium` (zh-CN `Zotero 标准`
@@ -39,10 +40,11 @@ values below were derived from `src/` and corrected by the first run
    `ztts-zotero-section` is the last provider section, right after
    `ztts-provider-system` and before the voice browser, its `h2` `Zotero`
    (plain text, no link); a `description[data-l10n-id="ztts-zotero-note"]`
-   with a `?` (`ztts-help-zotero`); then two hboxes
-   `ztts-provider-zotero-standard` and `ztts-provider-zotero-premium`, each
-   a `label` reading `Standard` / `Premium` (zh-CN `标准` / `高级`), a
-   button `ztts-enable-zotero-<tier>` reading `Disable` while the pref
+   with a `?` (`ztts-help-zotero`); then per tier a caption reading
+   `Standard` / `Premium` (zh-CN `标准` / `高级`), its credits row
+   (`cases/zotero-credits.md`, #159), and the hbox
+   `ztts-provider-zotero-standard` / `ztts-provider-zotero-premium` holding
+   a button `ztts-enable-zotero-<tier>` reading `Disable` while the pref
    `zotero-tts.zotero-<tier>.enabled` is `true` (both by default) and
    `Enable` when it is `false`, a button `ztts-test-zotero-<tier>` `Test
    connection`, and a `description#ztts-test-result-zotero-<tier>`. The
@@ -53,11 +55,9 @@ values below were derived from `src/` and corrected by the first run
    (async) → `feature: "zotero-tiers"`, `switches: { "zotero-standard":
    true, "zotero-premium": true }`, `hidden: []`, `signedIn: true` (the
    owner's profile syncs), `checks["zotero-standard"]` = `{ ok: true,
-   message: "Signed in: N Standard voices, M credits remaining." }` with N
-   ≥ 1 (28 Standard and 1452 Premium voices at 1.11.0) and M a number with
-   the locale's grouping (`1,234`), or `"Signed in: N Standard voices."`
-   when Zotero answers no figure; `checks["zotero-premium"]` the same for
-   Premium. **Test connection** beside Standard writes the very same
+   message: "Signed in: N Standard voices." }` with N ≥ 1 (28 Standard
+   and 1452 Premium voices at 1.11.0; the credits left the message with
+   #159); `checks["zotero-premium"]` the same for Premium. **Test connection** beside Standard writes the very same
    message into `ztts-test-result-zotero-standard` (`Testing…` first).
 3. **Off hides the tier.** No player open. Click **Disable** beside
    Standard → the pref `zotero-tts.zotero-standard.enabled` `false`, the
@@ -134,8 +134,9 @@ values below were derived from `src/` and corrected by the first run
     `Zotero.Notifier.trigger('modify', 'api-key', [])`, the notification
     Zotero sends once a login is saved or removed → `ztts-enable-zotero-standard`
     `disabled: true`, label `Enable`; `ztts-test-result-zotero-standard`
-    `Not signed in to a Zotero account: sign in under Settings → Sync.`
-    (zh-CN `未登录 Zotero 账户：请在 设置 → 同步 中登录。`);
+    `Not signed in to a Zotero account.` (zh-CN `未登录 Zotero 账户。`),
+    followed by a `Log in` link since #159 (`cases/zotero-credits.md`
+    item 5);
     `ztts-enable-zotero-premium` `disabled: false`, label `Disable`, the
     same reason on its line; both `ztts-test-zotero-<tier>` `disabled:
     false`. A `command` event dispatched at the greyed button → no

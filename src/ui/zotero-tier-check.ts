@@ -10,14 +10,14 @@ import type { CheckOutcome } from './provider-rows';
  * very flag Zotero's reader hands its player as `loggedIn`
  * (`xpcom/reader.js` 270, 2881), without which the player lists neither
  * tier — then Zotero's `tts/voices` lists at least one voice of the
- * tier, then the account's credits for it (`tts/credits`). Not signed in
- * or an empty tier fails, so the switch stays off with the reason beside
- * it; otherwise the voice count and the credits, in credits rather than
- * minutes, since a minute's price is the voice's, not the tier's.
+ * tier. Not signed in or an empty tier fails, so the switch stays off
+ * with the reason beside it; otherwise the voice count. The credits have
+ * a line of their own under the tier's name (ui/zotero-credit-rows.ts,
+ * issue #159), read again after each check.
  */
 export interface ZoteroTierCheckDeps {
   signedIn(): boolean;
-  service: Pick<ZoteroVoiceService, 'listVoices' | 'credits'>;
+  service: Pick<ZoteroVoiceService, 'listVoices'>;
 }
 
 /** The tier's name as the pane's rows say it: Zotero's own word for it. */
@@ -30,9 +30,5 @@ export async function checkZoteroTier(tier: ZoteroTier, deps: ZoteroTierCheckDep
   // One entry per voice and locale: the count is of voices
   const count = new Set(voices.filter((voice) => voice.tier === tier).map((voice) => voice.id)).size;
   if (!count) return { ok: false, message: t('ztts-zotero-tier-empty', { tier: name }) };
-  const credits = (await deps.service.credits())[tier];
-  return {
-    ok: true,
-    message: credits === null ? t('ztts-zotero-tier-ok-no-credits', { count, tier: name }) : t('ztts-zotero-tier-ok', { count, tier: name, credits }),
-  };
+  return { ok: true, message: t('ztts-zotero-tier-ok', { count, tier: name }) };
 }

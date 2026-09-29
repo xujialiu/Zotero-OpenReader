@@ -93,16 +93,20 @@ ztts-help-system-voices =
 
 ## Zotero 自带的语音（issue #111）：每档一个开关，没有字段
 
-ztts-zotero-note = Zotero 自带的语音，需要登录 Zotero 账户。关掉的一档从播放器中消失；标准和高级各有自己的额度，在 zotero.org 购买。
+ztts-zotero-note = Zotero 自带的语音，需要登录 Zotero 账户。
 ztts-help-zotero =
     .value = ?
-    .help = 标准和高级是登录 Zotero 账户（设置 → 同步）后 Zotero 自己提供的语音，各有自己的额度，在 zotero.org 购买。关掉一档，它就从播放器的第一个下拉框、语音浏览器和语言列表里消失；Zotero 记住的语音不会丢，重新打开就回来。没登录时启用是灰的；登录后，启用会先检查 Zotero 在这一档列出了语音。
+    .help = 标准和高级是登录 Zotero 账户（设置 → 账户）后 Zotero 自己提供的语音。两档各有自己的额度，显示在名字下面，通过“添加更多时长”在 zotero.org 购买；每个语音按自己的每分钟价格消耗额度。关掉一档，它就从播放器的第一个下拉框、语音浏览器和语言列表里消失；Zotero 记住的语音不会丢，重新打开就回来。没登录时启用是灰的；登录后，启用会先检查 Zotero 在这一档列出了语音。
 ztts-zotero-standard = 标准
 ztts-zotero-premium = 高级
-ztts-zotero-not-signed-in = 未登录 Zotero 账户：请在 设置 → 同步 中登录。
+ztts-zotero-not-signed-in = 未登录 Zotero 账户。
+ztts-zotero-log-in = 登录
 ztts-zotero-tier-empty = Zotero 没有列出{ $tier }语音。
-ztts-zotero-tier-ok = 已登录：{ $tier }语音 { $count } 个，剩余额度 { $credits }。
-ztts-zotero-tier-ok-no-credits = 已登录：{ $tier }语音 { $count } 个。
+ztts-zotero-tier-ok = 已登录：{ $tier }语音 { $count } 个。
+ztts-zotero-credits-left = 剩余 { $credits } 额度
+ztts-zotero-credits-none = 额度已用完
+ztts-zotero-credits-unlimited = 不限额度
+ztts-zotero-add-more-time = 添加更多时长
 
 # 密钥、网关请求头、WebDAV 密码后面的眼睛：露出内容，便于查看、选中和复制，再点收起。服务启用后变灰，内容一律遮住。
 ztts-secret-show = 显示内容

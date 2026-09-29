@@ -38,6 +38,7 @@ import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
 import { initProviderRows } from './provider-rows';
 import { renderSectionHeading, type HeadingDoc } from './section-heading';
 import { checkZoteroTier } from './zotero-tier-check';
+import { initZoteroCreditRows } from './zotero-credit-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
 import { initFishVoiceSources } from './fish-voice-sources';
 import { initVoiceListSwitches } from './voice-list-switches';
@@ -683,6 +684,20 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   // load costs one request per enabled provider and spends nothing.
   void voiceBrowserRows.load();
 
+  // The credits under each of Zotero's tiers, with Add more time, and a Log
+  // in link while signed out (issue #159): read now, after a tier's check
+  // and at a sign-in or sign-out. Log in goes where Zotero's own player's
+  // does, the Account pane with the sign-in started; this window is the one
+  // openPreferences finds and navigates (utilities_internal.js 1852-1871),
+  // behind a timeout as Zotero's reader calls it (xpcom/reader.js 636-639)
+  const zoteroCredits = initZoteroCreditRows(doc, {
+    signedIn: () => !!Zotero.Sync?.Runner?.enabled,
+    service: zoteroVoiceService(),
+    openAccount: () => setTimeout(() => Zotero.Utilities.Internal.openPreferences('zotero-prefpane-account', { action: 'logIn' })),
+    log: (e) => Zotero.logError(e),
+  });
+  void zoteroCredits.refresh();
+
   // The provider switches: Enable runs checkProvider and locks the section,
   // and the voice browser lists again on every switch (ui/provider-rows.ts)
   const providerRows = initProviderRows(doc, {
@@ -698,6 +713,9 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     },
     // Zotero's own tiers need a Zotero account: without one their Enable is greyed (issue #130)
     blocked: (id) => (isZoteroSwitch(id) && !Zotero.Sync?.Runner?.enabled ? t('ztts-zotero-not-signed-in') : null),
+    onChecked: (id) => {
+      if (isZoteroSwitch(id)) void zoteroCredits.refresh();
+    },
   });
   // Signing in or out — in this very window's Sync pane, as often as not —
   // moves those two buttons at once: the notification Zotero's reader
@@ -705,7 +723,16 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   // login is saved or removed (xpcom/sync/syncLocal.js setAPIKey)
   let accountObserver: string | null = null;
   try {
-    accountObserver = Zotero.Notifier.registerObserver({ notify: () => providerRows.refresh() }, ['api-key'], 'zotero-tts-pane');
+    accountObserver = Zotero.Notifier.registerObserver(
+      {
+        notify: () => {
+          providerRows.refresh();
+          void zoteroCredits.refresh();
+        },
+      },
+      ['api-key'],
+      'zotero-tts-pane',
+    );
   } catch (e) {
     Zotero.logError(e);
   }
