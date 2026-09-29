@@ -4,15 +4,17 @@ import { PREF_PREFIX } from '../core/settings';
 import { READ_ALOUD_VOICES_PREF, readReadAloudVoices, resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
 import type { PrefsBackend } from '../core/settings';
 import { dropdownLanguage } from './language-dropdown';
-import { setDefaultSpeed, type SpeedManagerLike } from './default-speed';
+import { setDefaultSpeed, settingDefaultSpeed, type SpeedManagerLike } from './default-speed';
 import {
   memoryFromVoices,
   memoryLangForLocale,
   noteVoicesChange,
   pickSubstitute,
   planSync,
+  readGlobalSpeed,
   readMemory,
   sameChoice,
+  SPEED_PERCENT_OBSERVER,
   substitutionMessage,
   writeMemory,
   type ReadAloudMemory,
@@ -267,7 +269,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       const changed = noteVoicesChange(before, next, current);
       const learned = deps.documentKey ? { ...changed, voice: current.voice } : changed;
       if (learned === current) return;
-      writeMemory(deps.prefs, learned);
+      store(learned);
       deps.debug?.(`read-aloud memory: ${describeMemory(learned)}`);
       if (learned.speed !== null && learned.speed !== current.speed) spread(learned.speed);
       if (learned.voice && !sameChoice(learned.voice, current.voice)) spreadVoice(learned.voice);
@@ -310,6 +312,33 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     whileApplying(() => setDefaultSpeed(deps.prefs, speed, managers, deps.error));
     deps.debug?.(`spread read-aloud speed ${speed} to ${managers.length} reader(s)`);
   }
+
+  /**
+   * The global speed as this sync last wrote or heard it. Its pref is an
+   * ordinary setting (issue #82): the settings sync adopting another
+   * computer's speed, or a restore, writes it with no reader involved, and
+   * such a speed is spread as a local one is. The reading guard lets those
+   * writes through only while no player is open (read-aloud/settings-impact.ts).
+   * This sync's own writes come back here as nothing new, and the pane's
+   * slider, whose setDefaultSpeed reaches the readers itself, is left to it.
+   */
+  let knownSpeed = readGlobalSpeed(deps.prefs);
+  function store(next: ReadAloudMemory): void {
+    if (next.speed !== null) knownSpeed = next.speed;
+    writeMemory(deps.prefs, next);
+  }
+  const speedToken = deps.registerObserver(SPEED_PERCENT_OBSERVER, () => {
+    try {
+      const speed = readGlobalSpeed(deps.prefs);
+      if (speed === knownSpeed) return;
+      knownSpeed = speed;
+      if (applying || settingDefaultSpeed() || speed === null) return;
+      deps.debug?.(`read-aloud memory: global speed ${speed} set outside a reader`);
+      spread(speed);
+    } catch (e) {
+      deps.error(e);
+    }
+  });
 
   /**
    * Per internal reader, where this sync moved its manager: from the
@@ -647,7 +676,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     }
     if (sameChoice(choice, current.voice)) return;
     const learned = { ...current, voice: choice };
-    writeMemory(deps.prefs, learned);
+    store(learned);
     deps.debug?.(`read-aloud memory (a pick the pref did not show): ${describeMemory(learned)}`);
     spreadVoice(choice);
   }
@@ -768,7 +797,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     const current = memory();
     if (!validSpeed(speed) || current.speed === speed) return;
     const learned = { ...current, speed };
-    writeMemory(deps.prefs, learned);
+    store(learned);
     deps.debug?.(`read-aloud memory (a speed the pref could not carry): ${describeMemory(learned)}`);
     spread(speed);
   }
@@ -921,6 +950,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
 
   function dispose(): void {
     deps.unregisterObserver(token);
+    deps.unregisterObserver(speedToken);
     pickPatches.restoreAll();
     for (const reader of deps.readers()) {
       try {

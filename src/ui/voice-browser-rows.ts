@@ -60,8 +60,8 @@ import { refuseWhileReading } from './reading-guard';
  * shown: the browser opens on its provider and language, its row is painted
  * like a selected column entry, both columns scrolled to the selection
  * (issue #33), and the status line names it by provider,
- * language and label with the speed (`Default voice: Azure | English
- * (United States) | Brandon | 1.7×`); a pick in any tab's popup while
+ * language and label with the global speed (`Default voice: Azure | English
+ * (United States) | Brandon | Global speed: 1.7×`); a pick in any tab's popup while
  * the pane is open moves the highlight there (the pane observes the memory
  * pref). The memory is the source of truth; the browser is its view. The
  * line follows the Reading group's two "everywhere" switches: with the
@@ -317,14 +317,14 @@ export function defaultVoiceRows(voices: readonly BrowserVoice[], choice: VoiceC
 /**
  * The status line's account of what Read Aloud starts with, in the order
  * the columns stand: `Default voice: <provider> | <language> | <label> |
- * <speed>` — the voice by its row when one is listed, by its id when none
+ * Global speed: <speed>` — the voice by its row when one is listed, by its id when none
  * is (`<id> (not listed now)`: a provider switched off does not read as
  * "no default"), or `Zotero’s own choice per language` when none is
  * remembered. Each half answers to its "everywhere" switch: `speed` is
  * null while "one speed everywhere" is off, when Zotero keeps a speed per
  * document language and the slider only paces the samples, and the line
  * ends at the voice; `sameVoice` false is "one voice everywhere" off, when
- * the remembered voice is applied nowhere and the line is `Default speed:
+ * the remembered voice is applied nowhere and the line is `Global speed:
  * <speed>`; both off, it says so.
  */
 export function defaultVoiceLine(choice: VoiceChoice | null, home: BrowserVoice | null, tiers: readonly TierGroup[], speed: number | null, sameVoice = true): string {

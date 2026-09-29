@@ -4,7 +4,7 @@ import { READ_ALOUD_VOICES_PREF, type VoicesMap } from '../../src/core/read-alou
 import type { PrefsBackend } from '../../src/core/settings';
 import { setDefaultSpeed } from '../../src/read-aloud/default-speed';
 import { createReadAloudMemorySync, READ_ALOUD_VOICES_OBSERVER, type ReadAloudMemoryDeps } from '../../src/read-aloud/memory-sync';
-import { READ_ALOUD_MEMORY_PREF, writeMemory, type ReadAloudMemory } from '../../src/read-aloud/read-aloud-memory';
+import { READ_ALOUD_MEMORY_PREF, readMemory, SPEED_PERCENT_PREF, writeMemory, type ReadAloudMemory } from '../../src/read-aloud/read-aloud-memory';
 import { decodeVoiceId, pluginVoiceTier } from '../../src/read-aloud/voice-catalog';
 import { createDocumentVoices, readDefaultVoice, writeDefaultVoice } from '../../src/core/document-voices';
 
@@ -21,7 +21,11 @@ const voices: VoicesMap = {
 function fakeZotero(initialVoices: VoicesMap | null = voices, memory?: ReadAloudMemory) {
   const store: Record<string, unknown> = {};
   if (initialVoices) store[READ_ALOUD_VOICES_PREF] = JSON.stringify(initialVoices);
-  if (memory) store[READ_ALOUD_MEMORY_PREF] = JSON.stringify(memory);
+  // The voice in the JSON, the global speed in its own pref (issue #82)
+  if (memory) {
+    store[READ_ALOUD_MEMORY_PREF] = JSON.stringify({ voice: memory.voice });
+    if (memory.speed !== null) store[SPEED_PERCENT_PREF] = Math.round(memory.speed * 100);
+  }
   const observers = new Map<symbol, { name: string; handler: () => void }>();
   const prefs: PrefsBackend = {
     get: (k) => store[k],
@@ -65,7 +69,7 @@ function fakeZotero(initialVoices: VoicesMap | null = voices, memory?: ReadAloud
     observers,
     readers,
     voices: () => JSON.parse(store[READ_ALOUD_VOICES_PREF] as string) as VoicesMap,
-    storedMemory: () => JSON.parse(store[READ_ALOUD_MEMORY_PREF] as string) as ReadAloudMemory,
+    storedMemory: () => readMemory(prefs),
     /** What ReaderInstance._setReadAloudVoice does: replace one language's entry. */
     zoteroWrites(lang: string, entry: Record<string, unknown>) {
       const current = store[READ_ALOUD_VOICES_PREF] ? (JSON.parse(store[READ_ALOUD_VOICES_PREF] as string) as VoicesMap) : {};
@@ -728,6 +732,51 @@ describe('the speed is global while the setting is on', () => {
     expect(tab2.manager.setSpeed).toHaveBeenCalledTimes(1);
   });
 
+  // The settings sync adopting another computer's speed, or a restore: the
+  // global speed pref changes with no reader involved, and every open
+  // reader and every language follows, as for a local change (issue #82).
+  // The reading guard lets such a write through only while no player is open.
+  it('applies a global speed written from outside to every open reader and every language', () => {
+    const z = fakeZotero();
+    const sync = createReadAloudMemorySync(z.deps);
+    const open = fakeReader(MULTILINGUAL, z, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
+    const idle = fakeReader('zh', z, { speed: 1.4, active: false, selectedVoiceID: 'x' });
+    z.readers.push(open.reader, idle.reader);
+    z.deps.prefs.set(SPEED_PERCENT_PREF, 180);
+    expect(sync.memory().speed).toBe(1.8);
+    expect(open.manager.setSpeed).toHaveBeenCalledWith(1.8, true);
+    expect(idle.manager.setSpeed).toHaveBeenCalledWith(1.8, false);
+    expect(z.voices().en.speed).toBe(1.8);
+    expect(z.voices()[MULTILINGUAL].speed).toBe(1.8);
+    expect(z.deps.error).not.toHaveBeenCalled();
+  });
+
+  it('leaves the readers alone for a global speed written from outside while global speed is off', () => {
+    const z = fakeZotero();
+    z.deps.globalSpeed.mockReturnValue(false);
+    const sync = createReadAloudMemorySync(z.deps);
+    const open = fakeReader(MULTILINGUAL, z, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
+    z.readers.push(open.reader);
+    z.deps.prefs.set(SPEED_PERCENT_PREF, 180);
+    expect(sync.memory().speed).toBe(1.8);
+    expect(open.manager.setSpeed).not.toHaveBeenCalled();
+    expect(z.voices()).toEqual(voices);
+  });
+
+  // Its own writes of the global speed come back through that observer too
+  it('spreads a speed it learned itself once, not again from its own write', () => {
+    const z = fakeZotero();
+    const sync = createReadAloudMemorySync(z.deps);
+    const tab2 = fakeReader(MULTILINGUAL, z, { speed: 1.4, active: true, selectedVoiceID: ISABELLA });
+    z.readers.push(tab2.reader);
+    const spreads = () => z.deps.debug.mock.calls.filter(([m]) => m.startsWith('spread read-aloud speed')).length;
+    z.zoteroWrites('en', { ...voices.en, speed: 2.2 });
+    expect(spreads()).toBe(1);
+    sync.learnSpeed(1.6);
+    expect(spreads()).toBe(2);
+    expect(tab2.manager.speed).toBe(1.6);
+  });
+
   it('spreads nothing once disposed', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
@@ -735,8 +784,9 @@ describe('the speed is global while the setting is on', () => {
     z.readers.push(tab2.reader);
     sync.dispose();
     z.zoteroWrites('en', { ...voices.en, speed: 2 });
+    z.deps.prefs.set(SPEED_PERCENT_PREF, 180);
     expect(tab2.manager.setSpeed).not.toHaveBeenCalled();
-    expect(sync.memory()).toEqual(multilingual);
+    expect(sync.memory()).toEqual({ ...multilingual, speed: 1.8 });
   });
 });
 

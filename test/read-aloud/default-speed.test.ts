@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { READ_ALOUD_VOICES_PREF, type VoicesMap } from '../../src/core/read-aloud-speed';
 import type { PrefsBackend } from '../../src/core/settings';
 import { setDefaultSpeed, type SpeedManagerLike } from '../../src/read-aloud/default-speed';
-import { READ_ALOUD_MEMORY_PREF, readMemory, writeMemory } from '../../src/read-aloud/read-aloud-memory';
+import { READ_ALOUD_MEMORY_PREF, readMemory, SPEED_PERCENT_PREF, writeMemory } from '../../src/read-aloud/read-aloud-memory';
 
 /** A pref store that logs the order of its writes, beside what a manager did. */
 function fakePrefs(initial: Record<string, unknown> = {}, log: string[] = []): PrefsBackend & { store: Record<string, unknown>; log: string[] } {
@@ -92,7 +92,13 @@ describe('setDefaultSpeed', () => {
     const log: string[] = [];
     const prefs = fakePrefs({ [READ_ALOUD_VOICES_PREF]: JSON.stringify(voices) }, log);
     setDefaultSpeed(prefs, 1.8, [manager({ active: true, selectedVoiceID: 'v' }, log)]);
-    expect(log).toEqual([`set:${READ_ALOUD_MEMORY_PREF.replace('extensions.zotero.', '')}`, 'setSpeed:1.8:true', 'set:reader.readAloudVoices']);
+    // The memory is two prefs since issue #82: the global speed, then the voice's JSON
+    expect(log).toEqual([
+      `set:${SPEED_PERCENT_PREF.replace('extensions.zotero.', '')}`,
+      `set:${READ_ALOUD_MEMORY_PREF.replace('extensions.zotero.', '')}`,
+      'setSpeed:1.8:true',
+      'set:reader.readAloudVoices',
+    ]);
   });
 
   it('reports a reader that throws and still stores the speed everywhere else', () => {

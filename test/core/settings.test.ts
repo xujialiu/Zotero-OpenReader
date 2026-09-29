@@ -278,6 +278,20 @@ describe('readAloud pauses', () => {
   });
 });
 
+describe('readAloud.speedPercent', () => {
+  const key = (k: string) => PREF_PREFIX + k;
+
+  // The global speed, in hundredths: an int pref cannot hold 1.5 (issue #82)
+  it('defaults to 100, 1.0×, and is read clamped to Zotero’s 0.5×–3×', () => {
+    expect(DEFAULTS.readAloud.speedPercent).toBe(100);
+    expect(loadSettings(fakePrefs()).readAloud.speedPercent).toBe(100);
+    expect(loadSettings(fakePrefs({ [key('readAloud.speedPercent')]: 165 })).readAloud.speedPercent).toBe(165);
+    expect(loadSettings(fakePrefs({ [key('readAloud.speedPercent')]: 20 })).readAloud.speedPercent).toBe(50);
+    expect(loadSettings(fakePrefs({ [key('readAloud.speedPercent')]: 999 })).readAloud.speedPercent).toBe(300);
+    expect(loadSettings(fakePrefs({ [key('readAloud.speedPercent')]: '150' })).readAloud.speedPercent).toBe(100);
+  });
+});
+
 describe('readAloud.volume', () => {
   const key = (k: string) => PREF_PREFIX + k;
 

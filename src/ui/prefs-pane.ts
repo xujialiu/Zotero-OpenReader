@@ -15,7 +15,7 @@ import { createWebDAVClient } from '../core/webdav';
 import { CATALOG_CAP_MS, listNamedCatalog, providerTierColumns } from '../read-aloud/catalog';
 import { FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
 import { languageDisplayName } from '../read-aloud/language-dropdown';
-import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER } from '../read-aloud/read-aloud-memory';
+import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, SPEED_PERCENT_OBSERVER } from '../read-aloud/read-aloud-memory';
 import type { PositionEntry } from '../read-aloud/read-aloud-position';
 import { readReadAloudVoices, READ_ALOUD_VOICES_PREF } from '../core/read-aloud-speed';
 import { migrateChoices } from '../read-aloud/system-voice-choices';
@@ -640,11 +640,12 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       return () => tokens.forEach((token) => Zotero.Prefs.unregisterObserver(token));
     },
     log: (e) => Zotero.logError(e),
-    // The popup's slider and the shortcuts move the memory (memory-sync);
-    // the pane's slider follows while it is open. Observers fire
+    // The player's slider and the shortcuts move the memory (memory-sync),
+    // the settings sync and a restore the global speed (issue #82); the
+    // pane's slider follows while it is open. Observers fire
     // synchronously inside Zotero.Prefs.set; names are relative to extensions.zotero.
     watchMemory: (onChange) => {
-      const tokens = [READ_ALOUD_MEMORY_OBSERVER, 'zotero-tts.' + DEFAULT_VOICE_KEY].map(name => Zotero.Prefs.registerObserver(name, onChange));
+      const tokens = [READ_ALOUD_MEMORY_OBSERVER, SPEED_PERCENT_OBSERVER, 'zotero-tts.' + DEFAULT_VOICE_KEY].map(name => Zotero.Prefs.registerObserver(name, onChange));
       return () => tokens.forEach(token => Zotero.Prefs.unregisterObserver(token));
     },
     // Only a favorite can be the default while the popup offers only favorites

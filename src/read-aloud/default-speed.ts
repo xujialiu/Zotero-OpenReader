@@ -48,14 +48,33 @@ export interface SpeedManagerLike {
  */
 export function setDefaultSpeed(prefs: PrefsBackend, speed: number, managers: readonly SpeedManagerLike[] = [], log?: (e: unknown) => void): void {
   const next = clampSpeed(speed);
-  writeMemory(prefs, { ...readMemory(prefs), speed: next });
-  for (const manager of managers) {
-    try {
-      if (manager.speed === next) continue;
-      manager.setSpeed(next, !!manager.active && !!manager.selectedVoiceID);
-    } catch (e) {
-      log?.(e);
+  writing++;
+  try {
+    writeMemory(prefs, { ...readMemory(prefs), speed: next });
+    for (const manager of managers) {
+      try {
+        if (manager.speed === next) continue;
+        manager.setSpeed(next, !!manager.active && !!manager.selectedVoiceID);
+      } catch (e) {
+        log?.(e);
+      }
     }
+    persistSpeed(prefs, null, next);
+  } finally {
+    writing--;
   }
-  persistSpeed(prefs, null, next);
+}
+
+let writing = 0;
+
+/**
+ * Whether setDefaultSpeed is running: its write of the global speed is one
+ * it spreads itself. memory-sync's observer of that pref leaves such a
+ * write alone and spreads only one made elsewhere — the settings sync, a
+ * restore (issue #82) — which would otherwise reach the readers after the
+ * pref and before the managers here, and read a playing fallback voice
+ * persisting with the speed as a voice choice.
+ */
+export function settingDefaultSpeed(): boolean {
+  return writing > 0;
 }

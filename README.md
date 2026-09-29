@@ -415,8 +415,11 @@ provider (or Zotero's Standard / Premium), language, voice.
   travel with settings backups and sync. Synced voice changes take effect
   the next time reading starts; they do not change the voice mid-session.
 - *Use one speed everywhere* — one speed for every document and every open
-  tab, set from the player's slider, the shortcuts or the settings slider.
-  Off, Zotero keeps a speed per document language.
+  tab, the global speed, set from the player's slider, the shortcuts or the
+  settings slider. It travels with settings backups and sync; a speed
+  changed on another computer takes effect here once every player is
+  closed. Off, Zotero keeps a speed per document language, on each
+  computer.
 - *Pause between sentences* — how long every voice waits before the next
   sentence of the same paragraph, whatever its provider, at 1× speed;
   reading faster shortens it in step. On at 200 ms by default. Off, no

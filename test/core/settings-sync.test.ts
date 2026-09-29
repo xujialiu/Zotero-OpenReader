@@ -86,6 +86,7 @@ describe('the sync set', () => {
     expect(SYNCABLE_KEYS).toContain('compatible.headers');
     expect(SYNCABLE_KEYS).toContain('local.baseURL');
     expect(SYNCABLE_KEYS).toContain('readAloud.volume');
+    expect(SYNCABLE_KEYS).toContain('readAloud.speedPercent');
     expect(SYNCABLE_KEYS).toContain('shortcuts.speedUp');
     expect(SYNCABLE_KEYS).not.toContain('webdav.syncSettings');
     expect(SYNCABLE_KEYS).not.toContain('webdav.password');

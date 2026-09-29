@@ -25,6 +25,9 @@ describe('settings changes during reading', () => {
     const sessions = [{ title: 'Paper', voices: [{ id: 'azure::ava', provider: 'azure' }] }];
     expect(affectedReading({ 'azure.apiKey': 'old' }, { 'azure.apiKey': 'new' }, sessions)).toEqual(['Paper']);
     expect(affectedReading({ 'readAloud.volume': 50 }, { 'readAloud.volume': 70 }, sessions)).toEqual(['Paper']);
+    // The global speed waits like the volume: a sync defers it and a restore is refused (issue #82)
+    expect(affectedReading({ 'readAloud.speedPercent': 100 }, { 'readAloud.speedPercent': 160 }, sessions)).toEqual(['Paper']);
+    expect(affectedReading({ 'readAloud.speedPercent': 160 }, { 'readAloud.speedPercent': 160 }, sessions)).toEqual([]);
     expect(affectedReading({}, { 'highlight.wordColor': '#fff', 'shortcuts.stopReading': 'Shift+S' }, sessions)).toEqual([]);
   });
   it('reads both sides of a paused handoff, every tab, and a player still loading', () => {

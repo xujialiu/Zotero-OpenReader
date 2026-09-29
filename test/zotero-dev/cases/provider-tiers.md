@@ -122,7 +122,7 @@ Expected values below are derived from `src/` (`buildTierOptions`,
    language column that entry's languages, the rows without prefix.
    `diagnostics.defaultVoice()` → `opensOn.tier` the provider key of the
    memory's voice (`kokoro`), `status` of the shape `Default voice: Kokoro
-   | English (United States) | af_bella | 1.7×`. `diagnostics.languageColumn()`
+   | English (United States) | af_bella | Global speed: 1.7×`. `diagnostics.languageColumn()`
    → per reader `tier` a provider key and `same: true`.
 
 ### 6. Reload and dispose

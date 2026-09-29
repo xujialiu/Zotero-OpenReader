@@ -106,6 +106,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Settings sync over WebDAV](cases/settings-sync.md) — 3.19, 6.11–6.15, 6.17–6.19
 - [Synced settings wait while a tab reads](cases/settings-sync-while-reading.md) — 1.16, 6.16
 - [A synced provider that fails its check goes off here only](cases/settings-sync-provider-check.md) — 3.20, 6.20
+- [The global speed travels](cases/global-speed.md) — 1–7 (issue #82)
 
 ## The end of a pass
 

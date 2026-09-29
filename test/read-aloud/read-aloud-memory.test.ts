@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MULTILINGUAL } from '../../src/core/providers/types';
-import type { VoicesMap } from '../../src/core/read-aloud-speed';
+import { READ_ALOUD_VOICES_PREF, type VoicesMap } from '../../src/core/read-aloud-speed';
 import type { PrefsBackend } from '../../src/core/settings';
 import {
   EMPTY_MEMORY,
@@ -8,6 +8,7 @@ import {
   isMultilingualVoiceId,
   memoryFromVoices,
   memoryLangForLocale,
+  migrateGlobalSpeed,
   noteVoicesChange,
   pickSubstitute,
   planSync,
@@ -15,6 +16,9 @@ import {
   READ_ALOUD_MEMORY_PREF,
   readMemory,
   sameChoice,
+  SPEED_MIGRATED_PREF,
+  SPEED_PERCENT_OBSERVER,
+  SPEED_PERCENT_PREF,
   substitutionMessage,
   writeMemory,
   type ReadAloudMemory,
@@ -24,6 +28,11 @@ import type { ListedVoice } from '../../src/read-aloud/voice-catalog';
 describe('READ_ALOUD_MEMORY_OBSERVER', () => {
   it('names the memory pref the way Zotero.Prefs.registerObserver wants it: relative to extensions.zotero.', () => {
     expect('extensions.zotero.' + READ_ALOUD_MEMORY_OBSERVER).toBe(READ_ALOUD_MEMORY_PREF);
+  });
+
+  it('names the global speed pref the same way, as a setting the backup declares (issue #82)', () => {
+    expect('extensions.zotero.' + SPEED_PERCENT_OBSERVER).toBe(SPEED_PERCENT_PREF);
+    expect(SPEED_PERCENT_PREF).toBe('extensions.zotero.zotero-tts.readAloud.speedPercent');
   });
 });
 
@@ -45,7 +54,7 @@ const voices: VoicesMap = {
 };
 
 describe('readMemory / writeMemory', () => {
-  it('round-trips through the plugin pref', () => {
+  it('round-trips through the plugin prefs', () => {
     const prefs = fakePrefs();
     const memory: ReadAloudMemory = { speed: 1.4, voice: { id: ISABELLA, lang: MULTILINGUAL } };
     writeMemory(prefs, memory);
@@ -53,10 +62,64 @@ describe('readMemory / writeMemory', () => {
     expect(readMemory(prefs)).toEqual(memory);
   });
 
+  // The global speed is an ordinary setting, so the backup and the sync carry
+  // it (issue #82); the JSON keeps only the legacy voice choice
+  it('keeps the speed in hundredths in its own pref and only the voice in the JSON', () => {
+    const prefs = fakePrefs();
+    writeMemory(prefs, { speed: 1.05, voice: { id: ISABELLA, lang: MULTILINGUAL } });
+    expect(prefs.store[SPEED_PERCENT_PREF]).toBe(105);
+    expect(JSON.parse(prefs.store[READ_ALOUD_MEMORY_PREF] as string)).toEqual({ voice: { id: ISABELLA, lang: MULTILINGUAL } });
+    expect(readMemory(prefs).speed).toBe(1.05);
+  });
+
+  it('reads the speed from its pref only, never from an old JSON speed', () => {
+    const prefs = fakePrefs({ [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1.7, voice: null }), [SPEED_PERCENT_PREF]: 130 });
+    expect(readMemory(prefs)).toEqual({ speed: 1.3, voice: null });
+    expect(readMemory(fakePrefs({ [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1.7, voice: null }) })).speed).toBeNull();
+  });
+
+  it('writes no speed for a memory that holds none, and keeps the speed within Zotero’s range', () => {
+    const prefs = fakePrefs({ [SPEED_PERCENT_PREF]: 120 });
+    writeMemory(prefs, { speed: null, voice: null });
+    expect(prefs.store[SPEED_PERCENT_PREF]).toBe(120);
+    expect(readMemory(fakePrefs({ [SPEED_PERCENT_PREF]: 900 })).speed).toBe(3);
+    expect(readMemory(fakePrefs({ [SPEED_PERCENT_PREF]: 'fast' })).speed).toBeNull();
+  });
+
   it('reads an unset, damaged or nonsensical pref as empty', () => {
     expect(readMemory(fakePrefs())).toEqual(EMPTY_MEMORY);
     expect(readMemory(fakePrefs({ [READ_ALOUD_MEMORY_PREF]: '{not json' }))).toEqual(EMPTY_MEMORY);
     expect(readMemory(fakePrefs({ [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: -1, voice: { id: '' } }) }))).toEqual(EMPTY_MEMORY);
+  });
+});
+
+// Once, at the first start after the update: the speed each computer had
+// becomes its global speed, with no sync stamp (issue #82)
+describe('migrateGlobalSpeed', () => {
+  it('copies the speed the old memory held', () => {
+    const prefs = fakePrefs({ [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1.65, voice: null }), [READ_ALOUD_VOICES_PREF]: JSON.stringify(voices) });
+    expect(migrateGlobalSpeed(prefs)).toBe(1.65);
+    expect(prefs.store[SPEED_PERCENT_PREF]).toBe(165);
+    expect(prefs.store[SPEED_MIGRATED_PREF]).toBe(true);
+  });
+
+  it('falls back to the speed Zotero stored, and to nothing', () => {
+    const native = fakePrefs({ [READ_ALOUD_VOICES_PREF]: JSON.stringify(voices) });
+    expect(migrateGlobalSpeed(native)).toBe(1.4);
+    expect(native.store[SPEED_PERCENT_PREF]).toBe(140);
+    const fresh = fakePrefs();
+    expect(migrateGlobalSpeed(fresh)).toBeNull();
+    expect(fresh.store[SPEED_PERCENT_PREF]).toBeUndefined();
+    expect(fresh.store[SPEED_MIGRATED_PREF]).toBe(true);
+  });
+
+  it('runs once: a later start leaves the global speed alone', () => {
+    const prefs = fakePrefs({ [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 1.65, voice: null }) });
+    migrateGlobalSpeed(prefs);
+    prefs.store[SPEED_PERCENT_PREF] = 120;
+    prefs.store[READ_ALOUD_MEMORY_PREF] = JSON.stringify({ speed: 2, voice: null });
+    expect(migrateGlobalSpeed(prefs)).toBeNull();
+    expect(prefs.store[SPEED_PERCENT_PREF]).toBe(120);
   });
 });
 

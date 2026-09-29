@@ -43,6 +43,12 @@ The whole silence where a paragraph begins, in place of the pause between
 sentences there, not added to it. Off means none.
 _Avoid_: extra pause, paragraph delay
 
+**Global speed**:
+The one speed every document and every open tab reads at while *Use one
+speed everywhere* is on, whichever player, shortcut or setting last
+changed it.
+_Avoid_: default speed, remembered speed
+
 **Handoff**:
 The reading passing from one voice to another without stopping: at a word
 both voices time, otherwise at the start of the next sentence.

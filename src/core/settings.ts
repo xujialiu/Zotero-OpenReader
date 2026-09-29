@@ -136,6 +136,13 @@ export interface Settings {
     /** One speed for every document and every open tab (read-aloud/default-speed.ts); off, Zotero keeps a speed per document language. */
     globalSpeed: boolean;
     /**
+     * The global speed, in hundredths (150 is 1.5×), 50–300: an int pref,
+     * since Zotero.Prefs.set cannot put a fraction into one. A setting so
+     * that the backup and the sync carry it (issue #82, ADR 0012); read and
+     * written as a speed by read-aloud/read-aloud-memory.ts.
+     */
+    speedPercent: number;
+    /**
      * Voices marked with the heart in the settings' voice browser: a JSON
      * array of encoded voice ids (read-aloud/favorites.ts). A string
      * because voice ids may contain any character, commas included.
@@ -280,6 +287,7 @@ export const DEFAULTS: Settings = {
     defaultVoice: '',
     sameForAllDocuments: true,
     globalSpeed: true,
+    speedPercent: 100,
     favoriteVoices: '',
     favoritesOnly: false,
     // On at 200 ms by the owner's decision (issue #44 set 0, changed
@@ -430,6 +438,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       defaultVoice: str(prefs, 'readAloud.defaultVoice', DEFAULTS.readAloud.defaultVoice),
       sameForAllDocuments: bool(prefs, 'readAloud.sameForAllDocuments', DEFAULTS.readAloud.sameForAllDocuments),
       globalSpeed: bool(prefs, 'readAloud.globalSpeed', DEFAULTS.readAloud.globalSpeed),
+      speedPercent: num(prefs, 'readAloud.speedPercent', DEFAULTS.readAloud.speedPercent, 50, 300),
       favoriteVoices: str(prefs, 'readAloud.favoriteVoices', DEFAULTS.readAloud.favoriteVoices),
       favoritesOnly: bool(prefs, 'readAloud.favoritesOnly', DEFAULTS.readAloud.favoritesOnly),
       sentenceDelayEnabled: bool(prefs, 'readAloud.sentenceDelayEnabled', DEFAULTS.readAloud.sentenceDelayEnabled),

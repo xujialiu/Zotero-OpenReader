@@ -7,7 +7,7 @@ import { sampleTextForLocale } from '../../src/core/sample-text';
 import type { CatalogEntry } from '../../src/read-aloud/catalog';
 import type { SpeedManagerLike } from '../../src/read-aloud/default-speed';
 import { parseFavoriteVoices } from '../../src/read-aloud/favorites';
-import { READ_ALOUD_MEMORY_PREF, readMemory } from '../../src/read-aloud/read-aloud-memory';
+import { READ_ALOUD_MEMORY_PREF, readMemory, SPEED_PERCENT_PREF } from '../../src/read-aloud/read-aloud-memory';
 import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../../src/read-aloud/zotero-voices';
 import {
@@ -37,13 +37,19 @@ const GLOBAL_SPEED_PREF = PREF_PREFIX + 'readAloud.globalSpeed';
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
   const store = { ...initial };
   const memory = initial[READ_ALOUD_MEMORY_PREF];
-  if (typeof memory === 'string') store[PREF_PREFIX + 'readAloud.defaultVoice'] = JSON.stringify(JSON.parse(memory).voice);
+  // A fixture's memory in one JSON: the voice becomes the default voice, the speed the global speed (issue #82)
+  if (typeof memory === 'string') {
+    const parsed = JSON.parse(memory);
+    store[PREF_PREFIX + 'readAloud.defaultVoice'] = JSON.stringify(parsed.voice);
+    if (typeof parsed.speed === 'number') store[SPEED_PERCENT_PREF] = Math.round(parsed.speed * 100);
+  }
   return { store, get: (k) => store[k], set: (k, v) => void (store[k] = v) };
 }
 
 function setRemembered(prefs: PrefsBackend, memory: { speed: number | null; voice: { id: string; lang: string } | null }): void {
   writeDefaultVoice(prefs, memory.voice);
-  prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ speed: memory.speed, voice: null }));
+  if (memory.speed !== null) prefs.set(SPEED_PERCENT_PREF, Math.round(memory.speed * 100));
+  prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ voice: null }));
 }
 
 /** A column shows four rows of this height: the fake's layout (issue #33). */
@@ -177,7 +183,7 @@ function setup(
   const rawSet = prefs.set;
   prefs.set = (k, v) => {
     rawSet(k, v);
-    if (k === READ_ALOUD_MEMORY_PREF || k === PREF_PREFIX + 'readAloud.defaultVoice') for (const fn of [...watchers]) fn();
+    if (k === READ_ALOUD_MEMORY_PREF || k === SPEED_PERCENT_PREF || k === PREF_PREFIX + 'readAloud.defaultVoice') for (const fn of [...watchers]) fn();
     if (k === FAVORITES_PREF) for (const fn of [...favoriteWatchers]) fn();
     if (k === FAVORITES_ONLY_PREF) for (const fn of [...favoritesOnlyWatchers]) fn();
     if (k === SAME_VOICE_PREF || k === GLOBAL_SPEED_PREF) for (const fn of [...switchWatchers]) fn();
@@ -377,7 +383,7 @@ describe('loading the catalog', () => {
     const t = setup();
     await t.rows.load();
     expect(t.locales()).toEqual(['Multiple languages (2)', 'Chinese (1)', 'English (1)']);
-    expect(t.status()).toBe('Default voice: Choose a default voice | 1.0×');
+    expect(t.status()).toBe('Default voice: Choose a default voice | Global speed: 1.0×');
   });
 
   // The column is the popup's dropdown for the tier: an entry carries its
@@ -391,7 +397,7 @@ describe('loading the catalog', () => {
     });
     await t.rows.load();
     expect(t.locales()).toEqual(['Multiple languages (2)', 'Chinese (1)', 'English (United Kingdom) (1)', 'English (United States) (1)']);
-    expect(t.status()).toBe('Default voice: Azure | English (United States) | Jenny | 1.0×');
+    expect(t.status()).toBe('Default voice: Azure | English (United States) | Jenny | Global speed: 1.0×');
     await t.pickTier('Zotero Standard');
     expect(t.locales()).toEqual(['English (2)', 'German (1)']);
   });
@@ -411,7 +417,7 @@ describe('loading the catalog', () => {
     expect(t.memory().voice).toEqual({ id: encodeVoiceId('azure', 'zh-TW-YunJheNeural'), lang: 'zh' });
     expect(t.zoteroVoices()).toBeUndefined();
     expect(t.selectedLocale()).toBe('Chinese (2)');
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 雲哲 | 1.0×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 雲哲 | Global speed: 1.0×');
   });
 
   // The provider is the entry the voice sits under (issue #110): no prefix
@@ -439,7 +445,7 @@ describe('loading the catalog', () => {
     const t = setup({ zotero: new Error('not signed in') });
     await t.rows.load();
     expect(t.tiers()).toEqual(['Azure (4)', 'Kokoro (1)', 'OpenAI (1)', 'Zotero Premium (0)', 'Zotero Standard (0)']);
-    expect(t.status()).toBe('Default voice: Choose a default voice | 1.0× — not signed in');
+    expect(t.status()).toBe('Default voice: Choose a default voice | Global speed: 1.0× — not signed in');
   });
 
   it('keeps Zotero’s voices and says so when the plugin catalog fails', async () => {
@@ -1045,7 +1051,7 @@ describe('the default voice', () => {
     expect(t.selectedLocale()).toBe('Chinese (1)');
     expect(t.highlighted()).toEqual(['晓晓']);
     expect(t.label(0).attrs.get('title')).toMatch(/default/i);
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.8×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.8×');
   });
 
   it('finds one of Zotero’s own voices by its Zotero id', async () => {
@@ -1054,7 +1060,7 @@ describe('the default voice', () => {
     expect(t.selectedTier()).toBe('Zotero Premium (1)');
     expect(t.selectedLocale()).toBe('English (1)');
     expect(t.highlighted()).toEqual(['Aria']);
-    expect(t.status()).toBe('Default voice: Zotero Premium | English | Aria | 1.0×');
+    expect(t.status()).toBe('Default voice: Zotero Premium | English | Aria | Global speed: 1.0×');
   });
 
   it('finds a voice chosen under Multiple languages, and only that one', async () => {
@@ -1087,7 +1093,7 @@ describe('the default voice', () => {
     await t.rows.load();
     await t.pickLocale('English');
     expect(t.highlighted()).toEqual([]);
-    expect(t.status()).toBe('Default voice: local::af_bella (not listed now) | 1.0×');
+    expect(t.status()).toBe('Default voice: local::af_bella (not listed now) | Global speed: 1.0×');
   });
 
   it('says so when the remembered voice is not listed, and opens as usual', async () => {
@@ -1096,14 +1102,14 @@ describe('the default voice', () => {
     expect(t.selectedTier()).toBe('Azure (4)');
     expect(t.selectedLocale()).toBe('Multiple languages (2)');
     expect(t.highlighted()).toEqual([]);
-    expect(t.status()).toBe('Default voice: azure::fr-FR-DeniseNeural (not listed now) | 1.2×');
+    expect(t.status()).toBe('Default voice: azure::fr-FR-DeniseNeural (not listed now) | Global speed: 1.2×');
   });
 
   it('reads as Zotero’s own choice when no voice is remembered', async () => {
     const t = setup({ prefs: { [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: 2, voice: null }) } });
     await t.rows.load();
     expect(t.highlighted()).toEqual([]);
-    expect(t.status()).toBe('Default voice: Choose a default voice | 2.0×');
+    expect(t.status()).toBe('Default voice: Choose a default voice | Global speed: 2.0×');
   });
 
   it('keeps the highlight and the status line while browsing elsewhere and back', async () => {
@@ -1111,7 +1117,7 @@ describe('the default voice', () => {
     await t.rows.load();
     await t.pickTier('Zotero Standard');
     expect(t.highlighted()).toEqual([]);
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×');
     await t.pickTier('Azure');
     await t.pickLocale('Chinese');
     expect(t.highlighted()).toEqual(['晓晓']);
@@ -1131,7 +1137,7 @@ describe('the default voice', () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh', 1.8) });
     await t.rows.load();
     await t.dragSpeed('2.5');
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 2.5×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 2.5×');
   });
 
   // The popup's slider and the shortcuts move the memory; the slider
@@ -1140,7 +1146,7 @@ describe('the default voice', () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh', 1.8) });
     await t.rows.load();
     setRemembered(t.prefs, { speed: 2.1, voice: { id: xiaoxiao, lang: 'zh' } });
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 2.1×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 2.1×');
   });
 
   // Off, Zotero keeps a speed per document language and the slider only
@@ -1160,38 +1166,38 @@ describe('the default voice', () => {
   it('names no default voice while one voice everywhere is off', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh', 1.8), sameVoice: false });
     await t.rows.load();
-    expect(t.status()).toBe('Default speed: 1.8×');
+    expect(t.status()).toBe('Global speed: 1.8×');
     expect(t.highlighted()).toEqual(['晓晓']);
     await t.dragSpeed('2.5');
-    expect(t.status()).toBe('Default speed: 2.5×');
+    expect(t.status()).toBe('Global speed: 2.5×');
   });
 
   it('names no default at all while both switches are off, and still reports a listing that failed', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh', 1.8), sameVoice: false, globalSpeed: false, zotero: new Error('not signed in') });
     await t.rows.load();
-    expect(t.status()).toBe('No default voice or speed: Zotero keeps both per language — not signed in');
+    expect(t.status()).toBe('No default voice or global speed: Zotero keeps both per language — not signed in');
   });
 
   // The warning is about the voice the line names; a line without one has nothing to warn about
   it('does not warn about a default that is not a favorite while one voice everywhere is off', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh', 1.8), sameVoice: false, favoritesOnly: true });
     await t.rows.load();
-    expect(t.status()).toBe('Default speed: 1.8×');
+    expect(t.status()).toBe('Global speed: 1.8×');
   });
 
   // Both switches are checkboxes of the same pane: the line follows them at once
   it('repaints the line as soon as either switch flips', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh', 1.8) });
     await t.rows.load();
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.8×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.8×');
     t.prefs.set(SAME_VOICE_PREF, false);
-    expect(t.status()).toBe('Default speed: 1.8×');
+    expect(t.status()).toBe('Global speed: 1.8×');
     t.prefs.set(GLOBAL_SPEED_PREF, false);
-    expect(t.status()).toBe('No default voice or speed: Zotero keeps both per language');
+    expect(t.status()).toBe('No default voice or global speed: Zotero keeps both per language');
     t.prefs.set(SAME_VOICE_PREF, true);
     expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓');
     t.prefs.set(GLOBAL_SPEED_PREF, true);
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.8×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.8×');
   });
 
   it('stops watching the switches when disposed', () => {
@@ -1204,9 +1210,9 @@ describe('the default voice', () => {
   it('reports a listing that failed beside the default', async () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh'), zotero: new Error('not signed in') });
     await t.rows.load();
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0× — not signed in');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0× — not signed in');
     await t.dragSpeed('1.5');
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.5× — not signed in');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.5× — not signed in');
   });
 
   // A settings restore may bring another memory; the rows and the status
@@ -1220,7 +1226,7 @@ describe('the default voice', () => {
     expect(t.selectedTier()).toBe('Azure (4)');
     expect(t.selectedLocale()).toBe('English (1)');
     expect(t.highlighted()).toEqual(['Jenny']);
-    expect(t.status()).toBe('Default voice: Azure | English | Jenny | 1.3×');
+    expect(t.status()).toBe('Default voice: Azure | English | Jenny | Global speed: 1.3×');
   });
 
   it('leaves the status line alone on refresh before the voices are listed', () => {
@@ -1249,7 +1255,7 @@ describe('the highlight follows the memory', () => {
     expect(t.selectedTier()).toBe('OpenAI (1)');
     expect(t.selectedLocale()).toBe('Multiple languages (1)');
     expect(t.highlighted()).toEqual(['alloy']);
-    expect(t.status()).toBe('Default voice: OpenAI | Multiple languages | alloy | 1.8×');
+    expect(t.status()).toBe('Default voice: OpenAI | Multiple languages | alloy | Global speed: 1.8×');
   });
 
   it('follows to one of Zotero’s own voices, in its tier', async () => {
@@ -1267,7 +1273,7 @@ describe('the highlight follows the memory', () => {
     picked(t, null);
     expect(t.selectedLocale()).toBe('Chinese (1)');
     expect(t.highlighted()).toEqual([]);
-    expect(t.status()).toBe('Default voice: Choose a default voice | 1.0×');
+    expect(t.status()).toBe('Default voice: Choose a default voice | Global speed: 1.0×');
   });
 
   it('stays put when the new default is not listed, and says so', async () => {
@@ -1276,7 +1282,7 @@ describe('the highlight follows the memory', () => {
     picked(t, { id: 'azure::fr-FR-DeniseNeural', lang: 'fr' });
     expect(t.selectedLocale()).toBe('Chinese (1)');
     expect(t.highlighted()).toEqual([]);
-    expect(t.status()).toBe('Default voice: azure::fr-FR-DeniseNeural (not listed now) | 1.0×');
+    expect(t.status()).toBe('Default voice: azure::fr-FR-DeniseNeural (not listed now) | Global speed: 1.0×');
   });
 
   it('leaves the columns where they are when only the speed moved', async () => {
@@ -1286,7 +1292,7 @@ describe('the highlight follows the memory', () => {
     picked(t, { id: xiaoxiao, lang: 'zh' }, 2.1);
     expect(t.selectedTier()).toBe('Zotero Standard (3)');
     expect(t.speedLabel()).toBe('2.1×');
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 2.1×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 2.1×');
   });
 
   it('keeps a playing sample’s stop glyph across the move', async () => {
@@ -1332,7 +1338,7 @@ describe('a row click sets the default', () => {
     expect(t.zoteroVoices()).toBeUndefined();
     expect(t.highlighted()).toEqual(['晓晓']);
     expect(t.label(0).attrs.get('title')).toMatch(/click to clear/i);
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×');
   });
 
   it('files a multilingual voice under Multiple languages, with no region', async () => {
@@ -1389,7 +1395,7 @@ describe('a row click sets the default', () => {
     expect(t.zoteroVoices()).toBeUndefined();
     expect(t.highlighted()).toEqual([]);
     expect(t.label(0).attrs.get('title')).toMatch(/make it the default/i);
-    expect(t.status()).toBe('Default voice: Choose a default voice | 1.0×');
+    expect(t.status()).toBe('Default voice: Choose a default voice | Global speed: 1.0×');
     expect(t.selectedLocale()).toBe('Chinese (1)');
   });
 
@@ -1418,7 +1424,7 @@ describe('a row click sets the default', () => {
     await t.label(0).fire('click');
     expect(t.memory().voice).toEqual({ id: xiaoxiao, lang: 'zh' });
     expect(t.highlighted()).toEqual(['晓晓']);
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×');
   });
 });
 
@@ -1453,11 +1459,11 @@ describe('only a favorite can be the default while the switch is on', () => {
   it('lets a default that is no favorite be cleared, and warns about it meanwhile', async () => {
     const t = setup({ favoritesOnly: true, prefs: remembered(xiaoxiao, 'zh') });
     await t.rows.load();
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0×' + WARNING);
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×' + WARNING);
     expect(t.label(0).attrs.get('title')).toMatch(/click to clear/i);
     await t.label(0).fire('click');
     expect(t.memory().voice).toBeNull();
-    expect(t.status()).toBe('Default voice: Choose a default voice | 1.0×');
+    expect(t.status()).toBe('Default voice: Choose a default voice | Global speed: 1.0×');
   });
 
   it('clears the default when its heart is unmarked, and the status line says so', async () => {
@@ -1478,7 +1484,7 @@ describe('only a favorite can be the default while the switch is on', () => {
     await t.heart(0).fire('click');
     expect(t.memory().voice).toEqual({ id: xiaoxiao, lang: 'zh' });
     expect(t.highlighted()).toEqual(['晓晓']);
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×');
   });
 
   it('warns when the switch goes on with a default that is no favorite, grays the rows, and stops once it is marked', async () => {
@@ -1486,16 +1492,16 @@ describe('only a favorite can be the default while the switch is on', () => {
     const t = setup({ prefs: { ...remembered(xiaoxiao, 'zh'), ...favorites(ava) } });
     await t.rows.load();
     await t.pickLocale('Multiple');
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×');
     expect(t.label(1).attrs.get('title')).toMatch(/make it the default/i);
     t.prefs.set(FAVORITES_ONLY_PREF, true);
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0×' + WARNING);
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×' + WARNING);
     // Ava is a favorite and can be picked; Brian is not and cannot
     expect(t.label(0).attrs.get('title')).toMatch(/make it the default/i);
     expect(t.label(1).attrs.get('title')).toMatch(/only a favorite/i);
     await t.pickLocale('Chinese');
     await t.heart(0).fire('click');
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | 1.0×');
+    expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×');
     t.prefs.set(FAVORITES_ONLY_PREF, false);
     await t.pickLocale('Multiple');
     expect(t.label(1).attrs.get('title')).toMatch(/make it the default/i);
@@ -1879,21 +1885,21 @@ describe('statusLine', () => {
     statusLine({ voices, problems: [], choice, home, tiers, speed: 1.7, sameVoice: true, favoritesOnly: false, favorites: [], ...over });
 
   it('names the default voice by its provider’s entry, and the speed', () => {
-    expect(line()).toBe('Default voice: Kokoro | English | af_bella | 1.7×');
+    expect(line()).toBe('Default voice: Kokoro | English | af_bella | Global speed: 1.7×');
   });
 
   it('warns when the default is not a favorite while only favorites are offered', () => {
     expect(line({ favoritesOnly: true })).toBe(
-      'Default voice: Kokoro | English | af_bella | 1.7× — not a favorite, while only favorites are offered: Read Aloud cannot start with it',
+      'Default voice: Kokoro | English | af_bella | Global speed: 1.7× — not a favorite, while only favorites are offered: Read Aloud cannot start with it',
     );
-    expect(line({ favoritesOnly: true, favorites: [bella] })).toBe('Default voice: Kokoro | English | af_bella | 1.7×');
+    expect(line({ favoritesOnly: true, favorites: [bella] })).toBe('Default voice: Kokoro | English | af_bella | Global speed: 1.7×');
     // With "one voice everywhere" off the line names no voice, so there is nothing to warn about
-    expect(line({ favoritesOnly: true, sameVoice: false })).toBe('Default speed: 1.7×');
+    expect(line({ favoritesOnly: true, sameVoice: false })).toBe('Global speed: 1.7×');
   });
 
   it('appends what failed to list, after the warning', () => {
     expect(line({ problems: ['the plugin’s voices: boom'] })).toBe(
-      'Default voice: Kokoro | English | af_bella | 1.7× — the plugin’s voices: boom',
+      'Default voice: Kokoro | English | af_bella | Global speed: 1.7× — the plugin’s voices: boom',
     );
     expect(line({ favoritesOnly: true, problems: ['a', 'b'] })).toMatch(/cannot start with it — a; b$/);
   });

@@ -8,7 +8,7 @@ import { isPlayerOpen } from './player-stop';
 // restore or background sync would change playback as a side effect.
 const PLAYBACK_SETTINGS = new Set([
   'prefetch', 'prefetchEnabled', 'cacheAudio', 'readAloud.volume',
-  'readAloud.sameForAllDocuments', 'readAloud.globalSpeed',
+  'readAloud.sameForAllDocuments', 'readAloud.globalSpeed', 'readAloud.speedPercent',
   'readAloud.sentenceDelayEnabled', 'readAloud.sentenceDelayMs',
   'readAloud.paragraphDelayEnabled', 'readAloud.paragraphDelayMs',
 ]);

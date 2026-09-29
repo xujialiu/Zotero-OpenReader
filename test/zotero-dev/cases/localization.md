@@ -80,7 +80,7 @@ Items 1.10–1.12 of the checklist, under their original numbers.
     four on (issue #110; until then
     `Standard` / `Premium` / `Local`, 28 / 1452 / 787 = the 2267 of a
     2026-09-06 listing), `#ztts-voices-status` beginning `Default voice: ` (or
-    `Default speed: ` / `No default voice or speed:` per the two
+    `Global speed: ` / `No default voice or global speed:` per the two
     "everywhere" switches), `#ztts-about-build` `Version <build> · Date
     <date> · Time <hh:mm>` over `#ztts-about-author` `Author Xujia Liu ·
     Email xujialiuphd@gmail.com`, Test connection's `Connected. N voices
@@ -116,7 +116,7 @@ Items 1.10–1.12 of the checklist, under their original numbers.
     1.11.0): the first column `系统 (N)` before the Latin-named providers
     (Han by pinyin, issue #110) and `Zotero 标准 (N)` / `Zotero 高级 (N)`
     after them (#111), the
-    status line `默认语音：…` / `默认速度：…`, the Build line `版本
+    status line `默认语音：…` / `全局速度：…`, the Build line `版本
     <build> · 日期 <date> · 作者 Xujia Liu`, Test connection on the local
     engine `已连接。N 个语音可用。有单词时间戳。` — no space between the
     sentences (`ztts-join`), the recorder `请按新的按键…（Esc 取消）`, the

@@ -67,7 +67,7 @@ import { locatorPath, SHARED_POSITIONS_FILENAME, type SharedItem } from './read-
 import { blockAtRef, captureShared, offsetInBlock, resolveSharedItem, sdtPositionAt, snapshotBlocks, walkSnapshot, type BlockSnapshot, type SharedCapture } from './read-aloud/sdt-anchor';
 import { documentIdOf } from './core/document-id/identity';
 import { bytesAsArchive } from './core/document-id/zip';
-import { readMemory } from './read-aloud/read-aloud-memory';
+import { migrateGlobalSpeed, readMemory, SPEED_MIGRATED_PREF, SPEED_PERCENT_PREF } from './read-aloud/read-aloud-memory';
 import { readReadAloudVoices, resolveVoiceLang } from './core/read-aloud-speed';
 import { runStartupSteps, type StartupReport } from './core/startup-steps';
 import { CATALOG_CAP_MS, listNamedCatalog, providerNaming, providerTierColumns, providerTierLabels, type CatalogEntry } from './read-aloud/catalog';
@@ -2549,6 +2549,16 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       // Zotero's shared entry after this instance has started, and ours is
       // what the pane, t() and the rest of the settings window read then
       ['own strings source', () => installOwnStrings(rootURI)],
+      // Before anything rewrites the old memory JSON (the OpenAI split
+      // below) and before the settings sync listens, so the copy carries no
+      // sync stamp and the update moves no computer's speed (issue #82)
+      [
+        'global speed',
+        () => {
+          const speed = migrateGlobalSpeed(prefs);
+          if (speed !== null) Zotero.debug(`[zotero-tts] the global speed is now its own setting: ${speed}`);
+        },
+      ],
       [
         'legacy provider setting',
         () => {
@@ -3858,6 +3868,9 @@ const diagnostics = {
     return JSON.stringify(
       {
         memory: safe(() => ({ ...readMemory(prefs), voice: readDefaultVoice(prefs) })),
+        // The global speed as its setting holds it, and whether the old memory's was copied into it (issue #82)
+        speedPercent: safe(() => prefs.get(SPEED_PERCENT_PREF) ?? null),
+        speedMigrated: safe(() => prefs.get(SPEED_MIGRATED_PREF) === true),
         syncInstalled: !!readAloudMemory,
         sameForAllDocuments: loadSettings(prefs).readAloud.sameForAllDocuments,
         globalSpeed: loadSettings(prefs).readAloud.globalSpeed,

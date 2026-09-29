@@ -1,6 +1,6 @@
 import { t } from '../core/l10n';
 import { MULTILINGUAL } from '../core/providers/types';
-import { isZoteroLangKey, resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
+import { clampSpeed, isZoteroLangKey, readReadAloudVoices, resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { compareVoiceLabels, decodeVoiceId, pluginVoiceTier, type ListedVoice } from './voice-catalog';
 
@@ -17,11 +17,22 @@ import { compareVoiceLabels, decodeVoiceId, pluginVoiceTier, type ListedVoice } 
  * under its own language, so a document is moved to the voice's — `mul`
  * for a multilingual voice, else the language it was picked under (planSync).
  * The pure decisions live here; memory-sync.ts wires them to Zotero.
+ *
+ * The two halves live apart. The voice is the legacy JSON of
+ * `readAloud.memory`, outside the settings. The speed is the global speed,
+ * an ordinary setting in hundredths (`readAloud.speedPercent`, declared in
+ * DEFAULTS), so the settings backup and the settings sync carry it the way
+ * they carry the volume (issue #82, ADR 0012).
  */
 
 export const READ_ALOUD_MEMORY_PREF = PREF_PREFIX + 'readAloud.memory';
 /** The same pref as Zotero.Prefs.registerObserver wants it: relative to `extensions.zotero.` (pinned by a test). */
 export const READ_ALOUD_MEMORY_OBSERVER = 'zotero-tts.readAloud.memory';
+/** The global speed in hundredths: an int pref, since Zotero.Prefs.set cannot put 1.5 into one (core/settings.ts `readAloud.speedPercent`). */
+export const SPEED_PERCENT_PREF = PREF_PREFIX + 'readAloud.speedPercent';
+export const SPEED_PERCENT_OBSERVER = 'zotero-tts.readAloud.speedPercent';
+/** Set once the speed of the old JSON has become the global speed (migrateGlobalSpeed). */
+export const SPEED_MIGRATED_PREF = PREF_PREFIX + 'globalSpeedMigrated';
 
 export interface VoiceChoice {
   /** Zotero's voice id (`provider::id` for plugin voices). */
@@ -42,22 +53,58 @@ const speedOf = (entry: VoiceEntry | undefined): number | null => (validSpeed(en
 const voiceOf = (entry: VoiceEntry | undefined): string | null =>
   typeof entry?.voice === 'string' && entry.voice ? entry.voice : null;
 
-export function readMemory(prefs: PrefsBackend): ReadAloudMemory {
+/** The global speed as its pref holds it, kept on Zotero's range; null when the pref holds no number (never in Zotero, where it is declared). */
+export function readGlobalSpeed(prefs: PrefsBackend): number | null {
+  const raw = prefs.get(SPEED_PERCENT_PREF);
+  return typeof raw === 'number' && Number.isFinite(raw) ? clampSpeed(raw / 100) : null;
+}
+
+const toPercent = (speed: number): number => Math.round(clampSpeed(speed) * 100);
+
+function readVoiceChoice(prefs: PrefsBackend): VoiceChoice | null {
   try {
     const raw = prefs.get(READ_ALOUD_MEMORY_PREF);
-    if (typeof raw !== 'string' || !raw) return EMPTY_MEMORY;
-    const parsed = JSON.parse(raw) as { speed?: unknown; voice?: { id?: unknown; lang?: unknown } | null };
-    const speed = validSpeed(parsed.speed) ? parsed.speed : null;
-    const v = parsed.voice;
-    const voice = v && typeof v.id === 'string' && v.id && typeof v.lang === 'string' && v.lang ? { id: v.id, lang: v.lang } : null;
-    return { speed, voice };
+    if (typeof raw !== 'string' || !raw) return null;
+    const v = (JSON.parse(raw) as { voice?: { id?: unknown; lang?: unknown } | null }).voice;
+    return v && typeof v.id === 'string' && v.id && typeof v.lang === 'string' && v.lang ? { id: v.id, lang: v.lang } : null;
   } catch {
-    return EMPTY_MEMORY;
+    return null;
   }
 }
 
+export function readMemory(prefs: PrefsBackend): ReadAloudMemory {
+  return { speed: readGlobalSpeed(prefs), voice: readVoiceChoice(prefs) };
+}
+
+/** The speed to its pref (none for a memory that holds none), the voice to the JSON. An unchanged value notifies no observer. */
 export function writeMemory(prefs: PrefsBackend, memory: ReadAloudMemory): void {
-  prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ speed: memory.speed, voice: memory.voice }));
+  if (memory.speed !== null) prefs.set(SPEED_PERCENT_PREF, toPercent(memory.speed));
+  prefs.set(READ_ALOUD_MEMORY_PREF, JSON.stringify({ voice: memory.voice }));
+}
+
+/**
+ * Once per profile, first at startup: the speed each computer had becomes
+ * its global speed — the old JSON's speed, else the first one Zotero
+ * stores (memoryFromVoices), else none, which leaves the default 1.0×. It
+ * runs before anything rewrites the JSON (the OpenAI split's writeMemory
+ * would drop the old speed) and before the settings sync starts listening,
+ * so the copy carries no sync stamp: the update moves no computer's speed
+ * to another (design 0012). Returns the speed copied, null when none was.
+ */
+export function migrateGlobalSpeed(prefs: PrefsBackend): number | null {
+  if (prefs.get(SPEED_MIGRATED_PREF) === true) return null;
+  let legacy: number | null = null;
+  try {
+    const raw = prefs.get(READ_ALOUD_MEMORY_PREF);
+    const parsed = typeof raw === 'string' && raw ? (JSON.parse(raw) as { speed?: unknown }) : null;
+    if (parsed && validSpeed(parsed.speed)) legacy = parsed.speed;
+  } catch {
+    // A damaged JSON held no speed worth keeping
+  }
+  const speed = legacy ?? memoryFromVoices(readReadAloudVoices(prefs)).speed;
+  if (speed !== null) prefs.set(SPEED_PERCENT_PREF, toPercent(speed));
+  prefs.set(SPEED_MIGRATED_PREF, true);
+  return speed;
 }
 
 /**

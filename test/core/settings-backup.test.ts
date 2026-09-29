@@ -35,6 +35,18 @@ describe('createBackup', () => {
     expect(loadSettings(target).readAloud.stripAngleBrackets).toBe(false);
     expect(SYNCABLE_KEYS).toContain('readAloud.stripAngleBrackets');
   });
+  // The global speed travels like the volume; a backup made before it did leaves it as it is (issue #82)
+  it('carries the global speed through backup and restore, and an older backup leaves it alone', () => {
+    const source = fakePrefs({ [PREF_PREFIX + 'readAloud.speedPercent']: 165 });
+    const target = fakePrefs({ [PREF_PREFIX + 'readAloud.speedPercent']: 120 });
+    applyBackup(target, parseBackup(serializeBackup(createBackup(source))));
+    expect(loadSettings(target).readAloud.speedPercent).toBe(165);
+    const older = createBackup(source);
+    delete older.settings['readAloud.speedPercent'];
+    const kept = fakePrefs({ [PREF_PREFIX + 'readAloud.speedPercent']: 120 });
+    applyBackup(kept, parseBackup(serializeBackup(older)));
+    expect(loadSettings(kept).readAloud.speedPercent).toBe(120);
+  });
   it('defaults expanded opening on and carries the opt-out through backup and restore', () => {
     expect(loadSettings(fakePrefs()).readAloud.openExpanded).toBe(true);
     const source = fakePrefs({ [PREF_PREFIX + 'readAloud.openExpanded']: false });

@@ -686,3 +686,4 @@ then) and is in the git history before that day.
 - Zotero's credits have three prices and per-locale voice names, so the settings show credits, not minutes (issue #159)
 - Verified live: the credits lines, a link flush against its text, and a cleanup that printed secrets (issues #159, #158)
 - Two siblings in a centered row are not on one baseline: the links moved into their text's line (issue #159)
+- The global speed became a setting: the copy must come first, and one writer spreads its own (issue #82)

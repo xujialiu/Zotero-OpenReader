@@ -14,7 +14,7 @@ import {
 import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
 import { loadSettings, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import type { SharedItem } from '../../src/core/settings-sync';
-import { READ_ALOUD_MEMORY_PREF } from '../../src/read-aloud/read-aloud-memory';
+import { migrateGlobalSpeed, READ_ALOUD_MEMORY_PREF, readMemory } from '../../src/read-aloud/read-aloud-memory';
 
 // The one OpenAI section of 1.12.11 and before, as this profile had it on
 // 2026-09-15: Xiaomi MiMo in force, the other three servers remembered by
@@ -151,6 +151,8 @@ describe('migrateOpenAISplit', () => {
 
   it('writes the three sections, re-prefixes the remembered voices, clears the old prefs and reports', () => {
     const prefs = fakePrefs(profile());
+    // Startup copies the old JSON's speed into the global speed first (issue #82)
+    migrateGlobalSpeed(prefs);
     const report = migrateOpenAISplit(prefs);
     expect(report).toEqual({ target: 'mimo', enabled: { 'openai-official': false, mimo: true, compatible: false }, rewrittenPrefs: 3, clearedKeys: 9 });
     const settings = loadSettings(prefs);
@@ -159,7 +161,8 @@ describe('migrateOpenAISplit', () => {
     expect(settings.compatible).toMatchObject({ enabled: false, baseURL: 'https://h200-chatterbox.example', headers: 'CF-Access-Client-Id: id; CF-Access-Client-Secret: s' });
     for (const k of Object.keys(profile())) if (k.includes('.openai.')) expect(prefs.store[k], k).toBeUndefined();
     expect(JSON.parse(prefs.store[READ_ALOUD_VOICES_PREF] as string)).toEqual({ en: { voice: 'mimo::mimo_default', tierVoices: { mimo: 'mimo::mimo_default' } } });
-    expect(JSON.parse(prefs.store[READ_ALOUD_MEMORY_PREF] as string)).toEqual({ speed: 1.3, voice: { id: 'mimo::mimo_default', lang: 'mul' } });
+    expect(JSON.parse(prefs.store[READ_ALOUD_MEMORY_PREF] as string)).toEqual({ voice: { id: 'mimo::mimo_default', lang: 'mul' } });
+    expect(readMemory(prefs).speed).toBe(1.3);
     expect(JSON.parse(prefs.store[key('readAloud.favoriteVoices')] as string)).toEqual(['mimo::冰糖', 'azure::en-US-AvaNeural']);
   });
 
