@@ -126,15 +126,16 @@ label.ztts-help[value]:hover {
 }
 
 /* A Zotero tier with no credits left, in Zotero's own red (issue #159);
-   ui/zotero-credit-rows.ts sets the attribute */
-.ztts-pane description[data-ztts-none] {
+   ui/zotero-credit-rows.ts sets the attribute on the credits text */
+.ztts-pane #ztts-zotero-section [data-ztts-none] {
   color: var(--accent-red);
 }
 
-/* Add more time after the credits, Log in after the not-signed-in reason:
-   the text before each ends at its last glyph, so without this the link
-   touches it (measured 0 px on 1.16.2-beta5, issue #159) */
-.ztts-pane #ztts-zotero-section description + label[is="zotero-text-link"] {
+/* Add more time after the credits, Log in after the not-signed-in reason,
+   each in the same description as its text so the two share a baseline:
+   the text ends at its last glyph, so without this the link touches it
+   (measured 0 px on 1.16.2-beta5, issue #159) */
+.ztts-pane #ztts-zotero-section description > span + label[is="zotero-text-link"] {
   margin-inline-start: 6px;
 }
 

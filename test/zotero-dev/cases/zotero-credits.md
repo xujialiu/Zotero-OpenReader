@@ -34,14 +34,16 @@ diagnostic, not from here.
    under two line heights) and its `?` right after it (gap 4 px, as after
    any description); then per tier, Standard first: a
    `label.ztts-caption` reading `Standard` / `Premium` (computed
-   `font-weight` 600); `hbox#ztts-zotero-credits-row-<tier>` holding
-   `description#ztts-zotero-credits-<tier>` and
+   `font-weight` 600); `description#ztts-zotero-credits-row-<tier>`
+   holding `span#ztts-zotero-credits-<tier>` and, as its next sibling,
    `label#ztts-zotero-buy-<tier>` (a `zotero-text-link`, text `Add more
    time`, zh-CN `添加更多时长`, `href`
-   `https://www.zotero.org/settings/readaloud`, starting 6 px after the
-   credits text's right edge); then
-   `hbox#ztts-provider-zotero-<tier>` holding Enable, Test connection,
-   `description#ztts-test-result-zotero-<tier>` and
+   `https://www.zotero.org/settings/readaloud`), starting 6 px after the
+   credits text's right edge **on the same baseline**: a Range over each
+   one's text node gives equal `top` and `bottom` (0 px; as two siblings in
+   a centered hbox the link sat 1.5 px low on 1.16.2-beta6); then
+   `hbox#ztts-provider-zotero-<tier>` holding Enable, Test connection and
+   a `description` holding `span#ztts-test-result-zotero-<tier>` and
    `label#ztts-zotero-log-in-<tier>` (`hidden` while signed in). The two
    buttons are the first children of their row: no label before them.
 2. **The credits on open.** Within 20 s of the pane's load:
@@ -69,10 +71,10 @@ diagnostic, not from here.
    fire `Zotero.Notifier.trigger('modify', 'api-key', [])` → both credits
    rows `hidden`; both Log in links shown, text `Log in` (zh-CN `登录`);
    both result lines `Not signed in to a Zotero account.` (zh-CN `未登录
-   Zotero 账户。`), each Log in link on its result's row, starting 6 px
-   after the result text's right edge (0 px on 1.16.2-beta5: the text
-   touched the link), vertically centered with it within 2 px (1.5
-   measured). `diagnostics.zoteroTiers()` → `signedIn: false`,
+   Zotero 账户。`), each Log in link starting 6 px after the result text's
+   right edge (0 px on 1.16.2-beta5: the text touched the link), on the
+   same baseline: Range rects of the two text nodes with equal `top` and
+   `bottom` (0 px; 1.5 px apart on 1.16.2-beta6). `diagnostics.zoteroTiers()` → `signedIn: false`,
    `credits: null`. Click Standard's **Log in** → within 2 s the
    settings window's selected pane is `zotero-prefpane-account` — read
    `win.Zotero_Preferences.navigation.value`, the `#prefs-navigation`

@@ -118,14 +118,30 @@ describe('the ? icons (issue #53)', () => {
 });
 
 /**
- * The Zotero section's two links follow a line of text in their row — the
- * credits, and the not-signed-in reason — and a description and a label
- * both end at their text in Zotero's pane: measured live on 1.16.2-beta5,
+ * The Zotero section's two links follow a line of text — the credits, and
+ * the not-signed-in reason — inside the same description, so they share its
+ * baseline; the text ends at its last glyph: measured live on 1.16.2-beta5,
  * the Log in link started 0 px after the reason (issue #159).
  */
 describe('the Zotero section’s links (issue #159)', () => {
   it('stand apart from the text before them', () => {
-    const rule = rulesOf(sheet).find((r) => /#ztts-zotero-section/.test(r.selector) && /description\s*\+\s*label\[is="zotero-text-link"\]/.test(r.selector));
+    const rule = rulesOf(sheet).find((r) => /#ztts-zotero-section/.test(r.selector) && /description\s*>\s*span\s*\+\s*label\[is="zotero-text-link"\]/.test(r.selector));
     expect(rule?.declarations).toMatch(/margin-inline-start:\s*6px/);
+  });
+});
+
+/**
+ * As two siblings in a centered hbox the link sat 1.5 px below the text
+ * (1.16.2-beta6): each link is the next sibling of the span its text is
+ * written to, inside one description (issue #159).
+ */
+describe('the Zotero section’s markup (issue #159)', () => {
+  const markup = readFileSync(join(root, 'addon', 'content', 'preferences.xhtml'), 'utf8');
+
+  it.each(['standard', 'premium'])('puts %s’s links on the line of their text', (tier) => {
+    expect(markup).toContain(
+      `<description id="ztts-zotero-credits-row-${tier}" hidden="true"><html:span id="ztts-zotero-credits-${tier}"/><label is="zotero-text-link" id="ztts-zotero-buy-${tier}"`,
+    );
+    expect(markup).toContain(`<description><html:span id="ztts-test-result-zotero-${tier}"/><label is="zotero-text-link" id="ztts-zotero-log-in-${tier}"`);
   });
 });

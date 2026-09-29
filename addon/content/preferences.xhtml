@@ -313,7 +313,11 @@
        language list. Each tier's name is a caption, with its credits and an
        Add more time link under it and a Log in link after the switch row's
        result while signed out, both painted by ui/zotero-credit-rows.ts
-       (issue #159). -->
+       (issue #159). Each link sits inside one description with the span its
+       text is written to, so the two share a line box and a baseline: as
+       siblings in a centered hbox the link sat 1.5 px low, the description
+       carrying the toolkit's 1px/2px block margins and the link none. No
+       whitespace between span and link; the gap is the stylesheet's. -->
   <groupbox id="ztts-zotero-section">
     <label><html:h2>Zotero</html:h2></label>
     <hbox align="center">
@@ -321,26 +325,18 @@
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-zotero" data-l10n-attrs="help"/>
     </hbox>
     <label class="ztts-caption" data-l10n-id="ztts-zotero-standard"/>
-    <hbox id="ztts-zotero-credits-row-standard" align="center" hidden="true">
-      <description id="ztts-zotero-credits-standard"/>
-      <label is="zotero-text-link" id="ztts-zotero-buy-standard" href="https://www.zotero.org/settings/readaloud" data-l10n-id="ztts-zotero-add-more-time"/>
-    </hbox>
+    <description id="ztts-zotero-credits-row-standard" hidden="true"><html:span id="ztts-zotero-credits-standard"/><label is="zotero-text-link" id="ztts-zotero-buy-standard" href="https://www.zotero.org/settings/readaloud" data-l10n-id="ztts-zotero-add-more-time"/></description>
     <hbox id="ztts-provider-zotero-standard" align="center">
       <button id="ztts-enable-zotero-standard"/>
       <button id="ztts-test-zotero-standard" data-l10n-id="ztts-test-connection"/>
-      <description id="ztts-test-result-zotero-standard"/>
-      <label is="zotero-text-link" id="ztts-zotero-log-in-standard" data-l10n-id="ztts-zotero-log-in" hidden="true"/>
+      <description><html:span id="ztts-test-result-zotero-standard"/><label is="zotero-text-link" id="ztts-zotero-log-in-standard" data-l10n-id="ztts-zotero-log-in" hidden="true"/></description>
     </hbox>
     <label class="ztts-caption" data-l10n-id="ztts-zotero-premium"/>
-    <hbox id="ztts-zotero-credits-row-premium" align="center" hidden="true">
-      <description id="ztts-zotero-credits-premium"/>
-      <label is="zotero-text-link" id="ztts-zotero-buy-premium" href="https://www.zotero.org/settings/readaloud" data-l10n-id="ztts-zotero-add-more-time"/>
-    </hbox>
+    <description id="ztts-zotero-credits-row-premium" hidden="true"><html:span id="ztts-zotero-credits-premium"/><label is="zotero-text-link" id="ztts-zotero-buy-premium" href="https://www.zotero.org/settings/readaloud" data-l10n-id="ztts-zotero-add-more-time"/></description>
     <hbox id="ztts-provider-zotero-premium" align="center">
       <button id="ztts-enable-zotero-premium"/>
       <button id="ztts-test-zotero-premium" data-l10n-id="ztts-test-connection"/>
-      <description id="ztts-test-result-zotero-premium"/>
-      <label is="zotero-text-link" id="ztts-zotero-log-in-premium" data-l10n-id="ztts-zotero-log-in" hidden="true"/>
+      <description><html:span id="ztts-test-result-zotero-premium"/><label is="zotero-text-link" id="ztts-zotero-log-in-premium" data-l10n-id="ztts-zotero-log-in" hidden="true"/></description>
     </hbox>
   </groupbox>
 
