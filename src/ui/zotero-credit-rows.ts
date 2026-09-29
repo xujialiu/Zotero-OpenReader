@@ -1,55 +1,72 @@
 import { t } from '../core/l10n';
+import { formatOverUnlimited, formatTimeLeft, UNLIMITED_MINUTES } from '../core/time-left';
 import { ZOTERO_TIERS, type ZoteroTier, type ZoteroVoice, type ZoteroVoiceService } from '../read-aloud/zotero-voices';
 
 /**
- * The credits line under each of Zotero's two tiers in the settings pane
- * (issue #159): the credits left on the account for the tier, with an Add
- * more time link to zotero.org, and a Log in link on the switch row while
- * no Zotero account is signed in. Credits and not minutes: a tier's voices
- * cost different amounts a minute (Premium 10 or 30 on 2026-09-29), and
- * which ones cost less differs by language, so no single time holds for a
- * tier; a voice's own time left is the Player's (#140).
+ * The line under each of Zotero's two tiers in the settings pane (issue
+ * #159): the time left on the account for the tier, with an Add more time
+ * link to zotero.org, and a Log in link on the switch row while no Zotero
+ * account is signed in.
+ *
+ * Time, not credits, since issue #140, as zotero.org/settings/readaloud
+ * writes it: a tier's voices cost different amounts a minute (Premium 10
+ * or 30 on 2026-09-29), so its time left is a range, from its dearest
+ * voice's to its cheapest's — "9m – 26m left, depending on voice" for 260
+ * Premium credits. With no price listed, the credits figure stands in.
  *
  * Read when the pane opens, after a Zotero tier's Test connection or
  * Enable, and when an account is signed in or out (ui/prefs-pane.ts). A
- * tier switched off still shows its credits: they are the account's.
+ * tier switched off still shows its time: the credits are the account's.
  */
+
+export { UNLIMITED_MINUTES };
+
+/** A tier's lowest and highest price per minute among the listed voices; null where none has one. */
+export type TierPrices = { cheapest: number | null; dearest: number | null };
 
 /**
- * More minutes than this at the tier's cheapest voice reads as Unlimited,
- * the line Zotero's own player draws (`formatTimeRemaining`, reader.js
- * 38417-38421): Standard with a Zotero Storage subscription, for one.
+ * What the line says for a tier: minutes at the dearest voice (`low`) and
+ * at the cheapest (`high`, null past Zotero's 90 days). Unlimited only
+ * when even the dearest voice is past them: Standard with a Zotero Storage
+ * subscription, for one.
  */
-export const UNLIMITED_MINUTES = 60 * 24 * 90;
+export type CreditState =
+  | { kind: 'unknown' }
+  | { kind: 'none' }
+  | { kind: 'unlimited' }
+  | { kind: 'time'; low: number; high: number | null }
+  | { kind: 'credits'; credits: number };
 
-export type CreditState = { kind: 'unknown' } | { kind: 'none' } | { kind: 'unlimited' } | { kind: 'left'; credits: number };
-
-/** What the line says for a tier's figure; with no price known the figure itself is shown. */
-export function creditState(credits: number | null, cheapest: number | null): CreditState {
+export function creditState(credits: number | null, prices: TierPrices): CreditState {
   if (credits === null) return { kind: 'unknown' };
   if (credits <= 0) return { kind: 'none' };
-  if (cheapest !== null && cheapest > 0 && credits / cheapest > UNLIMITED_MINUTES) return { kind: 'unlimited' };
-  return { kind: 'left', credits };
+  const { cheapest, dearest } = prices;
+  if (cheapest === null || dearest === null || cheapest <= 0 || dearest <= 0) return { kind: 'credits', credits };
+  const low = credits / dearest;
+  if (low > UNLIMITED_MINUTES) return { kind: 'unlimited' };
+  const high = credits / cheapest;
+  return { kind: 'time', low, high: high > UNLIMITED_MINUTES ? null : high };
 }
 
-/** Each tier's lowest price per minute among the listed voices; null where none has one. */
-export function cheapestPrices(voices: readonly ZoteroVoice[]): Record<ZoteroTier, number | null> {
-  const out: Record<ZoteroTier, number | null> = { standard: null, premium: null };
+/** Each tier's lowest and highest price per minute among the listed voices. */
+export function tierPrices(voices: readonly ZoteroVoice[]): Record<ZoteroTier, TierPrices> {
+  const out: Record<ZoteroTier, TierPrices> = { standard: { cheapest: null, dearest: null }, premium: { cheapest: null, dearest: null } };
   for (const voice of voices) {
     const price = voice.creditsPerMinute;
     if (price === undefined) continue;
     const known = out[voice.tier];
-    if (known === null || price < known) out[voice.tier] = price;
+    if (known.cheapest === null || price < known.cheapest) known.cheapest = price;
+    if (known.dearest === null || price > known.dearest) known.dearest = price;
   }
   return out;
 }
 
-export type TierCredits = { credits: number | null; cheapest: number | null; state: CreditState };
+export type TierCredits = { credits: number | null; cheapest: number | null; dearest: number | null; state: CreditState };
 
 /**
  * Both tiers' figures and prices, read in parallel. A listing that fails
- * only costs the Unlimited check, and is logged; credits that cannot be
- * read reject.
+ * only costs the prices, so the credits figure is shown, and is logged;
+ * credits that cannot be read reject.
  */
 export async function readZoteroCredits(
   service: Pick<ZoteroVoiceService, 'listVoices' | 'credits'>,
@@ -62,9 +79,24 @@ export async function readZoteroCredits(
       return [] as ZoteroVoice[];
     }),
   ]);
-  const cheapest = cheapestPrices(voices);
-  const tier = (id: ZoteroTier): TierCredits => ({ credits: credits[id], cheapest: cheapest[id], state: creditState(credits[id], cheapest[id]) });
+  const prices = tierPrices(voices);
+  const tier = (id: ZoteroTier): TierCredits => ({ credits: credits[id], ...prices[id], state: creditState(credits[id], prices[id]) });
   return { standard: tier('standard'), premium: tier('premium') };
+}
+
+/** The line's text for a tier's state; null for unknown, which hides the line. */
+export function creditText(state: CreditState): string | null {
+  switch (state.kind) {
+    case 'unknown': return null;
+    case 'none': return t('ztts-zotero-time-left', { time: formatTimeLeft(0) ?? '' });
+    case 'unlimited': return t('ztts-zotero-credits-unlimited');
+    case 'credits': return t('ztts-zotero-credits-left', { credits: state.credits });
+    case 'time': {
+      const low = formatTimeLeft(state.low) ?? '';
+      const high = state.high === null ? t('ztts-zotero-time-over', { time: formatOverUnlimited() }) : (formatTimeLeft(state.high) ?? '');
+      return low === high ? t('ztts-zotero-time-left', { time: low }) : t('ztts-zotero-time-range', { low, high });
+    }
+  }
 }
 
 /** The tier's elements in preferences.xhtml: the credits row, its text, its Add more time link, and the Log in link on the switch row. */
@@ -110,12 +142,7 @@ export function initZoteroCreditRows(doc: { getElementById(id: string): any }, d
       return;
     }
     if (text) {
-      text.textContent =
-        state.kind === 'none'
-          ? t('ztts-zotero-credits-none')
-          : state.kind === 'unlimited'
-            ? t('ztts-zotero-credits-unlimited')
-            : t('ztts-zotero-credits-left', { credits: state.credits });
+      text.textContent = creditText(state) ?? '';
       if (state.kind === 'none') text.setAttribute(NONE_ATTR, 'true');
       else text.removeAttribute(NONE_ATTR);
     }

@@ -109,10 +109,11 @@ while their switches are on, sorted by name.
   Enable is greyed, with the reason and a **Log in** link beside it;
   signed in, Enable checks that Zotero lists voices in that tier, and Test
   connection reports the voices.
-- **Credits**: under each tier's name, the credits left on your Zotero
-  account for it, with an **Add more time** link to zotero.org. Credits,
-  not minutes: a Premium voice costs 10 or 30 credits a minute, and which
-  ones cost less differs by language.
+- **Time left**: under each tier's name, how long your Zotero account's
+  credits for it will read, as zotero.org writes it, with an **Add more
+  time** link there. Premium voices cost 10 or 30 credits a minute, so
+  Premium shows a range: *9m – 26m left, depending on voice*. *0m left*
+  is red; *Unlimited* has no link.
 - **Test connection** probes without switching anything on.
 - While a provider is on its fields are locked — **Disable** to edit them.
 - **Keys, gateway headers and the WebDAV password** are covered by dots.
@@ -244,6 +245,11 @@ for every document you have listened to.
 - **Theme and controls** follow the reader's appearance. Loading and
   playback errors appear in the player; an error can be opened for details
   and a retry.
+- **A Zotero voice's time left** sits at the right of the voice button,
+  and beside each Zotero voice in the voice list; it turns red under 3
+  minutes. When the time is used up, or Zotero's daily limit is reached,
+  the reason opens by itself, the first with an **Add more time** link;
+  there is no retry for either.
 
 Everything is under **Edit → Settings → Zotero-TTS**.
 

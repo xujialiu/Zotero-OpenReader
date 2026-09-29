@@ -30,6 +30,9 @@ export type ZoteroTier = (typeof ZOTERO_TIERS)[number];
  */
 export type ZoteroVoice = { id: string; label: string; locale: string; tier: ZoteroTier; creditsPerMinute?: number };
 
+/** Where Zotero sells more time: its `READ_ALOUD_URL` (`resource/config.mjs` 35), what every Add more time opens. */
+export const ZOTERO_READ_ALOUD_URL = 'https://www.zotero.org/settings/readaloud';
+
 const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
 
 /** The ids under one locale: a plain array, or the `{ default, other }` form, either half of which may be missing. */

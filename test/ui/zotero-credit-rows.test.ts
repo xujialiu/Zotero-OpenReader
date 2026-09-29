@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ZoteroCredits, ZoteroVoice } from '../../src/read-aloud/zotero-voices';
 import {
-  cheapestPrices,
   creditState,
   initZoteroCreditRows,
   readZoteroCredits,
+  tierPrices,
   UNLIMITED_MINUTES,
   zoteroCreditIds,
 } from '../../src/ui/zotero-credit-rows';
@@ -84,34 +84,48 @@ const view = (doc: ReturnType<typeof fakeDoc>, tier: 'standard' | 'premium') => 
   };
 };
 
-describe('creditState', () => {
+const PRICES = { cheapest: 10, dearest: 30 };
+
+describe('creditState (issue #140: time left, not credits)', () => {
   it('says nothing without a figure', () => {
-    expect(creditState(null, 1)).toEqual({ kind: 'unknown' });
+    expect(creditState(null, PRICES)).toEqual({ kind: 'unknown' });
   });
 
   it('is none at zero or below', () => {
-    expect(creditState(0, 1)).toEqual({ kind: 'none' });
-    expect(creditState(-3, 10)).toEqual({ kind: 'none' });
+    expect(creditState(0, PRICES)).toEqual({ kind: 'none' });
+    expect(creditState(-3, PRICES)).toEqual({ kind: 'none' });
+  });
+
+  it('is a range of minutes, from the dearest voice’s to the cheapest’s, as zotero.org writes it', () => {
+    expect(creditState(260, PRICES)).toEqual({ kind: 'time', low: 260 / 30, high: 26 });
+    expect(creditState(114, { cheapest: 1, dearest: 1 })).toEqual({ kind: 'time', low: 114, high: 114 });
   });
 
   // Zotero's own player hides a time over 90 days as unlimited
-  // (formatTimeRemaining, reader.js 38417-38421); here at the tier's cheapest voice
-  it('is unlimited past 90 days of minutes at the cheapest price, Zotero’s own line', () => {
+  // (formatTimeRemaining, reader.js 38417-38421)
+  it('is unlimited only when even the dearest voice has more than 90 days', () => {
     expect(UNLIMITED_MINUTES).toBe(60 * 24 * 90);
-    expect(creditState(UNLIMITED_MINUTES, 1)).toEqual({ kind: 'left', credits: UNLIMITED_MINUTES });
-    expect(creditState(UNLIMITED_MINUTES + 1, 1)).toEqual({ kind: 'unlimited' });
-    expect(creditState(UNLIMITED_MINUTES + 1, 10)).toEqual({ kind: 'left', credits: UNLIMITED_MINUTES + 1 });
+    expect(creditState(UNLIMITED_MINUTES * 30, PRICES)).toEqual({ kind: 'time', low: UNLIMITED_MINUTES, high: null });
+    expect(creditState(UNLIMITED_MINUTES * 30 + 1, PRICES)).toEqual({ kind: 'unlimited' });
+    expect(creditState(UNLIMITED_MINUTES + 1, { cheapest: 1, dearest: 1 })).toEqual({ kind: 'unlimited' });
   });
 
-  it('shows the figure when the price is unknown', () => {
-    expect(creditState(10_000_000, null)).toEqual({ kind: 'left', credits: 10_000_000 });
+  it('tops the range out at 90 days when only the cheaper voices pass it', () => {
+    expect(creditState(1_500_000, PRICES)).toEqual({ kind: 'time', low: 50_000, high: null });
+  });
+
+  it('shows the credits figure when no price is known', () => {
+    expect(creditState(10_000_000, { cheapest: null, dearest: null })).toEqual({ kind: 'credits', credits: 10_000_000 });
   });
 });
 
-describe('cheapestPrices', () => {
-  it('takes each tier’s lowest price, null where no voice has one', () => {
-    expect(cheapestPrices(VOICES)).toEqual({ standard: 1, premium: 10 });
-    expect(cheapestPrices([{ id: 'x', label: 'X', locale: 'en-US', tier: 'premium' }])).toEqual({ standard: null, premium: null });
+describe('tierPrices', () => {
+  it('takes each tier’s lowest and highest price, null where no voice has one', () => {
+    expect(tierPrices(VOICES)).toEqual({ standard: { cheapest: 1, dearest: 1 }, premium: { cheapest: 10, dearest: 30 } });
+    expect(tierPrices([{ id: 'x', label: 'X', locale: 'en-US', tier: 'premium' }])).toEqual({
+      standard: { cheapest: null, dearest: null },
+      premium: { cheapest: null, dearest: null },
+    });
   });
 });
 
@@ -119,35 +133,44 @@ describe('readZoteroCredits', () => {
   it('reads both figures and prices, and a failed listing only loses the prices', async () => {
     const d = deps();
     expect(await readZoteroCredits(d.service)).toEqual({
-      standard: { credits: 115, cheapest: 1, state: { kind: 'left', credits: 115 } },
-      premium: { credits: 283, cheapest: 10, state: { kind: 'left', credits: 283 } },
+      standard: { credits: 115, cheapest: 1, dearest: 1, state: { kind: 'time', low: 115, high: 115 } },
+      premium: { credits: 283, cheapest: 10, dearest: 30, state: { kind: 'time', low: 283 / 30, high: 28.3 } },
     });
     d.listVoices.mockRejectedValueOnce(new Error('network'));
     const log = vi.fn();
-    expect((await readZoteroCredits(d.service, log)).premium).toEqual({ credits: 283, cheapest: null, state: { kind: 'left', credits: 283 } });
+    expect((await readZoteroCredits(d.service, log)).premium).toEqual({ credits: 283, cheapest: null, dearest: null, state: { kind: 'credits', credits: 283 } });
     expect(log).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('initZoteroCreditRows (issue #159)', () => {
-  it('shows each tier’s credits with the Add more time link, and no Log in link, while signed in', async () => {
+  it('shows each tier’s time left with the Add more time link, and no Log in link, while signed in', async () => {
     const doc = fakeDoc();
     const d = deps();
     await initZoteroCreditRows(doc, d).refresh();
-    expect(view(doc, 'standard')).toEqual({ row: '115 credits left', none: false, buy: true, logIn: false });
-    expect(view(doc, 'premium')).toEqual({ row: '283 credits left', none: false, buy: true, logIn: false });
+    expect(view(doc, 'standard')).toEqual({ row: '1h 55m left', none: false, buy: true, logIn: false });
+    expect(view(doc, 'premium')).toEqual({ row: '10m – 29m left, depending on voice', none: false, buy: true, logIn: false });
   });
 
-  it('writes the figure as the locale groups numbers', async () => {
+  it('matches zotero.org for the owner’s 114 and 260 credits on 2026-09-29', async () => {
     const doc = fakeDoc();
-    await initZoteroCreditRows(doc, deps({ credits: { standard: 1234, premium: 0 } })).refresh();
+    await initZoteroCreditRows(doc, deps({ credits: { standard: 114, premium: 260 } })).refresh();
+    expect(view(doc, 'standard').row).toBe('1h 54m left');
+    expect(view(doc, 'premium').row).toBe('9m – 26m left, depending on voice');
+  });
+
+  it('shows the credits figure, as the locale groups numbers, when the prices cannot be listed', async () => {
+    const doc = fakeDoc();
+    const d = deps({ credits: { standard: 1234, premium: 283 } });
+    d.listVoices.mockRejectedValueOnce(new Error('network'));
+    await initZoteroCreditRows(doc, d).refresh();
     expect(view(doc, 'standard').row).toBe('1,234 credits left');
   });
 
-  it('marks a tier with nothing left, and keeps its link', async () => {
+  it('marks a tier with nothing left as 0m, and keeps its link', async () => {
     const doc = fakeDoc();
     await initZoteroCreditRows(doc, deps({ credits: { standard: 115, premium: 0 } })).refresh();
-    expect(view(doc, 'premium')).toEqual({ row: 'No credits left', none: true, buy: true, logIn: false });
+    expect(view(doc, 'premium')).toEqual({ row: '0m left', none: true, buy: true, logIn: false });
     expect(view(doc, 'standard').none).toBe(false);
   });
 
@@ -157,11 +180,17 @@ describe('initZoteroCreditRows (issue #159)', () => {
     expect(view(doc, 'standard')).toEqual({ row: 'Unlimited', none: false, buy: false, logIn: false });
   });
 
+  it('tops a range out at 90d+ when only the cheaper voices pass 90 days, and keeps the link', async () => {
+    const doc = fakeDoc();
+    await initZoteroCreditRows(doc, deps({ credits: { standard: 115, premium: 1_500_000 } })).refresh();
+    expect(view(doc, 'premium')).toEqual({ row: '34d 17h 20m – 90d+ left, depending on voice', none: false, buy: true, logIn: false });
+  });
+
   it('hides a tier Zotero gives no figure for', async () => {
     const doc = fakeDoc();
     await initZoteroCreditRows(doc, deps({ credits: { standard: null, premium: 283 } })).refresh();
     expect(view(doc, 'standard').row).toBeNull();
-    expect(view(doc, 'premium').row).toBe('283 credits left');
+    expect(view(doc, 'premium').row).toBe('10m – 29m left, depending on voice');
   });
 
   it('signed out: no credits rows, a Log in link on each switch row, and nothing asked of Zotero', async () => {
@@ -192,7 +221,7 @@ describe('initZoteroCreditRows (issue #159)', () => {
     expect(view(doc, 'standard')).toMatchObject({ row: null, logIn: true });
     d.setSignedIn(true);
     await rows.refresh();
-    expect(view(doc, 'standard')).toMatchObject({ row: '115 credits left', logIn: false });
+    expect(view(doc, 'standard')).toMatchObject({ row: '1h 55m left', logIn: false });
   });
 
   it('hides the rows and logs when the credits cannot be read', async () => {
@@ -218,6 +247,6 @@ describe('initZoteroCreditRows (issue #159)', () => {
     await rows.refresh();
     slow.resolve({ standard: 115, premium: 283 });
     await first;
-    expect(view(doc, 'standard').row).toBe('90 credits left');
+    expect(view(doc, 'standard').row).toBe('1h 30m left');
   });
 });

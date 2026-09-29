@@ -13,7 +13,7 @@ import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsComman
 import { createMacBackend, type MacProcess } from './core/providers/system/mac';
 import { listSystemVoiceRecords, systemUnavailableReason, type SystemProviderDeps } from './core/providers/system';
 import { zoteroVoiceId } from './core/providers/system/voices';
-import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t } from './core/l10n';
+import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t, type L10nArgs } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
 import { audioCacheOn, autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, PREF_PREFIX, ZOTERO_SWITCH_IDS } from './core/settings';
@@ -77,14 +77,14 @@ import { decodeVoiceId, pluginVoiceTier, zoteroTierLabel } from './read-aloud/vo
 import { createProviderTiers, type ProviderTiers } from './read-aloud/provider-tiers';
 import { isInvisibleSegment } from './read-aloud/invisible-text';
 import { createWindowWrapper } from './read-aloud/window-interface';
-import type { ZoteroVoice } from './read-aloud/zotero-voices';
+import { ZOTERO_READ_ALOUD_URL, type ZoteroVoice } from './read-aloud/zotero-voices';
 import {
   createRemoteInterface,
   type NativeRemoteInterface,
   type RemoteInterface,
 } from './read-aloud/remote-interface';
 import { readingTabTitle, defaultMachineName, onPaneLoad, registerPrefsPane, runConnectionCheck, unregisterPrefsPane, zoteroVoiceService } from './ui/prefs-pane';
-import { readZoteroCredits } from './ui/zotero-credit-rows';
+import { creditText, readZoteroCredits } from './ui/zotero-credit-rows';
 import {
   createReadAloudShortcuts,
   deepActiveElement,
@@ -214,8 +214,9 @@ const playerController = createPlayerController({
   manual: manualFollowing,
   anyReading: () => playerStop.open().length > 0,
   affectedTabs: readingImpact.affectedTabs,
-  message: (key, args) => key.startsWith('ztts-time-') ? t(key, args) : playerMessage(key),
+  message: (key, args) => key.startsWith('ztts-time-') ? t(key, args) : playerMessage(key, args),
   remainingTime: reader => engine?.remainingTime(reader) ?? { status: 'estimating', scope: 'document', seconds: null },
+  buyTime: () => Zotero.launchURL(ZOTERO_READ_ALOUD_URL),
 });
 function automaticFollowing(reader: any): boolean {
   return followIntents.get(reader).automatic;
@@ -275,9 +276,10 @@ function playerStrings(): Record<string, string> {
     'unfavorite': t('ztts-player-unfavorite'),
     'retry': t('ztts-player-retry'),
     'buffering': t('ztts-player-buffering'),
+    'addMoreTime': t('ztts-zotero-add-more-time'),
   };
 }
-function playerMessage(key: string): string {
+function playerMessage(key: string, args?: L10nArgs): string {
   const messages: Record<string, string> = {
     'ztts-player-unavailable': t('ztts-player-unavailable'),
     'ztts-player-unavailable-choice': t('ztts-player-unavailable-choice'),
@@ -286,6 +288,9 @@ function playerMessage(key: string): string {
     'ztts-player-quota-error': t('ztts-player-quota-error'),
     'ztts-player-favorite-guard': t('ztts-player-favorite-guard'),
   };
+  // A Zotero voice's two alerts (issue #140); the used-up one names its tier
+  if (key === 'ztts-player-time-used-up') return t('ztts-player-time-used-up', args);
+  if (key === 'ztts-player-daily-limit') return t('ztts-player-daily-limit');
   return messages[key] ?? key;
 }
 
@@ -3053,8 +3058,9 @@ const diagnostics = {
    * account is signed in, and the check Enable runs on each tier, headless
    * — not signed in, no voices, or the voice count. `credits` is what the
    * settings' line under each tier is painted from (issue #159): the
-   * figure, the tier's cheapest price per minute and the state, or the
-   * error; null while signed out, when the pane shows Log in instead.
+   * figure, the tier's cheapest and dearest price per minute, the state
+   * and the line's text (a time left since issue #140), or the error; null
+   * while signed out, when the pane shows Log in instead.
    */
   zoteroTiers: async () => {
     const settings = loadSettings(prefs);
@@ -3063,7 +3069,10 @@ const diagnostics = {
       checks[id] = await runConnectionCheck(prefs, id, providerDeps()).catch((e: unknown) => ({ ok: false, message: String(e) }));
     }
     const credits = Zotero.Sync?.Runner?.enabled
-      ? await readZoteroCredits(zoteroVoiceService()).catch((e: unknown) => ({ error: String(e) }))
+      ? await readZoteroCredits(zoteroVoiceService()).then(
+          (read) => Object.fromEntries(Object.entries(read).map(([tier, line]) => [tier, { ...line, text: creditText(line.state) }])),
+          (e: unknown) => ({ error: String(e) }),
+        )
       : null;
     return JSON.stringify(
       {

@@ -174,8 +174,14 @@ _Avoid_: balance, quota, minutes
 **Time left**:
 How long one Zotero voice can still read on its credits. Two voices paid
 from the same credits can have different time left, since each has its own
-price per minute.
+price per minute; for Zotero Standard or Zotero Premium as a whole it is a
+range, from its dearest voice's to its cheapest's.
 _Avoid_: remaining reading time (the document's), balance
+
+**Daily limit**:
+How much the Zotero voices will read for one account in a day, whatever
+its credits. Reaching it is not running out of credits.
+_Avoid_: quota
 
 ### Zotero's side and the plugin's
 

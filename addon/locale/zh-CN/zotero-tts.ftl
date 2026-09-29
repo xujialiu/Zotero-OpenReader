@@ -89,9 +89,11 @@ ztts-zotero-not-signed-in = 未登录 Zotero 账户。
 ztts-zotero-log-in = 登录
 ztts-zotero-tier-empty = Zotero 没有列出{ $tier }语音。
 ztts-zotero-tier-ok = 已登录：{ $tier }语音 { $count } 个。
+ztts-zotero-time-left = 剩余 { $time }
+ztts-zotero-time-range = 剩余 { $low } – { $high }，视语音而定
+ztts-zotero-time-over = { $time }+
 ztts-zotero-credits-left = 剩余 { $credits } 额度
-ztts-zotero-credits-none = 额度已用完
-ztts-zotero-credits-unlimited = 不限额度
+ztts-zotero-credits-unlimited = 不限
 ztts-zotero-add-more-time = 添加更多时长
 
 # 密钥、网关请求头、WebDAV 密码后面的眼睛：露出内容，便于查看、选中和复制，再点收起。服务启用后变灰，内容一律遮住。
@@ -619,6 +621,8 @@ ztts-player-unavailable-choice = 此声音或语言已不可用，请选择其�
 ztts-player-invalid-value = 不支持所选值。
 ztts-player-playback-error = 播放失败，请检查语音服务连接后重试。
 ztts-player-quota-error = 语音服务已达到使用限制或余额不足。
+ztts-player-time-used-up = { $tier }的剩余时间已用完。
+ztts-player-daily-limit = 已达到 Zotero 语音今天的限额，明天再试，或换一个语音。
 ztts-player-favorite-guard = 此更改会移除正在使用的语音。请先关闭受影响标签页的播放器，再进行更改。
 
 ztts-player-options = 选项

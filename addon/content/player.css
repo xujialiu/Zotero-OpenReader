@@ -73,3 +73,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .layout-B.has-remaining { height: 222px; grid-template-rows: 28px 28px 1fr 16px 26px; }
 .layout-B.collapsed.has-remaining { height: 128px; grid-template-rows: 28px 28px 16px 26px; }
 .layout-B .remaining-time { width: 100%; min-width: 0; justify-content: center; }
+
+/* A Zotero voice's time left, right-aligned after its name; red under 3 minutes (issue #140) */
+.time-left { flex: 0 0 auto; white-space: nowrap; font-variant-numeric: tabular-nums; color: color-mix(in srgb, var(--preview-fg, #303137) 55%, transparent); }
+.time-left.low { color: #d84444; }
+.time-left[hidden] { display: none; }
+.option.has-time { display: flex; align-items: center; gap: 8px; }
+.option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.option.has-time .time-left { margin-left: auto; }
+.buy-time { display: block; margin: 0 10px 8px; padding: 0; color: var(--preview-accent, #356dc2); text-decoration: underline; background: none; }
+.buy-time:hover { background: none; }

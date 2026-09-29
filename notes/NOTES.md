@@ -110,8 +110,9 @@ Verified by reading the unpacked `omni.ja` of both `10.0-beta.26` and
   `popupOpen`, not the popup being drawn, drives activation (83875-83878),
   the PDF view's highlight (76434) and the jump button. It has no sample
   button: picking a voice in it while paused plays one (38585-38593). Its
-  balance, low-balance warning, purchase link and log-in row exist nowhere
-  else in Zotero (#140).
+  time left, low-time warning and purchase link are the Player's since
+  #140 ([2026-09-29](NOTES_2026-09-29.md)); its log-in row was left out
+  on purpose, the settings holding Log in (#159).
 - `manifest.json` → `applications.zotero` needs `id`, `update_url`,
   `strict_max_version`, or Zotero refuses the install with a generic message.
 - **Fluent for plugins** (issue #30, [2026-09-04](NOTES_2026-09-04.md)):
@@ -688,6 +689,7 @@ then) and is in the git history before that day.
 - Two siblings in a centered row are not on one baseline: the links moved into their text's line (issue #159)
 - The global speed became a setting: the copy must come first, and one writer spreads its own (issue #82)
 - Verified live: the global speed travels, and a download during a PUT heals the file back (issue #82)
+- zotero.org writes time left as credits over price, rounded up, and Zotero's two out-of-time errors are distinct words (issue #140)
 
 ### [2026-09-30](NOTES_2026-09-30.md)
 

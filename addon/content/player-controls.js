@@ -1,15 +1,24 @@
 /* The UI receives plain snapshots; only the host adapter can perform actions. */
 let state = { provider: '', locale: '', voice: '', speed: 1, volume: 100, automatic: true, playing: false, active: false, expanded: false,
-  buffering: false, loading: true, error: null, providers: [], locales: [], voices: [], favorites: [] };
+  buffering: false, loading: true, error: null, alert: null, providers: [], locales: [], voices: [], favorites: [] };
 let strings = {};
 let variant = new URLSearchParams(location.search).get('variant') || 'top';
 let popover = null, anchor = null, refreshPopover = null;
+// The alert last seen, so a Zotero voice's used-up or daily-limit popover opens once each time its error comes (issue #140).
+let shownAlert = null;
 const $ = selector => document.querySelector(selector);
-const text = key => strings[key] || ({ play: 'Play', pause: 'Pause', provider: 'Provider', locale: 'Locale', voice: 'Voice', speed: 'Speed', volume: 'Volume', layout: 'Layout', options: 'Options', previousParagraph: 'Skip to Previous Paragraph', previousSentence: 'Skip to Previous Sentence', nextSentence: 'Skip to Next Sentence', nextParagraph: 'Skip to Next Paragraph', automatic: 'Automatic scroll', manual: 'Manual scroll', bottom: 'Bottom bar', floating: 'Floating panel', top: 'Top bar', search: 'Search', empty: 'No matches', loading: 'Loading voices…', 'no-voices': 'No voices available', favorite: 'Favorite', unfavorite: 'Unfavorite', retry: 'Retry', buffering: 'Buffering…' }[key] || key);
+const text = key => strings[key] || ({ play: 'Play', pause: 'Pause', provider: 'Provider', locale: 'Locale', voice: 'Voice', speed: 'Speed', volume: 'Volume', layout: 'Layout', options: 'Options', previousParagraph: 'Skip to Previous Paragraph', previousSentence: 'Skip to Previous Sentence', nextSentence: 'Skip to Next Sentence', nextParagraph: 'Skip to Next Paragraph', automatic: 'Automatic scroll', manual: 'Manual scroll', bottom: 'Bottom bar', floating: 'Floating panel', top: 'Top bar', search: 'Search', empty: 'No matches', loading: 'Loading voices…', 'no-voices': 'No voices available', favorite: 'Favorite', unfavorite: 'Unfavorite', retry: 'Retry', buffering: 'Buffering…', addMoreTime: 'Add more time' }[key] || key);
 const formatSpeed = value => Number(value).toFixed(2) + '×';
 const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const choices = key => state[key === 'provider' ? 'providers' : key === 'locale' ? 'locales' : 'voices'];
 const selectedLabel = key => choices(key).find(option => option.value === state[key])?.label || text(key);
+const selectedTime = () => state.voices.find(option => option.value === state.voice && option.time) || null;
+/** A Zotero voice's time left, gray, red under 3 minutes (issue #140); null for any other voice. */
+function timeLeft(option) {
+  if (!option?.time) return null;
+  const span = document.createElement('span'); span.className = 'time-left' + (option.low ? ' low' : ''); span.textContent = option.time;
+  return span;
+}
 function send(action, value) { window.zttsCommand?.(action, value); }
 function notifyHeight() { window.zttsResizePreview?.(variant === 'B' ? ($('.player')?.getBoundingClientRect().height || 108) : popover ? 460 : 34); }
 function closePopover(resize = true) {
@@ -18,7 +27,7 @@ function closePopover(resize = true) {
   if (resize) notifyHeight();
 }
 function field(key) {
-  return `<div class="field ${key === 'voice' ? 'voice' : ''}"><button class="picker" data-pick="${key}" aria-haspopup="dialog" aria-expanded="false"><span class="value">${escapeHTML(selectedLabel(key))}</span><span class="chevron" aria-hidden="true"></span></button></div>`;
+  return `<div class="field ${key === 'voice' ? 'voice' : ''}"><button class="picker" data-pick="${key}" aria-haspopup="dialog" aria-expanded="false"><span class="value">${escapeHTML(selectedLabel(key))}</span>${key === 'voice' ? '<span class="time-left" hidden></span>' : ''}<span class="chevron" aria-hidden="true"></span></button></div>`;
 }
 const layoutControl = `<button class="adjust layout-menu" aria-haspopup="dialog" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1" stroke="currentColor" stroke-width="1.25"/><path d="M3 7h14M3 13h14" stroke="currentColor" stroke-width="1.25"/></svg></button>`;
 const remainingControl = '<div class="remaining-time" hidden></div>';
@@ -86,6 +95,11 @@ function updateControls() {
     const button = document.querySelector(`[data-pick="${key}"]`);
     button.querySelector('.value').textContent = selectedLabel(key);
     button.title = `${text(key)}: ${selectedLabel(key)}`;
+    if (key === 'voice') {
+      const option = selectedTime(), time = button.querySelector('.time-left');
+      time.hidden = !option; time.textContent = option?.time || ''; time.classList.toggle('low', !!option?.low);
+      if (option) button.title += ` · ${option.time}`;
+    }
     button.setAttribute('aria-label', button.title);
     button.disabled = choices(key).length === 0;
   }
@@ -105,6 +119,9 @@ function updateControls() {
   status.textContent = state.error ? '!' : '…';
   status.title = state.error || text(state.loading ? 'loading' : 'no-voices');
   status.setAttribute('aria-label', status.title);
+  const alert = state.alert?.kind || null;
+  if (alert && alert !== shownAlert && !status.hidden) { closePopover(false); openStatus(status); }
+  shownAlert = alert;
 }
 let placing = false;
 function place() {
@@ -174,7 +191,12 @@ function openPicker(button, key) {
         heart.onclick = () => send('favorite', value.value); row.append(heart);
       }
       const option = document.createElement('button'); option.className = 'option' + (state[key] === value.value ? ' chosen' : '');
-      option.textContent = value.label; option.title = value.label; option.onclick = () => { closePopover(); send(key, value.value); button.focus({ preventScroll: true }); };
+      const time = timeLeft(value);
+      if (time) {
+        const label = document.createElement('span'); label.className = 'option-label'; label.textContent = value.label;
+        option.classList.add('has-time'); option.append(label, time); option.title = `${value.label} · ${value.time}`;
+      } else { option.textContent = value.label; option.title = value.label; }
+      option.onclick = () => { closePopover(); send(key, value.value); button.focus({ preventScroll: true }); };
       row.append(option); list.append(row);
     }
     if (!values.length) { const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = text('empty'); list.append(empty); }
@@ -210,8 +232,13 @@ function openLayoutMenu(button) {
 function openStatus(button) {
   if (!createPopover(button, 'Zotero-TTS')) return;
   const message = document.createElement('div'); message.className = 'error-message';
-  message.textContent = state.error || text(state.loading ? 'loading' : 'no-voices'); popover.append(message);
-  if (state.error || (!state.loading && !state.voices.length)) { const retry = document.createElement('button'); retry.className = 'retry'; retry.textContent = text('retry'); retry.onclick = () => { closePopover(); send('retry'); }; popover.append(retry); }
+  message.textContent = state.alert?.message || state.error || text(state.loading ? 'loading' : 'no-voices'); popover.append(message);
+  if (state.alert?.buy) {
+    const buy = document.createElement('button'); buy.className = 'buy-time'; buy.textContent = text('addMoreTime');
+    buy.onclick = () => { closePopover(); send('buy-time'); }; popover.append(buy);
+  }
+  // Retrying cannot help a used-up or daily-limit error: no Retry for either.
+  if (!state.alert && (state.error || (!state.loading && !state.voices.length))) { const retry = document.createElement('button'); retry.className = 'retry'; retry.textContent = text('retry'); retry.onclick = () => { closePopover(); send('retry'); }; popover.append(retry); }
   place();
 }
 function makeDraggable(handle) {

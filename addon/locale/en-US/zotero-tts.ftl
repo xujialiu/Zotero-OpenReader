@@ -96,9 +96,15 @@ ztts-zotero-not-signed-in = Not signed in to a Zotero account.
 ztts-zotero-log-in = Log in
 ztts-zotero-tier-empty = Zotero lists no { $tier } voices.
 ztts-zotero-tier-ok = Signed in: { $count } { $tier } voices.
-# The line under each tier's name (issue #159): the account's credits for it, never minutes
+# The line under each tier's name (issues #159, #140): the time left, as zotero.org writes it.
+# A tier's voices cost different amounts a minute, so its time is a range from the dearest
+# voice's to the cheapest's; $time, $low and $high are Zotero's own short form (1h 54m).
+ztts-zotero-time-left = { $time } left
+ztts-zotero-time-range = { $low } – { $high } left, depending on voice
+# The top of a range past Zotero's 90 days: $time is 90d
+ztts-zotero-time-over = { $time }+
+# With no price listed the credits figure stands in
 ztts-zotero-credits-left = { $credits } credits left
-ztts-zotero-credits-none = No credits left
 ztts-zotero-credits-unlimited = Unlimited
 # Zotero's own words for its link to zotero.org/settings/readaloud
 ztts-zotero-add-more-time = Add more time
@@ -679,6 +685,9 @@ ztts-player-unavailable-choice = This voice or language is no longer available. 
 ztts-player-invalid-value = The selected value is not supported.
 ztts-player-playback-error = Playback failed. Check your provider connection and try again.
 ztts-player-quota-error = The provider has reached its limit or has insufficient credits.
+# A Zotero voice's two errors, which open by themselves (issue #140); $tier is Zotero Standard or Zotero Premium
+ztts-player-time-used-up = The time left on { $tier } is used up.
+ztts-player-daily-limit = You have reached today's limit for the Zotero voices. Try again tomorrow, or choose another voice.
 ztts-player-favorite-guard = This change would remove a voice in use. Close the player in the affected tabs before changing it.
 
 ztts-player-options = Options
