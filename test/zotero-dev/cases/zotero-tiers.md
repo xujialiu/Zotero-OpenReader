@@ -38,9 +38,8 @@ values below were derived from `src/` and corrected by the first run
 
 1. **The section.** Settings → Zotero-TTS: the groupbox
    `ztts-zotero-section` is the last provider section, right after
-   `ztts-provider-mimo` (since #113) and before the voice browser, its `h2` `Zotero`
-   (plain text, no link); a `description[data-l10n-id="ztts-zotero-note"]`
-   with a `?` (`ztts-help-zotero`); then per tier a caption reading
+   `ztts-provider-mimo` (since #113) and before the voice browser, its `h2` `Zotero Read Aloud`
+   (plain text, no link) with a `?` (`ztts-help-zotero`) beside it; then per tier a caption reading
    `Standard` / `Premium` (zh-CN `标准` / `高级`), its credits row
    (`cases/zotero-credits.md`, #159), and the hbox
    `ztts-provider-zotero-standard` / `ztts-provider-zotero-premium` holding

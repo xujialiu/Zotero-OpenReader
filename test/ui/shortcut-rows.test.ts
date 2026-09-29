@@ -290,7 +290,7 @@ describe('addon/content/preferences.xhtml', () => {
     }
   });
 
-  // What a key does outside a Read Aloud session is the one thing its row
+  // What a key does while no player is open is the one thing its row
   // cannot show: a ? at the end of the row says it on hover, where a
   // paragraph under the rows once did. The speed keys work in every state
   // and get none.
@@ -303,7 +303,7 @@ describe('addon/content/preferences.xhtml', () => {
     const help = /<label class="ztts-help" value="\?" data-l10n-id="([^"]+)" data-l10n-attrs="help"\/>/;
     const helpOf = (action: string) => englishAttribute(rowOf(action).match(help)?.[1] ?? '', 'help');
     for (const action of [...NAVIGATION_ACTIONS, 'returnToSpoken', 'toggleOptions']) {
-      expect(helpOf(action), action).toMatch(/only while Read Aloud is open/);
+      expect(helpOf(action), action).toMatch(/only while the player is open/);
     }
     expect(helpOf('startFromSelection')).toMatch(/every state/);
     for (const action of SPEED_ACTIONS) expect(rowOf(action), action).not.toMatch(help);

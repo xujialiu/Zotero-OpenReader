@@ -74,7 +74,7 @@ is built for the way its author reads —
 | **Xiaomi MiMo** | An API key from platform.xiaomimimo.com | Free for a limited time | sentence |
 | **OpenAI Compatible** | The address of any server that speaks OpenAI's API, and a key if it wants one: a self-hosted [Chatterbox](tutorials/chatterbox-tts-server.md), a hosted service, a proxy of OpenAI | The server's own price; self-hosted servers are free | sentence |
 | **System voices** | Nothing — Windows and macOS | Free, offline | word on Windows, sentence on macOS |
-| **Zotero Standard / Premium** | A Zotero account signed in under Edit → Settings → Account; a switch each in the **Zotero** section, both on to begin with | Zotero's own credits, bought on zotero.org | word |
+| **Zotero Standard / Premium** | A Zotero account signed in under Edit → Settings → Account; a switch each in the **Zotero Read Aloud** section, both on to begin with | Zotero's own credits, bought on zotero.org | word |
 
 The player's first dropdown lists every enabled provider that has voices
 right now, and Zotero's own **Zotero Standard** and **Zotero Premium**
@@ -102,10 +102,10 @@ while their switches are on, sorted by name.
 - **Enable**, at the end of every provider section, runs the connection
   check first: a provider that does not answer never switches on.
 - **Zotero's own Standard and Premium** have a switch each in the
-  **Zotero** section, both on to begin with. Switch one off and that tier
-  leaves the player's first dropdown, the voice browser and the language
-  list; nothing Zotero remembers is lost, and switching it back on brings
-  its last voice back. They need a Zotero account: signed out, their
+  **Zotero Read Aloud** section, both on to begin with. Switch one off and
+  that tier leaves the player's first dropdown, the voice browser and the
+  language list; nothing Zotero remembers is lost, and switching it back on
+  brings its last voice back. They need a Zotero account: signed out, their
   Enable is greyed, with the reason and a **Log in** link beside it;
   signed in, Enable checks that Zotero lists voices in that tier, and Test
   connection reports the voices.

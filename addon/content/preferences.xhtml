@@ -110,15 +110,12 @@
       <label data-l10n-id="ztts-heading-fish-sources" class="ztts-field-label" style="font-weight: normal"/>
       <hbox align="center">
         <checkbox id="ztts-fish-include-official" data-l10n-id="ztts-fish-include-official" data-l10n-attrs="label"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-official" data-l10n-attrs="help"/>
       </hbox>
       <hbox align="center" style="margin-inline-start: 8px">
         <checkbox id="ztts-fish-include-own" data-l10n-id="ztts-fish-include-own" data-l10n-attrs="label"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-own" data-l10n-attrs="help"/>
       </hbox>
       <hbox align="center" style="margin-inline-start: 8px">
         <checkbox id="ztts-fish-include-manual" data-l10n-id="ztts-fish-include-manual" data-l10n-attrs="label"/>
-        <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-include-manual" data-l10n-attrs="help"/>
       </hbox>
     </hbox>
     <hbox align="center">
@@ -263,16 +260,13 @@
   <!-- The operating system's own voices, synthesized by the plugin through a
        helper process on Windows and through `say` on macOS, so they are
        ordinary plugin voices (issues #12, #23). No fields: there is no key
-       and no address. The note is written once per platform and
-       ui/platform-class.ts shows the one for this platform. Zotero's own
+       and no address. What each platform gives is in the heading's ?,
+       beside it on the heading's line. Zotero's own
        copies of the same voices are never listed beside these: the reader
        drops them either way (read-aloud/system-voices.ts, issue #17). -->
   <groupbox id="ztts-provider-system">
-    <label><html:h2 data-l10n-id="ztts-heading-system-voices"/></label>
-    <hbox align="center">
-      <description id="ztts-system-note-win" data-ztts-platform="win" data-l10n-id="ztts-system-note-win"/>
-      <description id="ztts-system-note-mac" data-ztts-platform="mac" data-l10n-id="ztts-system-note-mac"/>
-      <description id="ztts-system-note-other" data-ztts-platform="other" data-l10n-id="ztts-system-note-other"/>
+    <hbox align="baseline">
+      <label><html:h2 data-l10n-id="ztts-heading-system-voices"/></label>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-system-voices" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
@@ -319,9 +313,8 @@
        carrying the toolkit's 1px/2px block margins and the link none. No
        whitespace between span and link; the gap is the stylesheet's. -->
   <groupbox id="ztts-zotero-section">
-    <label><html:h2>Zotero</html:h2></label>
-    <hbox align="center">
-      <description data-l10n-id="ztts-zotero-note"/>
+    <hbox align="baseline">
+      <label><html:h2>Zotero Read Aloud</html:h2></label>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-zotero" data-l10n-attrs="help"/>
     </hbox>
     <label class="ztts-caption" data-l10n-id="ztts-zotero-standard"/>
@@ -384,6 +377,7 @@
     </html:div>
     <hbox align="center">
       <description id="ztts-voices-status"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-default-voice" data-l10n-attrs="help"/>
     </hbox>
   </groupbox>
 
@@ -399,7 +393,6 @@
                 preference="extensions.zotero.zotero-tts.readAloud.remainingTime"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-remaining-time" data-l10n-attrs="help"/>
     </hbox>
-    <description data-l10n-id="ztts-document-voice-help"/>
     <!-- Off, Zotero keeps a speed per document language and the voice
          browser's slider drives the samples only (read-aloud/default-speed.ts) -->
     <hbox align="center">

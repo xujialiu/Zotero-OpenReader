@@ -27,12 +27,10 @@ owner's profile is signed in; items 5-6 sign out by the same stand-in as
 diagnostic, not from here.
 
 1. **The section's shape.** Settings → Zotero-TTS, `#ztts-zotero-section`,
-   in document order: the `h2` `Zotero`; a row with
-   `description[data-l10n-id="ztts-zotero-note"]` reading `Zotero's own
-   voices; they need a Zotero account signed in.` (zh-CN `Zotero
-   自带的语音，需要登录 Zotero 账户。`) on **one line** (its rect's height
-   under two line heights) and its `?` right after it (gap 4 px, as after
-   any description); then per tier, Standard first: a
+   in document order: an hbox holding the `h2` `Zotero Read Aloud` (in
+   every locale) and its `?` (`ztts-help-zotero`) right after it on the
+   heading's line, with no note line under it; then per tier, Standard
+   first: a
    `label.ztts-caption` reading `Standard` / `Premium` (computed
    `font-weight` 600); `description#ztts-zotero-credits-row-<tier>`
    holding `span#ztts-zotero-credits-<tier>` and, as its next sibling,

@@ -132,8 +132,7 @@ describe('addon/content/preferences.xhtml', () => {
   it('explains both settings with a ?, and says they are one feature', () => {
     const helpOf = (row: string) => englishAttribute(row.match(/<label class="ztts-help"[^>]*data-l10n-id="([^"]+)"/)?.[1] ?? '', 'help') ?? '';
     const prefetch = helpOf(rowOf(`preference="${PREFETCH}"`));
-    expect(prefetch).toMatch(/3 ahead on its own/);
-    expect(prefetch).toMatch(/stays on while this is on/);
+    expect(prefetch).toMatch(/billed anyway/);
 
     const cache = helpOf(rowOf(`preference="${CACHE}"`));
     expect(cache).toMatch(/emptied when Zotero restarts/);

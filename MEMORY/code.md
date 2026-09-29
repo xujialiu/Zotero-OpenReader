@@ -65,6 +65,13 @@ assets/             README media (the word-highlight GIF, popup and settings scr
   is the first thing the next fix rewrites. Background goes to the README,
   the mechanism to `notes/NOTES.md` (issue #18 is the shape: a `?` that
   read like a changelog of the plugin's internals).
+- **A `?` is at most two sentences** (settled 2026-09-29): what the
+  setting gives the user, and the cost or limit they will meet — billing,
+  a platform, when it takes effect. Not the label said again, not the
+  edge cases, not an "Off: …" the label already implies, not a key's
+  default the row already shows. A `?` that would only repeat its label
+  is not added; a standalone explanatory line in the pane becomes the `?`
+  of the row it explains.
 
 ## Zotero pitfalls that have already cost a round-trip
 
