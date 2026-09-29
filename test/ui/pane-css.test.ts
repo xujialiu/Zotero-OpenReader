@@ -116,3 +116,16 @@ describe('the ? icons (issue #53)', () => {
     expect(help?.declarations).toMatch(/flex-shrink:\s*0\b/);
   });
 });
+
+/**
+ * The Zotero section's two links follow a line of text in their row — the
+ * credits, and the not-signed-in reason — and a description and a label
+ * both end at their text in Zotero's pane: measured live on 1.16.2-beta5,
+ * the Log in link started 0 px after the reason (issue #159).
+ */
+describe('the Zotero section’s links (issue #159)', () => {
+  it('stand apart from the text before them', () => {
+    const rule = rulesOf(sheet).find((r) => /#ztts-zotero-section/.test(r.selector) && /description\s*\+\s*label\[is="zotero-text-link"\]/.test(r.selector));
+    expect(rule?.declarations).toMatch(/margin-inline-start:\s*6px/);
+  });
+});

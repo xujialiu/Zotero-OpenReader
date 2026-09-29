@@ -38,7 +38,8 @@ diagnostic, not from here.
    `description#ztts-zotero-credits-<tier>` and
    `label#ztts-zotero-buy-<tier>` (a `zotero-text-link`, text `Add more
    time`, zh-CN `添加更多时长`, `href`
-   `https://www.zotero.org/settings/readaloud`); then
+   `https://www.zotero.org/settings/readaloud`, starting 6 px after the
+   credits text's right edge); then
    `hbox#ztts-provider-zotero-<tier>` holding Enable, Test connection,
    `description#ztts-test-result-zotero-<tier>` and
    `label#ztts-zotero-log-in-<tier>` (`hidden` while signed in). The two
@@ -68,11 +69,14 @@ diagnostic, not from here.
    fire `Zotero.Notifier.trigger('modify', 'api-key', [])` → both credits
    rows `hidden`; both Log in links shown, text `Log in` (zh-CN `登录`);
    both result lines `Not signed in to a Zotero account.` (zh-CN `未登录
-   Zotero 账户。`), each Log in link on its result's row, starting at
-   or after the result text's right edge, vertically centered with it
-   within 1 px. `diagnostics.zoteroTiers()` → `signedIn: false`,
+   Zotero 账户。`), each Log in link on its result's row, starting 6 px
+   after the result text's right edge (0 px on 1.16.2-beta5: the text
+   touched the link), vertically centered with it within 2 px (1.5
+   measured). `diagnostics.zoteroTiers()` → `signedIn: false`,
    `credits: null`. Click Standard's **Log in** → within 2 s the
-   settings window's selected pane is `zotero-prefpane-account`
+   settings window's selected pane is `zotero-prefpane-account` — read
+   `win.Zotero_Preferences.navigation.value`, the `#prefs-navigation`
+   richlistbox `navigateToPane` sets (`preferences.js` 125-130)
    (Zotero's own navigation; the owner's API key is still stored, so the
    Account pane does not start a sign-in: `_handlePendingAction` asks
    `getAPIKey()`, not `hasCredentials`). Navigate back to the Zotero-TTS
@@ -93,7 +97,10 @@ diagnostic, not from here.
    minutes). Assign the kept `getAPIClient` back and click Test
    connection again → item 2's texts, both links shown.
 
-What it may touch: `zotero-tts.zotero-premium.enabled` (back to `true`),
+What it may touch: `zotero-tts.zotero-standard.enabled` and
+`zotero-tts.zotero-premium.enabled` (back to their values before the run:
+the owner's profile had both off on 2026-09-29, so a run turns them on
+first and off again at the end),
 `Zotero.Sync.Data.Local.hasCredentials` and
 `Zotero.Sync.Runner.getAPIClient` (each kept and assigned back), two
 `api-key` notifications, the settings window's selected pane (back to

@@ -38,7 +38,7 @@ values below were derived from `src/` and corrected by the first run
 
 1. **The section.** Settings → Zotero-TTS: the groupbox
    `ztts-zotero-section` is the last provider section, right after
-   `ztts-provider-system` and before the voice browser, its `h2` `Zotero`
+   `ztts-provider-mimo` (since #113) and before the voice browser, its `h2` `Zotero`
    (plain text, no link); a `description[data-l10n-id="ztts-zotero-note"]`
    with a `?` (`ztts-help-zotero`); then per tier a caption reading
    `Standard` / `Premium` (zh-CN `标准` / `高级`), its credits row
@@ -48,9 +48,10 @@ values below were derived from `src/` and corrected by the first run
    `zotero-tts.zotero-<tier>.enabled` is `true` (both by default) and
    `Enable` when it is `false`, a button `ztts-test-zotero-<tier>` `Test
    connection`, and a `description#ztts-test-result-zotero-<tier>`. The
-   pane's groupboxes stand Azure · Cloudflare Workers AI · Fish Audio ·
-   Fish Speech · Kokoro-FastAPI · OpenAI · Speechify · System voices ·
-   Zotero (#112), 17 groupboxes in all with the eight that follow.
+   pane's provider groupboxes stand Azure · Cloudflare Workers AI · Fish
+   Audio · Fish Speech · Kokoro-FastAPI · OpenAI · OpenAI Compatible ·
+   Speechify · System voices · Xiaomi MiMo · Zotero (#112, #113); the pane
+   holds 21 groupboxes in all (counted live on 1.16.2-beta5).
 2. **The check, headless.** `Zotero.ZoteroTTS.diagnostics.zoteroTiers()`
    (async) → `feature: "zotero-tiers"`, `switches: { "zotero-standard":
    true, "zotero-premium": true }`, `hidden: []`, `signedIn: true` (the
