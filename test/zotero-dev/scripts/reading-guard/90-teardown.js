@@ -14,7 +14,8 @@ return (async () => {
     const type = p.getPrefType(rec.key), user = p.prefHasUserValue(rec.key); let value = null;
     try { value = type === p.PREF_BOOL ? p.getBoolPref(rec.key) : type === p.PREF_INT ? p.getIntPref(rec.key) : type === p.PREF_STRING ? p.getStringPref(rec.key) : null; } catch {}
     const equal = user === rec.user && value === rec.value;
-    const secret = /headers|memory|Voices|favoriteVoices/i.test(rec.key);
+    // Identity and secret keys are reported as presence/length only, never a value
+    const secret = /headers|memory|Voices|favoriteVoices|webdav\.(url|username|password|machineId|syncState)$/i.test(rec.key);
     return secret ? { user, equal, present: typeof value === 'string' ? value.length > 0 : value !== null, chars: typeof value === 'string' ? value.length : null } : { user, equal, value };
   };
   const fixtures = state.fixtures || [], baseline = state.baseline?.prefs || {};
@@ -53,6 +54,13 @@ return (async () => {
     // settings and fixture data are gone.
     for (const rec of Object.values(baseline)) if (/webdav\.(syncPositions|autoUploadSettings|syncSettings)$/.test(rec.key)) { try { restore(rec); } catch (e) { out.restore.push({ key: rec.key, error: String(e) }); } }
     await sleep(800);
+    // Restoring the switches re-fires the sync observers, which rewrite the
+    // sync-state bookkeeping over the restore above (measured 2026-09-30, r48g:
+    // same length, different content). Write it back once the switches are at
+    // their baseline values; nothing rewrites it after that.
+    const syncStateRec = Object.values(baseline).find(x => x.key === prefix + 'webdav.syncState');
+    if (syncStateRec) { try { restore(syncStateRec); } catch (e) { out.restore.push({ key: syncStateRec.key, error: String(e) }); }
+      await sleep(1500); }
 
     const prefAudit = {}; let prefMismatch = 0;
     for (const rec of Object.values(baseline)) { const row = readCurrent(rec); prefAudit[rec.key] = row; if (!row.equal) prefMismatch++; }

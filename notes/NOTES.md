@@ -692,3 +692,4 @@ then) and is in the git history before that day.
 ### [2026-09-30](NOTES_2026-09-30.md)
 
 - The guard's Close and continue closes by handle, and Enable never counted for much (issue #160)
+- Verified live: Close and continue closes the listed tab only, and Enable never asks (issue #160)
