@@ -29,8 +29,8 @@ import {
  * alone; a malformed one is treated as absent and healed by the next upload;
  * failures are reported once per window and retried at the next poke. The
  * pokes are the plugin's (startup, reader open and close, shutdown, the pane,
- * an import) plus the two the spec adds in 6.8: quiet after a pause, and
- * once before a resume.
+ * an import) plus the two the spec adds in 6.8: at once on a pause or a
+ * player close, and once before a resume.
  *
  * `prepare` runs once before the first sync: the upgrade's backfill of
  * Document Ids for attachments that already had a position, so the first

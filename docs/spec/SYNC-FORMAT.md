@@ -314,9 +314,11 @@ attribution only; the merge never compares it.
 ### 6.8 When each product syncs (informative)
 
 The plugin: startup, a reader opening, a tab closing, shutdown, a permanent
-deletion, the pane opening, a manual import, and, from 1.13.2, ten quiet
-seconds after Read Aloud pauses or the player closes, and once before a resume
-(bounded at two seconds). OpenReader: launch, return to foreground, opening a
+deletion, the pane opening, a manual import, Read Aloud pausing or the player
+closing (at once from 1.16.3; from 1.13.2 until then, ten quiet seconds
+after), and once before a resume (bounded at two seconds). A pause is seen
+within half a second, so the file holds the desktop's sentence one GET and
+one PUT later. OpenReader: launch, return to foreground, opening a
 book, adding a book, pause or stop (at once), leaving the reader, entering the
 background, and once before Play while paused (bounded at two seconds); never
 on a timer while reading.
@@ -370,3 +372,8 @@ playing nothing moves.
   made and says a locator outside the grammar of 6.4 is usable; 6.7 says an
   item whose stamp does not validate loses the merge. Plugin 1.14.4,
   OpenReader's next build. No change to any file's shape.
+- **2026-09-30** — 6.8: the plugin syncs at once when Read Aloud pauses or
+  the player closes, as OpenReader does, instead of ten quiet seconds after
+  (plugin 1.16.3, issue #161): a phone picked up within those ten seconds
+  read the file before the desktop's sentence reached it, and reading on
+  there stamped the older place newer. No change to any file's shape.

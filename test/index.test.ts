@@ -119,10 +119,10 @@ class Localization {
 const ADDON_UPGRADE = 7;
 let running: any = null;
 
-/** A fresh bundle, started as Zotero starts it, with `readers` open. */
-async function start(readers: unknown[]) {
+/** A fresh bundle, started as Zotero starts it, with `readers` open; `setup` adds prefs and Zotero members. */
+async function start(readers: unknown[], setup: { prefs?: Record<string, unknown>; zotero?: Record<string, unknown> } = {}) {
   vi.resetModules();
-  const prefs = new Map<string, unknown>();
+  const prefs = new Map<string, unknown>(Object.entries(setup.prefs ?? {}));
   const listeners: string[] = [];
   const errors: unknown[] = [];
   const Zotero = stub({
@@ -142,6 +142,7 @@ async function start(readers: unknown[]) {
     logError: (e: unknown) => void errors.push(e),
     debug: () => {},
     locale: 'en-US',
+    ...setup.zotero,
   });
   Object.assign(globalThis, {
     Zotero,
@@ -207,5 +208,71 @@ describe('startup with a reader whose window is gone (issue #143)', () => {
       const rows = JSON.parse(diagnostics[name]());
       expect({ name, rows: rows.length, gone: rows[0] }).toEqual({ name, rows: 2, gone: { gone: true } });
     }
+  });
+});
+
+describe('a pause sends both positions files up at once (issue #161)', () => {
+  const FOLDER = 'https://dav.test/positions/';
+  const FILES = ['zotero-tts-positions.json', 'xujialiu-positions.json'];
+
+  /** A WebDAV folder in memory: GET answers what the last PUT left, or 404; every request is logged with the clock. */
+  function davFolder() {
+    const files = new Map<string, string>();
+    const log: { method: string; name: string; at: number }[] = [];
+    const fetch = async (target: string, init: { method: string; body?: string }) => {
+      const name = target.slice(FOLDER.length);
+      log.push({ method: init.method, name, at: Date.now() });
+      if (init.method === 'PUT') {
+        files.set(name, init.body ?? '');
+        return new Response(null, { status: 201 });
+      }
+      const text = files.get(name);
+      return text === undefined ? new Response(null, { status: 404 }) : new Response(text, { status: 200 });
+    };
+    return { fetch, log };
+  }
+
+  /** A PDF reader with an open Read Aloud session, speaking, at a sentence of page 1. */
+  function speakingReader() {
+    const manager = { active: true, paused: false };
+    const internal = { _readAloudManager: manager, _state: { readAloudState: { savedPosition: { pageIndex: 0, rects: [[10, 20, 30, 40]] } } } };
+    const reader = readerInstance({ _item: { id: 5 }, _internalReader: internal, _type: 'pdf' });
+    return { reader, manager };
+  }
+
+  const realFetch = globalThis.fetch;
+  afterEach(async () => {
+    await running?.shutdown(ADDON_UPGRADE);
+    running = null;
+    vi.useRealTimers();
+    globalThis.fetch = realFetch;
+  });
+
+  it('requests both files within one sampler tick of the pause, not after a quiet period', async () => {
+    vi.useFakeTimers();
+    const dav = davFolder();
+    globalThis.fetch = dav.fetch as never;
+    const item = { id: 5, libraryID: 1, key: 'PAUSE001', attachmentContentType: 'application/pdf' };
+    const { reader, manager } = speakingReader();
+    const { diagnostics } = await start([reader], {
+      prefs: {
+        'extensions.zotero.zotero-tts.webdav.url': FOLDER,
+        'extensions.zotero.zotero-tts.webdav.syncPositions': true,
+      },
+      zotero: {
+        Items: stub({ get: (id: number) => (id === 5 ? item : null), getIDFromLibraryAndKey: (lib: number, key: string) => (lib === 1 && key === item.key ? 5 : false) }),
+        Libraries: stub({ exists: (lib: number) => lib === 1, userLibraryID: 1 }),
+      },
+    });
+    // The startup syncs settle and the sampler records the sentence being spoken
+    await vi.advanceTimersByTimeAsync(5000);
+    const sync = JSON.parse(diagnostics.positionSync());
+    expect({ native: sync.transport.lastOutcome, shared: sync.shared.transport.lastOutcome, rows: sync.localEntries }).toEqual({ native: 'ok', shared: 'ok', rows: 1 });
+
+    manager.paused = true;
+    const pausedAt = Date.now();
+    await vi.advanceTimersByTimeAsync(1000);
+    const after = dav.log.filter((request) => request.at >= pausedAt && FILES.includes(request.name));
+    expect(FILES.map((name) => after.some((request) => request.method === 'GET' && request.name === name))).toEqual([true, true]);
   });
 });

@@ -82,10 +82,15 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
 
 ### 7
 
-7. **A pause syncs after ten quiet seconds.** Read Aloud playing; pause:
-   within 10–13 s the log shows `position sync (pause)` and `shared
-   position sync (pause)`, and both transports' `lastTrigger` are `pause`.
-   Two pauses within ten seconds produce one pair.
+7. **A pause syncs at once.** Read Aloud playing; pause: within about
+   2 s (the sampler's half-second tick plus one round trip) the log shows
+   `position sync (pause)` and `shared position sync (pause)`, and both
+   transports' `lastTrigger` are `pause`. Two pauses 3 s apart produce two
+   pairs, each within about 2 s of its pause. Until 1.16.3 a quiet period
+   held both files back ten seconds and folded the two pauses into one
+   pair (issue #161); the numbers in the kit's `19-pause-timing.js` row are
+   from then. Not yet run live since the change: the owner waived the live
+   verification of #161.
 
 ### 8
 

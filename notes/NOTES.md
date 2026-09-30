@@ -693,3 +693,4 @@ then) and is in the git history before that day.
 
 - The guard's Close and continue closes by handle, and Enable never counted for much (issue #160)
 - Verified live: Close and continue closes the listed tab only, and Enable never asks (issue #160)
+- A pause sends both positions files up at once: the ten quiet seconds handed the phone its own old place (issue #161)

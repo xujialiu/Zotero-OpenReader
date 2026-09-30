@@ -96,8 +96,8 @@ export interface PositionSyncDeps {
   recordedShared?(attachment: Attachment, capture: SharedCapture, ts: number): void;
   /**
    * A Read Aloud session on some reader went from speaking to paused, or
-   * from open to closed (spec 6.8: the desktop syncs ten quiet seconds after
-   * a pause). Called once per pass that saw such a transition.
+   * from open to closed (spec 6.8: the desktop syncs at once on a pause,
+   * issue #161). Called once per pass that saw such a transition.
    */
   onPauseOrStop?(): void;
   setTimeout(fn: () => void, ms: number): unknown;

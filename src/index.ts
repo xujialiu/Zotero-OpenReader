@@ -140,8 +140,6 @@ let positionTransport: PositionTransport | null = null;
 /** The Positions File's side (docs/spec/SYNC-FORMAT.md, section 6): the Document Ids and the shared items this machine holds, and their transport. */
 let documentPositions: DocumentPositions | null = null;
 let sharedTransport: SharedTransport | null = null;
-/** The quiet period after a pause or a player close before both positions files go up (spec 6.8). */
-let pauseSyncTimer: unknown = null;
 /** The syncPositions checkbox's observer token, so flipping it on syncs at once. */
 let syncSwitchObserver: unknown = null;
 /** Keeps this machine's settings file on the server fresh (#41, core/settings-autoupload.ts). */
@@ -1310,9 +1308,6 @@ const STORE_SHUTDOWN_TIMEOUT_MS = 3000;
 /** Bounds the shutdown push of the positions file: one GET and one PUT on a healthy network; on a dead one the push is lost and the next machine's sync carries on without it. */
 const SYNC_SHUTDOWN_TIMEOUT_MS = 8000;
 
-/** Ten quiet seconds after Read Aloud pauses or the player closes, both positions files go up (docs/spec/SYNC-FORMAT.md 6.8). */
-const PAUSE_SYNC_QUIET_MS = 10_000;
-
 /** How long a resume waits for the pull that precedes it before going on with what this machine holds (spec 6.8). */
 const RESUME_PULL_MS = 2000;
 
@@ -1391,24 +1386,16 @@ async function identifyAttachment(lib: number, key: string): Promise<string | nu
   return documentId;
 }
 
-/** A pause or a player close (position-sync.ts): both files go up once the quiet period has passed, a burst of pauses coalescing into one. */
-function schedulePauseSync(): void {
-  cancelPauseSync();
-  pauseSyncTimer = setTimeout(() => {
-    pauseSyncTimer = null;
-    positionTransport?.poke('pause');
-    sharedTransport?.poke('pause');
-  }, PAUSE_SYNC_QUIET_MS);
-}
-
-function cancelPauseSync(): void {
-  if (pauseSyncTimer === null) return;
-  try {
-    clearTimeout(pauseSyncTimer as never);
-  } catch {
-    // A dead timer host at shutdown
-  }
-  pauseSyncTimer = null;
+/**
+ * A pause or a player close (position-sync.ts): both files go up at once
+ * (spec 6.8), as OpenReader's do, so a phone picked up right after the pause
+ * finds the sentence this machine stopped at (issue #161). No quiet period:
+ * the transports' single flight already folds a burst of pauses into the run
+ * in flight plus one trailing run, and an unchanged file costs a GET.
+ */
+function syncAfterPause(): void {
+  positionTransport?.poke('pause');
+  sharedTransport?.poke('pause');
 }
 
 /** Whether a pull may bring a Positions File item for this attachment: an EPUB, with the switch on and the transport up. */
@@ -1717,10 +1704,10 @@ async function startPositionTracking(): Promise<void> {
     managerOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_internalReader', '_readAloudManager'),
     savedPositionOf: (reader: any) => liveReaderValue(reader, value => Components.utils.isDeadWrapper(value), '_internalReader', '_state', 'readAloudState', 'savedPosition'),
     // The Positions File's half of every sentence (spec 6.4, 6.5), and the
-    // pause that sends both files up after the quiet period (spec 6.8)
+    // pause that sends both files up at once (spec 6.8)
     sharedCaptureOf: readSharedCapture,
     recordedShared: (attachment, capture, ts) => positions.recorded(attachment.lib, attachment.key, capture, ts),
-    onPauseOrStop: schedulePauseSync,
+    onPauseOrStop: syncAfterPause,
     setTimeout: (fn, ms) => setTimeout(fn, ms),
     clearTimeout: (handle: any) => clearTimeout(handle),
     now: () => Date.now(),
@@ -1814,7 +1801,6 @@ async function stopPositionTracking(): Promise<void> {
     }
     syncSwitchObserver = null;
   }
-  cancelPauseSync();
   const transport = positionTransport;
   positionTransport = null;
   const sharedFlush = sharedTransport;
