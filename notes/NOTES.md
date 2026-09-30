@@ -698,3 +698,4 @@ then) and is in the git history before that day.
 ### [2026-10-01](NOTES_2026-10-01.md)
 
 - A pending switch let the old voice ask for sentences the new voice would read, and a jump called it off (issue #163)
+- Verified live, and the start from a selection still called the switch off (issue #163)

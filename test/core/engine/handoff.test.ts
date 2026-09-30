@@ -53,7 +53,8 @@ function setup(options: { newTimings?: boolean; settings?: PauseSettings; texts?
       commit: () => {
         commits.push(target.id);
         // The manager's selection rebuilds its controller onto the new voice: a carry-on
-        expect(session.bind({ voice: target, segments: list, backwardStopIndex: session.position, forwardStopIndex: null })).toBe('carried-on');
+        // over the segments it holds now, which a rebuild may have replaced
+        expect(session.bind({ voice: target, segments: session.segments!, backwardStopIndex: session.position, forwardStopIndex: null })).toBe('carried-on');
         session.setPaused(session.paused);
       },
       valid: () => valid,
@@ -405,6 +406,92 @@ describe('Handoff: the old voice asks for nothing new (issue #163)', () => {
     expect(t.report).toMatchObject({ stage: 'waiting', waitedAt: 4 });
     expect(t.fetch.of(alloy.id)).toHaveLength(before);
     expect(t.notices).toEqual(['preparing']);
+  });
+
+  it('the same sentences rebuilt after the controller’s end keep the switch (Zotero’s restart from a selection)', async () => {
+    const t = setup({ newTimings: false, texts: LONG });
+    t.fetch.holding = (v) => v.id === nova.id;
+    t.session.setPaused(false);
+    await t.clock.advance(10);
+    const before = t.fetch.of(alloy.id).length;
+    const handoff = t.prepare()!;
+    await t.clock.advance(130);
+    // clearSegments: the manager destroys its controller, and the Engine ends the session
+    t.session.end({ park: true });
+    expect(t.audio.current).toBeUndefined();
+    // setSegments a microtask later: the same texts, new objects, the selection's index
+    const rebuilt = segments(...LONG);
+    expect(t.session.bind({ voice: alloy, segments: rebuilt, backwardStopIndex: 4, forwardStopIndex: null })).toBe('started');
+    t.session.setPaused(false);
+    expect(t.session.handoff).toBe(handoff);
+    expect(handoff.pending).toBe(true);
+    await t.clock.advance(0);
+    expect(t.report).toMatchObject({ stage: 'waiting', waitedAt: 4 });
+    expect(t.fetch.of(alloy.id)).toHaveLength(before);
+    t.fetch.respond(TEXT);
+    await t.clock.advance(25);
+    t.fetch.respond('Eleven twelve.');
+    await t.clock.advance(1);
+    expect(playing(t).at(-1)).toEqual(['nova:Eleven twelve.', 0]);
+    expect(t.report.last).toMatchObject({ kind: 'sentence', index: 4 });
+    expect(t.session.segments).toBe(rebuilt);
+    expect(t.notices).toEqual(['preparing', 'selected']);
+  });
+
+  it('other sentences after the end call the switch off, and the old voice starts afresh', async () => {
+    const t = setup({ newTimings: false, texts: LONG });
+    t.fetch.holding = (v) => v.id === nova.id;
+    t.session.setPaused(false);
+    await t.clock.advance(10);
+    t.prepare();
+    await t.clock.advance(130);
+    const store = t.session.store;
+    t.session.end({ park: true });
+    t.session.bind({ voice: alloy, segments: segments('Something else.', ...LONG.slice(1)), backwardStopIndex: 0, forwardStopIndex: null });
+    expect(t.notices).toEqual(['preparing', 'cancelled']);
+    expect(t.session.handoff).toBe(null);
+    expect(t.session.store).not.toBe(store);
+    expect(store?.closed).toBe(true);
+  });
+
+  it('an end no bind follows calls the switch off at its next look', async () => {
+    const t = setup({ newTimings: false, texts: LONG });
+    t.fetch.holding = (v) => v.id === nova.id;
+    t.session.setPaused(false);
+    await t.clock.advance(10);
+    t.prepare();
+    await t.clock.advance(130);
+    t.session.end({ park: true });
+    expect(t.notices).toEqual(['preparing']);
+    await t.clock.advance(25);
+    expect(t.notices).toEqual(['preparing', 'cancelled']);
+    // A bind after that starts afresh
+    t.session.bind({ voice: alloy, segments: segments(...LONG), backwardStopIndex: 0, forwardStopIndex: null });
+    expect(t.session.handoff).toBe(null);
+  });
+
+  it('an end of the session for good calls the switch off at once', async () => {
+    const t = setup({ newTimings: false, texts: LONG });
+    t.session.setPaused(false);
+    await t.clock.advance(10);
+    t.prepare();
+    await t.clock.advance(130);
+    t.session.end();
+    expect(t.notices).toEqual(['preparing', 'cancelled']);
+  });
+
+  it('the same sentences rebuilt while the session is live keep the switch too', async () => {
+    const t = setup({ newTimings: false, texts: LONG });
+    t.fetch.holding = (v) => v.id === nova.id;
+    t.session.setPaused(false);
+    await t.clock.advance(10);
+    const handoff = t.prepare()!;
+    await t.clock.advance(130);
+    expect(t.session.bind({ voice: alloy, segments: segments(...LONG), backwardStopIndex: 2, forwardStopIndex: null })).toBe('started');
+    t.session.setPaused(false);
+    expect(t.session.handoff).toBe(handoff);
+    await t.clock.advance(0);
+    expect(playing(t).at(-1)).toEqual(['alloy:Six seven eight.', 0]);
   });
 
   it('a jump with no switch pending starts afresh, as before', async () => {

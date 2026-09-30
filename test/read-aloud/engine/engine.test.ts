@@ -282,6 +282,48 @@ describe('the Engine behind Zotero 10.0.3’s manager', () => {
     t.engine.dispose();
   });
 
+  it('keeps a pending switch across Zotero’s restart from a selection: clearSegments, then the same sentences rebuilt (#163)', async () => {
+    const t = await setup({ attachFirst: true });
+    const notices: string[] = [];
+    const pick = createVoicePick({ engine: t.engine, notice: (_r, kind) => notices.push(kind), error: (e) => t.errors.push(e), newAbortController: () => new AbortController() });
+    pick.attach(t.reader);
+    const answer = t.source.getAudio.getMockImplementation()!;
+    t.source.getAudio.mockImplementation((segment, voice, options) =>
+      voice.id === NOVA && !options?.held ? new Promise(() => {}) : answer(segment, voice, options),
+    );
+    t.open(0);
+    await t.clock.advance(10);
+    const asked = () => t.source.getAudio.mock.calls.filter(([, voice, options]) => voice.id === ALLOY && !options?.held).length;
+    expect(asked()).toBe(4);
+    t.manager.pause();
+    t.manager.selectVoice(NOVA);
+    await t.clock.advance(200);
+    expect(pick.inspect(t.reader)?.pending).toBe(NOVA);
+    const handoff = t.engine.session(t.reader)!.handoff;
+    const stats = { ...t.engine.inspect(t.reader).stats! };
+    // Play with a selection target: Zotero clears the segments and rebuilds them from the selection (reader.js 83880-83885, 84048-84073)
+    t.manager.play();
+    t.manager.clearSegments();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(t.engine.session(t.reader)!.ended).toBe(true);
+    const rebuilt = TEXTS.map((text, i) => ({ text, anchor: i === 0 ? 'paragraphStart' : null }));
+    t.manager.setSegments(rebuilt, 2, null);
+    await t.clock.advance(0);
+    const session = t.engine.session(t.reader)!;
+    expect(session.handoff).toBe(handoff);
+    expect(session.handoff?.pending).toBe(true);
+    expect(notices).toEqual(['preparing']);
+    expect(t.manager.selectedVoiceID).toBe(ALLOY);
+    expect(t.manager.activeSegment).toBe(rebuilt[2]);
+    expect(session.isPlaying).toBe(true);
+    expect(t.engine.inspect(t.reader).stats).toMatchObject({ started: stats.started + 1, ended: stats.ended + 1, fallbacks: 0 });
+    expect(asked()).toBe(4);
+    expect(t.errors).toEqual([]);
+    pick.dispose();
+    t.engine.dispose();
+  });
+
   it('answers whether the plugin prefetch may ask for a voice: the one reading, with no switch pending (#163)', async () => {
     const t = await setup({ attachFirst: true });
     expect(t.engine.mayPrefetch(t.reader, ALLOY)).toBe(true);

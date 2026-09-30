@@ -17,7 +17,7 @@
  * Play then starts the sentence over with the new voice (issue #110).
  *
  * While a switch is pending, the manager's calls that call it off —
- * deactivate, a speed change, new segments, the memory re-applied —
+ * deactivate, a speed change, the memory re-applied —
  * cancel it first; and its `pause` and `play` go through the Handoff,
  * which decides where the new voice starts on Play. A skip or a jump keeps
  * it: the Engine applies the switch's rule where the reading lands
@@ -71,7 +71,12 @@ export interface VoicePick {
 }
 
 /** The manager's calls that call a pending switch off, before they run. */
-const CANCELLING = ['deactivate', 'applyPersistedVoices', 'setSpeed', 'clearSegments'];
+/**
+ * Not `clearSegments`: Zotero's restart from a selection clears the segments
+ * and rebuilds the same sentences, and the Engine keeps the switch over it
+ * (session.ts `bind`, issue #163); segments that change call it off there.
+ */
+const CANCELLING = ['deactivate', 'applyPersistedVoices', 'setSpeed'];
 
 /** The manager fields a dry-run resolution may move, put back after it. */
 const CHOICE_FIELDS = ['_voiceID', '_lang', '_region', '_selectedTier', '_persistedVoices', '_pendingSetVoice'] as const;

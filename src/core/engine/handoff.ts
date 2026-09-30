@@ -16,8 +16,10 @@
  * Meanwhile the old voice asks for nothing new (issue #163): it reads only
  * the audio it already has (session.ts, clips.ts `held`), and at the first
  * sentence it has none for the reading waits for the new voice, which
- * takes that sentence from its start (`waitAt`). A skip or a jump keeps
- * the switch and applies the same rule where it lands (`moved`): the new
+ * takes that sentence from its start (`waitAt`). A skip, a jump, or the
+ * same sentences rebuilt (Zotero's restart from a selection, session.ts
+ * `bind`) keeps the switch and applies the same rule where it lands
+ * (`moved`): the new
  * voice's audio for that sentence first, else the old voice's, else a wait
  * for the new voice. The manager is told of the new voice only once that
  * voice's audio is in hand, so a switch that fails or is called off while
@@ -112,7 +114,7 @@ export interface HandoffOptions {
 export class Handoff<Clip extends EngineClip> {
   readonly ready = new Set<number>();
   readonly store: ClipStore<Clip>;
-  private readonly segments: ArrayLike<EngineSegment>;
+  private segments: ArrayLike<EngineSegment>;
   private readonly originalVoice: string;
   private readonly rate: number;
   private readonly started: number;
@@ -388,6 +390,12 @@ export class Handoff<Clip extends EngineClip> {
   }
 
   // ---- At a skip or a jump --------------------------------------------------
+
+  /** The same sentences, rebuilt as new objects (session.ts `bind`): the prepared clips stay, by index. */
+  rebase(segments: ArrayLike<EngineSegment>): void {
+    this.segments = segments;
+    this.store.rebase(segments);
+  }
 
   /** A skip or a jump moved the reading (issue #163): the preparation starts over where it landed. */
   moved(): void {

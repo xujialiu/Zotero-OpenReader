@@ -8,8 +8,12 @@
  * voice already playing, or a handoff's switch, rebuilds the controller
  * (#75, #95) and the sentence carries on. A rebuild the manager was told to
  * make somewhere — a jump, new segments, another voice — starts afresh, as
- * a new controller of Read Aloud's does; only a jump while a voice switch
- * is pending moves the run instead, keeping the switch (issue #163).
+ * a new controller of Read Aloud's does; only a jump, or the same sentences
+ * rebuilt, while a voice switch is pending moves the run instead, keeping
+ * the switch (issue #163). Zotero's restart from a selection is the latter:
+ * `clearSegments` ends the session, and the same sentences come back as new
+ * objects a microtask later (reader.js 83880-83885, 84048-84073), so an end
+ * the manager's teardown causes parks a pending switch for that bind.
  *
  * Everything else is Read Aloud's engine, `RemoteReadAloudController` and
  * its bases (reader.js 39296-39512, 39906-40403), line for line where the
@@ -174,6 +178,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   private awaitingHandoff: number | null = null;
   /** A skip or a jump landed, and the sentence there has not started since. */
   private landed = false;
+  /** A pending switch and the old voice's clips, kept over an end for a bind of the same sentences (issue #163). */
+  private parked: { handoff: Handoff<Clip>; store: ClipStore<Clip> } | null = null;
 
   /** The last pause between sentences waited, and how many: what proves the pane's settings reached the gap (issue #44). */
   lastGap: { ms: number; paragraph: boolean; speed: number; at: number } | null = null;
@@ -197,21 +203,42 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
    * the manager says. Answers which it did.
    */
   bind(request: BindRequest): 'carried-on' | 'started' {
-    const same = !this.ended && this.voice !== null && this.segments === request.segments && this.voice.id === request.voice.id;
-    if (same && !request.jump) {
+    const sameVoice = this.voice !== null && this.voice.id === request.voice.id;
+    if (!this.ended && sameVoice && this.segments === request.segments && !request.jump) {
       // A carry-on keeps the run's own start for the end-of-document rewind
       this.voice = request.voice;
       this.carriedOn = true;
       return 'carried-on';
     }
-    if (same && this.handoff?.pending) {
-      // A jump keeps a pending switch and what the old voice has (issue #163)
+    const kept = this.keptSwitch(request, sameVoice);
+    if (kept) {
+      // A jump, or the same sentences rebuilt, keeps a pending switch and what the old voice has (issue #163)
+      this.store = kept.store;
+      this.handoff = kept.handoff;
+      if (request.segments !== this.segments) {
+        kept.store.rebase(request.segments);
+        kept.handoff.rebase(request.segments);
+      }
       this.reset(request);
-      this.handoff.moved();
+      kept.handoff.moved();
       return 'started';
     }
     this.start(request);
     return 'started';
+  }
+
+  /** The pending switch a bind keeps: the live one, or the one an end parked, when the voice and the sentences' texts are the same. */
+  private keptSwitch(request: BindRequest, sameVoice: boolean): { handoff: Handoff<Clip>; store: ClipStore<Clip> } | null {
+    const parked = this.parked;
+    this.parked = null;
+    const live = !this.ended && this.handoff?.pending && this.store ? { handoff: this.handoff, store: this.store } : null;
+    const candidate = live ?? (parked?.handoff.pending ? parked : null);
+    if (candidate && sameVoice && sameTexts(this.segments, request.segments)) return candidate;
+    if (parked) {
+      parked.handoff.cancel();
+      parked.store.close();
+    }
+    return null;
   }
 
   private start(request: BindRequest): void {
@@ -266,9 +293,21 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.ended = false;
   }
 
-  /** The manager destroyed its controller and asked for no other: stop everything, fetch nothing more. */
-  end(): void {
+  /**
+   * The manager destroyed its controller and asked for no other: stop
+   * everything, fetch nothing more. With `park`, a pending switch and the
+   * old voice's clips are kept for a bind of the same sentences that may
+   * follow at once (Zotero's restart from a selection, issue #163); one no
+   * bind takes back is called off at its next look.
+   */
+  end(options: { park?: boolean } = {}): void {
     this.awaitingHandoff = null;
+    this.dropParked();
+    if (options.park && this.handoff?.pending && this.store) {
+      this.parked = { handoff: this.handoff, store: this.store };
+      this.handoff = null;
+      this.store = null;
+    }
     this.handoff?.cancel();
     this.generation++;
     this.ended = true;
@@ -464,6 +503,14 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   /** A skip or a jump landed on the sentence at the position, which has not started since: its start is a fresh one. */
   get landing(): boolean {
     return this.landed;
+  }
+
+  private dropParked(): void {
+    const parked = this.parked;
+    this.parked = null;
+    if (!parked) return;
+    parked.handoff.cancel();
+    parked.store.close();
   }
 
   private swapVoice(voice: EngineVoice, store: ClipStore<Clip>): void {
@@ -1016,4 +1063,13 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   get skipPending(): boolean {
     return this.skipTimer !== null;
   }
+}
+
+/** Whether two runs of segments read the same texts in the same order: the same sentences, whatever objects carry them. */
+function sameTexts(a: ArrayLike<EngineSegment> | null, b: ArrayLike<EngineSegment>): boolean {
+  if (!a) return false;
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i]?.text !== b[i]?.text) return false;
+  return true;
 }

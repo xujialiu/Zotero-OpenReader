@@ -117,6 +117,12 @@ export class ClipStore<Clip extends EngineClip> {
     return this.clips.get(index);
   }
 
+  /** The same sentences, rebuilt as new objects (session.ts `bind`, issue #163): the clips stay, by index. */
+  rebase(segments: ArrayLike<EngineSegment>): void {
+    this.deps.segments = segments;
+    this.timeModel = null;
+  }
+
   /** Stop keeping anything; answers on their way are decoded no more. */
   close(): void {
     this.closed = true;

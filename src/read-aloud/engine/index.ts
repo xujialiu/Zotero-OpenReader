@@ -324,13 +324,18 @@ export function createEngine(deps: EngineDeps): Engine {
     return controller;
   }
 
-  /** The manager destroyed a controller: unless another follows in this task, the session ends. */
+  /**
+   * The manager destroyed a controller: unless another follows in this
+   * task, the session ends — parking a pending voice switch, which the
+   * same sentences rebuilt right after take back (Zotero's restart from a
+   * selection, issue #163). A decoded clip plays in the next context too.
+   */
   function destroyed(tab: Tab, controller: EngineController): void {
     if (tab.controller !== controller) return;
     tab.controller = null;
     microtask(() => {
       if (tab.controller !== null || tab.session.ended) return;
-      tab.session.end();
+      tab.session.end({ park: true });
       tab.audio.close();
       tab.stats.ended++;
     });

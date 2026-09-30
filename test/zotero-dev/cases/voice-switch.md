@@ -179,7 +179,10 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
     `voiceSwitch()` `handoff.pending` is B, `stage: preparing`,
     `oldRequests: 0`. Count A's requests in a fetch log beside
     `engine()` `store.requests` (the store is A's while the switch is
-    pending) and `store.lookups`.
+    pending) and `store.lookups`. The plugin's audio cache is keyed by
+    text for the life of the Zotero process: a row that needs a sentence
+    the old voice lacks needs sentences neither voice has read, so each
+    such attempt imports fresh text (the kit's fixtures).
     - **Reading on.** A reads only what it has: `store.requests` flat and
       no new A synthesis line in the debug output; a prefetch chain
       running at the pick logs `prefetch: <provider>: stopped, the voice
@@ -195,9 +198,17 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
     - **A skip to a sentence A lacks** (`Shift+→` past the read-ahead):
       `stage: waiting`, `waitedAt` the target, no A request; B reads it
       from offset 0. Repeat with one of the player's skip buttons.
-    - **A jump** (a selection in a later paragraph, trusted
-      `Shift+Space`): `stats.started` up one, no `cancelled` notice,
-      `handoff.pending` still B, and the same rule where it lands.
+    - **A jump.** Two paths, each with no `cancelled` notice,
+      `handoff.pending` still B afterwards, and the same rule where it
+      lands. *Start from a selection*: with a session open `Shift+Space`
+      is Play/Pause, so pause, pick B, select text in a later paragraph,
+      then trusted `Shift+Space` — Zotero clears the segments and rebuilds
+      the same sentences from the selection (reader.js 83880-83885): the
+      session ends (`stats.ended` +1) and starts at the selection
+      (`stats.started` +1) with the switch kept, `session.position` the
+      selection's sentence. *`repositionTo`* (a jump on the same segments,
+      as Play at a newer position from another device takes):
+      `stats.started` +1 and nothing ended.
     - **Both have it**: with B's next sentence in `handoff.prepared`
       (paused, as in #154's prepared row), `→` then Play reads it in B
       with no second request.
@@ -206,8 +217,10 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
       in B from offset 0.
     - **Failure and speed while waiting**: a B request that fails (a
       fixture error) reports `failed`, and A then asks for the sentence
-      and reads it (`oldRequests: 1`); a speed change reports `cancelled`
-      and does the same at the new speed.
+      and reads it; a speed change reports `cancelled` and does the same
+      at the new speed. `oldRequests` counts until the switch ends, so it
+      reads 0 on both; A's one request shows as `engine()`
+      `store.requests` +1, before its read-ahead adds more.
 
     Only a human can hear whether any A sound slips out after the pick.
     Replaces #154's check, where a skip took the switch at once
