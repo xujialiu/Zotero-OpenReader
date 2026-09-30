@@ -88,6 +88,31 @@ describe('createPlayerStop', () => {
     expect(stop.open()).toEqual([older]);
   });
 
+  // The reading guard's Close and continue (issue #160): one listed tab at a time
+  it("close(reader) closes that one player the button's way and leaves the others open", () => {
+    const listed = fakeReader({ popupOpen: true, active: true });
+    const other = fakeReader({ popupOpen: true, active: true });
+    const stop = createPlayerStop({ readers: () => [listed, other] });
+    expect(stop.close(listed)).toBe(true);
+    expect(listed._internalReader.toggleReadAloudPopup).toHaveBeenCalledWith(false);
+    expect(isPlayerOpen(listed)).toBe(false);
+    expect(other._internalReader.toggleReadAloudPopup).not.toHaveBeenCalled();
+    expect(stop.open()).toEqual([other]);
+  });
+
+  it('close(reader) does not touch a player already closed, and answers false for one that throws or has no close', () => {
+    const log = vi.fn();
+    const closed = fakeReader();
+    const dead = fakeReader({ popupOpen: true, active: true }, { closeThrows: true });
+    const older = fakeReader({ popupOpen: true }, { noClose: true });
+    const stop = createPlayerStop({ readers: () => [closed, dead, older], log });
+    expect(stop.close(closed)).toBe(false);
+    expect(closed._internalReader.toggleReadAloudPopup).not.toHaveBeenCalled();
+    expect(stop.close(dead)).toBe(false);
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(stop.close(older)).toBe(false);
+  });
+
   it('closes nothing and returns nothing with no player open, and with no readers', () => {
     const closed = fakeReader();
     expect(createPlayerStop({ readers: () => [closed] }).stopAll()).toEqual([]);

@@ -3111,7 +3111,7 @@ const diagnostics = {
    * Zotero says signed out (issue #130).
    */
   liveVoiceList: () => JSON.stringify((Zotero.Reader._readers ?? []).map((r: any) => liveVoiceList?.inspect(r) ?? null)),
-  readingImpact: (changes: FlatSettings | string = {}) => JSON.stringify({ sessions: readingImpact.sessions(), affected: readingImpact.affectedTabs(typeof changes === 'string' ? JSON.parse(changes) : changes) }),
+  readingImpact: (changes: FlatSettings | string = {}) => JSON.stringify({ sessions: readingImpact.sessions().map(({ reader: _reader, ...session }) => session), affected: readingImpact.affectedTabs(typeof changes === 'string' ? JSON.parse(changes) : changes) }),
   playerVoiceList: () => JSON.stringify(readerRows((r) => playerVoiceList?.inspect(r) ?? null), null, 1),
   /**
    * The undo logs of the modules that shadow a reader-side prototype
@@ -3901,6 +3901,16 @@ Zotero.ZoteroTTS = {
       pluginPlayer?.initSettings(doc);
       return onPaneLoad(doc, {
         affectedTabs: readingImpact.affectedTabs,
+        // Each affected tab with the close of its own player, the headphone
+        // button's: the guard's Close and continue closes exactly the tabs
+        // it listed (issue #160)
+        affectedPlayers: (changes) =>
+          readingImpact.affectedSessions(changes).map((session) => ({
+            title: session.title,
+            close: () => {
+              playerStop.close(session.reader);
+            },
+          })),
         // A rewrite of Zotero's voices pref that is not a pick must not be learned as one
         applySilently: (fn) => (readAloudMemory ? readAloudMemory.applySilently(fn) : fn()),
         // The speech helper is one process for the whole of Zotero, so the

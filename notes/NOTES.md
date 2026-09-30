@@ -688,3 +688,7 @@ then) and is in the git history before that day.
 - Two siblings in a centered row are not on one baseline: the links moved into their text's line (issue #159)
 - The global speed became a setting: the copy must come first, and one writer spreads its own (issue #82)
 - Verified live: the global speed travels, and a download during a PUT heals the file back (issue #82)
+
+### [2026-09-30](NOTES_2026-09-30.md)
+
+- The guard's Close and continue closes by handle, and Enable never counted for much (issue #160)

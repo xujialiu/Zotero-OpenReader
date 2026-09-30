@@ -44,7 +44,7 @@ import { initFishVoiceSources } from './fish-voice-sources';
 import { initVoiceListSwitches } from './voice-list-switches';
 import { GLOBAL_SPEED_OBSERVER } from '../read-aloud/default-speed';
 import { SAME_VOICE_OBSERVER } from '../read-aloud/default-voice';
-import { askPaneQuestion, showPaneNotice } from './reading-guard';
+import { askPaneQuestion, showPaneNotice, type AffectedTab } from './reading-guard';
 import { createPlayerStop } from '../read-aloud/player-stop';
 import { resolveReaderTheme, type ResolvedReaderTheme } from '../core/reader-theme';
 
@@ -338,7 +338,8 @@ function currentReaderTheme(win: any): ResolvedReaderTheme {
 /**
  * Every player that is open, in every window — a popup on screen, or a
  * session open behind it, paused included (read-aloud/player-stop.ts):
- * what the reading guard asks about, and what its Stop button closes.
+ * what the reading guard counts when the running plugin hands it no
+ * impact check.
  */
 const playerStop = createPlayerStop<any>({ readers: () => Zotero.Reader._readers ?? [], log: (e) => Zotero.logError(e) });
 
@@ -361,13 +362,13 @@ export function readingTabTitle(reader: any): string {
 
 /**
  * The OS prompt's version of the reading guard's question, where the
- * pane's own dialog cannot be shown: the Stop label on the first button,
+ * pane's own dialog cannot be shown: the Close label on the first button,
  * Cancel on the second and the default, so Enter cancels there too.
  */
-function confirmStop(win: any, message: string): boolean {
+function confirmClose(win: any, message: string): boolean {
   const ps = Services.prompt;
   const flags = ps.BUTTON_POS_0 * ps.BUTTON_TITLE_IS_STRING + ps.BUTTON_POS_1 * ps.BUTTON_TITLE_CANCEL + ps.BUTTON_POS_1_DEFAULT;
-  return ps.confirmEx(win, 'Zotero-TTS', message, flags, t('ztts-stop-and-continue'), null, null, null, { value: false }) === 0;
+  return ps.confirmEx(win, 'Zotero-TTS', message, flags, t('ztts-close-and-continue'), null, null, null, { value: false }) === 0;
 }
 
 /**
@@ -472,6 +473,8 @@ async function adoptSystemVoices(prefs: PrefsBackend, deps: ProviderDeps, hooks:
 /** What the pane needs from the plugin's running state (src/index.ts hands it over). */
 export interface PaneHooks {
   affectedTabs?(changes: FlatSettings): string[];
+  /** The same tabs with the close of each one's player, for the guard's Close and continue (issue #160). */
+  affectedPlayers?(changes: FlatSettings): AffectedTab[];
 
   /**
    * What the running plugin builds providers with (src/index.ts). It carries
@@ -545,15 +548,16 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   });
 
   const win = doc.defaultView;
-  // The shared impact check names only the affected sessions. The notice
+  // The shared impact check names only the affected sessions, and its
+  // Close and continue closes exactly those (issue #160). The notice
   // belongs to this pane, so it follows the pane's theme on every platform.
   const readingGuard = {
     affectedTabs: hooks.affectedTabs,
+    affectedPlayers: hooks.affectedPlayers,
     readingTabs: () => playerStop.open().map(readingTabTitle),
     warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'Zotero-TTS', text)),
-    askToStop: (message: string) =>
-      askPaneQuestion(doc, message, { confirm: t('ztts-stop-and-continue'), cancel: t('ztts-cancel') }, (text) => confirmStop(win, text)),
-    stopReading: () => playerStop.stopAll().map(readingTabTitle),
+    askToClose: (message: string) =>
+      askPaneQuestion(doc, message, { confirm: t('ztts-close-and-continue'), cancel: t('ztts-cancel') }, (text) => confirmClose(win, text)),
   };
   const bracketRows = initBracketRows(doc, {
     prefs,

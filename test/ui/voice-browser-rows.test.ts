@@ -159,8 +159,8 @@ function setup(
     /** The first column as the pane hands it over; absent, the providers that listed and Zotero's two. */
     tierColumns?: TierColumn[];
     /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
-    askToStop?: (message: string) => Promise<boolean>;
-    stopReading?: () => string[];
+    /** The guard's question (issue #160); with it the reading tabs come with a close each, which takes the tab off `readingTabs`. */
+    askToClose?: (message: string) => Promise<boolean>;
   } = {},
 ) {
   const els = new Map((Object.values(VOICE_BROWSER_IDS) as string[]).map((id) => [id, new FakeElement()]));
@@ -224,8 +224,15 @@ function setup(
     readingTabs: vi.fn(() => options.readingTabs ?? []),
     warn: vi.fn((_message: string) => {}),
     ...(options.tierColumns ? { tierColumns: vi.fn(() => options.tierColumns!) } : {}),
-    ...(options.askToStop ? { askToStop: vi.fn(options.askToStop) } : {}),
-    ...(options.stopReading ? { stopReading: vi.fn(options.stopReading) } : {}),
+    ...(options.askToClose
+      ? {
+          askToClose: vi.fn(options.askToClose),
+          affectedPlayers: () => {
+            const reading = options.readingTabs ?? [];
+            return reading.map((title) => ({ title, close: () => void reading.splice(reading.indexOf(title), 1) }));
+          },
+        }
+      : {}),
   } satisfies VoiceBrowserDeps;
   const rows = initVoiceBrowserRows(doc, deps);
   const el = (id: string) => els.get(id)!;
@@ -1556,28 +1563,27 @@ describe('marking a favorite while a tab is reading', () => {
     expect(t.deps.warn).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
   });
 
-  // Issue #71: the dialog's Stop closes the players, and the mark follows
-  it('goes through once the user stops the reading, the heart marked', async () => {
+  // Issue #160: Close and continue closes the listed players, and the mark follows
+  it('goes through once the user closes the listed players, the heart marked', async () => {
     const reading = ['Deep learning'];
-    const stopReading = vi.fn(() => reading.splice(0));
-    const t = setup({ favoritesOnly: true, readingTabs: reading, askToStop: async () => true, stopReading });
+    const t = setup({ favoritesOnly: true, readingTabs: reading, askToClose: async () => true });
     await t.rows.load();
     await t.pickLocale('Chinese');
     await t.heart(0).fire('click');
-    expect(t.deps.askToStop).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
-    expect(stopReading).toHaveBeenCalledTimes(1);
+    expect(t.deps.askToClose).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(reading).toEqual([]);
     expect(parseFavoriteVoices(t.prefs.store[FAVORITES_PREF])).toEqual([xiaoxiao]);
     expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
     expect(t.deps.warn).not.toHaveBeenCalled();
   });
 
   it('is refused on Cancel, no player touched', async () => {
-    const stopReading = vi.fn(() => []);
-    const t = setup({ favoritesOnly: true, readingTabs: ['Deep learning'], askToStop: async () => false, stopReading });
+    const reading = ['Deep learning'];
+    const t = setup({ favoritesOnly: true, readingTabs: reading, askToClose: async () => false });
     await t.rows.load();
     await t.pickLocale('Chinese');
     await t.heart(0).fire('click');
-    expect(stopReading).not.toHaveBeenCalled();
+    expect(reading).toEqual(['Deep learning']);
     expect(t.prefs.store[FAVORITES_PREF]).toBeUndefined();
     expect(t.heart(0).textContent).toBe(GLYPHS.notFavorite);
     expect(t.deps.warn).not.toHaveBeenCalled();

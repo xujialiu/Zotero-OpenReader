@@ -31,8 +31,8 @@ function setup(
     reading?: string[];
     watch?: boolean;
     unmarkedDefault?: () => string | null;
-    askToStop?: (message: string) => Promise<boolean>;
-    stopReading?: () => string[];
+    /** The guard's question (issue #160); with it the reading tabs come with a close each, which takes the tab off `reading`. */
+    askToClose?: (message: string) => Promise<boolean>;
   } = {},
 ) {
   const boxes = new Map(VOICE_LIST_SWITCHES.map((s) => [s.id, new FakeCheckbox()]));
@@ -40,12 +40,17 @@ function setup(
   const prefs = fakePrefs(options.prefs);
   const warn = vi.fn((_message: string) => {});
   const watchers: Array<{ name: string; onChange: () => void }> = [];
+  const reading = options.reading ?? [];
   const rows = initVoiceListSwitches(doc, {
     prefs,
-    readingTabs: () => options.reading ?? [],
+    readingTabs: () => reading,
     warn,
-    ...(options.askToStop ? { askToStop: options.askToStop } : {}),
-    ...(options.stopReading ? { stopReading: options.stopReading } : {}),
+    ...(options.askToClose
+      ? {
+          askToClose: options.askToClose,
+          affectedPlayers: () => reading.map((title) => ({ title, close: () => void reading.splice(reading.indexOf(title), 1) })),
+        }
+      : {}),
     unmarkedDefault: options.unmarkedDefault,
     watch:
       options.watch === false
@@ -109,25 +114,24 @@ describe('initVoiceListSwitches', () => {
     expect(off.warn).toHaveBeenCalledWith(expect.stringContaining('Attention'));
   });
 
-  // Issue #71: the dialog's Stop closes the players, and the write follows
-  it('writes the pref once the user stops the reading, the box staying where it was put', async () => {
+  // Issue #160: Close and continue closes the listed players, and the write follows
+  it('writes the pref once the user closes the listed players, the box staying where it was put', async () => {
     const reading = ['Deep learning'];
-    const stopReading = vi.fn(() => reading.splice(0));
-    const askToStop = vi.fn(async (_message: string) => true);
-    const t = setup({ reading, askToStop, stopReading });
+    const askToClose = vi.fn(async (_message: string) => true);
+    const t = setup({ reading, askToClose });
     await t.box(FAVORITES.id).click();
-    expect(askToStop).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
-    expect(stopReading).toHaveBeenCalledTimes(1);
+    expect(askToClose).toHaveBeenCalledWith(expect.stringContaining('Deep learning'));
+    expect(reading).toEqual([]);
     expect(t.value(FAVORITES.pref)).toBe(true);
     expect(t.box(FAVORITES.id).checked).toBe(true);
     expect(t.warn).not.toHaveBeenCalled();
   });
 
   it('leaves the pref alone and puts the box back on Cancel, no player touched', async () => {
-    const stopReading = vi.fn(() => []);
-    const t = setup({ reading: ['Deep learning'], askToStop: async () => false, stopReading });
+    const reading = ['Deep learning'];
+    const t = setup({ reading, askToClose: async () => false });
     await t.box(FAVORITES.id).click();
-    expect(stopReading).not.toHaveBeenCalled();
+    expect(reading).toEqual(['Deep learning']);
     expect(t.value(FAVORITES.pref)).toBeUndefined();
     expect(t.box(FAVORITES.id).checked).toBe(false);
     expect(t.warn).not.toHaveBeenCalled();

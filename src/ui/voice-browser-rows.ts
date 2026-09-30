@@ -13,7 +13,7 @@ import { dropdownLabels, dropdownLanguage, languageDisplayName } from '../read-a
 import { isMultilingualVoiceId, memoryLangForLocale, readMemory, sameChoice, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { compareVoiceLabels, encodeVoiceId, isZoteroTier, providerTierLabel, tierForProvider, zoteroTierLabel, type TierEntry } from '../read-aloud/voice-catalog';
 import { ZOTERO_TIERS, type ZoteroVoice } from '../read-aloud/zotero-voices';
-import { refuseWhileReading } from './reading-guard';
+import { refuseWhileReading, type AffectedTab } from './reading-guard';
 
 /**
  * The voice browser of the settings pane: every voice Read Aloud can use, in
@@ -185,12 +185,12 @@ export interface VoiceBrowserDeps {
    */
   readingTabs?(): string[];
   affectedTabs?(changes: FlatSettings): string[];
+  /** The affected tabs with the close of their players (ui/reading-guard.ts, issue #160). */
+  affectedPlayers?(changes: FlatSettings): AffectedTab[];
   /** Tells the user why the marking was refused — a dialog. */
   warn?(message: string): void;
-  /** Puts the guard's question — stop Read Aloud there and go on? — and answers it (ui/reading-guard.ts, issue #71). */
-  askToStop?(message: string): Promise<boolean>;
-  /** Closes every open player and returns the titles of the tabs it closed. */
-  stopReading?(): string[];
+  /** Puts the guard's question — close the player there and go on? — and answers it (ui/reading-guard.ts, issue #160). */
+  askToClose?(message: string): Promise<boolean>;
 }
 
 export type BrowserVoice = {

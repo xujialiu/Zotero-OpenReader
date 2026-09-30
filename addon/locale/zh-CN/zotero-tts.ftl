@@ -412,22 +412,22 @@ ztts-media-format = 不支持的格式
 ## The reading guard's dialog and the favorites-only refusal
 
 ztts-reading-tabs =
-    以下 { $count } 个标签页打开了朗读：
+    此改动会影响以下 { $count } 个标签页中的朗读：
     { $list }
 
     关闭{ $count ->
         [1] 该标签页
        *[other] 这些标签页
     }中的播放器后再试。
-ztts-reading-tabs-stop =
-    以下 { $count } 个标签页打开了朗读：
+ztts-reading-tabs-close =
+    此改动会影响以下 { $count } 个标签页中的朗读：
     { $list }
 
-    停止朗读后，这项更改会立即生效；每个标签页的阅读位置都会保留，再次开始朗读时从原处继续。也可以自己关闭{ $count ->
-        [1] 该标签页
-       *[other] 这些标签页
-    }中的播放器后再试。
-ztts-stop-and-continue = 停止朗读并继续
+    { $count ->
+        [1] 关闭其中的播放器后，改动即可生效。标签页会保留，并记住读到的位置。
+       *[other] 关闭其中的播放器后，改动即可生效。这些标签页都会保留，并记住各自读到的位置。
+    }
+ztts-close-and-continue = 关闭并继续
 ztts-cancel = 取消
 ztts-ok = 确定
 ztts-item = 条目 { $id }

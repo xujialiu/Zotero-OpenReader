@@ -2,8 +2,9 @@ import { t } from '../core/l10n';
 import type { FlatSettings } from '../core/settings-backup';
 
 /** Proposed settings are refused only for the sessions they affect (#121).
- * Legacy callers without a proposal retain the old stop-and-continue path.
- * A settings refusal never stops a session as a side effect.
+ * A refusal never closes a player by itself: the question's *Close and
+ * continue* does, for exactly the tabs it listed, when the user presses it
+ * (#160).
  */
 
 /** Which tabs, and what to do — nothing about why (the user's call: no implementation detail in the dialog). */
@@ -11,29 +12,36 @@ export function readingTabsMessage(titles: readonly string[]): string {
   return t('ztts-reading-tabs', { count: titles.length, list: tabList(titles) });
 }
 
-/** The same tabs, with the offer to stop the reading there and what that costs (issue #71). */
-export function stopReadingMessage(titles: readonly string[]): string {
-  return t('ztts-reading-tabs-stop', { count: titles.length, list: tabList(titles) });
+/** The same tabs, above the button that closes the player there, and what that costs (issue #160). */
+export function closeTabsMessage(titles: readonly string[]): string {
+  return t('ztts-reading-tabs-close', { count: titles.length, list: tabList(titles) });
 }
 
 function tabList(titles: readonly string[]): string {
   return titles.map((title) => `  • ${title}`).join('\n');
 }
 
+/** One tab a proposed change affects: its title for the dialog, and the close of its player there. */
+export interface AffectedTab {
+  title: string;
+  /** Closes the player in that tab the headphone button's way; absent where it cannot be closed from here. */
+  close?(): void;
+}
+
 export interface ReadingGuardDeps {
+  /** The tabs a proposed change affects, each with the close of its player (issues #121, #160). */
+  affectedPlayers?(changes: FlatSettings): AffectedTab[];
+  /** The same tabs by title alone; without `affectedPlayers` the guard only refuses. */
   affectedTabs?(changes: FlatSettings): string[];
-  /** The titles of the tabs a player is open in right now (paused counts, and so does a popup that has not started); empty when none. */
+  /** The titles of the tabs a player is open in right now: the last resort without an impact check, refusal only. */
   readingTabs(): string[];
   /** Shows the message to the user — a dialog with OK. */
   warn(message: string): void;
   /**
-   * Puts the question — stop Read Aloud in those tabs and go on? — and
-   * resolves with the answer. Absent, or without `stopReading`, the guard
-   * only refuses.
+   * Puts the question — close the player in those tabs and go on? — and
+   * resolves with the answer. Absent, the guard only refuses.
    */
-  askToStop?(message: string): Promise<boolean>;
-  /** Closes every open player the headphone button's way (read-aloud/player-stop.ts) and returns the titles of the tabs it closed. */
-  stopReading?(): string[];
+  askToClose?(message: string): Promise<boolean>;
 }
 
 const XHTML = 'http://www.w3.org/1999/xhtml';
@@ -162,7 +170,7 @@ function openNotice(doc: NoticeDoc, message: string, title: string, buttons: rea
 
 /**
  * A message with OK: the favorites-only refusal (issue #35), and the
- * guard's own where it cannot stop the players. `fallback` — the OS
+ * guard's own where it cannot close the players. `fallback` — the OS
  * prompt — is used where the dialog cannot be shown. Returns at once; the
  * dialog closes on OK or Escape.
  */
@@ -191,29 +199,37 @@ export function askPaneQuestion(
 }
 
 /**
- * Whether the change must wait. Nothing open: no, at once. Something open
- * and no way to stop it: the user is told where, and yes. Otherwise the
- * question — Cancel is yes; Stop closes every player and is no, unless one
- * would not close, and then the user is told what is still open. The deps
- * are optional so a row that a test builds without them still runs — no
- * `readingTabs`, no guard.
+ * Whether the change must wait. Nothing affected: no, at once. Affected
+ * tabs that cannot all be closed from here: the user is told where, and
+ * yes. Otherwise the question — Cancel is yes; Close and continue closes
+ * the player in exactly the tabs it listed, and is no unless the same
+ * change still affects a tab (one that would not close, or one that began
+ * reading while the question was up), which the user is then told about.
+ * The deps are optional so a row that a test builds without them still
+ * runs — no check, no guard.
  */
-export async function refuseWhileReading(deps: Partial<ReadingGuardDeps>, changes?: FlatSettings): Promise<boolean> {
-  if (changes && deps.affectedTabs) {
-    const affected = deps.affectedTabs(changes);
-    if (affected.length) deps.warn?.(readingTabsMessage(affected));
-    return affected.length > 0;
-  }
-  const titles = deps.readingTabs?.() ?? [];
-  if (!titles.length) return false;
-  if (!deps.askToStop || !deps.stopReading) {
+export async function refuseWhileReading(deps: Partial<ReadingGuardDeps>, changes: FlatSettings): Promise<boolean> {
+  const affected = (): AffectedTab[] =>
+    deps.affectedPlayers?.(changes) ??
+    deps.affectedTabs?.(changes).map((title) => ({ title })) ??
+    (deps.readingTabs?.() ?? []).map((title) => ({ title }));
+  const tabs = affected();
+  if (!tabs.length) return false;
+  const titles = tabs.map((tab) => tab.title);
+  if (!deps.askToClose || !tabs.every((tab) => typeof tab.close === 'function')) {
     deps.warn?.(readingTabsMessage(titles));
     return true;
   }
-  if (!(await deps.askToStop(stopReadingMessage(titles)))) return true;
-  deps.stopReading();
-  const left = deps.readingTabs?.() ?? [];
+  if (!(await deps.askToClose(closeTabsMessage(titles)))) return true;
+  for (const tab of tabs) {
+    try {
+      tab.close?.();
+    } catch {
+      // A reader gone dead mid-close: the re-check below names it if it still counts
+    }
+  }
+  const left = affected();
   if (!left.length) return false;
-  deps.warn?.(readingTabsMessage(left));
+  deps.warn?.(readingTabsMessage(left.map((tab) => tab.title)));
   return true;
 }

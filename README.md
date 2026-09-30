@@ -387,9 +387,11 @@ provider (or Zotero's Standard / Premium), language, voice.
   number while Read Aloud is open.
 - **Changes during reading** — settings that leave every current reading
   session unaffected can be changed immediately. A change affecting a
-  session is refused and names its tab. Close the affected player, then
-  try again; paused and background tabs count too. Playback is never
-  stopped automatically.
+  session names its tabs and offers *Close and continue*: the player
+  closes in just those tabs, each tab stays open and keeps its place, and
+  the change goes through. Paused and background tabs count too. Turning
+  a provider on never waits. Playback is never stopped without that
+  press.
 - **Voice lists** update without interrupting or replaying the current
   sentence. A voice in use cannot be removed from the list or have its
   provider disabled or reconfigured during that reading session.

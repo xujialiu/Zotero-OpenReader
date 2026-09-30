@@ -449,7 +449,7 @@ ztts-media-format = format not supported
 
 # $list is the tabs, one `  • <title>` per line; the blank line before the last sentence is kept
 ztts-reading-tabs =
-    Read Aloud is open in { $count ->
+    This change affects the reading in { $count ->
         [one] a tab
        *[other] { $count } tabs
     }:
@@ -459,19 +459,19 @@ ztts-reading-tabs =
         [one] that tab
        *[other] those tabs
     }, then try again.
-# The same tabs, above the button that stops the reading there (issue #71): the cost is said before the press
-ztts-reading-tabs-stop =
-    Read Aloud is open in { $count ->
+# The same tabs, above the button that closes the player there (issue #160): the cost is said before the press
+ztts-reading-tabs-close =
+    This change affects the reading in { $count ->
         [one] a tab
        *[other] { $count } tabs
     }:
     { $list }
 
-    Stopping it there lets this change through; each tab keeps its place, and Read Aloud picks up there when you start it again. Or close the player in { $count ->
-        [one] that tab
-       *[other] those tabs
-    } yourself, then try again.
-ztts-stop-and-continue = Stop reading and continue
+    { $count ->
+        [one] Closing the player there lets the change through. The tab stays open and keeps its place.
+       *[other] Closing the players there lets the change through. The tabs stay open and keep their place.
+    }
+ztts-close-and-continue = Close and continue
 ztts-cancel = Cancel
 ztts-ok = OK
 # A tab whose item has no title

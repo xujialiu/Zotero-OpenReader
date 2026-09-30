@@ -16,9 +16,10 @@ import { isSecretField, setSecretLocked } from './secret-rows';
  * connection writes its own; a failed check leaves the provider off, with
  * the message.
  *
- * A switch is checked against all current reading sessions (#121). An
- * unused provider may change; the provider of a playing or paused voice
- * stays available. Enabling checks again after its asynchronous probe.
+ * Disable is checked against all current reading sessions (#121). An
+ * unused provider may go off; the provider of a playing or paused voice
+ * stays on unless the guard's Close and continue closes those players
+ * first (#160). Enable is never checked: it only adds voices.
  *
  * Test connection stays: while a provider is off it probes without
  * committing — and fills the Model suggestions, which has to happen while
@@ -159,26 +160,21 @@ export function initProviderRows(
       paint(id);
       return;
     }
-    if (await refuseWhileReading(deps, { [`${id}.enabled`]: true })) return;
+    // Never asked: turning a provider on only adds voices to the open
+    // players' lists, which refresh without touching the reading (issue #160)
     hold(id);
     elements(id).toggle?.setAttribute('label', t('ztts-switch-checking'));
     say(id, t('ztts-switch-checking'));
     const outcome = await run(id);
-    // Asked again, because the write is what the guard is about and the
-    // check has had a quarter of a minute in which a player could open.
-    // Refused, the outcome is dropped with it: the dialog is what the user
-    // is told, and "Connected…" beside a switch that stayed Enable would
-    // read as if it held. An allowed proposal keeps it and the write follows
-    const refused = outcome.ok && (await refuseWhileReading(deps, { [`${id}.enabled`]: true }));
-    say(id, refused ? '' : outcome.message);
-    if (outcome.ok && !refused) {
+    say(id, outcome.message);
+    if (outcome.ok) {
       deps.prefs.set(pref(id), true);
       deps.onSwitched?.(id, true);
     }
     busy.delete(id);
     paint(id);
     deps.onChecked?.(id);
-    if (outcome.ok && !refused) deps.onVoicesChanged();
+    if (outcome.ok) deps.onVoicesChanged();
   }
 
   async function onTest(id: SwitchId): Promise<void> {

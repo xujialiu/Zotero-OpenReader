@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { askPaneQuestion, readingTabsMessage, refuseWhileReading, showPaneNotice, stopReadingMessage } from '../../src/ui/reading-guard';
+import { askPaneQuestion, closeTabsMessage, readingTabsMessage, refuseWhileReading, showPaneNotice } from '../../src/ui/reading-guard';
 
 describe('readingTabsMessage', () => {
   it('names the tabs and says what to do — the player, not the tab, is what has to close', () => {
     const message = readingTabsMessage(['Deep learning', 'Another paper']);
-    expect(message).toContain('Read Aloud is open in 2 tabs');
+    expect(message).toContain('This change affects the reading in 2 tabs');
     expect(message).toContain('  • Deep learning');
     expect(message).toContain('  • Another paper');
     expect(message.split('\n').pop()).toBe('Close the player in those tabs, then try again.');
@@ -12,91 +12,128 @@ describe('readingTabsMessage', () => {
 
   it('speaks of one tab in the singular', () => {
     const message = readingTabsMessage(['Deep learning']);
-    expect(message).toBe('Read Aloud is open in a tab:\n  • Deep learning\n\nClose the player in that tab, then try again.');
+    expect(message).toBe('This change affects the reading in a tab:\n  • Deep learning\n\nClose the player in that tab, then try again.');
   });
 });
 
-describe('stopReadingMessage', () => {
-  // The cost is said before the press: the reading stops, the place is
-  // kept, and the manual way out is still there
-  it('names the tabs, offers to stop the reading there, and says what that costs', () => {
-    const message = stopReadingMessage(['Deep learning', 'Another paper']);
-    expect(message.split('\n')[0]).toBe('Read Aloud is open in 2 tabs:');
-    expect(message).toContain('  • Deep learning\n  • Another paper\n\n');
-    expect(message.split('\n').pop()).toBe(
-      'Stopping it there lets this change through; each tab keeps its place, and Read Aloud picks up there when you start it again. Or close the player in those tabs yourself, then try again.',
+describe('closeTabsMessage', () => {
+  // The cost is said before the press (issue #160): the player closes, the
+  // tab and its place stay
+  it('names the tabs, and says that closing the player there lets the change through and keeps the tabs', () => {
+    const message = closeTabsMessage(['Deep learning', 'Another paper']);
+    expect(message).toBe(
+      'This change affects the reading in 2 tabs:\n  • Deep learning\n  • Another paper\n\nClosing the players there lets the change through. The tabs stay open and keep their place.',
     );
   });
 
   it('speaks of one tab in the singular', () => {
-    const message = stopReadingMessage(['Deep learning']);
-    expect(message.split('\n')[0]).toBe('Read Aloud is open in a tab:');
-    expect(message).toContain('Or close the player in that tab yourself, then try again.');
+    expect(closeTabsMessage(['Deep learning'])).toBe(
+      'This change affects the reading in a tab:\n  • Deep learning\n\nClosing the player there lets the change through. The tab stays open and keeps its place.',
+    );
   });
 });
 
+/** Tabs as the pane hands them over: a title, and the close of that tab's player, which takes it off the affected list. */
+function tabs(titles: string[], options: { stuck?: string[] } = {}) {
+  const open = new Set(titles);
+  const closed: string[] = [];
+  const affected = () =>
+    [...open].map((title) => ({
+      title,
+      close: vi.fn(() => {
+        closed.push(title);
+        if (!options.stuck?.includes(title)) open.delete(title);
+      }),
+    }));
+  return { open, closed, affectedPlayers: vi.fn((_changes: Record<string, unknown>) => affected()) };
+}
+
 describe('refuseWhileReading', () => {
-  it('allows an unaffected proposal and refuses an affected one without stopping reading', async () => {
+  it('is silent and lets the change through while it affects no tab', async () => {
     const warn = vi.fn();
-    const stopReading = vi.fn();
-    const deps = { readingTabs: () => ['Paper'], warn, stopReading,
-      askToStop: vi.fn(async () => true),
-      affectedTabs: (changes: Record<string, unknown>) => changes['azure.enabled'] === false ? ['Paper'] : [],
-    };
-    expect(await refuseWhileReading(deps, { 'local.enabled': false })).toBe(false);
+    const askToClose = vi.fn(async () => true);
+    const t = tabs([]);
+    expect(await refuseWhileReading({ affectedPlayers: t.affectedPlayers, readingTabs: () => ['Unrelated'], warn, askToClose }, { 'local.enabled': false })).toBe(false);
+    expect(t.affectedPlayers).toHaveBeenCalledWith({ 'local.enabled': false });
     expect(warn).not.toHaveBeenCalled();
-    expect(await refuseWhileReading(deps, { 'azure.enabled': false })).toBe(true);
-    expect(warn).toHaveBeenCalledWith(readingTabsMessage(['Paper']));
-    expect(stopReading).not.toHaveBeenCalled();
-    expect(deps.askToStop).not.toHaveBeenCalled();
-  });
-  it('is silent and lets the action through while nothing is reading', async () => {
-    const warn = vi.fn();
-    const askToStop = vi.fn(async () => true);
-    expect(await refuseWhileReading({ readingTabs: () => [], warn, askToStop, stopReading: () => [] })).toBe(false);
-    expect(warn).not.toHaveBeenCalled();
-    expect(askToStop).not.toHaveBeenCalled();
+    expect(askToClose).not.toHaveBeenCalled();
   });
 
-  // Without a way to stop the players there is nothing to ask: the old refusal
-  it('tells the user where Read Aloud is open, and refuses, when it cannot stop the players', async () => {
+  it('asks about exactly the affected tabs, and refuses on Cancel without closing a player', async () => {
     const warn = vi.fn();
-    expect(await refuseWhileReading({ readingTabs: () => ['Deep learning'], warn })).toBe(true);
-    expect(warn).toHaveBeenCalledWith(readingTabsMessage(['Deep learning']));
-  });
-
-  it('asks, and refuses on Cancel without touching a player', async () => {
-    const warn = vi.fn();
-    const askToStop = vi.fn(async (_message: string) => false);
-    const stopReading = vi.fn(() => ['Deep learning']);
-    expect(await refuseWhileReading({ readingTabs: () => ['Deep learning'], warn, askToStop, stopReading })).toBe(true);
-    expect(askToStop).toHaveBeenCalledWith(stopReadingMessage(['Deep learning']));
-    expect(stopReading).not.toHaveBeenCalled();
+    const askToClose = vi.fn(async (_message: string) => false);
+    const t = tabs(['Deep learning']);
+    expect(await refuseWhileReading({ affectedPlayers: t.affectedPlayers, warn, askToClose }, { 'azure.enabled': false })).toBe(true);
+    expect(askToClose).toHaveBeenCalledWith(closeTabsMessage(['Deep learning']));
+    expect(t.closed).toEqual([]);
     expect(warn).not.toHaveBeenCalled();
   });
 
-  // One press does both: the players close, and the caller's write follows
-  it('stops the players on Stop and lets the action through, with nothing else said', async () => {
+  // One press does both: the listed players close, and the caller's write follows
+  it('closes the listed players on Close and continue and lets the change through, with nothing else said', async () => {
     const warn = vi.fn();
-    const reading = ['Deep learning', 'Attention'];
-    const askToStop = vi.fn(async (_message: string) => true);
-    const stopReading = vi.fn(() => reading.splice(0));
-    expect(await refuseWhileReading({ readingTabs: () => [...reading], warn, askToStop, stopReading })).toBe(false);
-    expect(askToStop).toHaveBeenCalledWith(stopReadingMessage(['Deep learning', 'Attention']));
-    expect(stopReading).toHaveBeenCalledTimes(1);
+    const askToClose = vi.fn(async (_message: string) => true);
+    const t = tabs(['Deep learning', 'Attention']);
+    expect(await refuseWhileReading({ affectedPlayers: t.affectedPlayers, warn, askToClose }, { 'azure.enabled': false })).toBe(false);
+    expect(askToClose).toHaveBeenCalledWith(closeTabsMessage(['Deep learning', 'Attention']));
+    expect(t.closed).toEqual(['Deep learning', 'Attention']);
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  // Exactly the tabs the question listed: one that became affected while it
+  // was up is not closed unasked, and the re-check keeps the change waiting
+  it('does not close a tab that became affected while the question was up, and refuses naming it', async () => {
+    const warn = vi.fn();
+    const t = tabs(['Deep learning']);
+    const askToClose = vi.fn(async (_message: string) => {
+      t.open.add('Started meanwhile');
+      return true;
+    });
+    expect(await refuseWhileReading({ affectedPlayers: t.affectedPlayers, warn, askToClose }, { 'azure.enabled': false })).toBe(true);
+    expect(t.closed).toEqual(['Deep learning']);
+    expect(warn).toHaveBeenCalledWith(readingTabsMessage(['Started meanwhile']));
   });
 
   // The invariant over the convenience: a player that would not close
   // (a reader gone dead mid-close) keeps the change waiting
-  it('still refuses, naming what is left, when a player would not close', async () => {
+  it('still refuses, naming what is left, when a player would not close or its close throws', async () => {
     const warn = vi.fn();
-    const reading = ['Deep learning', 'Attention'];
-    const askToStop = vi.fn(async (_message: string) => true);
-    const stopReading = vi.fn(() => reading.splice(0, 1));
-    expect(await refuseWhileReading({ readingTabs: () => [...reading], warn, askToStop, stopReading })).toBe(true);
-    expect(stopReading).toHaveBeenCalledTimes(1);
+    const t = tabs(['Deep learning', 'Attention'], { stuck: ['Attention'] });
+    const askToClose = vi.fn(async (_message: string) => true);
+    expect(await refuseWhileReading({ affectedPlayers: t.affectedPlayers, warn, askToClose }, { 'azure.enabled': false })).toBe(true);
+    expect(t.closed).toEqual(['Deep learning', 'Attention']);
     expect(warn).toHaveBeenCalledWith(readingTabsMessage(['Attention']));
+
+    const thrower = vi.fn();
+    const affectedPlayers = () => [{ title: 'Dead', close: () => { throw new Error("can't access dead object"); } }];
+    expect(await refuseWhileReading({ affectedPlayers, warn: thrower, askToClose }, { 'azure.enabled': false })).toBe(true);
+    expect(thrower).toHaveBeenCalledWith(readingTabsMessage(['Dead']));
+  });
+
+  // Without a way to close the players there is nothing to ask: the plain refusal
+  it('only refuses, naming the tabs, when it cannot close them', async () => {
+    const warn = vi.fn();
+    const askToClose = vi.fn(async () => true);
+    const titlesOnly = { affectedTabs: (changes: Record<string, unknown>) => (changes['azure.enabled'] === false ? ['Paper'] : []), warn, askToClose };
+    expect(await refuseWhileReading(titlesOnly, { 'local.enabled': false })).toBe(false);
+    expect(await refuseWhileReading(titlesOnly, { 'azure.enabled': false })).toBe(true);
+    expect(warn).toHaveBeenLastCalledWith(readingTabsMessage(['Paper']));
+    const t = tabs(['Paper']);
+    expect(await refuseWhileReading({ affectedPlayers: t.affectedPlayers, warn }, { 'azure.enabled': false })).toBe(true);
+    expect(await refuseWhileReading({ affectedPlayers: () => [{ title: 'Paper' }], warn, askToClose }, { 'azure.enabled': false })).toBe(true);
+    expect(askToClose).not.toHaveBeenCalled();
+    expect(t.closed).toEqual([]);
+  });
+
+  // A row built without the impact check: every open player counts, refusal only
+  it('falls back to every open player, refusal only, without an impact check', async () => {
+    const warn = vi.fn();
+    const askToClose = vi.fn(async () => true);
+    expect(await refuseWhileReading({ readingTabs: () => ['Deep learning'], warn, askToClose }, { 'azure.enabled': false })).toBe(true);
+    expect(warn).toHaveBeenCalledWith(readingTabsMessage(['Deep learning']));
+    expect(askToClose).not.toHaveBeenCalled();
+    expect(await refuseWhileReading({ readingTabs: () => [], warn }, { 'azure.enabled': false })).toBe(false);
+    expect(await refuseWhileReading({}, { 'azure.enabled': false })).toBe(false);
   });
 });
 
@@ -158,7 +195,7 @@ describe('showPaneNotice', () => {
   it('shows the message as a modal alert of the pane, painted for its theme, and removes it on close', () => {
     const doc = fakeDoc(true);
     const fallback = vi.fn();
-    showPaneNotice(doc, 'Read Aloud is open in a tab:\n  • Paper\n\nClose it.', fallback);
+    showPaneNotice(doc, 'This change affects the reading in a tab:\n  • Paper\n\nClose it.', fallback);
     const dialog = doc.body.children[0];
     expect(dialog.tag).toBe('dialog');
     expect(dialog.modal).toBe(true);
@@ -169,7 +206,7 @@ describe('showPaneNotice', () => {
     expect(style.textContent).toContain('#ztts-notice::backdrop');
     expect(title.textContent).toBe('Zotero-TTS');
     expect(body.children[0].textContent).toBe('⚠️');
-    expect(body.children[1].children[0].textContent).toBe('Read Aloud is open in a tab:');
+    expect(body.children[1].children[0].textContent).toBe('This change affects the reading in a tab:');
     expect(body.children[1].children[0].attrs.get('style')).toContain('font-weight: 600');
     expect(body.children[1].children[1].textContent).toBe('  • Paper\n\nClose it.');
     expect(buttons.children).toHaveLength(1);
@@ -220,22 +257,22 @@ describe('showPaneNotice', () => {
 });
 
 describe('askPaneQuestion', () => {
-  const LABELS = { confirm: 'Stop reading and continue', cancel: 'Cancel' };
+  const LABELS = { confirm: 'Close and continue', cancel: 'Cancel' };
 
   // The same alert with two buttons; Cancel holds the focus, so Enter is
-  // never the press that stops every tab's reading
-  it('shows the question with Stop and Cancel, Cancel focused, and resolves true on Stop', async () => {
+  // never the press that closes a tab's reading
+  it('shows the question with Close and Cancel, Cancel focused, and resolves true on Close', async () => {
     const doc = fakeDoc(true);
     const fallback = vi.fn(() => false);
-    const answer = askPaneQuestion(doc, 'Read Aloud is open in a tab:\n  • Paper\n\nStop it?', LABELS, fallback);
+    const answer = askPaneQuestion(doc, 'This change affects the reading in a tab:\n  • Paper\n\nClose it?', LABELS, fallback);
     const dialog = doc.body.children[0];
     expect(dialog.modal).toBe(true);
     expect(dialog.attrs.get('id')).toBe('ztts-notice');
     const [, title, body, buttons] = dialog.children;
     expect(title.textContent).toBe('Zotero-TTS');
-    expect(body.children[1].children[0].textContent).toBe('Read Aloud is open in a tab:');
-    expect(body.children[1].children[1].textContent).toBe('  • Paper\n\nStop it?');
-    expect(buttons.children.map((b) => b.textContent)).toEqual(['Stop reading and continue', 'Cancel']);
+    expect(body.children[1].children[0].textContent).toBe('This change affects the reading in a tab:');
+    expect(body.children[1].children[1].textContent).toBe('  • Paper\n\nClose it?');
+    expect(buttons.children.map((b) => b.textContent)).toEqual(['Close and continue', 'Cancel']);
     const [stop, cancel] = buttons.children;
     expect(cancel.focused).toBe(true);
     expect(stop.focused).toBe(false);
@@ -314,7 +351,7 @@ describe("the dialogs' buttons", () => {
 
   it("ask for a box that stays inside Zotero's macOS cap, and center the label in it", () => {
     const doc = fakeDoc(true);
-    void askPaneQuestion(doc, 'x', { confirm: 'Stop reading and continue', cancel: 'Cancel' }, vi.fn(() => true));
+    void askPaneQuestion(doc, 'x', { confirm: 'Close and continue', cancel: 'Cancel' }, vi.fn(() => true));
     const buttons = doc.body.children[0].children[3].children;
     expect(buttons).toHaveLength(2);
     for (const button of buttons) {

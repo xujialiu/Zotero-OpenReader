@@ -60,6 +60,12 @@ export interface PlayerStop<R> {
    * left out, and costs the rest nothing: the guard re-reads what is left.
    */
   stopAll(): R[];
+  /**
+   * Closes this one player the button's way — the reading guard's *Close
+   * and continue* (issue #160), for exactly the tabs it listed. False when
+   * it was not open, has no close, or threw (logged).
+   */
+  close(reader: R): boolean;
 }
 
 export function createPlayerStop<R extends PlayerStopReader>(deps: PlayerStopDeps<R>): PlayerStop<R> {
@@ -67,20 +73,25 @@ export function createPlayerStop<R extends PlayerStopReader>(deps: PlayerStopDep
     return deps.readers().filter((reader) => isPlayerOpen(reader));
   }
 
-  function stopAll(): R[] {
-    const stopped: R[] = [];
-    for (const reader of open()) {
-      try {
-        const internal = reader._internalReader;
-        if (typeof internal?.toggleReadAloudPopup !== 'function') continue;
-        internal.toggleReadAloudPopup(false);
-        stopped.push(reader);
-      } catch (e) {
-        deps.log?.(e);
-      }
+  function closeOpen(reader: R): boolean {
+    try {
+      const internal = reader._internalReader;
+      if (typeof internal?.toggleReadAloudPopup !== 'function') return false;
+      internal.toggleReadAloudPopup(false);
+      return true;
+    } catch (e) {
+      deps.log?.(e);
+      return false;
     }
-    return stopped;
   }
 
-  return { open, stopAll };
+  function stopAll(): R[] {
+    return open().filter(closeOpen);
+  }
+
+  function close(reader: R): boolean {
+    return isPlayerOpen(reader) && closeOpen(reader);
+  }
+
+  return { open, stopAll, close };
 }

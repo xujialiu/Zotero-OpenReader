@@ -43,4 +43,27 @@ describe('settings changes during reading', () => {
     expect(impact.affectedTabs({ 'fish.enabled': true })).toEqual([]);
     expect(impact.affectedTabs({ 'azure.apiKey': 'changed' })).toEqual(['Paused']);
   });
+  // Turning a provider on only adds voices to a player's list (issue #160)
+  it('never counts turning a provider on, even for a player whose voice is not known yet', () => {
+    const sessions = [
+      { title: 'Paper', voices: [{ id: 'azure::ava', provider: 'azure' }] },
+      { title: 'Loading', uncertain: true, voices: [] },
+    ];
+    const current = { 'azure.enabled': true, 'fish.enabled': false, 'zotero-standard.enabled': false, 'fish.apiKey': 'old' };
+    expect(affectedReading(current, { 'fish.enabled': true }, sessions)).toEqual([]);
+    expect(affectedReading(current, { 'zotero-standard.enabled': true }, sessions)).toEqual([]);
+    // What travels with it is still weighed as before
+    expect(affectedReading(current, { 'fish.enabled': true, 'fish.apiKey': 'new' }, sessions)).toEqual(['Loading']);
+    expect(affectedReading(current, { 'azure.enabled': false }, sessions)).toEqual(['Paper', 'Loading']);
+  });
+  it('hands out the affected sessions with their readers, for the guard to close exactly those', () => {
+    const values = flattenSettings(DEFAULTS);
+    const azure = { title: 'Azure paper', _internalReader: { _readAloudManager: { active: true, selectedVoiceID: 'azure::ava', _voice: { id: 'azure::ava' }, _allVoices: [] } } };
+    const local = { title: 'Local paper', _internalReader: { _readAloudManager: { active: true, selectedVoiceID: 'local::bella', _voice: { id: 'local::bella' }, _allVoices: [] } } };
+    const impact = createReadingImpact({ values: () => values, readers: () => [azure, local], pending: () => [], title: r => r.title });
+    const affected = impact.affectedSessions({ 'azure.apiKey': 'changed' });
+    expect(affected.map(s => s.title)).toEqual(['Azure paper']);
+    expect(affected[0].reader).toBe(azure);
+    expect(impact.affectedSessions({ 'fish.enabled': true })).toEqual([]);
+  });
 });

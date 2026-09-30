@@ -182,3 +182,9 @@ _Avoid_: playback, Read Aloud
 One document being read, from play to stop, in one reader tab. One at a
 time across all tabs.
 _Avoid_: playback, stream
+
+**Reading guard**:
+Holding back a settings change that would affect a reading session in
+progress, playing, paused or in a handoff, and naming the tabs it
+affects.
+_Avoid_: lock, block

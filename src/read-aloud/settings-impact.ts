@@ -1,7 +1,8 @@
 import type { FlatSettings } from '../core/settings-backup';
 import { parseFavoriteVoices } from './favorites';
 import { decodeVoiceId } from './voice-catalog';
-import { editsPlayerList } from '../core/settings-sync';
+import { editsPlayerList, sectionOf } from '../core/settings-sync';
+import { SWITCH_IDS } from '../core/settings';
 import { isPlayerOpen } from './player-stop';
 
 // Direct playback controls remain usable. These keys are checked when a
@@ -15,14 +16,28 @@ const PLAYBACK_SETTINGS = new Set([
 
 export interface ReadingSession {
   title: string;
+  /** The reader it runs in, for the guard to close exactly the tabs it listed (issue #160). */
+  reader?: unknown;
   uncertain?: boolean;
   /** The playing voice and any prepared replacement, including paused playback. */
   voices: { id: string; provider: string }[];
 }
 
+/**
+ * Turning a provider or a Zotero tier on only adds voices to a player's
+ * list, which refreshes without touching the reading (issue #160).
+ */
+function turnsOn(key: string, value: unknown): boolean {
+  return value === true && key === `${sectionOf(key)}.enabled` && (SWITCH_IDS as readonly string[]).includes(sectionOf(key));
+}
+
 /** The proposed batch is inspected before any preference is written. */
 export function affectedReading(current: FlatSettings, changes: FlatSettings, sessions: readonly ReadingSession[]): string[] {
-  const changed = Object.keys(changes).filter(key => changes[key] !== current[key]);
+  return affectedSessions(current, changes, sessions).map(session => session.title);
+}
+
+function affectedSessions<S extends ReadingSession>(current: FlatSettings, changes: FlatSettings, sessions: readonly S[]): S[] {
+  const changed = Object.keys(changes).filter(key => changes[key] !== current[key] && !turnsOn(key, changes[key]));
   const next = { ...current, ...changes };
   const filtering = changed.some(key => key === 'readAloud.favoritesOnly' || key === 'readAloud.favoriteVoices')
     && next['readAloud.favoritesOnly'] === true;
@@ -30,7 +45,7 @@ export function affectedReading(current: FlatSettings, changes: FlatSettings, se
   return sessions.filter(session => changed.some(key => PLAYBACK_SETTINGS.has(key))
     || (session.uncertain && changed.some(editsPlayerList)) || session.voices.some(voice =>
     changed.some(key => key.startsWith(voice.provider + '.')) || (filtering && !favorites.has(voice.id)),
-  )).map(session => session.title);
+  ));
 }
 
 export function createReadingImpact(deps: {
@@ -57,9 +72,14 @@ export function createReadingImpact(deps: {
         for (let i = 0; !tier && i < (m?._allVoices?.length ?? 0); i++) if (m._allVoices[i].id === id) tier = m._allVoices[i].tier;
         return { id, provider: tier === 'standard' || tier === 'premium' ? 'zotero-' + tier : '' };
       });
-      out.push({ title: deps.title(reader), voices, uncertain: !voices.length || voices.some(v => !v.provider) });
+      out.push({ title: deps.title(reader), reader, voices, uncertain: !voices.length || voices.some(v => !v.provider) });
     }
     return out;
   }
-  return { sessions, protectedVoices, affectedTabs: (changes: FlatSettings) => affectedReading(deps.values(), changes, sessions()) };
+  return {
+    sessions,
+    protectedVoices,
+    affectedTabs: (changes: FlatSettings) => affectedReading(deps.values(), changes, sessions()),
+    affectedSessions: (changes: FlatSettings) => affectedSessions(deps.values(), changes, sessions()),
+  };
 }

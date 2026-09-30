@@ -18,8 +18,9 @@ Items 1.10–1.12 of the checklist, under their original numbers.
     `2267 个语音可用。`, never `2,267` (a count that can pass a thousand is
     handed over as text; Fluent groups a number); `oneTab` and `twoTabs`
     the reading guard's message at 1 and at 2 with the blank line before
-    its last sentence — `Read Aloud is open in a tab:\n  • A\n\nClose the
-    player in that tab, then try again.` / `以下 1 个标签页打开了朗读：\n  • A\n\n关闭该标签页中的播放器后再试。`,
+    its last sentence — `This change affects the reading in a tab:\n  • A\n\nClose
+    the player in that tab, then try again.` / `此改动会影响以下 1 个标签页中的朗读：\n  • A\n\n关闭该标签页中的播放器后再试。`
+    (the first line since #160),
     and `2 tabs` … `those tabs` / `2 个标签页` … `这些标签页`; `joined`
     two sentences through `ztts-join` — `Connected. Synthesis works.` with
     the space, `已连接。合成正常。` without; `tier` `Zotero Standard` /
