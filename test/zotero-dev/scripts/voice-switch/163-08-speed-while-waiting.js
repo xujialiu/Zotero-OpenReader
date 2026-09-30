@@ -297,13 +297,10 @@
       && c.cancelled.stage === 'cancelled' && c.cancelled.notice === 'cancelled' && c.cancelled.pendingNow === null
       && c.cancelled.speedNow === c.cancelled.speedSet
       && c.cancelled.voiceNow === voiceX && c.cancelled.playing === true && c.cancelled.position === waitedAt
+      && (c.cancelled.oldRequests ?? 0) === 0
       && (c.requestsAtCancel ?? 0) === (c.atWait.requests ?? 0) + 1
       && (c.cancelled.requests ?? 0) >= (c.requestsAtCancel ?? 0)
       && (c.cancelled.fallbacks ?? 0) === 0;
-    out.status = c.pass ? 'PASS' : 'FAIL';
-    try { if (manager.active && !manager.paused) manager.pause(); } catch (_) {}
-    out.status = c.pass ? 'PASS' : 'FAIL';
-    try { if (manager.active && !manager.paused) manager.pause(); } catch (_) {}
     out.status = c.pass ? 'PASS' : 'FAIL';
     try { if (manager.active && !manager.paused) manager.pause(); } catch (_) {}
   } catch (e) {

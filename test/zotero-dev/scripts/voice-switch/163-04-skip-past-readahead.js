@@ -191,12 +191,16 @@
   };
 
   const out = { status: 'FAIL', errors: [], checks: {}, variants: {} };
+  // Variant gate: params.skip163Variants (default both) — a run may drive only
+  // 'shiftRight' or only 'buttonForward' (each variant imports its own fixture).
+  const wantVariants = Array.isArray(Zotero.ZoteroTTSRun.params.skip163Variants)
+    ? Zotero.ZoteroTTSRun.params.skip163Variants : ['shiftRight', 'buttonForward'];
   let hold = null;
   try {
     restoreHost();
 
     // ---- Variant A: trusted Shift+→ presses past the stock ----
-    try {
+    if (wantVariants.includes('shiftRight')) try {
       const swapped = await swapFixture(Zotero.ZoteroTTSRun.params.fixture163);
       const internal = swapped.reader._internalReader;
       const manager = Components.utils.waiveXrays(internal._readAloudManager);
@@ -263,7 +267,7 @@
     }
 
     // ---- Variant B: the player's forward skip button ----
-    try {
+    if (wantVariants.includes('buttonForward')) try {
       const swapped = await swapFixture(Zotero.ZoteroTTSRun.params.fixture163Alt);
       const internal = swapped.reader._internalReader;
       const manager = Components.utils.waiveXrays(internal._readAloudManager);
@@ -338,7 +342,8 @@
       if (hold) { hold.restore(); hold = null; }
     }
 
-    out.status = out.variants.shiftRight.pass === true && out.variants.buttonForward.pass === true ? 'PASS' : 'FAIL';
+    out.status = (!wantVariants.includes('shiftRight') || out.variants.shiftRight.pass === true)
+      && (!wantVariants.includes('buttonForward') || out.variants.buttonForward.pass === true) ? 'PASS' : 'FAIL';
     try { if (manager && manager.active && !manager.paused) manager.pause(); } catch (_) {}
   } catch (e) {
     out.errors.push(String(e));

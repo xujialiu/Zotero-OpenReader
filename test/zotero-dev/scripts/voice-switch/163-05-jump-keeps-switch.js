@@ -184,6 +184,7 @@
     const voiceB = voiceX === 'local::af_bella' ? 'local::af_alloy' : 'local::af_bella';
     const carriedBefore = before.tab.stats.carriedOn;
     const startedBefore = before.tab.stats.started;
+    const endedBefore = before.tab.stats.ended;
     const requestsAtPick = before.tab.session.store?.requests ?? null;
     out.checks.baseline = { voiceX, voiceB, position: before.tab.session.position, requests: requestsAtPick, carriedOn: carriedBefore, started: startedBefore };
 
@@ -262,6 +263,7 @@
       playbackTime: after.tab.session.playbackTime,
       oldRequests: afterVs.tab?.handoff?.oldRequests ?? null,
       startedDelta: after.tab.stats.started - startedBefore, carriedOnDelta: after.tab.stats.carriedOn - carriedBefore,
+      endedDelta: after.tab.stats.ended - endedBefore,
       fallbacks: after.tab.stats.fallbacks,
       xFetchesAfterPick: hold.log.filter(e => e.at >= pickAt && e.voice === shortOf(voiceX)).length,
     };
@@ -271,6 +273,8 @@
       c.afterJumpKey.notice !== 'cancelled'
       && (c.afterJumpKey.pending === voiceB || c.landing.last?.to === voiceB)
       && c.afterJumpKey.startedDelta === 1
+      && c.final.startedDelta === 1
+      && c.final.endedDelta === 0
       && (c.landing.last?.kind === 'sentence' || c.landing.last?.kind === 'word')
       && c.landing.last?.to === voiceB
       && (c.landing.waitedAt === null || c.landing.last?.index === c.landing.waitedAt)

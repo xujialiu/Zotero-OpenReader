@@ -149,6 +149,17 @@
     if (!voiceA) throw new Error('no free local English voice to seed with');
     session.voiceA = voiceA;
 
+    // The popup re-applied the NATIVE per-language map's voice (here a Fish voice
+    // of the owner's history), and the Shift+. cycle list is filtered by the
+    // SELECTED tier: put the manager on the local tier and the seed voice BEFORE
+    // the cycle read, or the list comes out all Fish. Paused picks go Zotero's
+    // native way (one bounded synthesis to prepare the seed sentence).
+    try { Components.utils.waiveXrays(manager).selectTier('local'); } catch (e) { out.errors.push('selectTier local: ' + String(e)); }
+    await sleep(400);
+    try { Components.utils.waiveXrays(manager).selectVoice(voiceA); } catch (e) { out.errors.push('seed selectVoice A: ' + String(e)); }
+    const seededSelection = await waitFor(() => { try { return String(manager.selectedVoiceID ?? '') === voiceA; } catch (_) { return false; } }, 8000, 150);
+    out.cycleSeed = { selectedVoice: manager.selectedVoiceID ?? null, tier: manager._selectedTier ?? null, seededSelection };
+
     // The Shift+. cycle walks playerVoices(manager.voicesForLanguage); favorites-only
     // pins the pair to [A, B] so the key cycle has exactly two members.
     p.setStringPref(prefix + 'readAloud.favoriteVoices', JSON.stringify([voiceA, 'local::af_alloy']));

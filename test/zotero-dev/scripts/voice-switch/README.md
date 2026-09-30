@@ -24,6 +24,7 @@ text is shared between variants), passed per run via
 | `163-08-speed-while-waiting.js` | Item 14 speed change while waiting | `stage cancelled`, notice `cancelled`, pending null, speed applied; A asks once and reads the waited sentence at the new speed; `fallbacks` 0 | fresh fixture |
 | `163-09-prepared-reuse-paused.js` | Item 14 both-have-it (paused prepared reuse) | Paused pick at a STARTED sentence; `prepared` holds position+1; ArrowRight does not commit (player shows X, notice `ready`); Play reads it in B from 0, no second request, `oldRequests` 0 | warm fixture; pause only after `currentIndex === position` |
 | `163-10-paused-skip-ready.js` | Item 14 paused skip: pause, pick, `←` | Nothing selected at the key (player shows X); notice `ready` once B holds the landing; Play reads it in B from offset 0; `oldRequests` 0 | warm fixture OK |
+| `163-11-selection-start.js` | Item 14 "A jump" FIRST path (beta7): pause (trusted Shift+Space), pick B held, double-click a later sentence's marker digits (the fixture's only digits) in the PDF text layer, trusted Shift+Space | `smartKey` hasSelection true before/after scroll-back; restart at the selection: no `cancelled`, `pending` B kept, `ended` +1, `started` +1, `carriedOn` 0, `fallbacks` 0, rebuild = 27 segments; dry (`selection163Variant: 'dry'`): `position` = `waitedAt` = the marker sentence, `stage waiting`, `store.requests` flat, released B commits `sentence` at it from 0, notice `selected`, `oldRequests` 0, zero A fetches; warm (`'warm'`): A reads the landing from 0, `requests` flat, B commits (`word` or `sentence`, index ≥ landing), notice `selected`, `oldRequests` 0 | `fixture163` fresh per variant; `selection163Variant` dry/warm |
 | `163-99-cleanup-and-restore.js` | Fixtures out, prefs byte-identical, WebDAV restored, host minimized | Erased rows back to baseline; memory/native voices/favorites equal baseline; volume restored; deletes `__ztts163` on success | private baseline |
 
 Before you start: bridge up; `163-00` before installing; install the xpi,
@@ -35,12 +36,41 @@ a dry sentence or a genuinely-held request), `163-99`. Trusted keys via
 match the provider body's voice WITHOUT the `local::` prefix; its `mode` is read
 at fire time so a flip hits in-flight requests.
 
+Selection-start mechanics (163-11, proven 2026-10-01): the PDF text layer,
+`viewerContainer`, pointer handlers and `getSelectionPosition` live in
+`internal._primaryView._iframeWindow`, not the reader shell; the gesture is
+dispatched there with realm-cloned init objects (`Cu.cloneInto` — a chrome-built
+literal reads clientX as `undefined`), MOUSE events only (mousedown carries
+`detail`; a synthetic pointerdown trips other window-level handlers that clear
+the selection), and one lone `pointerup` completes the gesture — it is the
+pointerup listener that keeps the selection and raises the selection popup the
+InternalReader's `getSelectionPosition` and `smartKey` read. Host restored:
+minimized windows render no text layers. The pick stops the prefetch chain
+(mayPrefetch), so the dry target must clear what the chain gathered before the
+pick — reposition right before pausing and target pause+9, not pause+8.
+
 Limits and notes (2026-10-01 run):
 
 - The plugin's in-memory audio cache is text-keyed and process-lifetime: every
   sentence both pair voices touch is held forever and `held` lookups answer from
   it. Any row needing a dry sentence or a holdable request therefore imports a
   fixture whose sentences no variant shares; within a fixture, one attempt only.
+- The beta7 hold wrapper (163-11) passes requests through at once once
+  `hold.armed` is false — the delay is only the pick's keep-busy hold; the
+  earlier wrapper delayed every held-voice request by `ms` even after release.
+- Executed revisions this run: 163-01 selects the local tier + seed voice BEFORE
+  the favorites-only cycle read (the popup reopens on the native per-language
+  map's voice — a Fish voice here — and the cycle list follows the SELECTED
+  tier); 163-04 gates its variants on `params.skip163Variants`; 163-05 also
+  asserts `ended` +0; 163-08 asserts `oldRequests` 0 (case corrected) and lost a
+  triplicated status block.
+- One `Zotero-TTS: the new voice audio output is blocked` line at 05:09:20 local:
+  a first 163-01 retry overlapped the bridge-timed-out first instance (two seeds
+  in one process); no row consumed it. Attribute to the driver, not the build.
+- Dead objects in the debug store (~2k, session-wide): one signature only —
+  Zotero's `_handleReadAloudVoicesPrefChange` (reader.js:1238) on already-closed
+  readers when the kit writes/restores `reader.readAloudVoices`. Known Zotero
+  noise, not an upgrade burst.
 - A fresh reader may open on Zotero's native per-language map voice (here a Fish
   voice) and never auto-activate (reader.js 83876 needs `selectedVoiceID`); the
   seed selects a local voice explicitly. The segment store is lazy: open the
@@ -79,6 +109,7 @@ member (scripts treat the observed voice as X and pick the other); on cancel,
 | 2026-09-26 | 1.15.2-beta5 | #149: startup, four UI recoveries, ordinary handoff, cleanup PASS; [table](https://github.com/xujialiu/Zotero-TTS/issues/149#issuecomment-5845582557) |
 | 2026-09-28 | 1.16.2-beta (xpi `c8a1c103…`, commit fcfa451) | #154: all rows PASS; [table](https://github.com/xujialiu/Zotero-TTS/issues/154#issuecomment-5865908183). Cleanup rows 86→86, WebDAV restored, host minimized. Human checks open: whether any old-voice sound slips out after the key; perceived quality |
 | 2026-10-01 | 1.16.3-beta6 (xpi/bundle sha256 `564d6e82…` verified, commit 05b4a15) | #163: 00, 01 (seed), 02 identity PASS; item 14: reading-on (163-03, PASS ×2, waitedAt 17/16, commit sentence offset 0, oldRequests 0, store flat, zero A fetches), skip-past-readahead (163-04 PASS both variants, waitedAt 22/14), jump (163-05, switch kept, started +1, word commit at the landing), skip-to-held (163-06 PASS, word commit in the landing at 5.16 s), failure (163-07 PASS, +1 request then A reads), speed (163-08 PASS, cancelled + A reads at 1.95×), prepared reuse (163-09 PASS), paused skip (163-10 PASS); prefetch stop line `prefetch: local: stopped, the voice is switching` in the debug output; 99 cleanup PASS (rows 71→71, prefs byte-identical, WebDAV restored, host minimized). Human checks open: whether any old-voice sound slips out after the pick; perceived handoff quality |
+| 2026-10-01 | 1.16.3-beta7 (xpi/bundle sha256 `dcae0520…` verified in profile, commit 3126024) | #163 follow-up (selection start): 00 isolation, install, startup all ok; 01 seed PASS after the tier-order fix; 02 identity PASS (`engine-handoff-v2`, bindings Shift+, / Shift+., startup failed []); **163-11 dry PASS** (selection at marker sentence 14: `smartKey` restarts-from-it, restart at 209 ms — `ended` +1, `started` +1, `carriedOn` 0, no `cancelled`, `pending` B, `position` 14 = `waitedAt`, `stage waiting`, `store.requests` 4→4 flat; released B commits `sentence` at 14 offset 0 charStart 0, notice `selected`, `oldRequests` 0, A fetches 0); **163-11 warm PASS** (landing 8: A reads it from 0, `requests` 5→5, B word-commits at 13 offset 2.52 s, notice `selected`, `oldRequests` 0); regressions on fresh fixtures 163o-163r: 163-03 PASS (waitedAt 16, flat, sentence commit), 163-04 shiftRight PASS (waitedAt 22), 163-05 PASS (started +1, `ended` +0, sentence commit at 14), 163-08 PASS (cancelled at 1.95×, `oldRequests` 0, store +1 = 5, A reads 17); 99 cleanup PASS (rows 71→71, prefs byte-identical, WebDAV restored, owner tab untouched, host minimized). 163-11 attempts that taught the mechanics (NOT TESTABLE/FAIL, superseded by the PASS runs, see the selection-start mechanics note): shell-window text-layer query, chrome-opts events, pointerdown pairs, pause+8 target inside the prefetch stock |
 
 ## Historical kits (issues #95/#108/#149, 1.12.x–1.15.x)
 
