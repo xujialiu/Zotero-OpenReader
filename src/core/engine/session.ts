@@ -8,7 +8,8 @@
  * voice already playing, or a handoff's switch, rebuilds the controller
  * (#75, #95) and the sentence carries on. A rebuild the manager was told to
  * make somewhere — a jump, new segments, another voice — starts afresh, as
- * a new controller of Read Aloud's does.
+ * a new controller of Read Aloud's does; only a jump while a voice switch
+ * is pending moves the run instead, keeping the switch (issue #163).
  *
  * Everything else is Read Aloud's engine, `RemoteReadAloudController` and
  * its bases (reader.js 39296-39512, 39906-40403), line for line where the
@@ -32,8 +33,11 @@
  *   without a click or key press in the reader no longer plays silently.
  *
  * And what the plugin adds: the pause between sentences of the pane's
- * settings (gap.ts, issues #44 and #142), and the "Preparing…" notice after 300 ms of
- * waiting for audio (issue #120).
+ * settings (gap.ts, issues #44 and #142), the "Preparing…" notice after 300 ms of
+ * waiting for audio (issue #120), and the voice switch (handoff.ts): while
+ * one is pending, the old voice reads only the audio it already has, asks
+ * for nothing new and reads nothing ahead, and the reading waits for the
+ * new voice at the first sentence the old one has no audio for (issue #163).
  */
 
 import { ClipError, ClipStore } from './clips';
@@ -80,6 +84,8 @@ export interface SessionDeps<Clip extends EngineClip> {
   clock: EngineClock;
   audio: EngineAudio<Clip>;
   fetch(segment: EngineSegment, voice: EngineVoice, signal?: unknown): Promise<FetchResult>;
+  /** The audio the interface already holds for a segment, never asking a provider (clips.ts `held`). */
+  held?(segment: EngineSegment, voice: EngineVoice): Promise<FetchResult>;
   /** A fetched answer whose audio would not decode: drop it wherever it is kept (clips.ts). */
   discard?(segment: EngineSegment, voice: EngineVoice): void;
   /** The pane's pause settings, read at every sentence boundary. */
@@ -164,6 +170,10 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   ended = true;
   /** Set by a carry-on bind: the manager's first `paused` write only restates what plays. */
   private carriedOn = false;
+  /** The sentence the reading waits at for a pending switch's new voice, which the old one has no audio for (issue #163). */
+  private awaitingHandoff: number | null = null;
+  /** A skip or a jump landed, and the sentence there has not started since. */
+  private landed = false;
 
   /** The last pause between sentences waited, and how many: what proves the pane's settings reached the gap (issue #44). */
   lastGap: { ms: number; paragraph: boolean; speed: number; at: number } | null = null;
@@ -187,42 +197,52 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
    * the manager says. Answers which it did.
    */
   bind(request: BindRequest): 'carried-on' | 'started' {
-    if (
-      !this.ended &&
-      !request.jump &&
-      this.voice !== null &&
-      this.segments === request.segments &&
-      this.voice.id === request.voice.id
-    ) {
+    const same = !this.ended && this.voice !== null && this.segments === request.segments && this.voice.id === request.voice.id;
+    if (same && !request.jump) {
       // A carry-on keeps the run's own start for the end-of-document rewind
       this.voice = request.voice;
       this.carriedOn = true;
       return 'carried-on';
+    }
+    if (same && this.handoff?.pending) {
+      // A jump keeps a pending switch and what the old voice has (issue #163)
+      this.reset(request);
+      this.handoff.moved();
+      return 'started';
     }
     this.start(request);
     return 'started';
   }
 
   private start(request: BindRequest): void {
+    this.awaitingHandoff = null;
     this.handoff?.cancel();
-    this.generation++;
-    this.clearGap();
-    this.cancelSkip();
-    this.stopSource();
     this.store?.close();
-    this.resetRemainingTime();
-    this.listened = 0;
-    this.settleNotice();
-    this.voice = request.voice;
-    this.segments = request.segments;
     this.store = new ClipStore<Clip>({
       segments: request.segments,
       voice: request.voice,
       clock: this.deps.clock,
       fetch: this.deps.fetch,
+      held: this.deps.held,
       decode: (audio) => this.deps.audio.decode(audio),
       discard: this.deps.discard,
     });
+    this.reset(request);
+  }
+
+  /** A new run where the manager says, over the store in place. */
+  private reset(request: BindRequest): void {
+    this.awaitingHandoff = null;
+    this.landed = false;
+    this.generation++;
+    this.clearGap();
+    this.cancelSkip();
+    this.stopSource();
+    this.resetRemainingTime();
+    this.listened = 0;
+    this.settleNotice();
+    this.voice = request.voice;
+    this.segments = request.segments;
     // A new controller of Read Aloud's (reader.js 39396-39404)
     this.position = request.backwardStopIndex ?? 0;
     this.backwardStopIndex = request.backwardStopIndex;
@@ -248,6 +268,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
 
   /** The manager destroyed its controller and asked for no other: stop everything, fetch nothing more. */
   end(): void {
+    this.awaitingHandoff = null;
     this.handoff?.cancel();
     this.generation++;
     this.ended = true;
@@ -425,17 +446,24 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   }
 
   /**
-   * The handoff's new voice takes the reading before a skip moves it
-   * (issue #154): its clips become the session's and the old voice stops,
-   * but nothing plays — the skip that follows says where the new voice
-   * starts.
+   * A pending switch failed or was called off while the reading waited for
+   * its new voice (issue #163): the old voice asks for that sentence, as
+   * before the switch. One task later, so a deactivate or new segments that
+   * called it off can end the run first and nothing is asked for a reading
+   * that is gone.
    */
-  adoptVoice(voice: EngineVoice, store: ClipStore<Clip>): void {
-    this.swapVoice(voice, store);
-    this.clearGap();
-    this.stop();
-    // A paused offset is a place in the old voice's clip
-    this.resumePoint = null;
+  handoffEnded(): void {
+    const index = this.awaitingHandoff;
+    if (index === null) return;
+    this.deps.clock.setTimeout(() => {
+      if (this.awaitingHandoff !== index || this.ended || this.paused || this.position !== index) return;
+      this.speakInternal();
+    }, 0);
+  }
+
+  /** A skip or a jump landed on the sentence at the position, which has not started since: its start is a fresh one. */
+  get landing(): boolean {
+    return this.landed;
   }
 
   private swapVoice(voice: EngineVoice, store: ClipStore<Clip>): void {
@@ -506,6 +534,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
 
   /** `_speakInternal` (reader.js 40162-40221). */
   private speakInternal(): void {
+    this.awaitingHandoff = null;
     if (this.ended || !this.segments || !this.store) return;
     if (this.paused) {
       this.stop();
@@ -519,6 +548,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     if (this.handoff?.sentenceStart(index)) return;
     const generation = this.generation;
     const store = this.store;
+    const handoff = this.handoff;
     const handleError = (): void => {
       if (generation !== this.generation || this.position !== index) return;
       this.setBuffering(false);
@@ -526,7 +556,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       this.deps.emit('Error', segment);
       this.showFailed();
     };
-    if (this.failed.has(index)) {
+    if (!handoff && this.failed.has(index)) {
       handleError();
       return;
     }
@@ -534,23 +564,50 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     if (!this.deps.audio.running()) this.deps.audio.resume();
     this.setBuffering(true);
     this.waitForAudio();
+    const start = (clip: Clip): void => {
+      this.setBuffering(false);
+      if (this.ended || this.paused) return;
+      this.currentIndex = index;
+      this.landed = false;
+      this.segmentStart(segment, index);
+      const offset = this.resumeOffset(index, clip);
+      try {
+        this.playClip(clip, offset, this.speed, store.timings.get(index) ?? null);
+      } catch (e) {
+        this.deps.log?.(e);
+        this.failPlayback(index, 'unknown');
+        handleError();
+        return;
+      }
+      this.readAheadFrom(index + 1);
+    };
+    if (handoff) {
+      // A switch is pending: the old voice reads only the audio it already has (issue #163)
+      void store.held(index).then((clip) => {
+        if (generation !== this.generation || this.position !== index || this.store !== store) return;
+        if (clip) {
+          start(clip);
+          return;
+        }
+        if (this.ended || this.paused) {
+          this.setBuffering(false);
+          return;
+        }
+        if (this.handoff === handoff) {
+          // It has none: the reading waits here for the new voice
+          this.awaitingHandoff = index;
+          handoff.waitAt(index);
+          return;
+        }
+        // The switch ended while this looked: the old voice asks for it, as before the switch
+        this.speakInternal();
+      });
+      return;
+    }
     store.get(index).then(
       (clip) => {
         if (generation !== this.generation || this.position !== index) return;
-        this.setBuffering(false);
-        if (this.ended || this.paused) return;
-        this.currentIndex = index;
-        this.segmentStart(segment, index);
-        const offset = this.resumeOffset(index, clip);
-        try {
-          this.playClip(clip, offset, this.speed, store.timings.get(index) ?? null);
-        } catch (e) {
-          this.deps.log?.(e);
-          this.failPlayback(index, 'unknown');
-          handleError();
-          return;
-        }
-        this.readAheadFrom(index + 1);
+        start(clip);
       },
       (e: unknown) => {
         if (generation !== this.generation || this.position !== index) return;
@@ -636,9 +693,12 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   /** `_skipTo` (reader.js 39460-39469). */
   private skipTo(position: number): void {
     this.resetRemainingTime();
-    this.handoff?.cancel();
     this.clearGap();
     this.position = position;
+    this.awaitingHandoff = null;
+    this.landed = true;
+    // A pending switch goes on from where the skip lands (issue #163)
+    this.handoff?.moved();
     this.completed = false;
     this.stop();
     this.deps.emit('ActiveSegmentChanging', this.currentSegment);
@@ -650,7 +710,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   /** Fetch ahead after a clip starts (reader.js 40258-40328). */
   private readAheadFrom(startIndex: number): void {
     const store = this.store;
-    if (!store || !this.segments) return;
+    // While a switch is pending the old voice asks for nothing ahead (issue #163)
+    if (!store || !this.segments || this.handoff) return;
     const generation = this.generation;
     const order = readAheadOrder({
       segments: this.segments,
@@ -661,7 +722,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       forwardStopIndex: this.forwardStopIndex,
       timer: store.timer,
     });
-    runReadAhead(order, (index) => store.get(index), () => generation !== this.generation || store.closed);
+    runReadAhead(order, (index) => store.get(index), () => generation !== this.generation || store.closed || this.handoff !== null);
   }
 
   // ---- Playing a clip -------------------------------------------------------

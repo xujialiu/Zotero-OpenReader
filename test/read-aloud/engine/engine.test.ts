@@ -42,7 +42,9 @@ async function setup(options: { attachFirst?: boolean; voices?: Record<string, u
   });
   const reader = { _internalReader: { _readAloudManager: manager, _syncPersistedVoicesToManager() {} }, _iframeWindow: window };
   const source = {
-    getAudio: vi.fn(async (segment: { text: string }, voice: { id: string }, _options?: { signal?: AbortSignal }) => {
+    getAudio: vi.fn(async (segment: { text: string }, voice: { id: string }, _options?: { signal?: AbortSignal; held?: boolean }) => {
+      // A lookup of audio the interface holds: none here, and no provider asked (issue #163)
+      if (_options?.held) return { audio: null, error: 'not-held' };
       const error = options.fail?.(segment.text);
       if (error) return { audio: null, error };
       return { audio: fakeAudio(segment.text.length * 0.05), timestamps: segment.text === TEXTS[0] ? WORDS : undefined, voice: voice.id };
@@ -246,6 +248,53 @@ describe('the Engine behind Zotero 10.0.3’s manager', () => {
     await t.clock.advance(0);
     expect(t.source.getAudio.mock.calls.at(-1)![1]).toMatchObject({ id: NOVA });
     expect(t.engine.inspect(t.reader).stats).toMatchObject({ started: 3, carriedOn: 0 });
+  });
+
+  it('keeps a pending switch across a jump: the old voice reads what it has there and asks for nothing new (#163)', async () => {
+    const t = await setup({ attachFirst: true });
+    const notices: string[] = [];
+    const pick = createVoicePick({ engine: t.engine, notice: (_r, kind) => notices.push(kind), error: (e) => t.errors.push(e), newAbortController: () => new AbortController() });
+    pick.attach(t.reader);
+    const answer = t.source.getAudio.getMockImplementation()!;
+    const held: (() => void)[] = [];
+    t.source.getAudio.mockImplementation((segment, voice, options) =>
+      voice.id === NOVA && !options?.held ? new Promise((resolve) => held.push(() => resolve(answer(segment, voice, options)))) : answer(segment, voice, options),
+    );
+    t.open(0);
+    await t.clock.advance(10);
+    const asked = () => t.source.getAudio.mock.calls.filter(([, voice, options]) => voice.id === ALLOY && !options?.held).length;
+    // The first sentence and its read-ahead of three: the whole document
+    expect(asked()).toBe(4);
+    t.manager.selectVoice(NOVA);
+    await t.clock.advance(200);
+    expect(pick.inspect(t.reader)?.pending).toBe(NOVA);
+    expect(t.engine.mayPrefetch(t.reader, ALLOY)).toBe(false);
+    t.manager.repositionTo(2);
+    await t.clock.advance(0);
+    const session = t.engine.session(t.reader)!;
+    expect(session.handoff?.pending).toBe(true);
+    expect(t.manager.selectedVoiceID).toBe(ALLOY);
+    expect(t.manager.activeSegment).toBe(t.segments[2]);
+    expect(t.engine.inspect(t.reader).stats).toMatchObject({ started: 2, carriedOn: 0 });
+    expect(asked()).toBe(4);
+    expect(notices).toEqual(['preparing']);
+    pick.dispose();
+    t.engine.dispose();
+  });
+
+  it('answers whether the plugin prefetch may ask for a voice: the one reading, with no switch pending (#163)', async () => {
+    const t = await setup({ attachFirst: true });
+    expect(t.engine.mayPrefetch(t.reader, ALLOY)).toBe(true);
+    t.open(0);
+    await t.clock.advance(10);
+    expect(t.engine.mayPrefetch(t.reader, ALLOY)).toBe(true);
+    expect(t.engine.mayPrefetch(t.reader, NOVA)).toBe(false);
+    t.manager.selectVoice(NOVA);
+    await t.clock.advance(0);
+    expect(t.engine.mayPrefetch(t.reader, NOVA)).toBe(true);
+    expect(t.engine.mayPrefetch(t.reader, ALLOY)).toBe(false);
+    expect(t.engine.inspect(t.reader).session?.store).toMatchObject({ lookups: 0 });
+    t.engine.dispose();
   });
 
   it('ends the session when the manager destroys its controller for good, and closes the tab’s output', async () => {

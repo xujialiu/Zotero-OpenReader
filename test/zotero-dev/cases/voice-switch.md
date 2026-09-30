@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/voice-switch/README.md)
 
-# 4a. Voice switching (issues #95, #108, #154)
+# 4a. Voice switching (issues #95, #108, #154, #163)
 
 Run the [baseline](../baseline.md) first and [cleanup](../cleanup.md) last.
 
@@ -57,7 +57,7 @@ starts; the dual-playing setup required a fixture-only status guard.
 Do not count that guarded scenario as an ordinary supported Zotero state.
 
 1. **Identity and bindings.** `diagnostics.voiceSwitch()` reports
-   `mechanism: engine-handoff-v1`, previous `Shift+,`, next `Shift+.`.
+   `mechanism: engine-handoff-v2`, previous `Shift+,`, next `Shift+.`.
    Each attached reader reports `handoff.controlsAttached: true`.
    Startup includes `the Engine` and `voice switching` with no failed
    step.
@@ -91,8 +91,8 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
    segment is never behind the current reading position.
 6. **Cancellation and failure.** Rapid keys retain only the latest target;
    returning to the current voice cancels. Speed, stop, tab close and
-   shutdown remove pending work; a skip makes the switch at once instead
-   (item 14, issue #154). Pause keeps preparation silent and disarms
+   shutdown remove pending work; a skip or a jump keeps it (item 14,
+   issue #163). Pause keeps preparation silent and disarms
    a scheduled stop; a manual pick replaces the pending target. A stale
    result never plays. A rejected request leaves old audio playing, reports
    `failed`, and shows a failure notice. Repeat after a word stop is armed
@@ -171,36 +171,48 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
     reader for this check. Restore the request counter/wrapper, erase fixture records,
     and complete WebDAV cleanup before restoring automatic sync.
 
-14. **A skip takes a pending switch (#154).** On an isolated PDF fixture,
-    read a plugin voice past the first sentence, then pick another voice
-    with trusted `Shift+.` while its audio is still on its way (a held or
+14. **The old voice asks for nothing new; skips and jumps keep the switch
+    (#163).** On an isolated PDF fixture longer than the old voice's
+    read-ahead, read plugin voice A past the first sentence, then pick B
+    with trusted `Shift+.` while B's audio is still on its way (a held or
     delayed fixture request, as in item 12, or a cold real request):
-    `voiceSwitch()` `handoff.pending` is the target, `stage: preparing`.
-    Press trusted `←`. At once, before any new audio: `engine()`
-    `session.voice` is the target, `handoff: null`, `playing: false`,
-    `skipPending: true`, `stats.carriedOn` up one and `stats.started`
-    unchanged; `voiceSwitch()` reports `selected` = the target,
-    `handoff.last.kind: skip` with `from` / `to`, and the old voice's source
-    has stopped. After Read Aloud's 600 ms skip debounce the new voice's
-    store asks for the previous sentence, the first source started plays
-    it in the new voice from offset 0, `session.position` is that sentence,
-    and `handoff.notice` turns `selected` once it is heard. The old voice
-    never starts the target. Repeat with `Shift+←`, `→`, `Shift+→` and one
-    of the player's skip buttons. **Prepared audio reused:** let the new
-    voice's next sentence arrive (`handoff.prepared` holds it) before `→`:
-    that sentence plays with no second request. Two word-timed voices arm a
-    word cut while playing and never prepare ahead, so this row runs paused;
-    read-ahead after Play raises `store.requests`, so count the requests for
-    that sentence's text in a fetch log. **Paused:** pause, pick, `←`: `selected` and
-    `notice: selected` at once, no request for the target before Play,
-    and Play reads the target in the new voice from offset 0 even when
-    `←` lands on the sentence paused in. **Still cancelled:** a speed
-    change during a pending switch reports `cancelled` and the old voice
-    reads on (`last` keeps the previous switch's boundary). Only a human
-    can hear whether any old-voice sound slips out after the key. Verified
-    on macOS, 2026-09-28, 1.16.2-beta, with a cold request to the
-    configured Kokoro server as the pending window: all five keys, paused
-    and prepared reuse PASS; the kit README has the run.
+    `voiceSwitch()` `handoff.pending` is B, `stage: preparing`,
+    `oldRequests: 0`. Count A's requests in a fetch log beside
+    `engine()` `store.requests` (the store is A's while the switch is
+    pending) and `store.lookups`.
+    - **Reading on.** A reads only what it has: `store.requests` flat and
+      no new A synthesis line in the debug output; a prefetch chain
+      running at the pick logs `prefetch: <provider>: stopped, the voice
+      is switching`. At the first sentence A has no audio for, no A source
+      starts: `stage: waiting`, `waitedAt` that index, `store.lookups` up,
+      "Preparing…" after 300 ms. Once B's audio for it is in, B reads it
+      from offset 0: `last.kind: sentence`, `last.index` = `waitedAt`,
+      notice `selected`, `oldRequests: 0`.
+    - **A skip to a sentence A has** (`←` once): A reads it from offset 0,
+      the player still shows A, the switch stays pending, and B takes over
+      within it (`last.kind: word` when both voices time words) or at a
+      later sentence.
+    - **A skip to a sentence A lacks** (`Shift+→` past the read-ahead):
+      `stage: waiting`, `waitedAt` the target, no A request; B reads it
+      from offset 0. Repeat with one of the player's skip buttons.
+    - **A jump** (a selection in a later paragraph, trusted
+      `Shift+Space`): `stats.started` up one, no `cancelled` notice,
+      `handoff.pending` still B, and the same rule where it lands.
+    - **Both have it**: with B's next sentence in `handoff.prepared`
+      (paused, as in #154's prepared row), `→` then Play reads it in B
+      with no second request.
+    - **Paused**: pause, pick, `←`: nothing is selected at the key; the
+      notice turns `ready` once B has the landed sentence; Play reads it
+      in B from offset 0.
+    - **Failure and speed while waiting**: a B request that fails (a
+      fixture error) reports `failed`, and A then asks for the sentence
+      and reads it (`oldRequests: 1`); a speed change reports `cancelled`
+      and does the same at the new speed.
+
+    Only a human can hear whether any A sound slips out after the pick.
+    Replaces #154's check, where a skip took the switch at once
+    (verified on macOS, 2026-09-28, 1.16.2-beta; its scripts stay in
+    the kit as the record of that run).
 
 Unit tests cover artificial timer delays, timeout exhaustion, cross-realm
 array callback traps and malformed timestamp combinations. Real bridge

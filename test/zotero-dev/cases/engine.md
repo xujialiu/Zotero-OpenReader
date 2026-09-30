@@ -20,14 +20,14 @@ the player closed); `session` — `voice`, `position`, `currentIndex`,
 `clipDuration`, `gaps: {count, last: {ms, paragraph, speed, at}}`,
 `notices: {waits, shown, starts, failed}`,
 `wordClock: {ticks, shortWaits, backoffs, lastWaitMs}`, `handoff`, `store: {requests,
-clips, timings, inflight, msPerChar}`; `audio: {state, sampleRate,
+lookups, clips, timings, inflight, msPerChar}`; `audio: {state, sampleRate,
 latency, gain, contexts}`; `stats: {controllers, carriedOn, started,
 ended, adopted, late, fallbacks}`. `stats.fallbacks` is 0 throughout: a
 fallback means the Engine failed to build a controller and Read Aloud's
 own engine played, with the error in the console. The manager's own state
 (`active`, `paused`, `activeSegment`, `activeTimestamp`, `buffering`,
 `error`, `speed`) is read beside it. The voice switch keeps
-`diagnostics.voiceSwitch()`, now `mechanism: engine-handoff-v1`.
+`diagnostics.voiceSwitch()`, now `mechanism: engine-handoff-v2` (issue #163).
 
 **What only a human can judge**: that the voices sound as before (the
 copied stretch and chain are proven bit-identical in the unit tests,

@@ -17,7 +17,7 @@ const WORDS: WordTiming[] = [
  * fields, the voice resolution a pick runs, and a rebuild of the controller
  * that binds the session the way the Engine's `getController` does.
  */
-function setup(options: { paused?: boolean } = {}) {
+function setup(options: { paused?: boolean; texts?: string[] } = {}) {
   const clock = new VirtualClock();
   const audio = new FakeAudio(clock);
   const fetch = new FakeFetch();
@@ -26,6 +26,7 @@ function setup(options: { paused?: boolean } = {}) {
     clock,
     audio,
     fetch: fetch.fetch,
+    held: fetch.held,
     pauses: () => ({ sentence: { enabled: true, ms: 0 }, paragraph: { enabled: true, ms: 0 } }),
     emit: log.emit,
   });
@@ -33,7 +34,7 @@ function setup(options: { paused?: boolean } = {}) {
     audio: { name: `${v.id}:${segment.text}`, duration: segment.text.length * 0.05 } satisfies FakeAudioData,
     timestamps: segment.text === TEXT ? WORDS : null,
   });
-  const segments = [{ text: TEXT }, { text: 'Four five.' }, { text: 'Six seven.' }];
+  const segments = (options.texts ?? [TEXT, 'Four five.', 'Six seven.']).map((text) => ({ text }));
   const voices: any[] = ['a', 'b', 'c'].map((id) => ({ id, label: id.toUpperCase(), language: 'en-US', segmentGranularity: 'sentence' }));
   const voiceOf = (v: any) => ({ id: v.id, lang: v.language, sentenceDelay: 0, reader: v });
   const rebuilds: string[] = [];
@@ -89,11 +90,21 @@ function setup(options: { paused?: boolean } = {}) {
       this.paused = false;
       session.setPaused(false);
     },
-    skipBack(granularity = 'paragraph') {
-      session.skipBack(granularity);
+    skipBack(granularity = 'paragraph', accelerate = false) {
+      session.skipBack(granularity, accelerate);
     },
-    skipAhead(granularity = 'paragraph') {
-      session.skipAhead(granularity);
+    skipAhead(granularity = 'paragraph', accelerate = false) {
+      session.skipAhead(granularity, accelerate);
+    },
+    // Zotero's: the same segments, a controller told where to start, playing (reader.js 82607-82628)
+    jumpTo(index: number) {
+      this.repositionTo(index);
+    },
+    repositionTo(index: number) {
+      this.paused = false;
+      const voice = voices.find((v) => v.id === this._voiceID);
+      rebuilds.push(`${voice.id}:${session.bind({ voice: voiceOf(voice), segments, backwardStopIndex: index, forwardStopIndex: null, jump: true })}`);
+      session.setPaused(false);
     },
     setSpeed(rate: number) {
       this.speed = rate;
@@ -194,10 +205,12 @@ describe('voice pick', () => {
     expect(t.manager.pause.name).toBe('pause');
   });
 
-  describe('a skip while a switch is pending takes the new voice at once (issue #154)', () => {
+  describe('a skip or a jump while a switch is pending keeps it (issue #163)', () => {
+    const SIX = [TEXT, 'Four five.', 'Six seven.', 'Eight nine.', 'Ten eleven.', 'Twelve thirteen.'];
+
     /** A reads "Four five."; C is picked, and its audio is still on its way. */
-    async function pending(options: { paused?: boolean } = {}) {
-      const t = setup();
+    async function pending(options: { paused?: boolean; texts?: string[] } = {}) {
+      const t = setup({ texts: options.texts });
       await t.clock.advance(800);
       expect(t.session.position).toBe(1);
       if (options.paused) t.manager.pause();
@@ -207,42 +220,67 @@ describe('voice pick', () => {
       expect(t.session.handoff?.pending).toBe(true);
       return t;
     }
+    const asked = (t: ReturnType<typeof setup>, voice: string) => t.fetch.requests.filter((r) => r.voice === voice).length;
 
-    it.each([
-      ['skipBack', 'sentence', TEXT],
-      ['skipBack', 'paragraph', TEXT],
-      ['skipAhead', 'sentence', 'Six seven.'],
-      ['skipAhead', 'paragraph', 'Six seven.'],
-    ] as const)('%s by %s stops the old voice and reads the target in the new one', async (skip, granularity, target) => {
+    it.each(['skipBack', 'jumpTo'] as const)('%s to a sentence the old voice has: the old voice reads it, and the new voice takes over within it', async (how) => {
       const t = await pending();
-      const before = t.audio.started.length;
-      t.manager[skip](granularity);
-      expect(t.audio.current).toBeUndefined();
-      expect(t.manager.selectedVoiceID).toBe('c');
-      expect(t.manager._persistCurrentVoice).toHaveBeenCalledOnce();
-      expect(t.rebuilds).toEqual(['c:carried-on']);
-      // The switch's shadows went with it: the manager's own skip is back
-      expect(t.manager[skip].name).toBe(skip);
-      await t.clock.advance(600);
-      t.fetch.respond(target);
+      const before = asked(t, 'a');
+      if (how === 'skipBack') t.manager.skipBack('sentence');
+      else t.manager.jumpTo(0);
+      expect(t.manager.selectedVoiceID).toBe('a');
+      expect(t.session.handoff?.pending).toBe(true);
+      await t.clock.advance(how === 'skipBack' ? 600 : 0);
+      expect(t.audio.current?.clip.name).toBe(`a:${TEXT}`);
+      expect(t.audio.current?.offset).toBe(0);
+      t.fetch.respond('Four five.');
       await t.clock.advance(25);
-      expect(t.audio.started.slice(before).map((s) => s.clip.name)).toEqual([`c:${target}`]);
+      t.fetch.respond(TEXT);
+      await t.clock.advance(300);
+      expect(t.manager.selectedVoiceID).toBe('c');
+      expect(t.audio.started.at(-1)?.clip.name).toBe(`c:${TEXT}`);
+      expect(t.pick.inspect(t.reader)?.last).toMatchObject({ kind: 'word', index: 0 });
       expect(t.notices).toEqual(['preparing:C', 'selected:C']);
+      expect(asked(t, 'a')).toBe(before);
     });
 
-    it('while paused, selects the new voice at once, and Play reads the target in it', async () => {
+    it.each(['skipAhead', 'jumpTo'] as const)('%s to a sentence the old voice lacks: the reading waits, and the new voice reads it from its start', async (how) => {
+      const t = await pending({ texts: SIX });
+      const before = asked(t, 'a');
+      if (how === 'skipAhead') t.manager.skipAhead('sentence', true);
+      else t.manager.jumpTo(5);
+      await t.clock.advance(how === 'skipAhead' ? 600 : 0);
+      expect(t.session.position).toBe(5);
+      expect(t.audio.current).toBeUndefined();
+      expect(t.manager.selectedVoiceID).toBe('a');
+      expect(t.pick.inspect(t.reader)).toMatchObject({ stage: 'waiting', waitedAt: 5, oldRequests: 0 });
+      t.fetch.respond('Four five.');
+      await t.clock.advance(25);
+      t.fetch.respond('Twelve thirteen.');
+      await t.clock.advance(25);
+      expect(t.manager.selectedVoiceID).toBe('c');
+      expect(t.audio.current?.clip.name).toBe('c:Twelve thirteen.');
+      expect(t.audio.current?.offset).toBe(0);
+      expect(t.pick.inspect(t.reader)?.last).toMatchObject({ kind: 'sentence', index: 5 });
+      expect(t.notices).toEqual(['preparing:C', 'selected:C']);
+      expect(asked(t, 'a')).toBe(before);
+    });
+
+    it('while paused, a skip keeps the switch, and Play reads the sentence landed on in the new voice once its audio is in', async () => {
       const t = await pending({ paused: true });
       t.manager.skipBack('sentence');
-      expect(t.manager.selectedVoiceID).toBe('c');
+      expect(t.manager.selectedVoiceID).toBe('a');
       await t.clock.advance(600);
-      expect(t.notices).toEqual(['preparing:C', 'selected:C']);
-      expect(t.fetch.waiting.map((p) => `${p.voice.id}:${p.segment.text}`)).toEqual(['c:Four five.']);
+      t.fetch.respond('Four five.');
+      await t.clock.advance(25);
+      t.fetch.respond(TEXT);
+      await t.clock.advance(25);
+      expect(t.notices).toEqual(['preparing:C', 'ready:C']);
       t.manager.play();
       await t.clock.advance(0);
-      t.fetch.respond(TEXT);
-      await t.clock.advance(1);
       expect(t.audio.current?.clip.name).toBe(`c:${TEXT}`);
       expect(t.audio.current?.offset).toBe(0);
+      expect(t.manager.selectedVoiceID).toBe('c');
+      expect(t.notices).toEqual(['preparing:C', 'ready:C', 'selected:C']);
     });
   });
 

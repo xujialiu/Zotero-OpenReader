@@ -11,9 +11,18 @@
  * in quick succession coalesce for 120 ms before anything is requested. A
  * request may take 60 s and the whole switch 120 s (the clock stops while
  * paused), then the switch fails and the old voice reads on. A speed
- * change, a jump or Stop calls it off. A skip takes it at once instead
- * (issue #154): the old voice stops, and the sentence skipped to is read in
- * the new voice, with what the new voice has already prepared.
+ * change or Stop calls it off.
+ *
+ * Meanwhile the old voice asks for nothing new (issue #163): it reads only
+ * the audio it already has (session.ts, clips.ts `held`), and at the first
+ * sentence it has none for the reading waits for the new voice, which
+ * takes that sentence from its start (`waitAt`). A skip or a jump keeps
+ * the switch and applies the same rule where it lands (`moved`): the new
+ * voice's audio for that sentence first, else the old voice's, else a wait
+ * for the new voice. The manager is told of the new voice only once that
+ * voice's audio is in hand, so a switch that fails or is called off while
+ * the reading waits leaves the old voice to ask for the sentence.
+ * (Until #163 a skip took the switch at once, before any audio, #154.)
  *
  * Paused, the preparation is silent; on Play the new voice starts at the
  * paused word when that word is identified exactly in both voices' timings,
@@ -52,7 +61,7 @@ export const HANDOFF_AHEAD = 8;
 export const OUTPUT_OPEN_MS = 3000;
 
 export interface HandoffBoundary {
-  kind: 'word' | 'sentence' | 'skip';
+  kind: 'word' | 'sentence';
   index: number;
   offset: number;
   charStart: number;
@@ -77,6 +86,10 @@ export interface HandoffReport {
   last: HandoffBoundary | null;
   wordDecision: string | null;
   audioReady: AudioReady[];
+  /** The sentence the reading last waited at for the new voice (issue #163). */
+  waitedAt?: number | null;
+  /** Requests the old voice's clips made since the switch began: none, by issue #163. */
+  oldRequests?: number;
 }
 
 export interface HandoffOptions {
@@ -108,6 +121,10 @@ export class Handoff<Clip extends EngineClip> {
   private loadedFirst = false;
   private missed = 0;
   private sentenceOnlyIndex: number | null = null;
+  /** The sentence the reading waits at for this voice (issue #163). */
+  private waitingAt: number | null = null;
+  private readonly oldStore: ClipStore<Clip> | null;
+  private readonly oldRequestsAtStart: number;
   private noticeReady = false;
   private resumePending = false;
   private timer: unknown = null;
@@ -124,11 +141,14 @@ export class Handoff<Clip extends EngineClip> {
     this.rate = session.speed;
     this.started = deps.clock.now();
     this.deadline = this.started + HANDOFF_SWITCH_MS;
+    this.oldStore = session.store;
+    this.oldRequestsAtStart = session.store?.requests ?? 0;
     this.store = new ClipStore<Clip>({
       segments: this.segments,
       voice: options.target,
       clock: deps.clock,
       fetch: deps.fetch,
+      held: deps.held,
       decode: (audio) => deps.audio.decode(audio),
       discard: deps.discard,
       signal: options.abort?.signal,
@@ -181,15 +201,23 @@ export class Handoff<Clip extends EngineClip> {
         return;
       }
       this.updatePausedNotice();
+      this.noteOldRequests();
       const now = this.deps.clock.now();
       if (this.session.paused) this.deadline = now + HANDOFF_SWITCH_MS;
       if (now > this.deadline) {
         this.fail(new Error('Zotero-TTS: no prepared handoff boundary was reached'));
         return;
       }
+      if (this.waitingAt !== null && this.waitingAt !== this.session.position) this.waitingAt = null;
       if (!this.loadedFirst) {
-        this.loadedFirst = true;
-        void this.load(this.session.position);
+        // After a skip or a jump too: the sentence where the reading is, once the load on its way is in
+        if (!this.loading) {
+          this.loadedFirst = true;
+          void this.load(this.session.position);
+        }
+      } else if (this.waitingAt !== null) {
+        // The reading waits for this voice: its sentence, before anything ahead
+        if (!this.loading && !this.ready.has(this.waitingAt)) void this.load(this.waitingAt);
       } else if (!this.armWord() && !this.loading) {
         const position = this.session.position;
         let future = false;
@@ -237,6 +265,12 @@ export class Handoff<Clip extends EngineClip> {
         `voice audio ready: segment ${index}, ${observed.elapsedMs} ms, playing ${observed.playingIndex} at ${observed.progress}, timings ${observed.oldTimings}/${observed.newTimings}`,
       );
       this.missed = Math.max(this.missed, this.session.position - index);
+      if (this.waitingAt === index && this.session.position === index && !this.session.paused) {
+        // The reading waited for this: the new voice takes the sentence from its start
+        this.waitingAt = null;
+        this.commit('sentence', index, 0, 0);
+        return;
+      }
       // Audio is here: the first safe word boundary is armed at once, not at the next look
       this.armWord();
       this.updatePausedNotice();
@@ -320,27 +354,50 @@ export class Handoff<Clip extends EngineClip> {
 
   // ---- At a sentence --------------------------------------------------------
 
-  /** The session is about to speak segment `index`: the new voice takes it when it has its audio. */
+  /**
+   * The session is about to speak segment `index`: the new voice takes it
+   * when it has its audio — a sentence started afresh, not the old voice's
+   * clip resumed, unless a skip or a jump landed on it.
+   */
   sentenceStart(index: number): boolean {
-    if (!this.valid() || this.session.paused || !this.ready.has(index) || this.session.currentIndex === index) return false;
+    const s = this.session;
+    if (!this.valid() || s.paused || !this.ready.has(index) || (s.currentIndex === index && !s.landing)) return false;
     return this.commit('sentence', index, 0, 0);
   }
 
-  // ---- At a skip ------------------------------------------------------------
-
   /**
-   * A skip is about to move the reading (issue #154): the new voice takes
-   * it now, before it has audio, so the skip reads its target in the new
-   * voice; its clips, prepared or on their way, go with it. False when the
-   * switch is no longer valid: then it is called off, as before.
+   * The old voice has no audio for segment `index` and asks for none
+   * (issue #163): the reading waits there, and the new voice takes the
+   * sentence from its start once its audio is in.
    */
-  commitNow(): boolean {
+  waitAt(index: number): void {
     if (!this.valid()) {
       this.cancel();
-      return false;
+      return;
     }
-    const s = this.session;
-    return this.handOver('skip', s.position, 0, 0, () => s.adoptVoice(this.options.target, this.store));
+    const report = this.options.report;
+    report.waitedAt = index;
+    if (this.ready.has(index) && !this.session.paused) {
+      this.commit('sentence', index, 0, 0);
+      return;
+    }
+    this.waitingAt = index;
+    report.stage = 'waiting';
+    // Not inside the first 120 ms: a quick run of picks still asks for one voice only
+    if (this.loadedFirst && !this.loading) void this.load(index);
+  }
+
+  // ---- At a skip or a jump --------------------------------------------------
+
+  /** A skip or a jump moved the reading (issue #163): the preparation starts over where it landed. */
+  moved(): void {
+    if (this.done) return;
+    this.disarm();
+    this.loadedFirst = false;
+    this.missed = 0;
+    this.sentenceOnlyIndex = null;
+    this.waitingAt = null;
+    this.options.report.stage = 'preparing';
   }
 
   // ---- Paused ---------------------------------------------------------------
@@ -360,8 +417,10 @@ export class Handoff<Clip extends EngineClip> {
   }
 
   private updatePausedNotice(): void {
-    if (!this.valid() || !this.session.paused) return;
-    const ready = !!this.pausedBoundary();
+    const s = this.session;
+    if (!this.valid() || !s.paused) return;
+    // Play continues with the new voice: at the paused word, or from the start of the sentence it will speak
+    const ready = !!this.pausedBoundary() || (this.ready.has(s.position) && (s.currentIndex !== s.position || s.landing));
     if (ready === this.noticeReady) return;
     this.noticeReady = ready;
     this.options.notice(ready ? 'ready' : 'preparing');
@@ -494,6 +553,7 @@ export class Handoff<Clip extends EngineClip> {
   }
 
   private finish(stage: string): void {
+    this.noteOldRequests();
     this.done = true;
     this.options.report.stage = stage;
     this.options.report.pending = null;
@@ -510,7 +570,13 @@ export class Handoff<Clip extends EngineClip> {
         this.deps.log?.(e);
       }
       this.store.close();
+      // A reading that waited for this voice has the old one ask
+      this.session.handoffEnded();
     }
+  }
+
+  private noteOldRequests(): void {
+    if (this.oldStore) this.options.report.oldRequests = this.oldStore.requests - this.oldRequestsAtStart;
   }
 
   // ---- Small things ---------------------------------------------------------

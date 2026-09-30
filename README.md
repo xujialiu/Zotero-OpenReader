@@ -33,7 +33,7 @@ is built for the way its author reads —
 - 🧵 **No sentence cut in two** — when Zotero breaks a paragraph in the middle of a sentence, the halves are read and highlighted as one sentence. [→ Reading](#reading)
 - 🎧 **A voice browser** in the settings: every voice by provider and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting**, each behind a switch of its own, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
-- ⌨️ **Keyboard shortcuts** for speed, volume, jumping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, highlighting or underlining the sentence being read, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
+- ⌨️ **Keyboard shortcuts** for speed, volume, skipping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, highlighting or underlining the sentence being read, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
 - 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your settings and bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)
@@ -324,20 +324,24 @@ instead. With no reading open the keys keep their usual meaning.
 - **Previous / next voice** — `Shift+,` / `Shift+.` cycle through the
   player's current voice list, wrapping at either end. Choosing a voice,
   language or voice mode in the player uses the same switching behavior.
-- **While playing**, the old voice continues until the new one is ready,
-  then hands over at a word boundary, or between sentences when necessary.
-  A short message names the voice.
+- **While playing**, the old voice reads on only with the audio it already
+  has, and asks your provider for nothing more. The new voice takes over at
+  a word boundary or between sentences once it is ready; where the old
+  voice runs out first, the reading waits for the new one. A short message
+  names the voice.
 - **While paused**, the new voice prepares silently. Press Play to continue
   with it after the paused word if it is ready; otherwise the old voice
   resumes until the new one is ready. Without reliable word alignment,
   the old voice finishes the sentence before switching.
+- **Skipping, or starting somewhere else** (`Shift+Space` on a selection),
+  keeps the switch. The sentence you land on is read in the new voice if
+  its audio is ready, in the old voice if it already has that sentence,
+  and otherwise after a short wait for the new voice.
 - **While a voice is preparing**, another selection cancels the previous
   request and only the latest choice takes effect. A failed preparation
-  keeps the original voice and shows a message. Skipping switches to the
-  new voice at once: the sentence you skip to is read in it, after a
-  short wait if its audio is not ready yet. Changing speed or closing the
-  player cancels the pending switch. Preparation may use your provider's
-  quota even if you change your mind.
+  keeps the original voice, which reads on, and shows a message. Changing
+  speed or closing the player cancels the pending switch. Preparation may
+  use your provider's quota even if you change your mind.
 
 ### Voice browser
 

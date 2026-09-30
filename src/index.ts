@@ -556,6 +556,8 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
     getStripAngleBrackets: () => textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets,
     // The sentences after the one just asked for, from the Engine's own reading of this tab
     getUpcomingTexts: (text, count) => engine?.upcomingTexts(reader, text, count, isInvisibleSegment) ?? [],
+    // A voice switch stops the chain: the old voice asks for nothing new (issue #163)
+    mayPrefetch: (voiceId) => engine?.mayPrefetch(reader, voiceId) ?? true,
     // The window is the reader's life: a tab closed mid-chain ends the prefetch chain (issue #116)
     isReaderLive: () => liveReaderValue(reader, (value) => Components.utils.isDeadWrapper(value), '_iframeWindow') !== null,
     // Built from the voice id, not from the enabled flags: Zotero
@@ -2802,7 +2804,8 @@ const diagnostics = {
         : readers[readerIndex];
       if (reader) voicePick?.step(reader, direction);
     }
-    return JSON.stringify({ mechanism: 'engine-handoff-v1', bindings: {
+    // v2: the old voice asks for nothing new while a switch is pending; skips and jumps keep it (issue #163)
+    return JSON.stringify({ mechanism: 'engine-handoff-v2', bindings: {
       previous: loadSettings(prefs).shortcuts.previousVoice, next: loadSettings(prefs).shortcuts.nextVoice,
     }, readers: readers.map((reader: any, index: number) => ({ index, selected: readAloudManager(reader)?.selectedVoiceID ?? null,
       handoff: voicePick?.inspect(reader) ?? null })) }, null, 2);

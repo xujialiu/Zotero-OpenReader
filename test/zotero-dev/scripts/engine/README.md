@@ -4,7 +4,7 @@
 
 | Script | Checks | Expected | Params/state |
 | --- | --- | --- | --- |
-| `133-00-startup-diagnostic.js` | Build identity | `version` the installed beta, `failed` empty, `the Engine`/`voice switching` steps `ok`, `engine.feature` `engine-v1`, `voiceSwitch.mechanism` `engine-handoff-v1` | none |
+| `133-00-startup-diagnostic.js` | Build identity | `version` the installed beta, `failed` empty, `the Engine`/`voice switching` steps `ok`, `engine.feature` `engine-v1`, `voiceSwitch.mechanism` `engine-handoff-v1` (`-v2` since #163) | none |
 | `133-01-baseline-mute-fixtures.js` | Named prefs snapshot, mute, fixture-a.pdf and fixture-b.pdf imported | Volume 0 after; `readAloud.memory` a plugin voice; two fresh items; `posBeforeRows` recorded | `fixturesDir`; writes `baseline`, `fixtures.A/B`, `posBeforeRows`, `readAloudMemoryFullValue` |
 | `133-02-item2-smoke.js` | Item 2, the gate: a plugin voice reading fixture-a.pdf a few sentences | `hooks` all true, `controller:{ours,live}` true, `session.playing` true, `audio.state` `running`, `stats.fallbacks` 0, no new `[zotero-tts]` error | state `fixtures.A`; leaves the reader open and playing |
 | `133-03-item1-start-points.js` | Item 1: explicit target, a text selection + trusted Shift+Space (#105), the saved position on a bare reopen | `session.position`/`currentIndex` equal the index of `manager.activeSegment` once the clip actually starts (polled, not a fixed sleep); each lands on its requested segment | state `fixtures.A` |

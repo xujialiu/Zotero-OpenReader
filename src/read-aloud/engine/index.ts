@@ -60,7 +60,8 @@ export interface TabVoice extends EngineVoice {
 
 /** The plugin's composite interface of one reader (remote-interface.ts), called on the plugin's side. */
 export interface SegmentAudioSource {
-  getAudio(segment: unknown, voice: unknown, options?: { signal?: AbortSignal }): Promise<any>;
+  /** With `held`, only audio the interface already has: no provider is asked (issue #163). */
+  getAudio(segment: unknown, voice: unknown, options?: { signal?: AbortSignal; held?: boolean }): Promise<any>;
   /** Drop a cached answer whose audio would not decode (remote-interface.ts). */
   forget?(segment: unknown, voice: unknown): Promise<void>;
 }
@@ -128,6 +129,12 @@ export interface Engine {
   bound(reader: unknown): boolean;
   /** The texts after `text`, for the plugin's warm chain (remote-interface.ts). */
   upcomingTexts(reader: unknown, text: string, count: number, skip: (segment: EngineSegment) => boolean): string[];
+  /**
+   * Whether the plugin's warm chain may ask for a voice's audio now: not
+   * while a voice switch is pending, nor for a voice the reading has left
+   * (issue #163); with no reading, as before.
+   */
+  mayPrefetch(reader: unknown, voiceId: string): boolean;
   /** Move every tab's volume. */
   setVolume(level: number): void;
   remainingTime(reader: unknown): RemainingSnapshot;
@@ -220,6 +227,7 @@ export function createEngine(deps: EngineDeps): Engine {
       clock,
       audio,
       fetch: (segment, voice, signal) => fetchFor(tab, segment, voice as TabVoice, signal),
+      held: (segment, voice) => fetchFor(tab, segment, voice as TabVoice, undefined, true),
       discard: (segment, voice) => {
         const source = deps.audioSource(tab.reader);
         if (source?.forget) void source.forget(segment, (voice as TabVoice).reader.impl).catch(deps.error);
@@ -240,11 +248,16 @@ export function createEngine(deps: EngineDeps): Engine {
     return tab;
   }
 
-  /** A segment's audio, through the reader's interface: the plugin's providers for its voices, Zotero's own call for Zotero's (ADR 0005). */
-  async function fetchFor(tab: Tab, segment: EngineSegment, voice: TabVoice, signal?: unknown): Promise<FetchResult> {
+  /**
+   * A segment's audio, through the reader's interface: the plugin's
+   * providers for its voices, Zotero's own call for Zotero's (ADR 0005);
+   * `held`, only what the interface already has (issue #163).
+   */
+  async function fetchFor(tab: Tab, segment: EngineSegment, voice: TabVoice, signal?: unknown, held = false): Promise<FetchResult> {
     const source = deps.audioSource(tab.reader);
     if (!source) return { audio: null, error: 'unknown' };
-    const result = await source.getAudio(segment, voice.reader.impl, signal ? { signal: signal as AbortSignal } : undefined);
+    const options = held ? { held: true } : signal ? { signal: signal as AbortSignal } : undefined;
+    const result = await source.getAudio(segment, voice.reader.impl, options);
     if (!alive(tab.window)) {
       // The tab closed while this was on its way: nothing is waiting for it (issue #116)
       tab.stats.late++;
@@ -519,6 +532,12 @@ export function createEngine(deps: EngineDeps): Engine {
       }
     },
 
+    mayPrefetch(reader, voiceId) {
+      const session = tabOfReader(reader)?.session;
+      if (!session || session.ended) return true;
+      return session.handoff === null && session.voice?.id === voiceId;
+    },
+
     setVolume(level) {
       prune();
       for (const tab of all) {
@@ -592,6 +611,7 @@ export function createEngine(deps: EngineDeps): Engine {
               store: session.store
                 ? {
                     requests: session.store.requests,
+                    lookups: session.store.lookups,
                     clips: session.store.clips.size,
                     timings: session.store.timings.size,
                     inflight: session.store.inflight.size,

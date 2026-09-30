@@ -11,6 +11,12 @@
  * nothing (40177-40184, issue #42). And a failure is the caller's to keep:
  * this store remembers none, so a segment whose read-ahead failed is asked
  * for once more when playback reaches it (40359-40361).
+ *
+ * While a voice switch is pending, the old voice asks for nothing new
+ * (issue #163): `held` answers only what it already has — a decoded clip,
+ * a fetch on its way, or audio the interface holds (the plugin's cache, a
+ * request of the same audio on its way) — through a lookup that never
+ * reaches a provider, and `null` otherwise.
  */
 
 import { RemainingTime } from './remaining-time';
@@ -43,6 +49,8 @@ export interface ClipStoreDeps<Clip extends EngineClip> {
   discard?(segment: EngineSegment, voice: EngineVoice): void;
   /** Passed to every fetch: a handoff's preparation can be called off (handoff.ts). */
   signal?: unknown;
+  /** The audio the interface already holds for a segment, never asking a provider; no audio when it holds none. */
+  held?(segment: EngineSegment, voice: EngineVoice): Promise<FetchResult>;
 }
 
 export class ClipStore<Clip extends EngineClip> {
@@ -52,6 +60,8 @@ export class ClipStore<Clip extends EngineClip> {
   readonly timer = new FetchTimer();
   /** Fetches issued, for the diagnostics and the tests. */
   requests = 0;
+  /** Lookups of held audio (`held`), which ask no provider: for the diagnostics and the tests. */
+  lookups = 0;
   private readonly durations = new Map<number, number>();
   private timeModel: RemainingTime | null = null;
   get remainingTime(): RemainingTime {
@@ -85,6 +95,23 @@ export class ClipStore<Clip extends EngineClip> {
     return job;
   }
 
+  /**
+   * The clip of segment `index` only if it needs no new request: decoded,
+   * on its way, or held by the interface; `null` otherwise, and on any
+   * failure — the caller then has another voice ask for it (issue #163).
+   */
+  held(index: number): Promise<Clip | null> {
+    const cached = this.clips.get(index);
+    if (cached) return Promise.resolve(cached);
+    const inflight = this.inflight.get(index);
+    if (inflight) return inflight.catch(() => null);
+    const lookup = this.deps.held;
+    if (!lookup || this.closed) return Promise.resolve(null);
+    this.lookups++;
+    const segment = this.deps.segments[index];
+    return this.decodeInto(index, segment, () => lookup(segment, this.deps.voice), false).catch(() => null);
+  }
+
   /** The clip of segment `index` if it is decoded and kept; refreshes it, as Read Aloud's `get` does. */
   cached(index: number): Clip | undefined {
     return this.clips.get(index);
@@ -100,18 +127,23 @@ export class ClipStore<Clip extends EngineClip> {
     this.timeModel = null;
   }
 
-  private async fetchAndDecode(index: number, segment: EngineSegment): Promise<Clip> {
-    const started = this.deps.clock.now();
+  private fetchAndDecode(index: number, segment: EngineSegment): Promise<Clip> {
     this.requests++;
+    return this.decodeInto(index, segment, () => this.deps.fetch(segment, this.deps.voice, this.deps.signal), true);
+  }
+
+  /** Get a segment's audio from `source`, decode it and keep it; `timed` feeds the fetch timer (a lookup is not a fetch). */
+  private async decodeInto(index: number, segment: EngineSegment, source: () => Promise<FetchResult>, timed: boolean): Promise<Clip> {
+    const started = this.deps.clock.now();
     let result: FetchResult;
     try {
-      result = await this.deps.fetch(segment, this.deps.voice, this.deps.signal);
+      result = await source();
     } catch (e) {
       throw new ClipError('unknown', 'fetch', e);
     }
     if (this.closed) throw new ClipError('unknown', 'closed');
     if (!result?.audio) throw new ClipError(result?.error || 'unknown', 'fetch');
-    this.timer.record(segment, this.deps.clock.now() - started);
+    if (timed) this.timer.record(segment, this.deps.clock.now() - started);
     let clip: Clip;
     try {
       clip = await this.deps.decode(result.audio);

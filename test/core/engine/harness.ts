@@ -205,12 +205,20 @@ interface Pending {
 
 /**
  * The fetch: every request recorded; answered at once from `answer` unless
- * `hold` is on, then by `respond`.
+ * `hold` is on, or `holding` says so for the voice, then by `respond`.
+ *
+ * `held` is the interface's lookup of audio it already has, which never
+ * reaches a provider (issue #163): it answers `answer` for a `voice:text`
+ * in `cached`, else `not-held`, and records every lookup.
  */
 export class FakeFetch {
   readonly requests: { text: string; voice: string; signal: unknown }[] = [];
   readonly waiting: Pending[] = [];
+  readonly lookups: { text: string; voice: string }[] = [];
+  /** `voice:text` of the audio the interface holds (its cache). */
+  readonly cached = new Set<string>();
   hold = false;
+  holding: ((voice: EngineVoice) => boolean) | null = null;
   /** Seconds of audio per character of text. */
   secondsPerChar = 0.05;
   timings: (segment: EngineSegment) => WordTiming[] | null = () => null;
@@ -221,9 +229,19 @@ export class FakeFetch {
 
   readonly fetch = (segment: EngineSegment, voice: EngineVoice, signal?: unknown): Promise<FetchResult> => {
     this.requests.push({ text: segment.text, voice: voice.id, signal });
-    if (!this.hold) return Promise.resolve(this.answer(segment, voice));
+    if (!this.hold && !this.holding?.(voice)) return Promise.resolve(this.answer(segment, voice));
     return new Promise((resolve) => this.waiting.push({ segment, voice, signal, resolve }));
   };
+
+  readonly held = (segment: EngineSegment, voice: EngineVoice): Promise<FetchResult> => {
+    this.lookups.push({ text: segment.text, voice: voice.id });
+    return Promise.resolve(this.cached.has(`${voice.id}:${segment.text}`) ? this.answer(segment, voice) : { audio: null, error: 'not-held' });
+  };
+
+  /** The requests of one voice, by text. */
+  of(voiceId: string): string[] {
+    return this.requests.filter((r) => r.voice === voiceId).map((r) => r.text);
+  }
 
   /** Answer the held request for `text` (the oldest one), with `result` or the default answer. */
   respond(text: string, result?: FetchResult): void {

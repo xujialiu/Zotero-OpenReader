@@ -49,9 +49,21 @@ speed everywhere* is on, whichever player, shortcut or setting last
 changed it.
 _Avoid_: default speed, remembered speed
 
+**Skip**:
+Moving the reading back or ahead by a sentence or a paragraph, from the
+keys or the player's buttons.
+_Avoid_: jump, seek
+
+**Jump**:
+Starting the reading somewhere other than where it stands: at the
+selection, or at a newer position from another computer or a phone.
+_Avoid_: skip, reposition, seek
+
 **Handoff**:
-The reading passing from one voice to another without stopping: at a word
-both voices time, otherwise at the start of the next sentence.
+The reading passing from one voice to another: at a word both voices time,
+otherwise at the start of a sentence, where the reading waits for the new
+voice if the old one has no audio for it. While a handoff is pending the
+old voice asks for no new audio, and a skip or a jump keeps it.
 _Avoid_: swap, transition
 
 **Highlight**:

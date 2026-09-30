@@ -118,6 +118,13 @@ export type RemoteInterfaceDeps = {
    * (issue #116). Absent means live.
    */
   isReaderLive?(): boolean;
+  /**
+   * Whether the prefetch chain may ask for this voice's audio now (the
+   * voice id as the reader has it): not while a voice switch is pending,
+   * nor for a voice the reading has left (issue #163). Asked at the
+   * chain's start and before each of its requests; absent means yes.
+   */
+  mayPrefetch?(voiceId: string): boolean;
   /** Receives the raw error before it is collapsed to a Zotero error string. */
   log?(e: unknown): void;
   /** One line per synthesized segment, for the debug output: which provider, how many word timestamps. */
@@ -237,12 +244,15 @@ export interface RemoteInterface {
    * A segment's audio. `options.signal` belongs to a voice being prepared
    * to take the reading over (core/engine/handoff.ts): its requests are
    * shared among themselves only, end when it is called off, and warm
-   * nothing ahead; ordinary playback has none.
+   * nothing ahead; ordinary playback has none. `options.held` asks only
+   * for audio already here — cached, or a synthesis of it on its way — and
+   * never a provider, answering `not-held` otherwise: the old voice while
+   * a switch is pending (issue #163).
    */
   getAudio(
     segment: ZoteroSegment,
     voice: ZoteroVoice,
-    options?: { signal?: AbortSignal },
+    options?: { signal?: AbortSignal; held?: boolean },
   ): Promise<{ audio: Blob | null; timestamps?: unknown; error?: string; noStore?: boolean }>;
   getCreditsRemaining(): Promise<{ standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null }>;
   resetCredits(): Promise<{ standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null }>;
@@ -255,6 +265,9 @@ export interface RemoteInterface {
    */
   forget(segment: ZoteroSegment, voice: ZoteroVoice): Promise<void>;
 }
+
+/** No audio is here for a `held` request, and none is asked for (issue #163). */
+class NotHeld extends Error {}
 
 export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterface {
   const log = (e: unknown) => deps.log?.(e);
@@ -383,7 +396,14 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
    */
   const pending = new Map<string, Promise<{ result: SynthesisResult; cached: boolean }>>();
   const preparations = new WeakMap<AbortSignal, typeof pending>();
-  function ensureAudio(providerId: ProviderId, voiceId: string, text: string, locale?: string, signal?: AbortSignal): Promise<{ result: SynthesisResult; cached: boolean }> {
+  function ensureAudio(
+    providerId: ProviderId,
+    voiceId: string,
+    text: string,
+    locale?: string,
+    signal?: AbortSignal,
+    held = false,
+  ): Promise<{ result: SynthesisResult; cached: boolean }> {
     // A cancelled preparation must not abort an ordinary playback caller
     // sharing this text/voice. Deduplicate within each preparation instead.
     if (signal?.aborted) return Promise.reject(cancelled());
@@ -394,6 +414,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     }
     const languageHint = hintFor(providerId, text, locale);
     const key = cacheKeyFor(providerId, voiceId, text, languageHint);
+    if (held) return heldAudio(key);
     const existing = jobs.get(key);
     if (existing) return existing;
     const job = (async () => {
@@ -406,6 +427,15 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     jobs.set(key, job);
     void job.finally(() => jobs.delete(key)).catch(() => {});
     return job;
+  }
+
+  /** The audio already here for a key: cached, or a synthesis of it on its way; never a new one (issue #163). */
+  async function heldAudio(key: string): Promise<{ result: SynthesisResult; cached: boolean }> {
+    const existing = pending.get(key);
+    if (existing) return existing;
+    const hit = await deps.cache?.()?.match(key);
+    if (hit) return { result: hit, cached: true };
+    throw new NotHeld();
   }
 
   /**
@@ -421,14 +451,25 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
    * segment picks up where this one ends. Failures are logged and end the
    * chain — playback will surface the error when it gets there. A reader
    * whose window is gone ends it too, before the next request goes out
-   * (issue #116): no audio for a document nobody is listening to.
+   * (issue #116): no audio for a document nobody is listening to. So does
+   * a voice switch (issue #163): while one is pending, and once the reading
+   * has left `readerVoiceId`, the chain asks for nothing more.
    */
   let warming = false;
-  function prefetchAfter(providerId: ProviderId, voiceId: string, text: string, strip: boolean, locale?: string, pairs?: string): void {
+  function prefetchAfter(
+    readerVoiceId: string,
+    providerId: ProviderId,
+    voiceId: string,
+    text: string,
+    strip: boolean,
+    locale?: string,
+    pairs?: string,
+  ): void {
     const cfg = deps.getPrefetch?.();
     const cache = deps.cache?.();
     if (!cfg?.enabled || cfg.count < 1 || !cache || warming) return;
     if (deps.isReaderLive?.() === false) return;
+    if (deps.mayPrefetch?.(readerVoiceId) === false) return;
     const texts = (deps.getUpcomingTexts?.(text, cfg.count) ?? []).filter(
       (t) => typeof t === 'string' && t.trim().length > TINY_SEGMENT_CHARS,
     );
@@ -439,6 +480,10 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         for (const original of texts) {
           if (deps.isReaderLive?.() === false) {
             deps.debug?.(`prefetch: ${providerId}: stopped, the reader is gone`);
+            break;
+          }
+          if (deps.mayPrefetch?.(readerVoiceId) === false) {
+            deps.debug?.(`prefetch: ${providerId}: stopped, the voice is switching`);
             break;
           }
           const t = prepareSpeechText(original, strip, pairs).text;
@@ -520,6 +565,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
 
     async getAudio(segment, voice, options) {
       const signal = options?.signal;
+      const held = options?.held === true;
       if (signal?.aborted) return { audio: null, error: 'network' };
       // Snapshot the requested voice, not the manager's current voice: a handoff
       // can prepare a different regional voice while the old one is still active.
@@ -530,14 +576,16 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       const prepared = prepareSpeechText(originalText, segment !== 'sample' && strip, pairs);
       const decoded = decodeVoiceId(voice?.id ?? '');
       if (prepared.removed.length && !prepared.text.trim()) {
-        if (decoded && !signal) prefetchAfter(decoded.provider, decoded.voiceId, originalText, strip, locale, pairs);
+        if (decoded && !signal && !held) prefetchAfter(String(voice?.id ?? ''), decoded.provider, decoded.voiceId, originalText, strip, locale, pairs);
         const pause = silentWav(SILENT_PAUSE_MS);
         deps.debug?.('bracket pairs: empty interior; playing a short pause');
         return { audio: deps.adoptAudio ? deps.adoptAudio(pause) : pause, timestamps: wholeSegmentTimestamp(originalText) };
       }
       if (prepared.removed.length) deps.debug?.(`bracket pairs: removed ${prepared.removed.length} bracket code unit(s) from ${originalText.length} chars`);
       if (!decoded) {
-        // Not one of ours: Zotero's own voice, handled by Zotero's own code
+        // Not one of ours: Zotero's own voice, handled by Zotero's own code,
+        // whose audio the plugin does not keep
+        if (held) return { audio: null, error: 'not-held' };
         const iface = native();
         if (!iface) return { audio: null, error: 'unknown' };
         try {
@@ -575,16 +623,16 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
           deps.debug?.(`skipping ${text.length} chars that are not visible on the page; playing a ${SILENT_PAUSE_MS} ms pause instead`);
           // Still warms what follows: the skipped segment is the anchor the
           // upcoming ones are found from, and it plays for only 400 ms
-          if (!signal) prefetchAfter(decoded.provider, decoded.voiceId, text, strip, locale, pairs);
+          if (!signal && !held) prefetchAfter(String(voice?.id ?? ''), decoded.provider, decoded.voiceId, text, strip, locale, pairs);
           const skipped = silentWav(SILENT_PAUSE_MS);
           return { audio: deps.adoptAudio ? deps.adoptAudio(skipped) : skipped };
         }
 
         // The cache holds exactly what the provider produced; the sentence
         // fallback below is applied on the way out, never stored.
-        const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, prepared.text, segment === 'sample' ? undefined : locale, signal);
+        const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, prepared.text, segment === 'sample' ? undefined : locale, signal, held);
         if (signal?.aborted) return { audio: null, error: 'network' };
-        if (segment !== 'sample' && !signal) prefetchAfter(decoded.provider, decoded.voiceId, text, strip, locale, pairs);
+        if (segment !== 'sample' && !signal && !held) prefetchAfter(String(voice?.id ?? ''), decoded.provider, decoded.voiceId, text, strip, locale, pairs);
 
         // A clean answer with nothing in it: Azure ends the turn with zero
         // audio frames for asterisk-only text (the "****" scene separators,
@@ -615,6 +663,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         return { audio: result.audio, timestamps: words ? restoreSpeechOffsets(result.timestamps!, prepared.removed) : wholeSegmentTimestamp(text) };
       } catch (e) {
         if (signal?.aborted) return { audio: null, error: 'network' };
+        if (e instanceof NotHeld) return { audio: null, error: 'not-held' };
         // toZoteroError collapses every failure into the three strings
         // Zotero's UI understands, so the real cause is gone by the time the
         // user sees "unknown error". Record it before collapsing.
