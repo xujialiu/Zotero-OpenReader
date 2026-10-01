@@ -20,6 +20,7 @@ install; `95` runs alone after `90`.
 | `04-item4-quiet-close.js` | Item 4 (control): reopens `fixtures.a`, opens+closes the popup at once, waits ≥5 s AND until the fixture's Engine `store.inflight == 0` (≤30 s — revised 2026-10-01; the old fixed 7 s closed the tab with a slow getVoices listing in flight), then closes the tab | `droppedRise: 0`, `dropLines: []` of either form, `inflightAtClose: 0` (2026-10-01, 1.16.4-beta4) | reads `fixtures.a`; writes `item4` |
 | `05-item5-playback-normal.js` | Item 5: reopens fixture-a, plays normally, polls `_controller._currentIndex` | `_currentIndex` stuck at 0 for 30 s (script-started AudioContext suspended, pre-Engine); `droppedRise: 0`, `readyAheadLines: 1` (2026-09-16) — superseded by the Engine; item 5's advance now goes through `diagnostics.engine()` | reads `fixtures.a`; writes `item5` |
 | `06-item6-engine-late.js` | Item 6 (issue #165): imports `params.fixtureFile` fresh, warms the provider catalog (`diagnostics.defaultVoice()` — one listing, shared with the manager), restores+focuses the host, ONE trusted Shift+Space (TIP on `reader._iframeWindow`), polls `diagnostics.engine()` until the first in-flight `getAudio`, closes the × way ~`params.lateDelayMs` (250) ms after THAT dispatch, waits ≤20 s for the drop line | With MiMo (2026-10-01, 1.16.4-beta4): press→dispatch 596 ms, `atClose` `requests: 1, inflight: 1, voice mimo::mimo_default, audio running`; `dropLineCount: 1` (~1.3 s after the close); `lateResults` UNCHANGED; zero new dead-object console entries; reader gone from `_readers` and `engine()` | `fixtureFile`, `fixtureState`, `lateDelayMs`; reads `baseline`; writes `fixtures.<fixtureState>`, `item6` |
+| `07-item7-voices-late.js` | Item 7 (issue #165, beta5): imports `params.fixtureFile` fresh, opens it, opens the player with `toggleReadAloudPopup(true)` into the COLD catalog — NO warm-up; must run right after the install (`startup()`→`00`→`00b` only, they warm nothing) — closes the × way `params.closeDelayMs` (default 1000) ms after the open, waits ≤`params.waitMaxMs` (30 s) for the answer; metered-voice guard while the tab lives | With MiMo cold (2026-10-01, 1.16.4-beta5): close +1053 ms after the open, manager `active: false` throughout; the merged list landed ~21.7 s after the open (Zotero's own voices timed out at their designed 20 s, MiMo's half ~21 s cold); `getVoicesRise: 1`, `droppedRise: 1`; one `voice list not planned: its reader is gone` 13 ms after the 20 s line, one drop line 1 ms later; zero plugin dead-object entries (Zotero's own `reader.js:1758` at the close only); no synthesis, nothing paid | `fixtureFile`, `fixtureState` (default `'a'`, so `04` reopens this same item), `closeDelayMs`, `waitMaxMs`; reads `baseline`; writes `fixtures.<fixtureState>`, `item7` |
 | `90-cleanup-restore.js` | Closes/erases whatever is left in `state.fixtures`, restores every touched pref byte-exact (incl. user-value state; `readAloud.defaultVoice` before `readAloud.memory`, memory last), restores `reader.readAloudVoices`, `Debug.storing`, the selected tab | All restored (2026-10-01); safe to run twice | reads `baseline`, `fixtures` |
 | `95-webdav-restore.js` | Closer, after `90`: restores `webdav.url` + the three switches from `state.isolate` byte-exact, only then lets transports run, confirms the destination matches the original, reads the final ring + console dead-object delta, minimizes the host | `urlMatchesOriginal`, `transportsSettledAfter`, `hostMinimized` true (2026-10-01; executed from `.tmp` as `99-webdav-restore-and-final.js`) | reads `state.isolate` |
 
@@ -30,15 +31,19 @@ install; `95` runs alone after `90`.
   the installed bundle contains `tinySegmentText(originalText)` and contains no
   `prefetchAfter(` — the plugin installs packed, so read it through the addon's
   `getResourceURI('content/zotero-tts.js')` jar: URL and hash it.
-- Order: `70` (isolate) → install → `startup()` → `00`, `00b` → items → `90` →
-  `95` (restore). Reset `Zotero.ZoteroTTSRun` (`reset()`) if you can at the end.
+- Order: `70` (isolate) → install → `startup()` → identity → `00`, `00b` →
+  `07` (catalog must still be COLD — never after `06`, whose warm-up is exactly
+  what `07` must not see) → `04` → `90` → `95` (restore). Reset
+  `Zotero.ZoteroTTSRun` (`Zotero.ZoteroTTSRun.api.reset()`) if you can at the end.
 - Fixtures: `fixture-a.pdf` (17 segments; segment 0 is 31 chars, longest 132)
   and `fixture-b.pdf` (6 segments; longest 105), imported fresh per item,
   standalone, erased by `90`.
 - **Provider**: MiMo first on this h200 (Kokoro's getAudio answered under 300 ms
   even cold, five attempts, 2026-09-16). MiMo's OWN first getVoices listing
-  gates the manager's activation and took > 7 s live (2026-10-01) — `06` warms
-  it and anchors the close to the dispatch, never to the press.
+  gates the manager's activation — ~8.4 s in the 2026-10-01 beta4 run 2, ~21 s
+  cold on beta5 (the merged answer also waits out Zotero's own 20 s native
+  timeout) — `06` warms it and anchors the close to the dispatch, never to the
+  press; `07` needs it cold and closes ~1 s after the popup open.
 - **This Zotero build precomputes no read-aloud segments on open** (`m._segments`
   and `_readAloudSegments` absent on an idle reader, owner's included,
   2026-10-01): do not wait for them before starting; `06` waits for the reader
@@ -69,13 +74,21 @@ install; `95` runs alone after `90`.
   listing still in flight, dropping it (`droppedRise: 1, byMethod.getVoices`)
   — the opposite of the control's intent. Hence `06`'s warm-up + dispatch
   anchor and `04`'s measured settle.
-- **The getVoices late drop logs a dead object (2026-10-01, 1.16.4-beta4,
+- **The getVoices late drop USED to log a dead object (2026-10-01, 1.16.4-beta4,
   run 2)**: when that dropped listing landed on the dead window — `lateResults`
   correctly counted the drop — the bundle also logged one `can't access dead
   object` (`line: 0`, console `columnNumber: 18952` = bundle line 18952 =
   `src/index.ts:574`, `onVoicesListed` reading
-  `reader._internalReader._readAloudManager.active` after its await). Separate
-  from #165's getAudio fix; a candidate issue of its own.
+  `reader._internalReader._readAloudManager.active` after its await). Folded
+  into #165 and fixed in 1.16.4-beta5 (`isReaderLive`/`readerGone` wiring, the
+  `voice list not planned: its reader is gone` line): the same flow on beta5
+  drops the list with zero dead-object entries — verified in the 2026-10-01
+  beta5 run below. Correction of the earlier "candidate issue of its own" note.
+- An anonymous `can't access dead object` console entry (`sourceName` empty,
+  `lineNumber` 0, `columnNumber` 1, empty stack, no debug-store trace) appeared
+  25.0 s AFTER the getVoices drop in both the beta4 run 2 and the beta5 run —
+  Zotero-side noise, not the plugin's (the plugin's logged errors carry the jar
+  URL as `sourceName` with the bundle line in `columnNumber`).
 - Zotero's own reader.js logged its own `can't access dead object`
   (reader.js:1758) at one × close — Zotero's noise, not the plugin's.
 - Item 5's advance half: run it against `diagnostics.engine()` on this build
@@ -107,3 +120,4 @@ install; `95` runs alone after `90`.
 | 2026-10-01 | 1.16.4-beta4 (e429d830…) run 1 | this reply (issue #165) | 6 NOT TESTABLE (kit bug) | `06` v1 waited 20 s for precomputed read-aloud segments that this Zotero build never creates on open; failed before the press; no request, nothing paid; fixture hand-cleaned. |
 | 2026-10-01 | 1.16.4-beta4 (e429d830…) run 2 | this reply (issue #165) | 6 NOT TESTABLE (no dispatch), 4 attempt invalid (see Limits) | Press consumed, close 284 ms, but the cold MiMo listing gated activation — no session, 0 requests. The control's fixed 7 s closed with the listing in flight → `droppedRise: 1` (getVoices) + the bundle dead object of the Limits section. `04`/`06` revised from this. |
 | 2026-10-01 | 1.16.4-beta4 (e429d830…) run 3 | this reply (issue #165) | 6 PASS, 4 PASS | The clean pass: warm-up + dispatch anchor; one paid read; `lateResults` flat; zero new dead-object entries. `90` byte-exact, `95` WebDAV restored. |
+| 2026-10-01 | 1.16.4-beta5 (dc631c53…) | issue #165 verification reply | 7 PASS, 4 PASS | Item 7's first run caught it on the first try: cold catalog from the in-place install, close +1053 ms, list landed ~21.7 s after the open, `getVoicesRise` 1, both lines in order, zero plugin dead objects; item 4 control after it, quiet (`droppedRise` 0, `inflightAtClose` 0). Zero paid reads. `90` byte-exact, `95` WebDAV restored. |
