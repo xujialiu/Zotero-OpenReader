@@ -1,9 +1,11 @@
-// Baseline (issues #135, #137): startup identity already checked by the
-// caller; here the named prefs this kit may touch (value + user-value
-// flag), the position-row count, the owner's reader tabs (left alone),
-// mute, and a deterministic starting layout ('top', the default). Window
-// state briefly minimized for this bridge-only step, then restored and
-// focused for the geometry work every later script needs.
+// Baseline (issues #135, #137, #164): startup identity already checked by
+// the caller; here the named prefs this kit may touch (value + user-value
+// flag; Zotero's own readAloudVoices and the plugin's documentVoiceChanged
+// by full name, values kept in state, never printed), the position-row
+// count, the owner's reader tabs (left alone), the debug store (on for the
+// run), mute, and a deterministic starting layout ('top', the default).
+// Window state briefly minimized for this bridge-only step, then restored
+// and focused for the geometry work every later script needs.
 (async () => {
   const PREFIX = 'zotero-tts.';
   const FULL = (k) => 'extensions.zotero.' + PREFIX + k;
@@ -41,6 +43,20 @@
   const memoryRaw = get('readAloud.memory');
   baseline['readAloud.memory'] = { hasUser: hasUser('readAloud.memory'), len: typeof memoryRaw === 'string' ? memoryRaw.length : memoryRaw };
 
+  // Full-name snapshots (values stay in state; the report shows only shape):
+  // Zotero's own voice memory, rewritten by a tier switch, and the plugin's
+  // documentVoiceChanged flag. Both restored byte-identically in cleanup,
+  // readAloudVoices last of every pref (the case's own order).
+  const fullSnap = (full) => { let hasUser = null; try { hasUser = Services.prefs.prefHasUserValue(full); } catch (e) {} const v = Zotero.Prefs.get(full, true); return { value: v, hasUser, len: typeof v === 'string' ? v.length : v }; };
+  const prefsFull = {
+    'extensions.zotero.reader.readAloudVoices': fullSnap('extensions.zotero.reader.readAloudVoices'),
+    'extensions.zotero.zotero-tts.documentVoiceChanged': fullSnap('extensions.zotero.zotero-tts.documentVoiceChanged'),
+  };
+
+  // Debug store on for the run (its baseline value restored in cleanup).
+  const debugStoring = Zotero.Debug.storing;
+  if (!debugStoring) Zotero.Debug.setStore(true);
+
   // Mute, force a deterministic starting layout ('top', already the default
   // here unless the owner set otherwise), and override the stale
   // local::af_fake memory (issue #133's second run, local provider off)
@@ -63,11 +79,14 @@
   }
 
   Zotero.ZoteroTTSRun.state.baseline = baseline;
+  Zotero.ZoteroTTSRun.state.prefsFull = prefsFull;
   Zotero.ZoteroTTSRun.state.readAloudMemoryFullValue = memoryRaw;
   Zotero.ZoteroTTSRun.state.windowBaseline = windowBaseline;
   Zotero.ZoteroTTSRun.state.selectedTabBaseline = selectedTabBaseline;
   Zotero.ZoteroTTSRun.state.posBeforeRows = posBefore && posBefore.database ? posBefore.database.rows : null;
   Zotero.ZoteroTTSRun.state.overrideVoiceID = overrideVoiceID;
+  Zotero.ZoteroTTSRun.state.debugStoring = debugStoring;
+  Zotero.ZoteroTTSRun.state.ownerReaders = readers;
 
   return JSON.stringify({
     version: startup.version,
@@ -83,6 +102,9 @@
     volumeNow: get('readAloud.volume'),
     layoutNow: get('readAloud.playerLayout'),
     overrideVoiceID,
+    prefsFullShape: { 'extensions.zotero.reader.readAloudVoices': { hasUser: prefsFull['extensions.zotero.reader.readAloudVoices'].hasUser, len: prefsFull['extensions.zotero.reader.readAloudVoices'].len }, 'extensions.zotero.zotero-tts.documentVoiceChanged': { hasUser: prefsFull['extensions.zotero.zotero-tts.documentVoiceChanged'].hasUser, len: prefsFull['extensions.zotero.zotero-tts.documentVoiceChanged'].len } },
+    debugStoringBaseline: debugStoring,
+    debugStoringNow: Zotero.Debug.storing,
     posBeforeRows: Zotero.ZoteroTTSRun.state.posBeforeRows,
   }, null, 1);
 })();

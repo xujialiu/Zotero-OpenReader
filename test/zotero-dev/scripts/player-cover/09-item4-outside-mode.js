@@ -59,15 +59,25 @@
     try { m.pause(); } catch (e) {}
     await sleep(120);
     try { m.repositionTo(position); } catch (e) {}
-    await waitScrollSettled(getScroll, 2500); // let repositionTo's own auto-center finish first
-    const box = await boxOf();
+    await waitScrollSettled(getScroll, 5000); // let repositionTo's own auto-center FINISH first: its smooth scroll plateaus mid-flight, so stability needs the longer budget (2026-10-01: a 2500ms window let the sweep continue into the placement)
+    // The view materializes the repositioned segment asynchronously (the
+    // active segment's sourcePosition / the view's _readAloud state land a
+    // beat later): poll for the box instead of reading it once -- 2026-10-01
+    // both documents hit a null here on a single read, on different rounds.
+    let box = null;
+    for (let i = 0; i < 60 && !box; i++) { await sleep(100); box = await boxOf(); }
     if (!box) throw new Error(kind + ' position ' + position + ' produced no box');
     const CH = clientHeight();
     const targetScroll = Math.round(band === 'top' ? Math.max(0, box[1]) : Math.max(0, box[3] - CH));
 
     // Place the sentence wholly inside the covered band -- itself a real
     // scroll event, and the follow's own trigger (see the file header).
+    // The placement has to STICK: repositionTo's own auto-center can still
+    // be easing and sweep the scroll back (2026-10-01, the pdf/top round:
+    // scrollNow read 115 at +150ms and settled 0), so hold the target --
+    // re-issuing it -- until it reads true before the as-placed read.
     setScroll(targetScroll);
+    for (let i = 0; i < 5; i++) { await sleep(220); if (getScroll() === targetScroll) break; setScroll(targetScroll); }
     await sleep(150); // short: read the as-placed state before the debounce can react
     const before = await diagFor(itemID);
     const scrollNow = getScroll();

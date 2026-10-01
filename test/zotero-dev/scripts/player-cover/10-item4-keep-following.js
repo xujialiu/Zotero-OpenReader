@@ -25,11 +25,38 @@
   const setLayout = async (layout) => { Zotero.ZoteroTTS.pluginPlayer.setLayout(layout); await wait(() => Services.prefs.getStringPref(layoutPref, '') === layout ? true : null, 5000); await sleep(150); };
   const modeText = () => doc.querySelector('#ztts-player-frame')?.contentDocument?.querySelector('.mode')?.textContent ?? null;
   const diagFor = async () => { const readers = Zotero.Reader._readers || []; const d = JSON.parse(await Zotero.ZoteroTTS.diagnostics.autoScroll()); return d[readers.findIndex((r) => r.itemID === itemID)]; };
+  // A previous trial (or run) can leave the follow off (M -- sticky by
+  // design: a resume carries force = intent.automatic = false, pdf-follow.ts
+  // resume branch). Re-engage through the product path instead: the player's
+  // own A/M control (player-controls.js: .mode.onclick -> send('automatic',
+  // true) -> locate, reason 'explicit'), paused throughout, no audio.
+  const resetEngaged = async () => {
+    try { m.pause(); } catch (e) {}
+    await wait(() => m.paused, 2000);
+    try { m.repositionTo(0); } catch (e) {}
+    await sleep(1000);
+    let d = await diagFor();
+    if (d?.following === false || modeText() === 'M') {
+      const el = doc.querySelector('#ztts-player-frame')?.contentDocument?.querySelector('.mode');
+      if (el) el.click();
+      for (let i = 0; i < 30; i++) { await sleep(100); d = await diagFor(); if (d?.following === true && modeText() === 'A') break; }
+    }
+    return d;
+  };
 
   await setLayout('top');
+  // The mode text lives in the mounted player; make sure the popup is open
+  // (a previous script may have closed it) before reading it.
+  const frameEl0 = () => doc.querySelector('#ztts-player-frame');
+  if (!frameEl0() || frameEl0().hidden) {
+    doc.getElementById('ztts-player-toggle').click();
+    await wait(() => m.active ? true : null, 8000);
+    await wait(() => { const f = frameEl0(); return f && !f.hidden && f.contentDocument?.querySelector('.player') ? true : null; }, 8000);
+    if (!m.paused) { try { m.pause(); } catch (e) {} await wait(() => m.paused, 2000); }
+    await sleep(200);
+  }
   if (!m.paused) { try { m.pause(); } catch (e) {} await sleep(200); }
-  try { m.repositionTo(0); } catch (e) {}
-  await sleep(1500);
+  const startDiag = await resetEngaged();
   const startModeText = modeText();
   const startScroll = container.scrollTop;
   const box0 = (await diagFor())?.sentence?.whole ?? null;
@@ -42,12 +69,23 @@
   // segment again a little later (2026-09-24) -- poll right after the wheel
   // sequence, do not wait past it on a fixed delay.
   const wheel = (deltaY) => { try { host.windowUtils.sendWheelEvent(400, 337, 0, deltaY, 0, 0, 0, 0, 0, 0); return true; } catch (e) { return false; } };
+  // Wholly-in-band window for segment 0: [whole.bottom - 34, whole.top].
+  // The wheel maps 1 deltaY to 0.5 px on this window (120->60, 34->17), so
+  // the final step is computed, not fixed: 2026-10-01 the fixed [120,120,34]
+  // landed at 137, 4 px past the window, and the sentence's top left the
+  // viewport -- the Floating trial then rightly disengaged on a genuinely
+  // invisible sentence.
+  const bandTarget = Math.max(0, Math.floor(box0[3] - 34) + 1);
   const wheelSteps = [];
   let wheelOk = true;
   for (const d of [-2000]) { wheelOk = wheel(d) && wheelOk; await sleep(150); } // first, well clear of the target, from any leftover position
   await sleep(300);
   wheelSteps.push({ afterReset: container.scrollTop });
-  for (const d of [120, 120, 34]) { wheelOk = wheel(d) && wheelOk; await sleep(250); wheelSteps.push({ deltaY: d, scrollTop: container.scrollTop }); }
+  for (const d of [120, 120]) { wheelOk = wheel(d) && wheelOk; await sleep(250); wheelSteps.push({ deltaY: d, scrollTop: container.scrollTop }); }
+  {
+    const remaining = bandTarget - container.scrollTop;
+    if (remaining !== 0) { const d = Math.round(remaining * 2); wheelOk = wheel(d) && wheelOk; await sleep(250); wheelSteps.push({ deltaY: d, scrollTop: container.scrollTop, target: bandTarget }); }
+  }
 
   const scrollAfterWheel = container.scrollTop;
   const relTop = box0[1] - scrollAfterWheel, relBottom = box0[3] - scrollAfterWheel;
@@ -62,10 +100,7 @@
   }
 
   await setLayout('top'); // back to a known layout before the second trial
-  try { m.pause(); } catch (e) {}
-  await wait(() => m.paused, 2000);
-  try { m.repositionTo(0); } catch (e) {}
-  await sleep(1200);
+  await resetEngaged();
   container.scrollTo(container.scrollLeft, 0);
   await sleep(300);
 
@@ -76,7 +111,11 @@
   await sleep(200);
   for (const d of [-2000]) wheel(d);
   await sleep(450);
-  for (const d of [120, 120, 34]) { wheel(d); await sleep(250); }
+  for (const d of [120, 120]) { wheel(d); await sleep(250); }
+  {
+    const remaining = bandTarget - container.scrollTop;
+    if (remaining !== 0) { wheel(Math.round(remaining * 2)); await sleep(250); }
+  }
   const scrollFloating = container.scrollTop;
   let floatingModeText = null, floatingDiag = null, everDisengagedUnderFloating = false;
   for (let i = 0; i < 8; i++) {
@@ -104,7 +143,7 @@
   };
 
   return JSON.stringify({
-    startModeText, startScroll, box0,
+    startModeText, startFollowing: startDiag?.following ?? null, startScroll, box0,
     wheelSteps, scrollAfterWheel, relTop, relBottom, wheelPlacedWhollyInBand,
     topBarModeText, topBarDiag: { following: topBarDiag?.following, interacting: topBarDiag?.interacting, sentenceProtected: topBarDiag?.sentenceProtected, visible: topBarDiag?.visible, reason: topBarDiag?.reason },
     scrollFloating, floatingModeText, everDisengagedUnderFloating,

@@ -77,11 +77,15 @@ as offsets from whatever the window gives.
   bar and the bottom 34 px, and with an EPUB in scrolled flow.
 - A paginated EPUB with the Top bar turns no page for a sentence at a
   page's top: `last` does not change and no navigation is recorded.
-- With *Keep following while the sentence is visible* on, scroll by
-  trusted wheel input until the current sentence lies only under the Top
-  bar. Following disengages (`automatic: false`, the player shows M).
-  Repeat at the same scroll position with the Floating panel: the sentence
-  counts as visible and following stays on (A).
+- Scroll by trusted wheel input until the current sentence lies only
+  under the Top bar. Following disengages (`automatic: false`, the player
+  shows M, reason `wheel`). Repeat at the same scroll position with the
+  Floating panel: following disengages there too. Since #153 any trusted
+  wheel in the viewer disengages, whatever the sentence's visibility, and
+  *Keep following while the sentence is visible* is gone
+  (`src/read-aloud/pdf-follow.ts`, `bindInput`). Up to 2026-09-24 the
+  Floating half expected following to stay on (A); the 2026-10-01 run
+  measured M.
 
 ## 5. The divider faces the document
 

@@ -1,9 +1,11 @@
 // Cleanup: close both fixture readers' find/selection/session, erase the
-// fixtures, confirm position rows back to baseline, restore every touched
-// pref (memory last, byte-identical using the FULL value 01-baseline kept
-// in state), scan the debug store for [zotero-tts]/dead-object lines, then
-// restore Debug.storing and the window to its baseline bounds (minimized
-// last, by the caller, per the workflow's own exception).
+// fixtures, clear the documentVoices.user/<key> records opening a player
+// wrote, confirm position rows back to baseline, restore every touched
+// pref (documentVoiceChanged with the rest, readAloud.memory, then Zotero's
+// readAloudVoices last, byte-identical using the FULL values 01-baseline
+// kept in state), scan the debug store for [zotero-tts]/dead-object lines,
+// restore Debug.storing to its baseline, then the selected tab and the
+// window: minimized last, per the workflow's own exception.
 (async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const wait = async (test, ms = 7000) => { const end = Date.now() + ms; while (Date.now() < end) { const v = test(); if (v) return v; await sleep(60); } return test(); };
@@ -45,6 +47,15 @@
     if (it) await it.eraseTx();
   }
 
+  // Opening a player on a fixture writes documentVoices.user/<key>; clear it.
+  report.documentVoices = {};
+  for (const kind of Object.keys(state.fixtures)) {
+    const recordName = 'extensions.zotero.zotero-tts.documentVoices.user/' + state.fixtures[kind].key;
+    const existed = (() => { try { return Services.prefs.prefHasUserValue(recordName); } catch (e) { return null; } })();
+    try { Services.prefs.clearUserPref(recordName); } catch (e) {}
+    report.documentVoices[kind] = { existed, gone: (() => { try { return !Services.prefs.prefHasUserValue(recordName); } catch (e) { return null; } })() };
+  }
+
   const posAfter = JSON.parse(await Zotero.ZoteroTTS.diagnostics.position());
   report.posBeforeRows = state.posBeforeRows;
   report.posAfterRows = posAfter && posAfter.database ? posAfter.database.rows : null;
@@ -71,15 +82,42 @@
   const memNow = get('readAloud.memory');
   results['readAloud.memory'] = { matchesValue: memNow === memFull, matchesHasUser: hasUser('readAloud.memory') === memSnap.hasUser, byteIdentical: memNow === memFull };
 
-  // Debug store back to its baseline (off).
-  Zotero.Debug.setStore(false);
-  report.debugStoringRestored = Zotero.Debug.storing === false;
+  // Debug store back to its baseline (on or off as found).
+  if (Zotero.Debug.storing !== state.debugStoring) Zotero.Debug.setStore(state.debugStoring);
+  report.debugStoring = { baseline: state.debugStoring, now: Zotero.Debug.storing };
 
-  // Owner reader untouched, still present.
-  const ownerStill = (Zotero.Reader._readers || []).find((r) => r.itemID === 20420);
-  report.ownerReader = ownerStill ? { present: true, active: !!ownerStill._internalReader?._readAloudManager?.active, paused: !!ownerStill._internalReader?._readAloudManager?.paused } : { present: false };
+  // Full-name prefs: documentVoiceChanged with the rest; Zotero's own
+  // readAloudVoices LAST of every pref -- a chrome write of it is a voice
+  // pick to memory-sync's observer, which may re-touch readAloud.memory, so
+  // memory is re-verified byte-identical afterwards.
+  report.prefsFull = {};
+  const dvc = state.prefsFull['extensions.zotero.zotero-tts.documentVoiceChanged'];
+  if (dvc.hasUser) Zotero.Prefs.set('extensions.zotero.zotero-tts.documentVoiceChanged', dvc.value, true);
+  else { try { Services.prefs.clearUserPref('extensions.zotero.zotero-tts.documentVoiceChanged'); } catch (e) {} }
+  report.prefsFull['extensions.zotero.zotero-tts.documentVoiceChanged'] = { matchesValue: Zotero.Prefs.get('extensions.zotero.zotero-tts.documentVoiceChanged', true) === dvc.value, matchesHasUser: Services.prefs.prefHasUserValue('extensions.zotero.zotero-tts.documentVoiceChanged') === dvc.hasUser };
+  const rav = state.prefsFull['extensions.zotero.reader.readAloudVoices'];
+  if (rav.hasUser) Zotero.Prefs.set('extensions.zotero.reader.readAloudVoices', rav.value, true);
+  else { try { Services.prefs.clearUserPref('extensions.zotero.reader.readAloudVoices'); } catch (e) {} }
+  report.prefsFull['extensions.zotero.reader.readAloudVoices'] = { matchesValue: Zotero.Prefs.get('extensions.zotero.reader.readAloudVoices', true) === rav.value, matchesHasUser: Services.prefs.prefHasUserValue('extensions.zotero.reader.readAloudVoices') === rav.hasUser };
+  const memAfter = get('readAloud.memory');
+  report.memoryAfterVoicesRestore = { byteIdentical: memAfter === memFull, matchesHasUser: hasUser('readAloud.memory') === memSnap.hasUser };
+
+  // Owner readers untouched, still present with the same active/paused state.
+  report.ownerReaders = (state.ownerReaders || []).map((ow) => {
+    const r = (Zotero.Reader._readers || []).find((x) => x.itemID === ow.itemID);
+    if (!r) return { itemID: ow.itemID, present: false };
+    return { itemID: ow.itemID, present: true, active: !!r._internalReader?._readAloudManager?.active, paused: !!r._internalReader?._readAloudManager?.paused, activeBefore: ow.active, pausedBefore: ow.paused };
+  });
 
   report.prefResults = results;
   report.settingsWindowOpen = !!Services.wm.getMostRecentWindow('zotero:pref');
+
+  // Selected tab back to its baseline pick, then minimized (the owner's
+  // explicit exception; the window's own bounds were never changed).
+  if (state.selectedTabBaseline) { try { host.Zotero_Tabs.select(state.selectedTabBaseline); } catch (e) {} }
+  await sleep(200);
+  try { host.minimize(); } catch (e) {}
+  await sleep(200);
+  report.windowState = host.windowState;
   return JSON.stringify(report, null, 1);
 })();
