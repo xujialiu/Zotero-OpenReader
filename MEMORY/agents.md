@@ -85,12 +85,23 @@ whose core is `MEMORY/MEMORY.md`.
   active work and wait for an agent result or new user input. Use a
   long blocking agent wait; do not repeatedly poll agent status or files,
   rerun checks, or send repetitive progress updates merely to stay active.
-  **Be patient: elapsed time alone is not a reason to check, send another
-  status request, hurry the agent, or interrupt it.** Repeated short waits
-  and status requests waste tokens without advancing the work. Let the
-  agent finish; interrupt only for a concrete safety concern, a changed
-  requirement, or the user's request. Resume only when a result, a question,
-  or new input requires action.
+  **Be patient: inside a window, elapsed time alone is not a reason to
+  check, send another status request, hurry the agent, or interrupt it.**
+  Repeated short waits and status requests waste tokens without advancing
+  the work. Let the agent finish; interrupt only for a concrete safety
+  concern, a changed requirement, or the user's request. Resume only when
+  a result, a question, or new input requires action.
+  **Each window is at most 50 minutes** (settled 2026-10-01): wait on a
+  dispatched agent in blocking windows of 50 minutes (pi: `bg_wait` with
+  `timeoutMs: 3000000`; elsewhere the harness's own wait timeout). When a
+  window ends with the agent still running, read its status once — its
+  state, the step it is on, the time of its last activity — report that
+  to the user in two or three lines, and open the next window. The
+  checkpoint does two jobs: its call lands inside the main session's
+  one-hour prompt cache and keeps it warm, and it catches an agent that
+  died or hung while the main session would otherwise wait on it
+  indefinitely. An agent with no new activity since the last checkpoint
+  is reported as stalled, a blocker under the rule below.
 - **A definition can go missing** (issue #27). Agent definitions
   under `.claude/agents/` are read when a session starts, and one is
   dropped silently — "not found", no error anywhere — when its
