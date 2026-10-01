@@ -110,7 +110,7 @@
       const item = Zotero.Items.get(it.itemID);
       if (item) { await item.eraseTx(); erasedAny = true; }
     }
-    out.itemsErased = items.every((it) => Zotero.Items.get(it.itemID) == null);
+    out.itemsErased = items.every((it) => !Zotero.Items.get(it.itemID));
     if (!out.itemsErased) errors.push('a fixture item was not erased');
     const diagnostics = Zotero.ZoteroTTS.diagnostics;
     if (erasedAny || S.positionRowsBefore != null) {

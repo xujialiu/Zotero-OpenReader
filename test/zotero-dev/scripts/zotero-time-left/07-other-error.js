@@ -2,7 +2,12 @@
 // and switches nothing off. Premium is turned back ON through the pref (item
 // 6's refusal switched it off), fixture A's player is re-opened (settle →
 // activate → click, again if it folds — 05's sequence), paused at once, and
-// the wrap's audio answer set to 'network'. Playback is then walked forward
+// the wrap's audio answer is 'network' — SET BEFORE THE REOPEN: the fresh
+// session's first fetch happens as playback starts, and a leftover
+// account-code answer (06's daily-limit-exceeded) would act as a second
+// refusal there, closing the player and switching the tier off (the
+// 2026-10-01 failure; the beta5 run passed only because its sentence 0 was
+// still cached). Playback is then walked forward
 // sentence by sentence: Zotero's own side caches sentence audio per
 // voice+text, so already-cached sentences play without asking (found live
 // 2026-09-30); each play also prefetches ahead, and the FIRST UNCACHED
@@ -42,6 +47,10 @@
     // --- Premium back on; fixture A selected, player re-opened, paused. ---
     if (Zotero.Prefs.get('zotero-tts.zotero-premium.enabled') !== true) p.setBoolPref(prefix + 'zotero-premium.enabled', true);
     out.premiumOn = Zotero.Prefs.get('zotero-tts.zotero-premium.enabled') === true;
+    // The wrap answers 'network' BEFORE the reopen (see the header): the
+    // fresh session's first fetch must not meet 06's account-code answer.
+    S.audioAnswer = 'network';
+    out.audioAnswer = S.audioAnswer;
     host.Zotero_Tabs.select(S.tabID);
     await waitFor(() => host.Zotero_Tabs.selectedID === S.tabID, 8000, 100);
     const readers = Zotero.Reader._readers || [];
@@ -84,9 +93,8 @@
     }
     if (!isPaused()) throw new Error('the reopened session would not pause');
 
-    // --- The wrap answers 'network'; walk forward until the fetch happens. ---
-    S.audioAnswer = 'network';
-    out.audioAnswer = S.audioAnswer;
+    // --- The wrap already answers 'network' (set before the reopen); walk
+    // forward until the fetch happens (a cached sentence 0 replays silently). ---
     const noReminder = () => !doc.getElementById('ztts-zotero-reminder');
     out.noReminderAtStart = noReminder();
     let statusBtn = null;

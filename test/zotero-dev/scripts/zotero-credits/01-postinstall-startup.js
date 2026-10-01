@@ -1,11 +1,12 @@
-// Run step 2, straight after the tester's zotero_plugin_install (1.16.3-beta5
-// over 1.16.3-beta4, in place): diagnostics.startup() (synchronous — the JSON
-// string itself), every step ok / failed empty, and the BUILD PROOF the brief
-// asks for — the installed bundle, not the version string: the plugin XPI in
-// the running profile (ProfD/extensions/zotero-tts@xujialiu.top.xpi) is read
-// with nsIZipReader and content/zotero-tts.js hashed in Zotero — it must
-// equal the xpi's own entry (6e4cdea5ba0c875a7b6dbc2d93c20d3382a8bf317a3fd67
-// 87d04bab5bf7abf08, issue #140's c482ff3) and contain the #140 beta5 strings:
+// Run step 2, straight after the tester's zotero_plugin_install (1.16.3-beta8
+// over 1.16.3-beta5, in place; beta8 = #140 rebased onto main's #160-#163):
+// diagnostics.startup() (synchronous — the JSON string itself), every step ok /
+// failed empty, and the BUILD PROOF the brief asks for — the installed bundle,
+// not the version string: the plugin XPI in the running profile
+// (ProfD/extensions/zotero-tts@xujialiu.top.xpi) is read with nsIZipReader and
+// content/zotero-tts.js hashed in Zotero — it must equal the xpi's own entry
+// (5360ebe07885cc627590abdff2b6a4efe6921c7ba8579a03f8c8d8cef51829ee, issue
+// #140's a9f47c0) and contain the #140 strings:
 // `ztts-reminder-used-up` (the used-up reminder's message id), `zoteroRefusals`
 // (the new diagnostic) and `ztts-duration-hm` (the plugin's own `1h 54min`
 // form), plus `formatOverUnlimited` (the 90d+ range top); the #159 proof
@@ -73,7 +74,7 @@
     const gapRule = cssText.match(/#ztts-zotero-section description > span \+ label\[is="zotero-text-link"\][^}]*\{[^}]*\}/);
     out.bundleProof = {
       jsSha256: hex,
-      jsSha256MatchesXpiEntry: hex === '6e4cdea5ba0c875a7b6dbc2d93c20d3382a8bf317a3fd6787d04bab5bf7abf08',
+      jsSha256MatchesXpiEntry: hex === '5360ebe07885cc627590abdff2b6a4efe6921c7ba8579a03f8c8d8cef51829ee',
       reminderUsedUpOccurrences: count('ztts-reminder-used-up'),
       zoteroRefusalsOccurrences: count('zoteroRefusals'),
       durationHmOccurrences: count('ztts-duration-hm'),

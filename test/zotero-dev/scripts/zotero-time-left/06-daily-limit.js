@@ -21,7 +21,15 @@
 // therefore goes to a voice never fetched in this document: pause, rewind to
 // sentence 0, pick 'Premium Voice 2' ('5c8d9d0d-en-US') while paused, play —
 // its sentence 0 is uncached, the stub's daily-limit answer fails PLAYBACK.
-// params: none. state: reads itemID/tabID/item1/item3.
+// REOPEN NOTE (found live 2026-10-01, on the rebase): a cached sentence 0 is
+// NOT guaranteed — error answers are not cached, so a session whose sentence
+// 0 only ever failed refetches it at the reopen. The wrap must therefore
+// answer 'network' (no account code) BEFORE the reopen and the credits
+// answer above 0 too, or a leftover 'daily-limit-exceeded' acts as a second
+// refusal at the reopen itself — closing the player and switching the tier
+// off before the item even starts. 'daily-limit-exceeded' is set only after
+// the pause gate, right before the pick. params: none. state: reads
+// itemID/tabID/item1/item3.
 (async () => {
   const out = { step: 'daily-limit' };
   const S = Zotero.__zttsTimeLeft140;
@@ -43,6 +51,12 @@
   };
   try {
     if (!host) throw new Error('no main window');
+    // The wrap answers 'network' with credits above 0 BEFORE the reopen (see
+    // the REOPEN NOTE): the fresh session's first fetch must not meet the
+    // previous item's account-code answer.
+    S.creditsAnswer = { standardCreditsRemaining: 114, premiumCreditsRemaining: 20 };
+    S.audioAnswer = 'network';
+    out.audioAnswerAtReopen = S.audioAnswer;
     host.Zotero_Tabs.select(S.tabID);
     await waitFor(() => host.Zotero_Tabs.selectedID === S.tabID, 8000, 100);
     const readers = Zotero.Reader._readers || [];
@@ -104,7 +118,6 @@
     out.standardPrefBefore = Zotero.Prefs.get('zotero-tts.zotero-standard.enabled');
 
     // --- The wrap's answers: the daily limit, credits above 0. ---
-    S.creditsAnswer = { standardCreditsRemaining: 114, premiumCreditsRemaining: 20 };
     S.audioAnswer = 'daily-limit-exceeded';
     out.audioAnswer = S.audioAnswer;
     const launchBefore = (S.launchCalls || []).length;
