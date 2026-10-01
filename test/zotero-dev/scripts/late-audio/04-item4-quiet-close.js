@@ -1,14 +1,16 @@
-// Item 4 (control): a quiet close. REVISED to reuse fixture-a's EXISTING item
-// (state.fixtures.a -- fixture-b was consumed and erased by item 3). Reopens
-// it, opens the popup then closes it again at once
-// (toggleReadAloudPopup(false) right after (true)), then waits >= 5 s BEFORE
-// closing the tab -- long enough for whatever single request that brief open
-// triggered (this server's own getVoices()/getAudio() round trips measured
-// well under 5 s on this run once activation gets going) to have already
-// landed, so nothing is in flight when Zotero_Tabs.close actually runs.
-// Cached segments from items 1-2 make this MORE certain, not less: a cache
-// hit resolves synchronously. Expected: dropped unchanged, no
-// "late result dropped" line, no error.
+// Item 4 (control): a quiet close. Reuses fixture-a's EXISTING item
+// (state.fixtures.a). Reopens it, opens the popup then closes it again at once
+// (toggleReadAloudPopup(false) right after (true)), then waits -- at least 5 s
+// AND until the fixture's Engine row reports store.inflight == 0 (bounded 30
+// s) -- BEFORE closing the tab, so nothing is in flight when Zotero_Tabs.close
+// actually runs. The inflight==0 condition replaces run of 2026-09-16's fixed
+// 7 s: with Xiaomi MiMo (00b), the popup open fires a getVoices listing whose
+// answer took > 7 s live (2026-10-01, run 2026-10-01-1.16.4-beta4-late-audio:
+// the fixed wait closed the tab with that listing still in flight and the
+// window wrapper dropped it -- droppedRise 1 byMethod.getVoices -- the exact
+// opposite of this control's intent), so the wait is now measured, not
+// assumed. Expected: dropped unchanged, no "late result dropped" line, no
+// "late audio dropped" Engine line, no error.
 // params: none. state: reads baseline, fixtures.a; writes item4.
 (async () => {
   const out = { step: 'item4-quiet-close' };
@@ -44,8 +46,23 @@
     ir.toggleReadAloudPopup(false);
     out.popupClosedAtMs = Date.now() - t0;
 
-    await sleep(7000);
+    // Quiet means measured quiet: >= 5 s AND no Engine request in flight.
+    let inflight = null;
+    const tSettle0 = Date.now();
+    while (Date.now() - tSettle0 < 30000) {
+      await sleep(400);
+      try {
+        const eng = JSON.parse(await Zotero.ZoteroTTS.diagnostics.engine());
+        let row = null;
+        const list = eng.readers || [];
+        for (let i = 0; i < list.length; i++) if (Number(list[i].itemID) === Number(itemID)) { row = list[i]; break; }
+        const store = row && row.session && row.session.store;
+        inflight = store && store.inflight != null ? store.inflight : 0;
+      } catch (_) { inflight = null; }
+      if (Date.now() - t0 >= 5000 && inflight === 0) break;
+    }
     out.waitedMs = Date.now() - t0;
+    out.inflightAtClose = inflight;
 
     r._window.Zotero_Tabs.close(r.tabID);
     out.closedAtMs = Date.now() - t0;
@@ -59,7 +76,7 @@
 
     const debugFull = await Zotero.Debug.get();
     const delta = debugFull.slice(debugLenBefore);
-    out.dropLines = (delta.match(/late (result|failure) dropped: \S+ answered after its reader window was gone/g) || []);
+    out.dropLines = (delta.match(/late (result|failure) dropped: \S+ answered after its reader window was gone|late audio dropped: its reader window was gone/g) || []);
 
     out.readersStillOpenForItem = (Zotero.Reader._readers || []).some((x) => x.itemID === itemID);
     S.item4 = out;

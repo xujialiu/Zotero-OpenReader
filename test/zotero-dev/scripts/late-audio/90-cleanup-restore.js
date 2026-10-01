@@ -53,7 +53,9 @@
     if (baseline && baseline.prefs) {
       // Every pref but memory first, in no particular order; memory last.
       // mimo.enabled is a no-op unless 00b-mimo-override.js ran this run.
-      const order = ['prefetch', 'prefetchEnabled', 'local.enabled', 'local.baseURL', 'mimo.enabled', 'readAloud.volume', 'readAloud.memory'];
+      // defaultVoice is a no-op unless the snapshot carried it (00 of
+      // 2026-10-01 on). Both sit before memory by design.
+      const order = ['prefetch', 'prefetchEnabled', 'local.enabled', 'local.baseURL', 'mimo.enabled', 'readAloud.volume', 'readAloud.defaultVoice', 'readAloud.memory'];
       out.prefs = {};
       for (const name of order) {
         const rec = baseline.prefs[name];

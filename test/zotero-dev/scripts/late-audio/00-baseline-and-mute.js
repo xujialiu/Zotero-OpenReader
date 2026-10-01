@@ -25,7 +25,7 @@
   const RAV_KEY = 'extensions.zotero.reader.readAloudVoices';
   const Ci = Components.interfaces;
   try {
-    const names = ['readAloud.volume', 'readAloud.memory', 'prefetch', 'prefetchEnabled', 'local.enabled', 'local.baseURL', 'mimo.enabled'];
+    const names = ['readAloud.volume', 'readAloud.memory', 'readAloud.defaultVoice', 'prefetch', 'prefetchEnabled', 'local.enabled', 'local.baseURL', 'mimo.enabled'];
     const prefs = {};
     for (const n of names) {
       const full = PREFIX + n;
