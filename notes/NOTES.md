@@ -706,3 +706,4 @@ then) and is in the git history before that day.
 
 - A pending switch let the old voice ask for sentences the new voice would read, and a jump called it off (issue #163)
 - Verified live, and the start from a selection still called the switch off (issue #163)
+- #140 never reached main: its branch was deleted unmerged, then rebased over #160-#163 (issue #140)
