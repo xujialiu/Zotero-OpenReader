@@ -37,8 +37,8 @@ label unrun scripts as verified.
 4. **Cache and prefetch.** Repeating a request makes no fetch. An uncued
    entry must not serve a cued request; en-US and en-GB cues must not share
    audio even with the same voice ID. Concurrent matching requests coalesce.
-   Prefetch captures the requested locale and anchors on original text,
-   reuses cued audio on playback, and cannot inherit a later voice change.
+   Prefetch asks through the same request as playback since issue #166,
+   with the voice's locale, so it needs no check of its own.
    Use restored transport stubs for artificial voice/locale combinations.
 5. **Excluded paths.** Missing/invalid/unknown/mul locales send unchanged
    prepared text. Samples and four-word sentences remain uncued. A restored

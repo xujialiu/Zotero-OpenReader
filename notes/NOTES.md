@@ -711,3 +711,4 @@ then) and is in the git history before that day.
 - The Top bar lay over the Appearance popup's first row, and the player now sits under every Zotero popup (issue #164)
 - Verified live on 1.16.4-beta: Zotero's popups over the player, and a case bullet #153 had already retired (issue #164)
 - The Appearance popup clears the Top bar with a 4 px gap (issue #164)
+- One prefetch: the two that were stacked, and what the Engine's runner keeps of Read Aloud's (issue #166)

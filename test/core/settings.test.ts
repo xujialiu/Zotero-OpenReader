@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  audioCacheOn,
   DEFAULTS,
   enabledProviders,
   hiddenZoteroTiers,
@@ -8,6 +7,7 @@ import {
   MAX_PAUSE_MS,
   migrateLegacyProviderPref,
   PREF_PREFIX,
+  prefetchOf,
   PROVIDER_IDS,
   saveSettings,
   type PrefsBackend,
@@ -80,13 +80,29 @@ describe('loadSettings', () => {
   });
 
   it('falls back to the default when a stored value has the wrong type', () => {
-    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.prefetch': 'many' })).prefetch).toBe(DEFAULTS.prefetch);
+    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.readAloud.prefetchSentences': 'many' })).readAloud.prefetchSentences).toBe(5);
     expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.azure.enabled': 'yes' })).azure.enabled).toBe(false);
   });
 
-  it('clamps prefetch into the supported range', () => {
-    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.prefetch': 99 })).prefetch).toBe(10);
-    expect(loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.prefetch': 0 })).prefetch).toBe(1);
+  it('clamps the prefetch numbers into their ranges: 3 to 20 sentences, 1 to 5 requests (issue #166)', () => {
+    const read = (key: string, value: number) => loadSettings(fakePrefs({ [`extensions.zotero.zotero-tts.readAloud.${key}`]: value })).readAloud;
+    expect(read('prefetchSentences', 99).prefetchSentences).toBe(20);
+    expect(read('prefetchSentences', 1).prefetchSentences).toBe(3);
+    expect(read('prefetchRequests', 9).prefetchRequests).toBe(5);
+    expect(read('prefetchRequests', 0).prefetchRequests).toBe(1);
+  });
+
+  it('prefetches 5 sentences ahead, 2 requests at once, custom on, by default (issue #166)', () => {
+    const { prefetchCustom, prefetchSentences, prefetchRequests } = loadSettings(fakePrefs()).readAloud;
+    expect({ prefetchCustom, prefetchSentences, prefetchRequests }).toEqual({ prefetchCustom: true, prefetchSentences: 5, prefetchRequests: 2 });
+  });
+
+  // ADR 0013: the reset is the new names, not a step, so a later update keeps what was set after it
+  it('reads nothing of the old Prefetch pair: neither its count nor its switch', () => {
+    const s = loadSettings(fakePrefs({ 'extensions.zotero.zotero-tts.prefetch': 9, 'extensions.zotero.zotero-tts.prefetchEnabled': false }));
+    expect(s).not.toHaveProperty('prefetch');
+    expect(s).not.toHaveProperty('prefetchEnabled');
+    expect(prefetchOf(s.readAloud)).toEqual({ sentences: 5, requests: 2 });
   });
 
   // Versions before 1.1.3 had a synthesis speed; Read Aloud's own slider is the only speed now
@@ -176,7 +192,7 @@ describe('enabledProviders', () => {
 describe('saveSettings', () => {
   it('round-trips through the backend', () => {
     const prefs = fakePrefs();
-    const s = { ...DEFAULTS, local: { ...DEFAULTS.local, enabled: true }, prefetch: 5 };
+    const s = { ...DEFAULTS, local: { ...DEFAULTS.local, enabled: true }, readAloud: { ...DEFAULTS.readAloud, prefetchSentences: 12, prefetchRequests: 4 } };
     saveSettings(prefs, s);
     expect(loadSettings(prefs)).toEqual(s);
   });
@@ -369,15 +385,14 @@ describe('local.headers', () => {
   });
 });
 
-// Prefetch has nowhere to put its audio without the cache: the pane locks the
-// two together (ui/prefetch-rows.ts), and this covers a profile whose pane was
-// never opened.
-describe('audioCacheOn', () => {
-  it('is on whenever either the cache or prefetch is', () => {
-    const of = (cacheAudio: boolean, prefetchEnabled: boolean) => audioCacheOn({ ...DEFAULTS, cacheAudio, prefetchEnabled });
-    expect(of(true, true)).toBe(true);
-    expect(of(true, false)).toBe(true);
-    expect(of(false, true)).toBe(true);
-    expect(of(false, false)).toBe(false);
+describe('prefetchOf', () => {
+  const readAloud = (prefetchCustom: boolean) => ({ ...DEFAULTS.readAloud, prefetchCustom, prefetchSentences: 12, prefetchRequests: 1 });
+
+  it('is the user\'s two numbers while Custom prefetch is on', () => {
+    expect(prefetchOf(readAloud(true))).toEqual({ sentences: 12, requests: 1 });
+  });
+
+  it('is the defaults while it is off, whatever numbers are kept', () => {
+    expect(prefetchOf(readAloud(false))).toEqual({ sentences: 5, requests: 2 });
   });
 });

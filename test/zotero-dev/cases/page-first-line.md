@@ -109,8 +109,8 @@ was measured on 1.11.7-beta10, Zotero 10.0.2-beta.9 (2026-09-10).
    `skipped line restored` line, `restored: []`, `excluded: 23`, 429
    segments — its running heads and DOI banner stay out.
 7. **The pane.** Settings → Zotero-TTS, the Reading group: the row *Read
-   a page's first line when Zotero would skip it* between *Extra pause
-   between paragraphs* and *Prefetch upcoming sentences* (index 5 of 8),
+   a page's first line when Zotero would skip it* between *Pause between
+   paragraphs* and *Read a sentence Zotero split in two as one*,
    checked, bound to `readAloud.restoreSkippedLines`; its `?` opens
    `#ztts-help-tip` (`state: "open"` on the first poll after the approach;
    read its `label` in the same script that hovers, the next icon

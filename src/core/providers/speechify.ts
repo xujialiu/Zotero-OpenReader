@@ -61,8 +61,8 @@ const RETRY_AFTER_MAX_MS = 5000;
 
 /**
  * One request at a time, first come first served: the Free plan refuses a
- * second simultaneous request with a 429, and Read Aloud's read-ahead
- * sends up to five (issue #79). A task whose signal was aborted while it
+ * second simultaneous request with a 429, and the prefetch can send up to
+ * five at once (issues #79, #166). A task whose signal was aborted while it
  * waited — the remote interface's timeout — is rejected unsent.
  */
 export class SerialQueue {

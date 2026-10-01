@@ -1,18 +1,36 @@
 /**
- * The order Read Aloud's engine fetches ahead in (`_prefetchFrom`,
- * reader.js 40258-40301), which the Engine keeps for every voice: up to
- * three segments past the one that just started, the next one first, the
- * rest by how likely each is to arrive late — its estimated fetch time
- * against the time left until it plays, less 50 ms per segment of
- * distance. Fetch time is learned per character as the session goes
- * (`FetchTimer`, reader.js 40367-40375, 40391-40396).
+ * Prefetch (issue #166, ADR 0013): the audio of the sentences after the
+ * one that just started is fetched before the reading reaches them, for
+ * every voice. How far ahead and how many requests at once are the pane's
+ * two numbers (core/settings.ts `prefetchOf`), read at every start; without
+ * them, Read Aloud's own three and two (`_prefetchFrom`, reader.js
+ * 40258-40260).
+ *
+ * The order is Read Aloud's engine's: the next segment first, the rest by
+ * how likely each is to arrive late — its estimated fetch time against the
+ * time left until it plays, less 50 ms per segment of distance. Fetch time
+ * is learned per character as the session goes (`FetchTimer`, reader.js
+ * 40367-40375, 40391-40396).
+ *
+ * The runner is one per session, where Read Aloud's engine starts a
+ * `keepFetching` per start (40302-40327): requests an earlier start sent
+ * keep their slots, so the prefetch never has more requests open than the
+ * setting. It asks in priority order, where Read Aloud's asked the second of
+ * a pair first, which with more at once would put the next sentence last.
+ * The sentence playback waits for is not the runner's: it is asked for at
+ * once (session.ts), so for a moment after a skip one more can be open.
  */
 
 import type { EngineSegment } from './types';
 
-/** How far ahead, and how many at once (reader.js 40259-40260). */
-export const READ_AHEAD_WINDOW = 3;
-export const READ_AHEAD_CONCURRENCY = 2;
+/** How far ahead, and how many requests at once. */
+export interface PrefetchSettings {
+  sentences: number;
+  requests: number;
+}
+
+/** Read Aloud's own window and concurrency (reader.js 40259-40260): the Engine's when it is given no numbers. */
+export const READ_ALOUD_PREFETCH: Readonly<PrefetchSettings> = { sentences: 3, requests: 2 };
 
 const EST_PLAYBACK_CHARS_PER_SECOND = 16;
 const EXP_MOVING_AVERAGE_ALPHA = 0.25;
@@ -48,7 +66,7 @@ export class FetchTimer {
   }
 }
 
-export interface ReadAheadInput {
+export interface PrefetchInput {
   segments: ArrayLike<EngineSegment>;
   /** The first index to fetch: one past the segment that just started. */
   startIndex: number;
@@ -60,12 +78,14 @@ export interface ReadAheadInput {
   /** `forwardStopIndex`, when the run has one. */
   forwardStopIndex: number | null;
   timer: FetchTimer;
+  /** How many segments from `startIndex` on. */
+  window: number;
 }
 
 /** The indices to fetch, in the order Read Aloud's engine takes them off its list. */
-export function readAheadOrder(input: ReadAheadInput): number[] {
+export function prefetchOrder(input: PrefetchInput): number[] {
   const { segments, startIndex, playingIndex, remaining, speed, timer } = input;
-  const endIndex = Math.min(startIndex + READ_AHEAD_WINDOW, input.forwardStopIndex ?? segments.length);
+  const endIndex = Math.min(startIndex + Math.max(0, input.window), input.forwardStopIndex ?? segments.length);
   if (startIndex >= endIndex) return [];
   const prefixSums = [0];
   for (let i = playingIndex + 1; i < endIndex; i++) {
@@ -88,30 +108,66 @@ export function readAheadOrder(input: ReadAheadInput): number[] {
   return candidates.map((c) => c.index);
 }
 
+export interface PrefetchJob {
+  /** One segment's audio; a failure is ignored, playback asks again when it gets there. */
+  fetch(index: number): Promise<unknown>;
+  /** Whether a segment still needs a request: not decoded, not on its way. */
+  needed(index: number): boolean;
+  /** Ends the run before its next request. */
+  stopped(): boolean;
+  /** How many requests may be open at once. */
+  requests: number;
+}
+
 /**
- * Run `fetch` over `order` the way Read Aloud's `keepFetching` does
- * (reader.js 40302-40327), two at a time — including its quirk that the
- * second of a pair is asked for before the first, since the first call
- * starts the second before it awaits its own. A slow server that answers one
- * request at a time sees exactly the sequence it sees today. `stopped` ends
- * the run between fetches.
+ * One session's prefetch. `run` replaces what is left to ask for with a new
+ * start's order; requests already open, whichever start sent them, hold
+ * their slots until answered. `cancel` drops what is left (a skip, the end
+ * of a run) without touching what is open.
  */
-export function runReadAhead(order: number[], fetch: (index: number) => Promise<unknown>, stopped: () => boolean): void {
-  const candidates = [...order];
-  let inProgress = 0;
-  const keepFetching = async (): Promise<void> => {
-    if (stopped() || !candidates.length) return;
-    const index = candidates.shift()!;
-    inProgress++;
-    if (inProgress < READ_AHEAD_CONCURRENCY) void keepFetching();
-    try {
-      await fetch(index);
-    } catch {
-      // Ignored: playback asks again when it gets there
-    } finally {
-      inProgress--;
+export class PrefetchRunner {
+  private queue: number[] = [];
+  private job: PrefetchJob | null = null;
+  /** Requests sent and not answered yet. */
+  open = 0;
+  /** The most ever open at once, for the diagnostics. */
+  peak = 0;
+
+  run(order: readonly number[], job: PrefetchJob): void {
+    this.queue = [...order];
+    this.job = job;
+    this.fill();
+  }
+
+  cancel(): void {
+    this.queue = [];
+    this.job = null;
+  }
+
+  private fill(): void {
+    const job = this.job;
+    if (!job) return;
+    while (this.open < job.requests && this.queue.length) {
+      if (job.stopped()) {
+        this.cancel();
+        return;
+      }
+      const index = this.queue.shift()!;
+      if (!job.needed(index)) continue;
+      this.open++;
+      this.peak = Math.max(this.peak, this.open);
+      let request: Promise<unknown>;
+      try {
+        request = job.fetch(index);
+      } catch (e) {
+        request = Promise.reject(e);
+      }
+      void request.then(this.answered, this.answered);
     }
-    if (inProgress < READ_AHEAD_CONCURRENCY) void keepFetching();
+  }
+
+  private readonly answered = (): void => {
+    this.open--;
+    this.fill();
   };
-  while (inProgress < READ_AHEAD_CONCURRENCY && candidates.length) void keepFetching();
 }

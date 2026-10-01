@@ -28,6 +28,10 @@ describe('settings changes during reading', () => {
     // The global speed waits like the volume: a sync defers it and a restore is refused (issue #82)
     expect(affectedReading({ 'readAloud.speedPercent': 100 }, { 'readAloud.speedPercent': 160 }, sessions)).toEqual(['Paper']);
     expect(affectedReading({ 'readAloud.speedPercent': 160 }, { 'readAloud.speedPercent': 160 }, sessions)).toEqual([]);
+    // The prefetch numbers change what the reading asks for: they wait too (issue #166)
+    for (const key of ['readAloud.prefetchCustom', 'readAloud.prefetchSentences', 'readAloud.prefetchRequests']) {
+      expect(affectedReading({ [key]: 1 }, { [key]: 2 }, sessions), key).toEqual(['Paper']);
+    }
     expect(affectedReading({}, { 'highlight.wordColor': '#fff', 'shortcuts.stopReading': 'Shift+S' }, sessions)).toEqual([]);
   });
   it('reads both sides of a paused handoff, every tab, and a player still loading', () => {

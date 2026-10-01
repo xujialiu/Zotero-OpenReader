@@ -34,7 +34,7 @@ import { SYNC_SETTINGS_OBSERVER } from '../core/settings-sync';
 import type { SettingsSyncApplied, SettingsSyncStats } from '../core/settings-sync-transport';
 import { SYNC_POSITIONS_OBSERVER, type PositionTransportStats } from '../read-aloud/position-transport';
 import { initHighlightRows } from './highlight-rows';
-import { initPrefetchRows, PREFETCH_ENABLED_OBSERVER } from './prefetch-rows';
+import { initPrefetchRows, PREFETCH_OBSERVERS } from './prefetch-rows';
 import { initProviderRows } from './provider-rows';
 import { renderSectionHeading, type HeadingDoc } from './section-heading';
 import { checkZoteroTier } from './zotero-tier-check';
@@ -537,13 +537,13 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       return () => Zotero.Prefs.unregisterObserver(token);
     },
   });
-  // Prefetch keeps the audio cache on and its checkbox locked: without the
-  // cache the warmer has nowhere to put what it synthesizes (ui/prefetch-rows.ts)
+  // The prefetch's two numbers show the defaults, grayed, while Custom
+  // prefetch is off; a restore or the sync writes them too (ui/prefetch-rows.ts)
   const prefetchRows = initPrefetchRows(doc, {
     prefs,
     watch: (onChange) => {
-      const token = Zotero.Prefs.registerObserver(PREFETCH_ENABLED_OBSERVER, onChange);
-      return () => Zotero.Prefs.unregisterObserver(token);
+      const tokens = PREFETCH_OBSERVERS.map((name) => Zotero.Prefs.registerObserver(name, onChange));
+      return () => tokens.forEach((token) => Zotero.Prefs.unregisterObserver(token));
     },
   });
 

@@ -456,9 +456,12 @@ provider (or Zotero's Standard / Premium), language, voice.
   then check it to validate and enable. Invalid input offers a choice to
   use the defaults or keep editing. The document is unchanged. Stop and
   reopen Read Aloud after a change.
-- *Prefetch upcoming sentences* — the ones ahead are synthesized while the
-  current one plays, so playback never waits for the server. It needs the
-  cache below, and keeps it switched on.
+- *Custom prefetch* — the sentences ahead are fetched while the current one
+  plays, for every voice, so playback does not wait for the server. On, you
+  set *Prefetch … sentences ahead* (3 to 20) and *Send … requests at once*
+  (1 to 5); off, the reading uses their defaults, 5 and 2. A sentence
+  fetched ahead and then skipped is still billed on a paid provider, and
+  uses credits on Zotero's Premium voices.
 - *Cache synthesized audio* — skipping back or reopening a document costs no
   new request. In memory (64 MB); a Zotero restart empties it.
 - *Read a page's first line when Zotero would skip it* — a sentence that

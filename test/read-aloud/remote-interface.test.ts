@@ -42,7 +42,7 @@ describe('voice preparation cancellation', () => {
     calls[0].finish({ audio: new Blob(['original']) }); expect((await ordinary).audio?.size).toBe(8);
     calls[1].finish({ audio: new Blob(['discarded']) });
   });
-  it('aborts abandoned synthesis without warming later sentences or caching its late result', async () => {
+  it('aborts abandoned synthesis without caching its late result', async () => {
     const request = new AbortController();
     let synthesisSignal: AbortSignal | undefined;
     let finish!: (result: any) => void;
@@ -52,8 +52,7 @@ describe('voice preparation cancellation', () => {
     });
     const iface = createRemoteInterface({ ...deps(fakeProvider({ synthesize })),
       newAbortController: () => new AbortController(),
-      cache: () => ({ match: async () => null, put }), getPrefetch: () => ({ enabled: true, count: 2 }),
-      getUpcomingTexts: () => ['Another sentence to prepare.'] });
+      cache: () => ({ match: async () => null, put }) });
     const result = iface.getAudio({ text: 'The sentence being prepared.' }, voice, { signal: request.signal });
     await vi.waitFor(() => expect(synthesize).toHaveBeenCalledOnce());
     request.abort();
@@ -197,8 +196,7 @@ describe('getAudio', () => {
 
   // The interface is built once per reader (src/index.ts startHijack), so a
   // cache handed over as a value would freeze the setting for every tab that
-  // is already open — and with it a prefetch switched on afterwards, which
-  // warms into this cache and does nothing without one.
+  // is already open.
   it('asks for the cache on every call, so the setting reaches an open reader', async () => {
     const put = vi.fn(async () => {});
     const cache = vi.fn(() => ({ match: async () => null, put }));
@@ -871,21 +869,6 @@ describe('segments the page does not show', () => {
     expect(result.audio).toBe(adopted);
   });
 
-  it('keeps warming what follows, so the skip does not stall the pipeline', async () => {
-    const synthesize = vi.fn(async () => ({ audio: new Blob(['a']) }));
-    const getUpcomingTexts = vi.fn(() => ['the next real sentence']);
-    const iface = createRemoteInterface({
-      ...deps(fakeProvider({ synthesize })),
-      cache: () => ({ match: async () => null, put: async () => {} }),
-      getPrefetch: () => ({ enabled: true, count: 1 }),
-      getUpcomingTexts,
-    });
-    await iface.getAudio(invisible, voice);
-    await new Promise((r) => setTimeout(r, 0));
-    expect(getUpcomingTexts).toHaveBeenCalledWith(invisible.text, 1);
-    expect(synthesize).toHaveBeenCalledWith('the next real sentence', expect.anything());
-  });
-
   it('leaves the sample alone: it has no geometry and is always ours to speak', async () => {
     const synthesize = vi.fn(async () => ({ audio: new Blob(['audio']) }));
     await createRemoteInterface(deps(fakeProvider({ synthesize }))).getAudio('sample', voice);
@@ -1025,130 +1008,27 @@ const flush = async () => {
   for (let i = 0; i < 20; i++) await Promise.resolve();
 };
 
-describe('prefetch', () => {
-  const LONG_A = 'The first upcoming sentence, well over the tiny limit.';
-  const LONG_B = 'The second upcoming sentence, also long enough to keep.';
-
-  function prefetchDeps(synthesize: TTSProvider['synthesize'], upcoming: string[], enabled = true, count = 3) {
-    const cache = fakeCache();
-    const debug = vi.fn();
-    const d = {
-      ...deps(fakeProvider({ synthesize })),
-      cache: () => cache,
-      debug,
-      getPrefetch: () => ({ enabled, count }),
-      getUpcomingTexts: vi.fn(() => upcoming),
-    };
-    return { d, cache, debug };
-  }
-
-  it('warms the cache for the upcoming segments after serving a request', async () => {
-    const synthesize = vi.fn(async (text: string) => ({ audio: new Blob([text]) }));
-    const { d, cache } = prefetchDeps(synthesize, [LONG_A, LONG_B]);
-    await createRemoteInterface(d).getAudio({ text: 'Now playing sentence.' }, voice);
-    await flush();
-    const texts = synthesize.mock.calls.map((c) => c[0]);
-    expect(texts).toEqual(['Now playing sentence.', LONG_A, LONG_B]);
-    expect(cache.store.size).toBe(3);
-  });
-
-  it('does nothing with the switch off, and skips tiny segments', async () => {
-    const synthesize = vi.fn(async (text: string) => ({ audio: new Blob([text]) }));
-    const off = prefetchDeps(synthesize, [LONG_A], false);
-    await createRemoteInterface(off.d).getAudio({ text: 'Now playing sentence.' }, voice);
-    await flush();
-    expect(synthesize).toHaveBeenCalledTimes(1);
-
-    const tiny = prefetchDeps(synthesize, ['1.', 'No.']);
-    await createRemoteInterface(tiny.d).getAudio({ text: 'Now playing sentence.' }, voice);
-    await flush();
-    // Only the played sentence again — both upcoming texts are under the tiny limit
-    expect(synthesize).toHaveBeenCalledTimes(2);
-  });
-
-  it('never prefetches for the settings-pane sample', async () => {
-    const synthesize = vi.fn(async (text: string) => ({ audio: new Blob([text]) }));
-    const { d } = prefetchDeps(synthesize, [LONG_A]);
-    await createRemoteInterface(d).getAudio('sample', voice);
-    await flush();
-    expect(synthesize).toHaveBeenCalledTimes(1);
-  });
-
-  it('stops the chain once the reader is gone, warming nothing for a document nobody is listening to (issue #116)', async () => {
-    let live = true;
-    const synthesize = vi.fn(async (text: string) => {
-      if (text === LONG_A) live = false;
-      return { audio: new Blob([text]) };
-    });
-    const { d, debug } = prefetchDeps(synthesize, [LONG_A, LONG_B]);
-    await createRemoteInterface({ ...d, isReaderLive: () => live }).getAudio({ text: 'Now playing sentence.' }, voice);
-    await flush();
-    expect(synthesize.mock.calls.map((c) => c[0])).toEqual(['Now playing sentence.', LONG_A]);
-    expect(debug.mock.calls.map((c) => c[0])).toContainEqual(expect.stringContaining('reader is gone'));
-  });
-
-  it('synthesizes each sentence once however many callers ask (Zotero prefetches concurrently)', async () => {
+describe('one synthesis per sentence', () => {
+  it('synthesizes each sentence once however many callers ask', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
     const synthesize = vi.fn(async (text: string) => {
       await gate;
       return { audio: new Blob([text]) };
     });
-    const { d } = prefetchDeps(synthesize, []);
-    const iface = createRemoteInterface(d);
+    const iface = createRemoteInterface({ ...deps(fakeProvider({ synthesize })), cache: () => fakeCache() });
     const [a, b] = [iface.getAudio({ text: 'Same sentence.' }, voice), iface.getAudio({ text: 'Same sentence.' }, voice)];
     release();
     await Promise.all([a, b]);
     expect(synthesize).toHaveBeenCalledTimes(1);
   });
 
-  it('a played segment that was prefetched is served from the cache', async () => {
+  // The Engine prefetches, for every voice (issue #166): the interface asks only for what it is asked
+  it('synthesizes only the sentence asked for, nothing ahead of it', async () => {
     const synthesize = vi.fn(async (text: string) => ({ audio: new Blob([text]) }));
-    const { d, debug } = prefetchDeps(synthesize, [LONG_A]);
-    const iface = createRemoteInterface(d);
-    await iface.getAudio({ text: 'Now playing sentence.' }, voice);
+    await createRemoteInterface({ ...deps(fakeProvider({ synthesize })), cache: () => fakeCache() }).getAudio({ text: 'Now playing sentence.' }, voice);
     await flush();
-    await iface.getAudio({ text: LONG_A }, voice);
-    expect(synthesize).toHaveBeenCalledTimes(2);
-    expect(debug.mock.calls.some(([m]) => String(m).includes('(cached)'))).toBe(true);
-    expect(debug.mock.calls.some(([m]) => String(m).includes('prefetch:'))).toBe(true);
-  });
-});
-
-describe('prefetch skips in-flight segments instead of joining them', () => {
-  // Zotero's player slides its own three-segment parallel window; a chain
-  // that waited on those fetches would never reach the segments beyond it
-  it('leapfrogs a segment someone else is fetching and warms the ones after', async () => {
-    const NEXT = 'The segment Zotero is already fetching, long enough.';
-    const AFTER = 'The segment beyond the native window, long enough too.';
-    let releaseNext!: () => void;
-    const nextGate = new Promise<void>((r) => (releaseNext = r));
-    const synthesize = vi.fn(async (text: string) => {
-      if (text === NEXT) await nextGate;
-      return { audio: new Blob([text]) };
-    });
-    const cache = fakeCache();
-    const d = {
-      ...deps(fakeProvider({ synthesize })),
-      cache: () => cache,
-      getPrefetch: () => ({ enabled: true, count: 2 }),
-      getUpcomingTexts: () => [NEXT, AFTER],
-    };
-    const iface = createRemoteInterface(d);
-    // Zotero's own prefetch grabs NEXT and holds it in flight...
-    const zotero = iface.getAudio({ text: NEXT }, voice);
-    // ...then the played segment triggers our chain
-    const played = iface.getAudio({ text: 'Now playing sentence.' }, voice);
-    await played;
-    await flush();
-    // The chain must have warmed AFTER without waiting for NEXT to resolve
-    const texts = synthesize.mock.calls.map((c) => c[0]);
-    expect(texts).toContain(AFTER);
-    expect(texts.filter((t) => t === NEXT)).toHaveLength(1);
-    releaseNext();
-    await zotero;
-    await flush();
-    expect(cache.store.size).toBe(3);
+    expect(synthesize.mock.calls.map((c) => c[0])).toEqual(['Now playing sentence.']);
   });
 });
 
@@ -1189,7 +1069,6 @@ describe('forget (issue #133)', () => {
 
 describe('audio already held, while a voice switch is pending (issue #163)', () => {
   const LONG_A = 'The first upcoming sentence, well over the tiny limit.';
-  const LONG_B = 'The second upcoming sentence, also long enough to keep.';
   const PLAYING = 'Now playing sentence.';
 
   function heldDeps(synthesize: TTSProvider['synthesize'], extra: Record<string, unknown> = {}) {
@@ -1197,19 +1076,16 @@ describe('audio already held, while a voice switch is pending (issue #163)', () 
     const d = {
       ...deps(fakeProvider({ synthesize })),
       cache: () => cache,
-      getPrefetch: () => ({ enabled: true, count: 3 }),
-      getUpcomingTexts: () => [LONG_A, LONG_B],
       ...extra,
     };
     return { d, cache };
   }
 
-  it('answers from the cache without asking the provider, and warms nothing ahead', async () => {
+  it('answers from the cache without asking the provider', async () => {
     const synthesize = vi.fn(async (text: string) => ({ audio: new Blob([text]) }));
-    const { d } = heldDeps(synthesize, { getUpcomingTexts: () => [] });
+    const { d } = heldDeps(synthesize);
     const iface = createRemoteInterface(d);
     await iface.getAudio({ text: PLAYING }, voice);
-    (d as any).getUpcomingTexts = () => [LONG_A, LONG_B];
     synthesize.mockClear();
     const result = await iface.getAudio({ text: PLAYING }, voice, { held: true });
     await flush();
@@ -1237,12 +1113,13 @@ describe('audio already held, while a voice switch is pending (issue #163)', () 
     });
     const { d } = heldDeps(synthesize);
     const iface = createRemoteInterface(d);
-    await iface.getAudio({ text: PLAYING }, voice);
+    // The prefetch is synthesizing LONG_A
+    const prefetch = iface.getAudio({ text: LONG_A }, voice);
     await flush();
-    // The prefetch chain is synthesizing LONG_A
-    expect(synthesize.mock.calls.map((c) => c[0])).toEqual([PLAYING, LONG_A]);
+    expect(synthesize.mock.calls.map((c) => c[0])).toEqual([LONG_A]);
     const held = iface.getAudio({ text: LONG_A }, voice, { held: true });
     release();
+    await prefetch;
     const result = await held;
     expect(result.audio).toBeInstanceOf(Blob);
     expect(synthesize.mock.calls.filter((c) => c[0] === LONG_A)).toHaveLength(1);
@@ -1254,32 +1131,5 @@ describe('audio already held, while a voice switch is pending (issue #163)', () 
     const result = await iface.getAudio({ text: PLAYING }, { id: 'zotero-standard-voice' }, { held: true });
     expect(result).toEqual({ audio: null, error: 'not-held' });
     expect(native.getAudio).not.toHaveBeenCalled();
-  });
-
-  it('the prefetch asks mayPrefetch at its start and before each request, and stops when refused', async () => {
-    const synthesize = vi.fn(async (text: string) => ({ audio: new Blob([text]) }));
-    const asked: string[] = [];
-    const debug = vi.fn();
-    const { d } = heldDeps(synthesize, {
-      debug,
-      mayPrefetch: (id: string) => {
-        asked.push(id);
-        // The chain's start and its first request are allowed; a switch begins while that request is out
-        return asked.length <= 2;
-      },
-    });
-    await createRemoteInterface(d).getAudio({ text: PLAYING }, voice);
-    await flush();
-    expect(synthesize.mock.calls.map((c) => c[0])).toEqual([PLAYING, LONG_A]);
-    expect(asked).toEqual([voice.id, voice.id, voice.id]);
-    expect(debug).toHaveBeenCalledWith(expect.stringMatching(/prefetch: openai-official: stopped, the voice is switching/));
-  });
-
-  it('starts no chain at all when refused from the start', async () => {
-    const synthesize = vi.fn(async (text: string) => ({ audio: new Blob([text]) }));
-    const { d } = heldDeps(synthesize, { mayPrefetch: () => false });
-    await createRemoteInterface(d).getAudio({ text: PLAYING }, voice);
-    await flush();
-    expect(synthesize.mock.calls.map((c) => c[0])).toEqual([PLAYING]);
   });
 });

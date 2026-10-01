@@ -184,9 +184,9 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
     the old voice lacks needs sentences neither voice has read, so each
     such attempt imports fresh text (the kit's fixtures).
     - **Reading on.** A reads only what it has: `store.requests` flat and
-      no new A synthesis line in the debug output; a prefetch chain
-      running at the pick logs `prefetch: <provider>: stopped, the voice
-      is switching`. At the first sentence A has no audio for, no A source
+      no new A synthesis line in the debug output, and A's prefetch asks
+      for nothing more after the pick (issue #166: `session.prefetch.open`
+      only falls). At the first sentence A has no audio for, no A source
       starts: `stage: waiting`, `waitedAt` that index, `store.lookups` up,
       "Preparing…" after 300 ms. Once B's audio for it is in, B reads it
       from offset 0: `last.kind: sentence`, `last.index` = `waitedAt`,

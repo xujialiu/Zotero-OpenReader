@@ -18,15 +18,15 @@ then the interface wrapper cloning the result into the dead window — two
 `columnNumber`. Since 1.12.11 the result is **dropped**: not cloned, not
 resolved, not logged as an error (`src/read-aloud/window-interface.ts`);
 the prefetcher answers `[]` for a reader whose window is gone
-(`src/read-aloud/upcoming-segments.ts`); and the plugin's own prefetch
-chain stops before its next request once the reader is gone
-(`prefetchAfter`, `src/read-aloud/remote-interface.ts`). The count is
+(`src/read-aloud/upcoming-segments.ts`). Since issue #166 the only
+prefetch is the Engine's: the tab's close ends its session, which drops
+what the prefetch had left to ask, and a window gone without that close
+asks no provider (`fetchFor`, `src/read-aloud/engine/index.ts`). The count is
 `JSON.parse(Zotero.ZoteroTTS.diagnostics.patches()).lateResults` —
 `{ dropped, byMethod: { getAudio: n, … }, last: [{ method, at }] }`, the
 last ten drops — and `patches()` is synchronous, like `startup()`. The
 debug store carries one `late result dropped: getAudio answered after its
-reader window was gone` line per drop and one `prefetch: <provider>:
-stopped, the reader is gone` line per chain ended.
+reader window was gone` line per drop.
 
 Run the baseline first. Fixtures: `fixture-a.pdf` and `fixture-b.pdf` as
 standalone attachments, erased in calls of their own. The plugin's volume
@@ -65,19 +65,17 @@ come from the design and are corrected from the run.
 
 ### 2
 
-2. **The prefetch chain stops with the reader.** Prefetch on (its
-   default, 3 sentences; raise `zotero-tts.prefetch` toward 10 for the
-   check if the chain is too short to catch, restored after) on a fixture
-   whose audio is not cached yet (`fixture-b.pdf`, or a restart emptied
-   the cache). `play()`, wait until the first `prefetch: <provider>: N
-   chars ready ahead of playback` line appears (the chain is running),
-   then close the tab as in item 1. Expected: exactly one `prefetch:
-   <provider>: stopped, the reader is gone` line, no `ready ahead of
-   playback` line after it, `dropped` up by the requests Zotero itself
-   had in flight, when it had any — on a fast server it has none and
-   `dropped` stays put (0 on Kokoro, 2026-09-16); the stop line is the
-   claim. If the chain had finished before the close, NOT
-   TESTABLE with the reason and the retry taken.
+2. **The prefetch stops with the reader (issue #166).** Custom prefetch
+   at 10 sentences ahead and 1 request at once (restored after), on a
+   fixture whose audio is not cached yet (`fixture-b.pdf`, or a restart
+   emptied the cache). `play()`, wait until `diagnostics.engine()` shows
+   `session.prefetch.open: 1` with indices of `order` still unasked (the
+   prefetch is going), then close the tab as in item 1. Expected: no
+   provider request after the close beyond the one open at it (the
+   provider's synthesis lines in the debug store), and `dropped` or the
+   Engine's `late audio dropped` line up by that one when it lands. If
+   the prefetch had finished before the close, NOT TESTABLE with the
+   reason and the retry taken.
 
 ### 3
 
@@ -111,7 +109,7 @@ come from the design and are corrected from the run.
 **State**: the plugin's volume (snapshot and restore, user-value state
 included), `readAloud.memory` (byte-identical restore, the last write),
 `extensions.zotero.reader.readAloudVoices` (a fixture rewrites its `en`
-entry — snapshot and rebuild), `zotero-tts.prefetch` if raised, the
+entry — snapshot and rebuild), the three `readAloud.prefetch*` prefs if changed, the
 fixture items. **Budget**: a handful of short readings on the chosen
 provider; on Kokoro nothing is metered, MiMo is paid per request.
 **Human-only**: whether audio still plays after the change (item 5's

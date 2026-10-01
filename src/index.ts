@@ -16,7 +16,7 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t, type L10nArgs } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { audioCacheOn, autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, PREF_PREFIX, ZOTERO_SWITCH_IDS } from './core/settings';
+import { autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, PREF_PREFIX, prefetchOf, ZOTERO_SWITCH_IDS } from './core/settings';
 import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, legacyPrefSet, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
@@ -75,7 +75,6 @@ import { parseFavoriteVoices } from './read-aloud/favorites';
 import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dropdown';
 import { decodeVoiceId, pluginVoiceTier, zoteroTierLabel } from './read-aloud/voice-catalog';
 import { createProviderTiers, type ProviderTiers } from './read-aloud/provider-tiers';
-import { isInvisibleSegment } from './read-aloud/invisible-text';
 import { createWindowWrapper } from './read-aloud/window-interface';
 import { ZOTERO_READ_ALOUD_URL, type ZoteroVoice } from './read-aloud/zotero-voices';
 import {
@@ -177,7 +176,7 @@ let providerTiers: ProviderTiers | null = null;
  * Every voice of the Player plays on the plugin's own engine behind Read
  * Aloud's manager (read-aloud/engine/, issue #133): the volume (issue #62),
  * the pauses between sentences (issue #44), the preparing notice (issue
- * #120) and the read-ahead are its own. The pref observer moves every tab's
+ * #120) and the prefetch are its own. The pref observer moves every tab's
  * volume.
  */
 let engine: Engine | null = null;
@@ -582,27 +581,16 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
     getHiddenTiers: () => hiddenZoteroTiers(loadSettings(prefs)),
     // And while no Zotero account is signed in, Zotero is not asked for them (issue #130)
     signedIn: () => readerSignedIn(reader),
-    getPrefetch: () => {
-      const s = loadSettings(prefs);
-      return { enabled: s.prefetchEnabled, count: s.prefetch };
-    },
     getBracketPairs: () => textSettings?.pairs(reader) ?? loadSettings(prefs).readAloud.bracketPairs,
     getStripAngleBrackets: () => textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets,
-    // The sentences after the one just asked for, from the Engine's own reading of this tab
-    getUpcomingTexts: (text, count) => engine?.upcomingTexts(reader, text, count, isInvisibleSegment) ?? [],
-    // A voice switch stops the chain: the old voice asks for nothing new (issue #163)
-    mayPrefetch: (voiceId) => engine?.mayPrefetch(reader, voiceId) ?? true,
-    // The window is the reader's life: a tab closed mid-chain ends the prefetch chain (issue #116)
-    isReaderLive: () => liveReaderValue(reader, (value) => Components.utils.isDeadWrapper(value), '_iframeWindow') !== null,
     // Built from the voice id, not from the enabled flags: Zotero
     // remembers the last-selected voice, which may belong to a provider
     // the user has since switched off, and a cached or in-flight segment
     // must still play.
     getProvider: (id) => createProvider(id, loadSettings(prefs), providerDeps()),
     cacheVersion,
-    // Read per call, so the pane applies to a reader that is already open;
-    // prefetch keeps it on where the pane never locked it (core/settings.ts audioCacheOn)
-    cache: () => (audioCacheOn(loadSettings(prefs)) ? audioCache : undefined),
+    // Read per call, so the pane applies to a reader that is already open
+    cache: () => (loadSettings(prefs).cacheAudio ? audioCache : undefined),
     log: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
     // Every provider builds its audio Blob inside the plugin sandbox, and
@@ -2363,7 +2351,7 @@ function stopProviderTiers(): void {
 //
 // Every voice of the Player plays on the plugin's own engine, behind Read
 // Aloud's manager (issue #133, ADR 0005): the volume, the pauses between
-// sentences, the preparing notice and the read-ahead are its own, where they
+// sentences, the preparing notice and the prefetch are its own, where they
 // were patches on Read Aloud's engine. See read-aloud/engine/.
 
 function startEngine(): void {
@@ -2387,6 +2375,8 @@ function startEngine(): void {
     isPluginVoice: (id) => decodeVoiceId(id) !== null,
     // Read at every boundary, never cached: the pane applies at once (issue #44)
     pauses: () => pauseSettingsOf(loadSettings(prefs).readAloud),
+    // Read at every start, so a change applies from the next sentence (issue #166)
+    prefetch: () => prefetchOf(loadSettings(prefs).readAloud),
     volume: () => loadSettings(prefs).readAloud.volume,
     notice: (reader, kind) => voiceNotices?.playback(reader, kind),
     refused: (reader, refusal) => void zoteroRefusals.refused(reader, refusal).catch((e: unknown) => Zotero.logError(e)),

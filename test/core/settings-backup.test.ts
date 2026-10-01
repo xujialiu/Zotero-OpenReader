@@ -78,7 +78,7 @@ describe('parseBackup / applyBackup', () => {
     const source = fakePrefs({
       [PREF_PREFIX + 'azure.region']: 'westeurope',
       [PREF_PREFIX + 'local.enabled']: true,
-      [PREF_PREFIX + 'prefetch']: 5,
+      [PREF_PREFIX + 'readAloud.prefetchSentences']: 9,
       [PREF_PREFIX + 'readAloud.sameForAllDocuments']: false,
     });
     const text = serializeBackup(createBackup(source));
@@ -105,7 +105,7 @@ describe('parseBackup / applyBackup', () => {
         version: 1,
         settings: {
           'openai-official.enabled': 'true',
-          prefetch: '4',
+          'readAloud.prefetchSentences': '4',
           'azure.region': 7,
           'openai-official.model': ['x'],
           cacheAudio: 'yes',
@@ -114,7 +114,7 @@ describe('parseBackup / applyBackup', () => {
         },
       }),
     );
-    expect(parsed.settings).toEqual({ 'openai-official.enabled': true, prefetch: 4, 'azure.region': '7' });
+    expect(parsed.settings).toEqual({ 'openai-official.enabled': true, 'readAloud.prefetchSentences': 4, 'azure.region': '7' });
     expect(parsed.ignored).toEqual(['openai-official.model', 'cacheAudio', 'speed', 'future.setting']);
   });
 
@@ -128,6 +128,16 @@ describe('parseBackup / applyBackup', () => {
     );
     expect(parsed.settings).toEqual({ 'readAloud.playerLayout': 'B' });
     expect(parsed.ignored).toEqual(['readAloud.usePluginPlayer']);
+  });
+
+  // ADR 0013: the old pair counted on top of Read Aloud's three; an old backup brings back neither, and leaves the new numbers alone
+  it('skips the Prefetch pair of a backup from before #166, and leaves the prefetch numbers as they are', () => {
+    const prefs = fakePrefs({ [PREF_PREFIX + 'readAloud.prefetchSentences']: 12 });
+    const parsed = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { prefetch: 3, prefetchEnabled: false, cacheAudio: false } }));
+    expect(parsed.settings).toEqual({ cacheAudio: false });
+    expect(parsed.ignored).toEqual(['prefetch', 'prefetchEnabled']);
+    applyBackup(prefs, parsed);
+    expect(loadSettings(prefs).readAloud).toMatchObject({ prefetchCustom: true, prefetchSentences: 12, prefetchRequests: 2 });
   });
 
   it('leaves settings the file does not mention as they are', () => {

@@ -29,8 +29,8 @@ original values in the workflow's order, with reading memory last.
 3. **Word coordinates and cache.** A provider with real word timing returns
    ranges over the original words. Repeat the request to exercise the cache;
    ranges must remain the same, without a second shift. The provider's
-   cached data stays in speech-text coordinates. Prefetch uses the same
-   speech text, and the next segment's request can reuse that entry.
+   cached data stays in speech-text coordinates. Prefetch asks through the
+   same request as playback (issue #166), so it needs no check of its own.
 4. **Session setting.** `diagnostics.textSettings()` reports `patched: true`
    and both `configured` and `effective`. Start with both true. Change the
    preference to false while the fixture is active (paused included):

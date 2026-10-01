@@ -205,7 +205,9 @@ tests, and no Zotero update can undo it.
   skip (39904, 40222), duplicate fetches merged (40329-40335) and up to 32
   decoded clips kept (39901, 40148) — that clip cache is all that stops a
   replayed `noStore` answer from being billed twice — and no plugin
-  read-ahead. Samples stay Read Aloud's: `getSampleController` (40479-40481)
+  read-ahead. *(The 3 and 2 are superseded by ADR 0013: since #166 every
+  voice, the Zotero voices included, prefetches by the pane's two
+  numbers.)* Samples stay Read Aloud's: `getSampleController` (40479-40481)
   is reached only from Read Aloud's popup (38585-38592) and its first-run
   preview, never from the Player, and Zotero samples are free (`tts/sample`,
   `syncAPIClient.js` 679-686).

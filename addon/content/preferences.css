@@ -209,6 +209,11 @@ label.ztts-help[value]:hover {
   margin-inline-start: 24px;
 }
 
+/* The prefetch's two numbers sit under their switch, aligned with its label. */
+.ztts-pane .ztts-prefetch-row {
+  margin-inline-start: 24px;
+}
+
 /* Equal label alignment; selection does not create a native checkmark gutter. */
 .ztts-pane #ztts-player-layout[hidden] { display: none !important; }
 .ztts-pane #ztts-player-layout-trigger { display: inline-flex; align-items: center; gap: 20px; box-sizing: border-box; width: 20em; margin-inline: 4px 5px; justify-content: space-between; padding: 5px 10px; font: inherit; }

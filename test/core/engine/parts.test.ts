@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { gapBefore } from '../../../src/core/engine/gap';
 import { LruMap } from '../../../src/core/engine/lru';
-import { FetchTimer, readAheadOrder, runReadAhead } from '../../../src/core/engine/read-ahead';
+import { FetchTimer, PrefetchRunner, prefetchOrder, type PrefetchJob } from '../../../src/core/engine/prefetch';
 import { skipAheadTarget, skipBackTarget } from '../../../src/core/engine/skip';
 import type { EngineSegment, WordTiming } from '../../../src/core/engine/types';
 import { untilNextWord, wordAt, wordAtPosition } from '../../../src/core/engine/words';
@@ -112,18 +112,28 @@ describe('the word at a time', () => {
   });
 });
 
-describe('read-ahead', () => {
+describe('prefetch', () => {
   const doc: EngineSegment[] = ['a'.repeat(40), 'b'.repeat(40), 'c'.repeat(200), 'd'.repeat(10), 'e'.repeat(40)].map((text) => ({ text }));
 
-  it('takes the next segment first, then the riskiest, within three', () => {
+  it('takes the next segment first, then the riskiest, within the window', () => {
     const timer = new FetchTimer();
-    expect(readAheadOrder({ segments: doc, startIndex: 1, playingIndex: 0, remaining: 2, speed: 1, forwardStopIndex: null, timer })).toEqual([1, 2, 3]);
+    expect(prefetchOrder({ segments: doc, startIndex: 1, playingIndex: 0, remaining: 2, speed: 1, forwardStopIndex: null, timer, window: 3 })).toEqual([1, 2, 3]);
     // The next segment's head start is 10 s of risk: a far slower one after it can still go first
     timer.record(doc[0], 400 * 40);
-    expect(readAheadOrder({ segments: doc, startIndex: 1, playingIndex: 0, remaining: 0.5, speed: 1, forwardStopIndex: null, timer })).toEqual([2, 1, 3]);
-    expect(readAheadOrder({ segments: doc, startIndex: 4, playingIndex: 3, remaining: 1, speed: 1, forwardStopIndex: null, timer })).toEqual([4]);
-    expect(readAheadOrder({ segments: doc, startIndex: 1, playingIndex: 0, remaining: 1, speed: 1, forwardStopIndex: 3, timer: new FetchTimer() })).toEqual([1, 2]);
-    expect(readAheadOrder({ segments: doc, startIndex: 5, playingIndex: 4, remaining: 1, speed: 1, forwardStopIndex: null, timer })).toEqual([]);
+    expect(prefetchOrder({ segments: doc, startIndex: 1, playingIndex: 0, remaining: 0.5, speed: 1, forwardStopIndex: null, timer, window: 3 })).toEqual([2, 1, 3]);
+    expect(prefetchOrder({ segments: doc, startIndex: 4, playingIndex: 3, remaining: 1, speed: 1, forwardStopIndex: null, timer, window: 3 })).toEqual([4]);
+    expect(prefetchOrder({ segments: doc, startIndex: 1, playingIndex: 0, remaining: 1, speed: 1, forwardStopIndex: 3, timer: new FetchTimer(), window: 3 })).toEqual([1, 2]);
+    expect(prefetchOrder({ segments: doc, startIndex: 5, playingIndex: 4, remaining: 1, speed: 1, forwardStopIndex: null, timer, window: 3 })).toEqual([]);
+  });
+
+  it('reaches exactly as far as the window says (issue #166)', () => {
+    const long: EngineSegment[] = Array.from({ length: 30 }, (_, i) => ({ text: `Sentence ${i}.` }));
+    const order = (window: number) => prefetchOrder({ segments: long, startIndex: 4, playingIndex: 3, remaining: 2, speed: 1, forwardStopIndex: null, timer: new FetchTimer(), window });
+    expect([...order(5)].sort((a, b) => a - b)).toEqual([4, 5, 6, 7, 8]);
+    expect(order(5)[0]).toBe(4);
+    expect(order(20)).toHaveLength(20);
+    expect(Math.max(...order(20))).toBe(23);
+    expect(order(1)).toEqual([4]);
   });
 
   it('learns fetch time per character, ignoring near-instant answers', () => {
@@ -139,24 +149,79 @@ describe('read-ahead', () => {
     expect(timer.perCharMs).toBe(17.5);
   });
 
-  it('runs two at a time, the second asked for first, and stops when told', async () => {
+  /** A job whose requests are answered by hand. */
+  function manual(requests: number, needed: (i: number) => boolean = () => true) {
     const asked: number[] = [];
-    const answers = new Map<number, () => void>();
-    const fetch = (i: number) => {
-      asked.push(i);
-      return new Promise<void>((resolve) => answers.set(i, resolve));
-    };
+    const answers = new Map<number, (ok: boolean) => void>();
     let stopped = false;
-    runReadAhead([5, 6, 7, 8], fetch, () => stopped);
-    expect(asked).toEqual([6, 5]);
-    answers.get(5)!();
+    const job: PrefetchJob = {
+      fetch: (i) => {
+        asked.push(i);
+        return new Promise<void>((resolve, reject) => answers.set(i, (ok) => (ok ? resolve() : reject(new Error('no audio')))));
+      },
+      needed,
+      stopped: () => stopped,
+      requests,
+    };
+    return { asked, job, answer: (i: number, ok = true) => answers.get(i)!(ok), stop: () => (stopped = true) };
+  }
+
+  it('asks in priority order, as many at once as the setting, and stops when told', async () => {
+    const runner = new PrefetchRunner();
+    const m = manual(2);
+    runner.run([5, 6, 7, 8], m.job);
+    // The next sentence first: Read Aloud asked the second of a pair before it
+    expect(m.asked).toEqual([5, 6]);
+    expect(runner.open).toBe(2);
+    m.answer(5);
     await flush();
-    expect(asked).toEqual([6, 5, 7]);
-    stopped = true;
-    answers.get(6)!();
-    answers.get(7)!();
+    expect(m.asked).toEqual([5, 6, 7]);
+    m.stop();
+    m.answer(6);
+    m.answer(7, false);
     await flush();
-    expect(asked).toEqual([6, 5, 7]);
+    expect(m.asked).toEqual([5, 6, 7]);
+    expect(runner.open).toBe(0);
+    // The most ever open at once, for the diagnostics
+    expect(runner.peak).toBe(2);
+  });
+
+  it('takes up to five at once, and one at a time when told', async () => {
+    const five = manual(5);
+    new PrefetchRunner().run([1, 2, 3, 4, 5, 6, 7], five.job);
+    expect(five.asked).toEqual([1, 2, 3, 4, 5]);
+    const one = manual(1);
+    new PrefetchRunner().run([1, 2, 3], one.job);
+    expect(one.asked).toEqual([1]);
+    one.answer(1, false);
+    await flush();
+    expect(one.asked).toEqual([1, 2]);
+  });
+
+  it('skips what is decoded or on its way, without spending a request on it', () => {
+    const m = manual(2, (i) => i !== 6);
+    new PrefetchRunner().run([5, 6, 7, 8], m.job);
+    expect(m.asked).toEqual([5, 7]);
+  });
+
+  it('counts the requests an earlier start sent: a new start never opens more than the setting (issue #166)', async () => {
+    const runner = new PrefetchRunner();
+    const first = manual(2);
+    runner.run([1, 2, 3], first.job);
+    expect(first.asked).toEqual([1, 2]);
+    const second = manual(2);
+    runner.run([3, 4, 5], second.job);
+    // Both slots are still taken by the first start's requests
+    expect(second.asked).toEqual([]);
+    first.answer(1);
+    await flush();
+    expect(second.asked).toEqual([3]);
+    expect(first.asked).toEqual([1, 2]);
+    runner.cancel();
+    first.answer(2);
+    await flush();
+    expect(second.asked).toEqual([3]);
+    expect(runner.open).toBe(1);
   });
 });
 

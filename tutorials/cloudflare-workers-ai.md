@@ -78,8 +78,8 @@ voices are there:
   about a cent on MeloTTS, a dollar on Aura-1, two on Aura-2.
 - The plugin synthesizes a few sentences ahead of playback, and on Aura a
   sentence you skip past is still paid for. To spend less while jumping
-  around a document, lower *Prefetch* under *Settings → Zotero-TTS →
-  Reading* to 1.
+  around a document, turn on *Custom prefetch* under *Settings → Zotero-TTS
+  → Reading* and lower *Prefetch … sentences ahead* to 3, the least.
 - The day's usage is on the dashboard's Workers AI page.
 
 ## Troubleshooting

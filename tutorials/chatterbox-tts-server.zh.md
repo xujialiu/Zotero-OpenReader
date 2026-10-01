@@ -1,4 +1,4 @@
-<!-- translated-from: chatterbox-tts-server.md sha256:4c1212378f00 -->
+<!-- translated-from: chatterbox-tts-server.md sha256:93112aed8bb3 -->
 # 用 Docker 跑 Chatterbox-TTS-Server（NVIDIA 显卡）
 
 [English](chatterbox-tts-server.md) · **简体中文**
@@ -9,7 +9,7 @@
 
 ## 只讲显卡
 
-本教程只讲 Docker 里的 NVIDIA 显卡，别的都不讲，这是故意的。CPU 模式和 macOS（Apple Silicon）上的原生构建都「能出声」，但我们测下来，合成一句话比读完这句话还慢，于是每读一句都要卡一下；拿来朗读是不能用的。请按有 6–8 GB 空闲显存的卡来准备。给个参照：在 RTX 3080 Ti 上，短句约 1.7 秒，长句约 8 秒；插件会提前预取几句，把这段等待藏起来。
+本教程只讲 Docker 里的 NVIDIA 显卡，别的都不讲，这是故意的。CPU 模式和 macOS（Apple Silicon）上的原生构建都「能出声」，但我们测下来，合成一句话比读完这句话还慢，于是每读一句都要卡一下；拿来朗读是不能用的。请按有 6–8 GB 空闲显存的卡来准备。给个参照：在 RTX 3080 Ti 上，短句约 1.7 秒，长句约 8 秒；插件默认会提前预取 5 句，把这段等待藏起来。
 
 ## 前置条件
 

@@ -46,8 +46,6 @@ pref('extensions.zotero.zotero-tts.webdav.password', '');
 pref('extensions.zotero.zotero-tts.webdav.syncPositions', false);
 pref('extensions.zotero.zotero-tts.webdav.autoUploadSettings', false);
 pref('extensions.zotero.zotero-tts.webdav.syncSettings', false);
-pref('extensions.zotero.zotero-tts.prefetch', 3);
-pref('extensions.zotero.zotero-tts.prefetchEnabled', true);
 pref('extensions.zotero.zotero-tts.cacheAudio', true);
 pref('extensions.zotero.zotero-tts.shortcuts.speedReset', 'Shift+Z');
 pref('extensions.zotero.zotero-tts.shortcuts.speedDown', 'Shift+X');
@@ -99,5 +97,9 @@ pref('extensions.zotero.zotero-tts.shortcuts.underlineSentence', 'Shift+U');
 
 pref('extensions.zotero.zotero-tts.readAloud.stripAngleBrackets', true);
 pref('extensions.zotero.zotero-tts.readAloud.bracketPairs', '<> []');
+
+pref('extensions.zotero.zotero-tts.readAloud.prefetchCustom', true);
+pref('extensions.zotero.zotero-tts.readAloud.prefetchSentences', 5);
+pref('extensions.zotero.zotero-tts.readAloud.prefetchRequests', 2);
 
 pref('extensions.zotero.zotero-tts.readAloud.playerLayout', 'top');

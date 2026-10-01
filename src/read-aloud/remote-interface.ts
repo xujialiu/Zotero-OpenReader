@@ -93,38 +93,10 @@ export type RemoteInterfaceDeps = {
    * The audio cache, or undefined while caching is off — asked per call,
    * the way every other setting here is, so a change in the pane reaches a
    * reader that is already open (the interface itself is built once per
-   * reader). Prefetch warms into this very cache and does nothing without
-   * it; core/settings.ts audioCacheOn keeps the two settings together.
+   * reader). The prefetch does not need it: the Engine keeps what it
+   * fetched ahead for the reading (issue #166).
    */
   cache?(): AudioCache | undefined;
-  /**
-   * The prefetch setting, read per call so the pane applies at once.
-   * Zotero's own player prefetches a hard-coded 3 segments ahead
-   * (RemoteReadAloudController._prefetchFrom, MAX_WINDOW = 3); this warms
-   * the cache `count` segments beyond whatever Zotero last asked for, which
-   * is what keeps slow servers ahead of playback.
-   */
-  getPrefetch?(): { enabled: boolean; count: number };
-  /**
-   * The texts of the segments that follow the one just requested, in
-   * reading order, at most `count`; [] when the reader cannot say. Reaches
-   * into the reader's segment list, so it lives with the Zotero glue.
-   */
-  getUpcomingTexts?(text: string, count: number): string[];
-  /**
-   * Whether the reader this interface serves still has its window. Asked
-   * before every step of the prefetch chain: a tab closed mid-chain ends
-   * it, so no audio is synthesized for a document nobody is listening to
-   * (issue #116). Absent means live.
-   */
-  isReaderLive?(): boolean;
-  /**
-   * Whether the prefetch chain may ask for this voice's audio now (the
-   * voice id as the reader has it): not while a voice switch is pending,
-   * nor for a voice the reading has left (issue #163). Asked at the
-   * chain's start and before each of its requests; absent means yes.
-   */
-  mayPrefetch?(voiceId: string): boolean;
   /** Receives the raw error before it is collapsed to a Zotero error string. */
   log?(e: unknown): void;
   /** One line per synthesized segment, for the debug output: which provider, how many word timestamps. */
@@ -243,8 +215,8 @@ export interface RemoteInterface {
   /**
    * A segment's audio. `options.signal` belongs to a voice being prepared
    * to take the reading over (core/engine/handoff.ts): its requests are
-   * shared among themselves only, end when it is called off, and warm
-   * nothing ahead; ordinary playback has none. `options.held` asks only
+   * shared among themselves only and end when it is called off; the
+   * reading's own, the prefetch included, have none. `options.held` asks only
    * for audio already here — cached, or a synthesis of it on its way — and
    * never a provider, answering `not-held` otherwise: the old voice while
    * a switch is pending (issue #163).
@@ -388,10 +360,10 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     JSON.stringify([deps.cacheVersion(), providerId, voiceId, text, ...(languageHint ? [languageHint] : [])]);
 
   /**
-   * One synthesis per cache key, however many callers ask. Zotero prefetches
-   * up to two segments concurrently and the plugin's own warmer runs beside
-   * them; without this, the same sentence would be synthesized (and billed)
-   * more than once. Registered synchronously, before the cache is consulted,
+   * One synthesis per cache key, however many callers ask: two tabs reading
+   * one document, a voice being prepared beside the reading, a held lookup
+   * of the old voice (issue #163). Without this, the same sentence would be
+   * synthesized (and billed) more than once. Registered synchronously, before the cache is consulted,
    * so two calls interleaving at the await cannot both start a synthesis.
    */
   const pending = new Map<string, Promise<{ result: SynthesisResult; cached: boolean }>>();
@@ -436,70 +408,6 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     const hit = await deps.cache?.()?.match(key);
     if (hit) return { result: hit, cached: true };
     throw new NotHeld();
-  }
-
-  /**
-   * Warm the cache for the segments after `text`, one at a time — the
-   * playback request must never queue behind a burst of prefetches, and a
-   * slow server gets one warm request, not `count` at once. Segments that
-   * are already cached or already being fetched are *skipped, not joined*:
-   * Zotero's own player slides a parallel three-segment window
-   * (_prefetchFrom), and a chain that waited on those fetches would trail
-   * it forever and never reach the segments beyond — which are the whole
-   * point of a count above three (verified live: the joined chain produced
-   * zero cache hits). One chain at a time; a chain started by a later
-   * segment picks up where this one ends. Failures are logged and end the
-   * chain — playback will surface the error when it gets there. A reader
-   * whose window is gone ends it too, before the next request goes out
-   * (issue #116): no audio for a document nobody is listening to. So does
-   * a voice switch (issue #163): while one is pending, and once the reading
-   * has left `readerVoiceId`, the chain asks for nothing more.
-   */
-  let warming = false;
-  function prefetchAfter(
-    readerVoiceId: string,
-    providerId: ProviderId,
-    voiceId: string,
-    text: string,
-    strip: boolean,
-    locale?: string,
-    pairs?: string,
-  ): void {
-    const cfg = deps.getPrefetch?.();
-    const cache = deps.cache?.();
-    if (!cfg?.enabled || cfg.count < 1 || !cache || warming) return;
-    if (deps.isReaderLive?.() === false) return;
-    if (deps.mayPrefetch?.(readerVoiceId) === false) return;
-    const texts = (deps.getUpcomingTexts?.(text, cfg.count) ?? []).filter(
-      (t) => typeof t === 'string' && t.trim().length > TINY_SEGMENT_CHARS,
-    );
-    if (!texts.length) return;
-    warming = true;
-    void (async () => {
-      try {
-        for (const original of texts) {
-          if (deps.isReaderLive?.() === false) {
-            deps.debug?.(`prefetch: ${providerId}: stopped, the reader is gone`);
-            break;
-          }
-          if (deps.mayPrefetch?.(readerVoiceId) === false) {
-            deps.debug?.(`prefetch: ${providerId}: stopped, the voice is switching`);
-            break;
-          }
-          const t = prepareSpeechText(original, strip, pairs).text;
-          if (!t.trim()) continue;
-          const key = cacheKeyFor(providerId, voiceId, t, hintFor(providerId, t, locale));
-          if (pending.has(key)) continue;
-          if (await cache.match(key)) continue;
-          const { cached } = await ensureAudio(providerId, voiceId, t, locale);
-          if (!cached) deps.debug?.(`prefetch: ${providerId}: ${t.length} chars ready ahead of playback`);
-        }
-      } catch (e) {
-        log(e);
-      } finally {
-        warming = false;
-      }
-    })();
   }
 
   return {
@@ -576,7 +484,6 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       const prepared = prepareSpeechText(originalText, segment !== 'sample' && strip, pairs);
       const decoded = decodeVoiceId(voice?.id ?? '');
       if (prepared.removed.length && !prepared.text.trim()) {
-        if (decoded && !signal && !held) prefetchAfter(String(voice?.id ?? ''), decoded.provider, decoded.voiceId, originalText, strip, locale, pairs);
         const pause = silentWav(SILENT_PAUSE_MS);
         deps.debug?.('bracket pairs: empty interior; playing a short pause');
         return { audio: deps.adoptAudio ? deps.adoptAudio(pause) : pause, timestamps: wholeSegmentTimestamp(originalText) };
@@ -621,9 +528,6 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         // voices do, and why they never hit this.
         if (segment !== 'sample' && isInvisibleSegment(segment)) {
           deps.debug?.(`skipping ${text.length} chars that are not visible on the page; playing a ${SILENT_PAUSE_MS} ms pause instead`);
-          // Still warms what follows: the skipped segment is the anchor the
-          // upcoming ones are found from, and it plays for only 400 ms
-          if (!signal && !held) prefetchAfter(String(voice?.id ?? ''), decoded.provider, decoded.voiceId, text, strip, locale, pairs);
           const skipped = silentWav(SILENT_PAUSE_MS);
           return { audio: deps.adoptAudio ? deps.adoptAudio(skipped) : skipped };
         }
@@ -632,7 +536,6 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         // fallback below is applied on the way out, never stored.
         const { result, cached } = await ensureAudio(decoded.provider, decoded.voiceId, prepared.text, segment === 'sample' ? undefined : locale, signal, held);
         if (signal?.aborted) return { audio: null, error: 'network' };
-        if (segment !== 'sample' && !signal && !held) prefetchAfter(String(voice?.id ?? ''), decoded.provider, decoded.voiceId, text, strip, locale, pairs);
 
         // A clean answer with nothing in it: Azure ends the turn with zero
         // audio frames for asterisk-only text (the "****" scene separators,

@@ -70,13 +70,15 @@ credit left, item 21's out-of-credits path runs instead of the sentences.
 
 ### 4
 
-4. **Read-ahead and the provider-observed concurrency.** For a plugin
-   voice, never more than three requests at once: Read Aloud's window of
-   two plus the plugin's own warm chain of one (`Prefetch` on), and one
-   more while a voice is being prepared (item 17). The debug log's
-   `prefetch: <provider>: N chars ready ahead of playback` lines go on
-   past Read Aloud's three segments; `store.requests` grows by at most
-   the segments read plus three.
+4. **Prefetch and the provider-observed concurrency (issue #166).** For
+   any voice, the prefetch keeps at most *requests at once* open
+   (`session.prefetch.peak` ≤ `session.prefetch.requests`), beside the
+   sentence playback waits for, and one more while a voice is being
+   prepared (item 17). The last start's `session.prefetch.order` holds
+   exactly `sentences` indices from `from` (fewer only at the document's
+   or the selection's end), and `store.requests` grows by at most the
+   segments read plus `sentences`. The plugin's warm chain and its
+   `prefetch: <provider>: …` lines are gone ([prefetch-cache](prefetch-cache.md)).
 
 ### 5
 
@@ -195,10 +197,8 @@ isolation rules, and close only the fixtures opened for this run.
     landed after (read before the close from another tab's diagnostics is
     not possible — read `diagnostics.patches().lateResults` for the reader
     realm's and the debug line `late audio dropped: its reader window was
-    gone` for the Engine's), and the warm chain stops (`prefetch:
-    <provider>: stopped, the reader is gone` — only when the chain was
-    between two of its requests at the close; run 2 of 2026-09-23 caught
-    the Engine's line twice and never this one) ([late-audio](late-audio.md)).
+    gone` for the Engine's), and no prefetch request goes out after the
+    close ([late-audio](late-audio.md)).
 
 ### 15
 

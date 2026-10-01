@@ -111,6 +111,29 @@ describe('Handoff: at a word', () => {
     expect(aborted).toBe(1);
   });
 
+  it('once the new voice has taken over, its requests are the reading\'s own, without the preparation\'s signal (issue #162)', async () => {
+    const t = setup({ texts: LONG });
+    t.session.setPaused(false);
+    const signal = { aborted: false };
+    t.session.prepareHandoff({
+      target: nova,
+      commit: () => {
+        t.session.bind({ voice: nova, segments: t.session.segments!, backwardStopIndex: t.session.position, forwardStopIndex: null });
+        t.session.setPaused(t.session.paused);
+      },
+      notice: () => {},
+      report: t.report,
+      abort: { signal, abort: () => {} },
+    });
+    await t.clock.advance(400);
+    expect(t.session.voice?.id).toBe(nova.id);
+    const novas = t.fetch.requests.filter((r) => r.voice === nova.id);
+    // The preparation's request carried the signal; the prefetch after the takeover does not
+    expect(novas[0]).toEqual({ text: TEXT, voice: nova.id, signal });
+    expect(novas.slice(1).map((r) => r.text)).toEqual(['Four five.', 'Six seven eight.', 'Nine ten.']);
+    expect(novas.slice(1).every((r) => r.signal === undefined)).toBe(true);
+  });
+
   it('coalesces picks within 120 ms: only the last voice is asked for', async () => {
     const t = setup();
     t.session.setPaused(false);

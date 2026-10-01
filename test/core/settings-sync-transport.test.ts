@@ -331,8 +331,8 @@ describe('createSettingsSyncTransport', () => {
   });
 
   it('a value the pref refuses is left out and unstamped; the rest of the batch still applies', async () => {
-    const h = harness({ state: { stamps: {}, held: {}, seeded: true }, remote: file(item({ key: 'prefetch', value: 7 }), item({ key: 'readAloud.volume', value: 130 })) });
-    h.refused.add('prefetch');
+    const h = harness({ state: { stamps: {}, held: {}, seeded: true }, remote: file(item({ key: 'readAloud.prefetchSentences', value: 7 }), item({ key: 'readAloud.volume', value: 130 })) });
+    h.refused.add('readAloud.prefetchSentences');
     h.transport.poke('startup');
     await settle();
     expect(h.writes).toEqual([{ key: 'readAloud.volume', value: 130 }]);

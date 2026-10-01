@@ -63,7 +63,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Playback on a fixture](cases/playback.md) — 3.4, 3.26
 - [3l. Playback preparation notice (issue #120)](cases/playback-notice.md)
 - [Invisible text and empty audio](cases/silent-segments.md) — 3.6, 3.7
-- [Prefetch and cache](cases/prefetch-cache.md) — 3.8
+- [Prefetch and cache (issue #166)](cases/prefetch-cache.md) — 3.8
 - [The reading guard](cases/reading-guard.md) — 3.9
 - [The pauses between sentences and paragraphs](cases/sentence-pauses.md) — 3.10
 - [Text stored decomposed](cases/decomposed-text.md) — 3.16–3.18

@@ -444,17 +444,28 @@
     <hbox align="center">
       <html:input id="ztts-bracket-pairs" type="text" size="24" data-l10n-id="ztts-bracket-pairs"/>
     </hbox>
-    <!-- The switch locks the cache below on: without it the warmer has
-         nowhere to put what it synthesizes (ui/prefetch-rows.ts) -->
+    <!-- Prefetch, for every voice (issue #166, ADR 0013): the switch is bound;
+         the two numbers are not, so that while it is off they show the
+         defaults the reading uses, grayed (ui/prefetch-rows.ts). Read at every
+         sentence's start: no reading guard -->
     <hbox align="center">
-      <checkbox data-l10n-id="ztts-prefetch" preference="extensions.zotero.zotero-tts.prefetchEnabled"/>
-      <html:input type="number" min="1" max="10" step="1"
-                  preference="extensions.zotero.zotero-tts.prefetch"/>
-      <label data-l10n-id="ztts-prefetch-ahead"/>
-      <label class="ztts-help" value="?" data-l10n-id="ztts-help-prefetch" data-l10n-attrs="help"/>
+      <checkbox data-l10n-id="ztts-prefetch-custom" preference="extensions.zotero.zotero-tts.readAloud.prefetchCustom"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-prefetch-custom" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center" class="ztts-prefetch-row">
+      <label data-l10n-id="ztts-prefetch-sentences-before" control="ztts-prefetch-sentences"/>
+      <html:input id="ztts-prefetch-sentences" type="number" min="3" max="20" step="1" style="width: 5em"/>
+      <label data-l10n-id="ztts-prefetch-sentences-after"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-prefetch-sentences" data-l10n-attrs="help"/>
+    </hbox>
+    <hbox align="center" class="ztts-prefetch-row">
+      <label data-l10n-id="ztts-prefetch-requests-before" control="ztts-prefetch-requests"/>
+      <html:input id="ztts-prefetch-requests" type="number" min="1" max="5" step="1" style="width: 5em"/>
+      <label data-l10n-id="ztts-prefetch-requests-after"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-prefetch-requests" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <checkbox id="ztts-cache-audio" data-l10n-id="ztts-cache-audio" preference="extensions.zotero.zotero-tts.cacheAudio"/>
+      <checkbox data-l10n-id="ztts-cache-audio" preference="extensions.zotero.zotero-tts.cacheAudio"/>
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-cache-audio" data-l10n-attrs="help"/>
     </hbox>
   </groupbox>

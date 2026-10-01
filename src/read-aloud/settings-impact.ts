@@ -8,7 +8,7 @@ import { isPlayerOpen } from './player-stop';
 // Direct playback controls remain usable. These keys are checked when a
 // restore or background sync would change playback as a side effect.
 const PLAYBACK_SETTINGS = new Set([
-  'prefetch', 'prefetchEnabled', 'cacheAudio', 'readAloud.volume',
+  'readAloud.prefetchCustom', 'readAloud.prefetchSentences', 'readAloud.prefetchRequests', 'cacheAudio', 'readAloud.volume',
   'readAloud.sameForAllDocuments', 'readAloud.globalSpeed', 'readAloud.speedPercent',
   'readAloud.sentenceDelayEnabled', 'readAloud.sentenceDelayMs',
   'readAloud.paragraphDelayEnabled', 'readAloud.paragraphDelayMs',

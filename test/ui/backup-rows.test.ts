@@ -94,7 +94,7 @@ function setup(
 
 describe('Backup settings', () => {
   it('writes every setting to the chosen file and says where it went', async () => {
-    const t = setup({ prefs: { [PREF_PREFIX + 'azure.apiKey']: 'secret', [PREF_PREFIX + 'prefetch']: 7 } });
+    const t = setup({ prefs: { [PREF_PREFIX + 'azure.apiKey']: 'secret', [PREF_PREFIX + 'readAloud.prefetchSentences']: 7 } });
     await t.el('ztts-backup').fire('command');
     expect(t.deps.pickSavePath).toHaveBeenCalledWith(BACKUP_FILENAME);
     expect(t.written).toHaveLength(1);
@@ -102,7 +102,7 @@ describe('Backup settings', () => {
     const backup = JSON.parse(t.written[0].text);
     expect(backup).toMatchObject({ format: BACKUP_FORMAT, pluginVersion: '0.1.0', exportedAt: '2026-08-22T10:00:00.000Z' });
     expect(backup.settings['azure.apiKey']).toBe('secret');
-    expect(backup.settings.prefetch).toBe(7);
+    expect(backup.settings['readAloud.prefetchSentences']).toBe(7);
     expect(t.message()).toContain('C:\\backups\\tts.json');
     expect(t.message()).toMatch(/API keys/);
   });

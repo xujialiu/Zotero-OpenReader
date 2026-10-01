@@ -44,6 +44,7 @@
 import { createReadingSections } from '../reading-sections';
 import type { RemainingSnapshot } from '../../core/engine/session';
 import type { PauseSettings } from '../../core/engine/gap';
+import type { PrefetchSettings } from '../../core/engine/prefetch';
 import { EngineSession, type PlaybackNotice } from '../../core/engine/session';
 import type { EngineClock, EngineSegment, EngineVoice, FetchResult } from '../../core/engine/types';
 import { createProtoPatches } from '../proto-patches';
@@ -93,13 +94,15 @@ export interface EngineDeps {
   isPluginVoice(id: string): boolean;
   /** The pane's pause settings, read at every sentence boundary. */
   pauses(): PauseSettings;
+  /** The pane's prefetch numbers, read at every start, for every voice (issue #166); absent, Read Aloud's own. */
+  prefetch?(): PrefetchSettings;
   /** The volume pref, in percent. */
   volume(): number;
   /** The playback notice of a reader (ui/voice-notice.ts). */
   notice(reader: unknown, kind: PlaybackNotice): void;
   /**
    * Zotero refused a Zotero voice for its account (issue #140): when the
-   * reading's own voice fails playback — not at a read-ahead, so the
+   * reading's own voice fails playback — not at a prefetch, so the
    * sentence being heard is not cut — or at once for a voice being
    * switched to, whose switch fails while the old voice reads on.
    */
@@ -147,14 +150,6 @@ export interface Engine {
   voiceOf(voice: any): TabVoice;
   /** Whether the reader's manager holds a live controller of the Engine's. */
   bound(reader: unknown): boolean;
-  /** The texts after `text`, for the plugin's warm chain (remote-interface.ts). */
-  upcomingTexts(reader: unknown, text: string, count: number, skip: (segment: EngineSegment) => boolean): string[];
-  /**
-   * Whether the plugin's warm chain may ask for a voice's audio now: not
-   * while a voice switch is pending, nor for a voice the reading has left
-   * (issue #163); with no reading, as before.
-   */
-  mayPrefetch(reader: unknown, voiceId: string): boolean;
   /** Move every tab's volume. */
   setVolume(level: number): void;
   remainingTime(reader: unknown): RemainingSnapshot;
@@ -285,6 +280,7 @@ export function createEngine(deps: EngineDeps): Engine {
         if (source?.forget) void source.forget(segment, (voice as TabVoice).reader.impl).catch(deps.error);
       },
       pauses: deps.pauses,
+      prefetch: deps.prefetch,
       emit: (type, segment) => tab.controller?.dispatch(type, segment),
       notice: (kind) => {
         try {
@@ -292,7 +288,7 @@ export function createEngine(deps: EngineDeps): Engine {
         } catch (e) {
           deps.error(e);
         }
-        // Playback failed on the reading's own voice: the refusal now counts (a read-ahead's did not)
+        // Playback failed on the reading's own voice: the refusal now counts (a prefetch's did not)
         if (kind === 'failed' && session?.voice && session.error) refused(tab, session.error, session.voice as TabVoice);
       },
       log: deps.error,
@@ -320,6 +316,8 @@ export function createEngine(deps: EngineDeps): Engine {
   async function fetchFor(tab: Tab, segment: EngineSegment, voice: TabVoice, signal?: unknown, held = false): Promise<FetchResult> {
     const source = deps.audioSource(tab.reader);
     if (!source) return { audio: null, error: 'unknown' };
+    // A window gone without Zotero's close (issue #143) ends no session: the prefetch's queue asks nobody for it (issues #116, #166)
+    if (!alive(tab.window)) return { audio: null, error: 'unknown' };
     const options = held ? { held: true } : signal ? { signal: signal as AbortSignal } : undefined;
     // A held lookup asks nobody; otherwise a Zotero voice with nothing left is not asked for: the answer would be a refusal (issue #140)
     const result = !held && zoteroTierOf(voice.reader) && usedUp(voice.reader)
@@ -597,21 +595,6 @@ export function createEngine(deps: EngineDeps): Engine {
 
     bound: (reader) => tabOfReader(reader)?.controller?.live === true,
 
-    upcomingTexts(reader, text, count, skip) {
-      try {
-        return tabOfReader(reader)?.session.upcomingTexts(text, count, skip) ?? [];
-      } catch (e) {
-        deps.error(e);
-        return [];
-      }
-    },
-
-    mayPrefetch(reader, voiceId) {
-      const session = tabOfReader(reader)?.session;
-      if (!session || session.ended) return true;
-      return session.handoff === null && session.voice?.id === voiceId;
-    },
-
     setVolume(level) {
       prune();
       for (const tab of all) {
@@ -682,8 +665,11 @@ export function createEngine(deps: EngineDeps): Engine {
               notices: { ...session.noticeCounts },
               wordClock: { ...session.wordClock },
               handoff: session.handoff ? { target: session.handoff.target.id, pending: session.handoff.pending } : null,
+              prefetch: session.prefetchReport,
               store: session.store
                 ? {
+                    // A preparation's signal on the reading's own store would mark its requests as a handoff's (issue #162)
+                    signal: session.store.deps.signal !== undefined,
                     requests: session.store.requests,
                     lookups: session.store.lookups,
                     clips: session.store.clips.size,

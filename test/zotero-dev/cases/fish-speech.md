@@ -67,7 +67,9 @@ Items 1a.9–1a.13 of the checklist, under their original numbers.
 13. **A slow server outruns the 60 s bound through the prefetch queue.**
     A server that answers one request at a time makes the segments
     requested ahead of playback wait behind the one being synthesized,
-    and a queued request burns its 60 s (`remote-interface.ts`):
+    and a queued request burns its 60 s (`remote-interface.ts`; since
+    issue #166 *Send 1 requests at once* keeps the prefetch to one request
+    beside playback's):
     `SynthesisError: fishspeech: no audio within 60 s`, `ReaderTab "…":
     network`, and the player showing `Unable to connect to the Read Aloud
     service. Please check your internet connection.` with `Retry` while

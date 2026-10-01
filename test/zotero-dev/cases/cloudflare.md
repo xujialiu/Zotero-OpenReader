@@ -74,17 +74,17 @@ Items 1.14, 2.9 and 3.15 of the checklist, under their original numbers.
     66 (2267 + 66 = 2333 on 2026-09-07). Per segment the log reads
     `[zotero-tts] cloudflare: no word timestamps for N chars (audio from
     @cf/myshell-ai/melotts), highlighting the sentence` — neither model
-    family reports timing — with `[zotero-tts] prefetch: cloudflare: N
-    chars ready ahead of playback` for the ones ahead and `(cached)` on
-    a replay. `diagnostics.highlight()` on that view: `patched: true`,
+    family reports timing — and `(cached)` on a replay. `diagnostics.highlight()` on that view: `patched: true`,
     `granularity: "sentence"`, `activeWordTimestamp: "stand-in"`,
     `primaryShown: true`, `sentenceSlot: "ours"`, in word mode as in
     sentence mode — the whole-segment stand-in keeps the sentence lit.
     `selectVoice('cloudflare::@cf/deepgram/aura-1/angus')` then logs the
     same line naming `@cf/deepgram/aura-1`. **Budget**: read on MeloTTS.
-    One played Aura sentence is five syntheses — Zotero's own read-ahead
-    runs with `prefetchEnabled` off (304 characters, about 425 Neurons on
-    2026-09-07) — so an Aura reading is a deliberate spend. `getAudio`
+    One played Aura sentence was five syntheses on 2026-09-07, with
+    `prefetchEnabled` off and Zotero's own read-ahead still running (304
+    characters, about 425 Neurons); since issue #166 the prefetch asks for
+    three sentences ahead at the least — so an Aura reading is a
+    deliberate spend. `getAudio`
     with a wrong token (stashed, restored by length) resolves `{ audio:
     null, error: "unknown" }` in under 100 ms with `Cloudflare rejected
     the API token or the account ID (401) — Authentication error` in the

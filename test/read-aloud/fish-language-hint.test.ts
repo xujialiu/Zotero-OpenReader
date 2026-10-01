@@ -91,20 +91,6 @@ describe('Fish hint transport, offsets and cache', () => {
     expect(s.bodies.map(b => b.text).sort()).toEqual(['[Speak in American English] 100 exp', '[Speak in British English] 100 exp']);
   });
 
-  it('prefetches with the captured locale and original text anchor, then reuses it without shifting offsets', async () => {
-    const s = setup();
-    const getUpcomingTexts = vi.fn(() => ['< 100 exp>']);
-    const iface = createRemoteInterface({ ...s.deps, getPrefetch: () => ({ enabled: true, count: 1 }), getUpcomingTexts });
-    const mutableVoice = { ...voice };
-    await iface.getAudio({ text: 'This sentence has four words.' }, mutableVoice);
-    mutableVoice.locale = 'en-GB';
-    await vi.waitFor(() => expect(s.bodies).toHaveLength(2));
-    expect(getUpcomingTexts).toHaveBeenCalledWith('This sentence has four words.', 1);
-    expect(s.bodies[1].text).toBe('[Speak in American English] 100 exp');
-    await iface.getAudio({ text: '< 100 exp>' }, voice);
-    expect(s.bodies).toHaveLength(2);
-  });
-
   it.each(['fishspeech', 'openai-official', 'azure', 'local'] as const)('leaves %s request metadata unchanged', async id => {
     const synthesize = vi.fn(async (): Promise<SynthesisResult> => ({ audio: new Blob(['audio']) }));
     const provider = { id, synthesize } as unknown as TTSProvider;

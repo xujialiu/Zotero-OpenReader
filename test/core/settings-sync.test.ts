@@ -286,23 +286,26 @@ describe('mergeSharedSettings', () => {
     ]);
   });
 
-  it('passes through what it does not sync — the connection, the System switch, a newer build’s key — untouched and unapplied', () => {
+  it('passes through what it does not sync — the connection, the System switch, a newer build’s key, an older build’s — untouched and unapplied', () => {
     const remote = [
       item({ key: 'webdav.password', value: 'leak', ts: 999 }),
       item({ key: 'system.enabled', value: true, ts: 999 }),
       item({ key: 'future.setting', value: 'x', ts: 999 }),
-      item({ key: 'prefetch', value: 5, ts: 999 }),
+      // The Prefetch pair of a computer from before #166 (ADR 0013): never read, never dropped
+      item({ key: 'prefetch', value: 3, ts: 999 }),
+      item({ key: 'prefetchEnabled', value: false, ts: 999 }),
+      item({ key: 'readAloud.prefetchSentences', value: 9, ts: 999 }),
     ];
-    const plan = mergeSharedSettings({ values: values(), stamps: { prefetch: 1 }, machine }, remote);
-    expect(plan.adopt).toEqual([item({ key: 'prefetch', value: 5, ts: 999 })]);
+    const plan = mergeSharedSettings({ values: values(), stamps: { 'readAloud.prefetchSentences': 1 }, machine }, remote);
+    expect(plan.adopt).toEqual([item({ key: 'readAloud.prefetchSentences', value: 9, ts: 999 })]);
     expect(plan.items).toEqual([...remote].sort((a, b) => (a.key < b.key ? -1 : 1)));
     expect(plan.changed).toBe(false);
   });
 
   it('skips a value of the wrong kind and reads a coercible one as the setting’s kind', () => {
-    const remote = [item({ key: 'prefetch', value: 'abc', ts: 999 }), item({ key: 'cacheAudio', value: 'false', ts: 999 }), item({ key: 'readAloud.volume', value: '150', ts: 999 })];
+    const remote = [item({ key: 'readAloud.prefetchSentences', value: 'abc', ts: 999 }), item({ key: 'cacheAudio', value: 'false', ts: 999 }), item({ key: 'readAloud.volume', value: '150', ts: 999 })];
     const plan = mergeSharedSettings({ values: values(), stamps: {}, machine }, remote);
-    expect(plan.skipped).toEqual(['prefetch']);
+    expect(plan.skipped).toEqual(['readAloud.prefetchSentences']);
     expect(plan.adopt).toEqual([item({ key: 'cacheAudio', value: false, ts: 999 }), item({ key: 'readAloud.volume', value: 150, ts: 999 })]);
   });
 

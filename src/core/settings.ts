@@ -1,6 +1,7 @@
 import type { ProviderId } from './providers/types';
 import type { ShortcutAction } from './shortcut-actions';
 import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
+import type { PrefetchSettings } from './engine/prefetch';
 
 export const PROVIDER_IDS: readonly ProviderId[] = ['openai-official', 'mimo', 'compatible', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system'];
 
@@ -103,10 +104,7 @@ export interface Settings {
    * settings backup; the position data and the machine id never do.
    */
   webdav: { url: string; username: string; password: string; syncPositions: boolean; autoUploadSettings: boolean; syncSettings: boolean };
-  /** Warm the audio cache this many sentences ahead of playback (read-aloud/remote-interface.ts); `prefetchEnabled` is the switch. */
-  prefetch: number;
-  prefetchEnabled: boolean;
-  /** Keep synthesized audio in the in-memory LRU (core/memory-cache.ts). */
+  /** Keep synthesized audio in the in-memory LRU (core/memory-cache.ts), for hearing it again and reopening a document. */
   cacheAudio: boolean;
   /**
    * Keyboard shortcuts that drive Zotero's own Read Aloud — the playback
@@ -183,6 +181,17 @@ export interface Settings {
      * structure loads, like restoreSkippedLines.
      */
     joinSplitSentences: boolean;
+    /**
+     * Prefetch (issue #166, ADR 0013), for every voice: on, the two numbers
+     * below; off, the defaults (`prefetchOf`). New names, so the old
+     * `prefetch` / `prefetchEnabled`, which counted on top of Read Aloud's
+     * three, are never read again and nothing resets these at an update.
+     */
+    prefetchCustom: boolean;
+    /** Sentences after the one being read whose audio is fetched ahead, 3–20. */
+    prefetchSentences: number;
+    /** Prefetch requests open at once, 1–5. */
+    prefetchRequests: number;
   };
   /** The colors of Zotero's Read Aloud highlights (read-aloud/highlight-style.ts); opacities in percent. */
   highlight: {
@@ -227,6 +236,17 @@ export const PREF_PREFIX = 'extensions.zotero.zotero-tts.';
 /** The longest pause the pane accepts, in milliseconds; both pause settings are clamped to 0..this. */
 export const MAX_PAUSE_MS = 5000;
 
+/**
+ * The prefetch's ranges (issue #166). 20 keeps the sentences fetched ahead
+ * inside the 32 clips a reading keeps (core/engine/clips.ts), beside the one
+ * playing and those just behind it: a clip dropped before it plays would be
+ * fetched, and on a metered voice billed, again (ADR 0013).
+ */
+export const PREFETCH_SENTENCES_MIN = 3;
+export const PREFETCH_SENTENCES_MAX = 20;
+export const PREFETCH_REQUESTS_MIN = 1;
+export const PREFETCH_REQUESTS_MAX = 5;
+
 export const DEFAULTS: Settings = {
   'openai-official': { enabled: false, apiKey: '', model: 'gpt-4o-mini-tts', voices: '' },
   mimo: { enabled: false, apiKey: '', model: 'mimo-v2.5-tts', voices: '' },
@@ -241,8 +261,6 @@ export const DEFAULTS: Settings = {
   'zotero-standard': { enabled: true },
   'zotero-premium': { enabled: true },
   webdav: { url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false, syncSettings: false },
-  prefetch: 3,
-  prefetchEnabled: true,
   cacheAudio: true,
   shortcuts: {
     speedReset: 'Shift+Z',
@@ -309,6 +327,9 @@ export const DEFAULTS: Settings = {
     remainingTime: true,
     stripAngleBrackets: true,
     bracketPairs: '<> []',
+    prefetchCustom: true,
+    prefetchSentences: 5,
+    prefetchRequests: 2,
   },
   // A blue word (near Zotero's own #4072e5) on a yellow sentence, both at 70%, both levels
   // on; the reader still draws them at its own 0.4 (light) / 0.3 (dark).
@@ -403,8 +424,6 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       autoUploadSettings: bool(prefs, 'webdav.autoUploadSettings', DEFAULTS.webdav.autoUploadSettings),
       syncSettings: bool(prefs, 'webdav.syncSettings', DEFAULTS.webdav.syncSettings),
     },
-    prefetch: num(prefs, 'prefetch', DEFAULTS.prefetch, 1, 10),
-    prefetchEnabled: bool(prefs, 'prefetchEnabled', DEFAULTS.prefetchEnabled),
     cacheAudio: bool(prefs, 'cacheAudio', DEFAULTS.cacheAudio),
     shortcuts: {
       speedReset: str(prefs, 'shortcuts.speedReset', DEFAULTS.shortcuts.speedReset),
@@ -452,6 +471,9 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       remainingTime: bool(prefs, 'readAloud.remainingTime', DEFAULTS.readAloud.remainingTime),
       stripAngleBrackets: bool(prefs, 'readAloud.stripAngleBrackets', DEFAULTS.readAloud.stripAngleBrackets),
       bracketPairs: str(prefs, 'readAloud.bracketPairs', DEFAULTS.readAloud.bracketPairs),
+      prefetchCustom: bool(prefs, 'readAloud.prefetchCustom', DEFAULTS.readAloud.prefetchCustom),
+      prefetchSentences: num(prefs, 'readAloud.prefetchSentences', DEFAULTS.readAloud.prefetchSentences, PREFETCH_SENTENCES_MIN, PREFETCH_SENTENCES_MAX),
+      prefetchRequests: num(prefs, 'readAloud.prefetchRequests', DEFAULTS.readAloud.prefetchRequests, PREFETCH_REQUESTS_MIN, PREFETCH_REQUESTS_MAX),
     },
     highlight: {
       wordColor: str(prefs, 'highlight.wordColor', DEFAULTS.highlight.wordColor),
@@ -465,16 +487,14 @@ export function loadSettings(prefs: PrefsBackend): Settings {
 }
 
 /**
- * Whether the Read Aloud interface gets the audio cache. Prefetch has
- * nowhere to put what it synthesizes without it — `prefetchAfter` returns on
- * its first line when the cache is undefined (read-aloud/remote-interface.ts)
- * — and the pane locks the two settings together, but only once it has been
- * opened (ui/prefetch-rows.ts). A profile carrying prefetch on and the cache
- * off is given the cache here rather than a prefetch that silently does
- * nothing.
+ * The prefetch numbers in effect (issue #166): the user's while Custom
+ * prefetch is on, the defaults otherwise. The Engine reads them at every
+ * start, for every voice.
  */
-export function audioCacheOn(settings: Settings): boolean {
-  return settings.cacheAudio || settings.prefetchEnabled;
+export function prefetchOf(readAloud: Settings['readAloud']): PrefetchSettings {
+  return readAloud.prefetchCustom
+    ? { sentences: readAloud.prefetchSentences, requests: readAloud.prefetchRequests }
+    : { sentences: DEFAULTS.readAloud.prefetchSentences, requests: DEFAULTS.readAloud.prefetchRequests };
 }
 
 /** The providers whose voices are published, in catalog order. */
@@ -500,8 +520,6 @@ export function saveSettings(prefs: PrefsBackend, s: Settings): void {
   for (const [k, v] of Object.entries(s.system)) prefs.set(PREF_PREFIX + 'system.' + k, v);
   for (const id of ZOTERO_SWITCH_IDS) prefs.set(PREF_PREFIX + id + '.enabled', s[id].enabled);
   for (const [k, v] of Object.entries(s.webdav)) prefs.set(PREF_PREFIX + 'webdav.' + k, v);
-  prefs.set(PREF_PREFIX + 'prefetch', s.prefetch);
-  prefs.set(PREF_PREFIX + 'prefetchEnabled', s.prefetchEnabled);
   prefs.set(PREF_PREFIX + 'cacheAudio', s.cacheAudio);
   for (const [k, v] of Object.entries(s.shortcuts)) prefs.set(PREF_PREFIX + 'shortcuts.' + k, v);
   for (const [k, v] of Object.entries(s.readAloud)) prefs.set(PREF_PREFIX + 'readAloud.' + k, v);

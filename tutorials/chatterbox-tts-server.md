@@ -20,7 +20,7 @@ audio comes out, but in our tests a sentence took longer to synthesize than
 to speak, so reading stalls after every sentence; they are not usable for
 Read Aloud. Plan on a card with 6–8 GB of free VRAM. For reference, on an
 RTX 3080 Ti a short sentence takes about 1.7 s and a long one about 8 s; the
-plugin prefetches a few sentences ahead, which hides that.
+plugin prefetches five sentences ahead by default, which hides that.
 
 ## Prerequisites
 

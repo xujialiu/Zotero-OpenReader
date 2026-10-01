@@ -27,7 +27,7 @@
  *   engine never resets `_indexAtPause` or its offset (40147, 40163-40166,
  *   39318), so a later return to a sentence once paused on starts midway,
  *   or past its end and so not at all.
- * - A failed read-ahead is asked for once more when playback reaches it;
+ * - A failed prefetch is asked for once more when playback reaches it;
  *   only the fetch playback waits on can fail the segment (clips.ts).
  * - A clip that will not decode fails as `unknown`, so the error shows and
  *   Retry works (clips.ts, issue #42).
@@ -37,7 +37,9 @@
  *   without a click or key press in the reader no longer plays silently.
  *
  * And what the plugin adds: the pause between sentences of the pane's
- * settings (gap.ts, issues #44 and #142), the "Preparing…" notice after 300 ms of
+ * settings (gap.ts, issues #44 and #142), the prefetch's reach and requests
+ * at once of the pane's settings, one runner per session (prefetch.ts,
+ * issue #166), the "Preparing…" notice after 300 ms of
  * waiting for audio (issue #120), and the voice switch (handoff.ts): while
  * one is pending, the old voice reads only the audio it already has, asks
  * for nothing new and reads nothing ahead, and the reading waits for the
@@ -47,7 +49,7 @@
 import { ClipError, ClipStore } from './clips';
 import { gapBefore, type PauseSettings } from './gap';
 import { Handoff, type HandoffOptions } from './handoff';
-import { readAheadOrder, runReadAhead } from './read-ahead';
+import { prefetchOrder, PrefetchRunner, READ_ALOUD_PREFETCH, type PrefetchSettings } from './prefetch';
 import { RemainingTimeDisplay } from './remaining-time';
 import { skipAheadTarget, skipBackTarget } from './skip';
 import type {
@@ -94,6 +96,8 @@ export interface SessionDeps<Clip extends EngineClip> {
   discard?(segment: EngineSegment, voice: EngineVoice): void;
   /** The pane's pause settings, read at every sentence boundary. */
   pauses(): PauseSettings;
+  /** The pane's prefetch numbers, read at every start (issue #166); absent, Read Aloud's own (prefetch.ts). */
+  prefetch?(): PrefetchSettings;
   /** The events Read Aloud's manager listens for. */
   emit(type: EngineEventType, segment: EngineSegment | null): void;
   /** The playback notice: "Preparing…" while audio is late, "failed" on an error, idle otherwise. */
@@ -170,6 +174,10 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
 
   /** Bumped at every fresh start and at the end: an answer for an older run is dropped. */
   private generation = 0;
+  /** The prefetch: one per session, so requests an earlier start sent keep their slots (prefetch.ts). */
+  private readonly prefetcher = new PrefetchRunner();
+  /** The last start's prefetch, for the diagnostics (issue #166). */
+  private lastPrefetch: { from: number; sentences: number; requests: number; order: number[] } | null = null;
   /** No controller holds the session: the manager destroyed the last one and asked for no other. */
   ended = true;
   /** Set by a carry-on bind: the manager's first `paused` write only restates what plays. */
@@ -262,6 +270,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.awaitingHandoff = null;
     this.landed = false;
     this.generation++;
+    this.prefetcher.cancel();
     this.clearGap();
     this.cancelSkip();
     this.stopSource();
@@ -310,6 +319,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     }
     this.handoff?.cancel();
     this.generation++;
+    this.prefetcher.cancel();
     this.ended = true;
     this.carriedOn = false;
     this.clearGap();
@@ -428,36 +438,6 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     return this.segments?.[this.position] ?? null;
   }
 
-  /**
-   * The texts of the segments after the one whose text is `text`, for the
-   * plugin's own read-ahead of its voices' audio (remote-interface.ts
-   * `prefetchAfter`): at most `count`, in reading order, looked for from the
-   * segment playing so a sentence repeated earlier cannot pull the window
-   * back, and without the empty ones and those `skip` refuses.
-   */
-  upcomingTexts(text: string, count: number, skip: (segment: EngineSegment) => boolean): string[] {
-    const segments = this.segments;
-    const length = !this.ended && segments ? segments.length : 0;
-    if (!length) return [];
-    const playing = this.currentIndex ?? this.position;
-    const from = playing >= 0 && playing < length ? playing : 0;
-    let at = -1;
-    for (let i = from; i < length; i++) {
-      if (segments![i]?.text === text) {
-        at = i;
-        break;
-      }
-    }
-    if (at === -1) return [];
-    const out: string[] = [];
-    for (let i = at + 1; i < length && out.length < count; i++) {
-      const segment = segments![i];
-      const t = segment?.text;
-      if (typeof t === 'string' && t && !skip(segment)) out.push(t);
-    }
-    return out;
-  }
-
   // ---- The handoff ----------------------------------------------------------
 
   /** Prepare `options.target` to take the reading over (handoff.ts); a switch already pending is called off. */
@@ -518,6 +498,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     const old = this.store;
     this.voice = voice;
     this.store = store;
+    // Its requests are the reading's own from now on, not a preparation's (issue #162)
+    store.dropSignal();
     if (old && old !== store) old.close();
     // A new controller of Read Aloud's knows no failures of the old voice
     this.failed.clear();
@@ -626,7 +608,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
         handleError();
         return;
       }
-      this.readAheadFrom(index + 1);
+      this.prefetchFrom(index + 1);
     };
     if (handoff) {
       // A switch is pending: the old voice reads only the audio it already has (issue #163)
@@ -744,6 +726,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.position = position;
     this.awaitingHandoff = null;
     this.landed = true;
+    // Nothing more is asked for the place it left; what is on its way finishes (issue #166)
+    this.prefetcher.cancel();
     // A pending switch goes on from where the skip lands (issue #163)
     this.handoff?.moved();
     this.completed = false;
@@ -754,22 +738,51 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     if (this.paused) this.deps.emit('ActiveSegmentChange', this.currentSegment);
   }
 
-  /** Fetch ahead after a clip starts (reader.js 40258-40328). */
-  private readAheadFrom(startIndex: number): void {
+  /**
+   * Fetch ahead after a clip starts (reader.js 40258-40328): as far, and
+   * with as many requests at once, as the pane says at this start (issue
+   * #166).
+   */
+  private prefetchFrom(startIndex: number): void {
     const store = this.store;
+    const segments = this.segments;
     // While a switch is pending the old voice asks for nothing ahead (issue #163)
-    if (!store || !this.segments || this.handoff) return;
+    if (!store || !segments || this.handoff) return;
     const generation = this.generation;
-    const order = readAheadOrder({
-      segments: this.segments,
+    const { sentences, requests } = this.prefetchSettings();
+    const order = prefetchOrder({
+      segments,
       startIndex,
       playingIndex: this.currentIndex ?? this.position,
       remaining: Math.max(0, (this.clip?.duration ?? 0) - this.currentPlaybackTime()),
       speed: this.speed,
       forwardStopIndex: this.forwardStopIndex,
       timer: store.timer,
+      window: sentences,
     });
-    runReadAhead(order, (index) => store.get(index), () => generation !== this.generation || store.closed || this.handoff !== null);
+    this.lastPrefetch = { from: startIndex, sentences, requests, order };
+    this.prefetcher.run(order, {
+      fetch: (index) => store.get(index),
+      needed: (index) => !store.clips.has(index) && !store.inflight.has(index),
+      stopped: () => generation !== this.generation || store.closed || this.handoff !== null,
+      requests,
+    });
+  }
+
+  /** The last start's numbers and targets, and the prefetch requests open now and at most (issue #166). */
+  get prefetchReport(): { from: number; sentences: number; requests: number; order: number[]; open: number; peak: number } | null {
+    const last = this.lastPrefetch;
+    return last ? { ...last, order: [...last.order], open: this.prefetcher.open, peak: this.prefetcher.peak } : null;
+  }
+
+  private prefetchSettings(): PrefetchSettings {
+    try {
+      return this.deps.prefetch?.() ?? READ_ALOUD_PREFETCH;
+    } catch (e) {
+      // A broken setting must not stop the reading: Read Aloud's own numbers
+      this.deps.log?.(e);
+      return READ_ALOUD_PREFETCH;
+    }
   }
 
   // ---- Playing a clip -------------------------------------------------------

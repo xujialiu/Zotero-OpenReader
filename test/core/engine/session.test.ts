@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PauseSettings } from '../../../src/core/engine/gap';
+import type { PrefetchSettings } from '../../../src/core/engine/prefetch';
 import { EngineSession, type PlaybackNotice } from '../../../src/core/engine/session';
 import type { EngineSegment, WordTiming } from '../../../src/core/engine/types';
 import { EventLog, FakeAudio, FakeFetch, flush, segments, VirtualClock, voice, type FakeClip } from './harness';
@@ -9,7 +10,7 @@ const pauses = (sentence: number | null, paragraph: number | null): PauseSetting
   paragraph: { enabled: paragraph !== null, ms: paragraph ?? 0 },
 });
 
-function setup(options: { settings?: PauseSettings; texts?: string[]; lang?: string; sentenceDelay?: number } = {}) {
+function setup(options: { settings?: PauseSettings; texts?: string[]; lang?: string; sentenceDelay?: number; prefetch?: PrefetchSettings } = {}) {
   const clock = new VirtualClock();
   const audio = new FakeAudio(clock);
   const fetch = new FakeFetch();
@@ -17,11 +18,13 @@ function setup(options: { settings?: PauseSettings; texts?: string[]; lang?: str
   const notices: PlaybackNotice[] = [];
   const errors: unknown[] = [];
   let settings = options.settings ?? pauses(0, 200);
+  let prefetch = options.prefetch;
   const session = new EngineSession<FakeClip>({
     clock,
     audio,
     fetch: fetch.fetch,
     pauses: () => settings,
+    ...(prefetch ? { prefetch: () => prefetch! } : {}),
     emit: log.emit,
     notice: (kind) => notices.push(kind),
     log: (e) => errors.push(e),
@@ -39,6 +42,7 @@ function setup(options: { settings?: PauseSettings; texts?: string[]; lang?: str
     list,
     v,
     setSettings: (s: PauseSettings) => (settings = s),
+    setPrefetch: (p: PrefetchSettings) => (prefetch = p),
     /** Bind as `_createController` does, then `paused = …`. */
     open(backwardStopIndex: number | null = 0, paused = false) {
       const result = session.bind({ voice: v, segments: list, backwardStopIndex, forwardStopIndex: null });
@@ -64,17 +68,69 @@ describe('EngineSession: sentence to sentence', () => {
     expect(t.session.position).toBe(0);
   });
 
-  it('reads three ahead two at a time, the second of a pair asked for first, as Read Aloud does', async () => {
+  it('without the pane’s numbers, prefetches three ahead two at a time, as Read Aloud does, the next one asked for first', async () => {
     const t = setup();
     t.fetch.hold = true;
     t.open(0);
     t.fetch.respond('One two three.');
     await t.clock.advance(0);
-    // Next first by score (+10000), then by risk; the recursion issues the second before the first
-    expect(t.fetch.texts()).toEqual(['One two three.', 'Six seven eight.', 'Four five.']);
+    // Next first by score (+10000), then by risk
+    expect(t.fetch.texts()).toEqual(['One two three.', 'Four five.', 'Six seven eight.']);
     t.fetch.respond('Four five.');
     await flush();
-    expect(t.fetch.texts()).toEqual(['One two three.', 'Six seven eight.', 'Four five.', 'Nine ten.']);
+    expect(t.fetch.texts()).toEqual(['One two three.', 'Four five.', 'Six seven eight.', 'Nine ten.']);
+  });
+
+  it('prefetches as many sentences ahead as the setting says, with as many requests at once (issue #166)', async () => {
+    const texts = Array.from({ length: 12 }, (_, i) => `Sentence number ${i}.`);
+    const t = setup({ texts, prefetch: { sentences: 5, requests: 3 } });
+    t.fetch.hold = true;
+    t.open(0);
+    t.fetch.respond(texts[0]);
+    await t.clock.advance(0);
+    expect(t.fetch.texts()).toEqual(texts.slice(0, 4));
+    for (const text of texts.slice(1, 4)) t.fetch.respond(text);
+    await flush();
+    // Five past the one playing, never a sixth
+    expect(t.fetch.texts()).toEqual(texts.slice(0, 6));
+    t.fetch.respond(texts[4]);
+    t.fetch.respond(texts[5]);
+    await flush();
+    expect(t.fetch.texts()).toEqual(texts.slice(0, 6));
+    // What the diagnostics read: the last start's numbers and targets, and the most requests open at once
+    expect(t.session.prefetchReport).toEqual({ from: 1, sentences: 5, requests: 3, order: [1, 2, 3, 4, 5], open: 0, peak: 3 });
+  });
+
+  it('reads the numbers at every start: a change applies from the next sentence (issue #166)', async () => {
+    const texts = Array.from({ length: 12 }, (_, i) => `Sentence ${i}.`);
+    const t = setup({ texts, prefetch: { sentences: 3, requests: 3 } });
+    t.open(0);
+    await t.clock.advance(0);
+    expect(t.fetch.texts()).toEqual(texts.slice(0, 4));
+    t.setPrefetch({ sentences: 8, requests: 5 });
+    await t.clock.advance(seconds(texts[0]) * 1000 + 1);
+    // Sentence 1 started: up to eight past it
+    expect(t.session.position).toBe(1);
+    expect(t.fetch.texts()).toEqual(texts.slice(0, 10));
+  });
+
+  it('after a skip, asks nothing more for the place it left; what is on its way finishes (issue #166)', async () => {
+    const texts = Array.from({ length: 20 }, (_, i) => `Sentence ${i}.`);
+    const t = setup({ texts, prefetch: { sentences: 5, requests: 1 } });
+    t.fetch.hold = true;
+    t.open(0);
+    t.fetch.respond(texts[0]);
+    await t.clock.advance(0);
+    expect(t.fetch.texts()).toEqual(texts.slice(0, 2));
+    t.session.skipAhead('sentence', true);
+    await t.clock.advance(600);
+    // The sentence skipped to is asked for at once, beside the one prefetch request still open
+    expect(t.session.position).toBe(5);
+    const target = texts[5];
+    expect(t.fetch.texts()).toEqual([texts[0], texts[1], target]);
+    t.fetch.respond(texts[1]);
+    await flush();
+    expect(t.fetch.texts()).toEqual([texts[0], texts[1], target]);
   });
 
   it('ends a segment with Changing/Change to none, waits the gap, and fires the next Change just before its audio', async () => {
@@ -861,41 +917,6 @@ describe('EngineSession: the preparing notice', () => {
 
 /** Segments shaped like the reader's, for `indexOf` by identity. */
 export type { EngineSegment };
-
-describe('EngineSession: the texts the plugin warms ahead', () => {
-  const texts = ['One.', 'Two.', 'Three.', 'Four.'];
-
-  it('answers the segments after the anchor, in order, up to the count', async () => {
-    const t = setup({ texts });
-    t.open(0);
-    await t.clock.advance(0);
-    expect(t.session.upcomingTexts('Two.', 5, () => false)).toEqual(['Three.', 'Four.']);
-    expect(t.session.upcomingTexts('One.', 2, () => false)).toEqual(['Two.', 'Three.']);
-  });
-
-  it('searches from the segment playing, so a sentence repeated earlier cannot pull the window back', async () => {
-    const t = setup({ texts: ['Same.', 'A.', 'Same.', 'B.'] });
-    t.open(2);
-    await t.clock.advance(0);
-    expect(t.session.upcomingTexts('Same.', 3, () => false)).toEqual(['B.']);
-  });
-
-  it('leaves out what `skip` refuses and empty text', async () => {
-    const t = setup({ texts: ['One.', 'Hidden.', '', 'Two.'] });
-    t.open(0);
-    await t.clock.advance(0);
-    expect(t.session.upcomingTexts('One.', 3, (s) => s.text === 'Hidden.')).toEqual(['Two.']);
-  });
-
-  it('answers nothing for an unknown anchor or a session that ended', async () => {
-    const t = setup({ texts });
-    t.open(0);
-    await t.clock.advance(0);
-    expect(t.session.upcomingTexts('Missing.', 3, () => false)).toEqual([]);
-    t.session.end();
-    expect(t.session.upcomingTexts('One.', 3, () => false)).toEqual([]);
-  });
-});
 
 describe('remaining reading time', () => {
   it('does not consume time while buffering or paused, responds to speed, and survives completion rewind', async () => {

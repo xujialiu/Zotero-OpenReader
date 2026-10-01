@@ -178,17 +178,6 @@ describe('angle brackets at the speech boundary', () => {
     const r = await createRemoteInterface(s.deps).getAudio({ text: '<Hello>' }, voice);
     expect(r.timestamps).toEqual([expect.objectContaining({ charStart: 0, charEnd: 7 })]);
   });
-
-  it('prefetches prepared text but finds following sentences by the original text', async () => {
-    const s = setup(); const upcoming = vi.fn(() => ['<Following> <sentence.>']);
-    const remote = createRemoteInterface({ ...s.deps, getPrefetch: () => ({ enabled: true, count: 1 }), getUpcomingTexts: upcoming });
-    await remote.getAudio({ text: '<Hello>' }, voice);
-    await vi.waitFor(() => expect(s.synthesize).toHaveBeenCalledTimes(2));
-    expect(upcoming).toHaveBeenCalledWith('<Hello>', 1);
-    expect(s.synthesize).toHaveBeenLastCalledWith('Following sentence.', expect.anything());
-    await remote.getAudio({ text: '<Following> <sentence.>' }, voice);
-    expect(s.synthesize).toHaveBeenCalledTimes(2);
-  });
 });
 
 describe('speech settings per reading session', () => {

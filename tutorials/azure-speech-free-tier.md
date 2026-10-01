@@ -102,9 +102,10 @@ Read Aloud → Highlight current* to **Word**.
 - **20 requests per minute.** The plugin makes one request per sentence and
   prefetches a few ahead. Ordinary reading stays well under the limit, but a
   run of very short sentences (a reference list, a table) can exceed it;
-  Azure then answers 429 and Read Aloud stops with a quota message. Lower
-  *Prefetch* under *Settings → Zotero-TTS → Reading* to 1 or 2 if that happens
-  often, or press play again.
+  Azure then answers 429 and Read Aloud stops with a quota message. If that
+  happens often, turn on *Custom prefetch* under *Settings → Zotero-TTS →
+  Reading* and lower *Prefetch … sentences ahead* to 3 and *Send … requests
+  at once* to 1, or press play again.
 - When the month's allowance is used up, Azure refuses further requests
   until the first of the next month; in the plugin that shows as the key
   being rejected. To keep reading, change the resource's pricing tier to

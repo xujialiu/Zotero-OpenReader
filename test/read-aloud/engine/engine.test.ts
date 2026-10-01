@@ -27,6 +27,9 @@ async function setup(options: {
   fail?: (text: string) => string | null;
   credits?: { standard: number | null; premium: number | null };
   refused?: (reader: unknown, refusal: unknown) => void;
+  texts?: string[];
+  prefetch?: { sentences: number; requests: number };
+  isDead?: (value: unknown) => boolean;
 } = {}) {
   const clock = new VirtualClock();
   FakeAudioContext.made = [];
@@ -66,7 +69,7 @@ async function setup(options: {
   const engine = createEngine({
     exportFunction: (fn) => fn,
     waiveXrays: (value) => value,
-    isDead: () => false,
+    isDead: options.isDead ?? (() => false),
     cloneInto: (value) => value,
     toLocal: (value) => new Float32Array(value),
     audioSource: () => source,
@@ -75,10 +78,11 @@ async function setup(options: {
     volume: () => volume,
     notice: (_reader, kind) => notices.push(kind),
     refused: options.refused,
+    ...(options.prefetch ? { prefetch: () => options.prefetch! } : {}),
     error: (e) => errors.push(e),
     clock,
   });
-  const segments = TEXTS.map((text, i) => ({ text, anchor: i === 0 ? 'paragraphStart' : null }));
+  const segments = (options.texts ?? TEXTS).map((text, i) => ({ text, anchor: i === 0 ? 'paragraphStart' : null }));
   if (options.attachFirst) engine.attach(reader);
   await manager.loadVoices(true);
   manager.setLanguage('en');
@@ -279,7 +283,6 @@ describe('the Engine behind Zotero 10.0.3’s manager', () => {
     t.manager.selectVoice(NOVA);
     await t.clock.advance(200);
     expect(pick.inspect(t.reader)?.pending).toBe(NOVA);
-    expect(t.engine.mayPrefetch(t.reader, ALLOY)).toBe(false);
     t.manager.repositionTo(2);
     await t.clock.advance(0);
     const session = t.engine.session(t.reader)!;
@@ -335,17 +338,12 @@ describe('the Engine behind Zotero 10.0.3’s manager', () => {
     t.engine.dispose();
   });
 
-  it('answers whether the plugin prefetch may ask for a voice: the one reading, with no switch pending (#163)', async () => {
+  it('looks up no held audio for a pick while reading, and moves a disposed tab\'s volume (#163)', async () => {
     const t = await setup({ attachFirst: true });
-    expect(t.engine.mayPrefetch(t.reader, ALLOY)).toBe(true);
     t.open(0);
     await t.clock.advance(10);
-    expect(t.engine.mayPrefetch(t.reader, ALLOY)).toBe(true);
-    expect(t.engine.mayPrefetch(t.reader, NOVA)).toBe(false);
     t.manager.selectVoice(NOVA);
     await t.clock.advance(0);
-    expect(t.engine.mayPrefetch(t.reader, NOVA)).toBe(true);
-    expect(t.engine.mayPrefetch(t.reader, ALLOY)).toBe(false);
     expect(t.engine.inspect(t.reader).session?.store).toMatchObject({ lookups: 0 });
     t.engine.dispose();
   });
@@ -421,12 +419,48 @@ describe('the Engine behind Zotero 10.0.3’s manager', () => {
     expect(t.engine.inspect(t.reader).audio?.gain).toBe(0.7);
   });
 
-  it('answers the warm chain the sentences after the one asked for', async () => {
-    const t = await setup();
+  it('asks no provider for a tab whose window is gone, however much the prefetch has left (issues #116, #166)', async () => {
+    const texts = Array.from({ length: 12 }, (_, i) => `Sentence number ${i}.`);
+    let windowGone = false;
+    const t = await setup({ texts, prefetch: { sentences: 10, requests: 1 }, isDead: (value) => windowGone && value === t.window });
+    t.engine.attach(t.reader);
+    const answer = t.source.getAudio.getMockImplementation()!;
+    const held: (() => void)[] = [];
+    t.source.getAudio.mockImplementation((segment, voice, options) =>
+      segment.text === texts[0] ? answer(segment, voice, options) : new Promise((resolve) => held.push(() => resolve(answer(segment, voice, options)))),
+    );
+    t.open(0);
+    await t.clock.advance(10);
+    const asked = () => t.source.getAudio.mock.calls.filter(([, , options]) => !options?.held).length;
+    expect(asked()).toBe(2);
+    // The window goes without Zotero's close (a script's window.close(), issue #143): the session is not ended
+    windowGone = true;
+    held.shift()!();
+    await t.clock.advance(10);
+    expect(asked()).toBe(2);
+  });
+
+  it('prefetches by the pane\'s numbers, a Zotero voice as much as the plugin\'s (issue #166)', async () => {
+    const texts = Array.from({ length: 12 }, (_, i) => `Sentence number ${i}.`);
+    const voices = { ...voicesResponse([ALLOY]), ...voicesResponse(['zotero-standard-1'], 'standard') };
+    const asked = (t: Awaited<ReturnType<typeof setup>>, id: string) =>
+      t.source.getAudio.mock.calls.filter(([, voice, options]) => voice.id === id && !options?.held).map(([segment]) => segment.text);
+    const t = await setup({ voices, texts, prefetch: { sentences: 6, requests: 3 } });
     t.engine.attach(t.reader);
     t.open(0);
-    await t.clock.advance(0);
-    expect(t.engine.upcomingTexts(t.reader, TEXTS[0], 2, () => false)).toEqual([TEXTS[1], TEXTS[2]]);
+    await t.clock.advance(10);
+    expect(asked(t, ALLOY)).toEqual(texts.slice(0, 7));
+    expect(t.engine.inspect(t.reader).session).toMatchObject({ prefetch: { from: 1, sentences: 6, requests: 3 }, store: { signal: false } });
+    t.manager.selectTier('standard');
+    await t.clock.advance(10);
+    expect(t.manager.selectedVoiceID).toBe('zotero-standard-1');
+    expect(asked(t, 'zotero-standard-1')).toHaveLength(7);
+    // Without the pane's numbers, Read Aloud's own three
+    const plain = await setup({ voices, texts });
+    plain.engine.attach(plain.reader);
+    plain.open(0);
+    await plain.clock.advance(10);
+    expect(asked(plain, ALLOY)).toEqual(texts.slice(0, 4));
   });
 });
 

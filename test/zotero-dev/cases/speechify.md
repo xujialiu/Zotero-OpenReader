@@ -68,10 +68,9 @@ original numbers.
     segment's audio is ready about 1.7 s later. Per segment the log
     reads `[zotero-tts] speechify: N word timestamps for M chars
     (simba-3.2)` — the model in parentheses is the routing's proof,
-    `simba-3.0` on a non-English voice — with `[zotero-tts] prefetch:
-    speechify: M chars ready ahead of playback` for the ones ahead
-    (2026-09-09: 31/53/69/46 characters synthesized, 53/46/105/55
-    prefetched, 512 characters spent by the whole run).
+    `simba-3.0` on a non-English voice (2026-09-09, before issue #166:
+    31/53/69/46 characters synthesized, 53/46/105/55 prefetched, 512
+    characters spent by the whole run).
     `diagnostics.highlight()` on that view: `patched: true`,
     `state.segmentGranularity: "sentence"`, `activeWordTimestamp:
     "real"`, `sentenceSlot: "ours"`. The debug store holds no `429`,

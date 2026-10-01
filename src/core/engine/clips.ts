@@ -9,7 +9,7 @@
  * arrives but will not decode fails as `unknown`, where Read Aloud's engine
  * set no error at all, so the reading stopped without a word and Retry did
  * nothing (40177-40184, issue #42). And a failure is the caller's to keep:
- * this store remembers none, so a segment whose read-ahead failed is asked
+ * this store remembers none, so a segment whose prefetch failed is asked
  * for once more when playback reaches it (40359-40361).
  *
  * While a voice switch is pending, the old voice asks for nothing new
@@ -21,7 +21,7 @@
 
 import { RemainingTime } from './remaining-time';
 import { LruMap } from './lru';
-import { FetchTimer } from './read-ahead';
+import { FetchTimer } from './prefetch';
 import type { EngineClip, EngineClock, EngineSegment, EngineVoice, FetchResult, WordTiming } from './types';
 
 /** Read Aloud keeps 32 decoded clips (reader.js 39901). */
@@ -121,6 +121,15 @@ export class ClipStore<Clip extends EngineClip> {
   rebase(segments: ArrayLike<EngineSegment>): void {
     this.deps.segments = segments;
     this.timeModel = null;
+  }
+
+  /**
+   * A handoff's store, now the reading's (session.ts `swapVoice`): its
+   * requests from here on are the reading's own, no longer a preparation's
+   * that can be called off (issue #162).
+   */
+  dropSignal(): void {
+    this.deps.signal = undefined;
   }
 
   /** Stop keeping anything; answers on their way are decoded no more. */

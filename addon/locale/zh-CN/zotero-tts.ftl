@@ -172,18 +172,30 @@ ztts-split-sentences =
 ztts-help-split-sentences =
     .value = ?
     .help = Zotero 把一句话拆成两句时，合成一句朗读，中间不停顿。若两个段落被连成一句就关掉；对之后打开的文档生效。
-ztts-prefetch =
-    .label = 预取后面的
-ztts-prefetch-ahead =
-    .value = 句
-ztts-help-prefetch =
+ztts-prefetch-custom =
+    .label = 自定义预取
+ztts-help-prefetch-custom =
     .value = ?
-    .help = 提前合成后面的句子，播放不用等服务器。付费服务商上，跳过的句子也会计费。
+    .help = 预取在读一句时提前取来后面句子的音频，所有声音都适用，朗读不用等服务器。打开时用下面设的两个数，关闭时用它们的默认值。
+ztts-prefetch-sentences-before =
+    .value = 预取后面的
+ztts-prefetch-sentences-after =
+    .value = 句
+ztts-help-prefetch-sentences =
+    .value = ?
+    .help = 句数越多，越能盖住慢的服务器。提前取来又被跳过的句子，在付费服务商上照样计费，在 Zotero 高级语音上照样消耗额度。
+ztts-prefetch-requests-before =
+    .value = 同时发送
+ztts-prefetch-requests-after =
+    .value = 个请求
+ztts-help-prefetch-requests =
+    .value = ?
+    .help = 能同时处理多句的服务，数越大越快把后面的句子备好。一次只处理一句的自建服务器，设为 1 最好。
 ztts-cache-audio =
     .label = 缓存已合成的音频
 ztts-help-cache-audio =
     .value = ?
-    .help = 把合成过的句子留在内存里（64 MB，Zotero 重启时清空），重听即刻播放、不再计费。预取开启时不能关闭。
+    .help = 把合成过的句子留在内存里（64 MB，Zotero 重启时清空），重听即刻播放、不再计费。关闭后，停止再播放会重新合成，付费服务商会再计费一次。
 
 
 ## Highlight

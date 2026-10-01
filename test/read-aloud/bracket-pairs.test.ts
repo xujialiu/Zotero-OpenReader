@@ -44,23 +44,6 @@ describe('configurable bracket pairs', () => {
     const times = [{ start: 0, end: 1, charStart: 0, charEnd: 5 }, { start: 1, end: 2, charStart: 6, charEnd: 11 }];
     expect(restoreSpeechOffsets(times, prepared.removed).map(t => input.slice(t.charStart, t.charEnd))).toEqual(['Hello', 'World']);
   });
-  it('uses the configured list throughout asynchronous prefetch', async () => {
-    let pairs = '【】';
-    const cache = new Map();
-    const synthesize = vi.fn(async () => ({ audio: new Blob(['audio']) }));
-    const upcoming = vi.fn(() => ['【Following sentence】']);
-    const remote = createRemoteInterface({
-      listCatalog: async () => [], getProvider: () => ({ id: 'openai-official', synthesize } as any),
-      getBracketPairs: () => pairs, cacheVersion: () => 'v1',
-      cache: () => ({ match: async key => cache.get(key), put: async (key, value) => { cache.set(key, value); } }),
-      getPrefetch: () => ({ enabled: true, count: 1 }), getUpcomingTexts: upcoming,
-    });
-    await remote.getAudio({ text: '【Hello】' }, { id: 'openai-official::alloy' });
-    pairs = '<>';
-    await vi.waitFor(() => expect(synthesize).toHaveBeenCalledTimes(2));
-    expect(upcoming).toHaveBeenCalledWith('【Hello】', 1);
-    expect(synthesize).toHaveBeenLastCalledWith('Following sentence', expect.anything());
-  });
   it('snapshots the list with the switch until reactivation', () => {
     let pairs = '<> []';
     class Manager { _active = false; activate() { this._active = true; } }

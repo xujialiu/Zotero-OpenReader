@@ -1,4 +1,4 @@
-<!-- translated-from: cloudflare-workers-ai.md sha256:aad632fbb82e -->
+<!-- translated-from: cloudflare-workers-ai.md sha256:35682eb13cee -->
 # 用 Cloudflare Workers AI 的免费额度
 
 [English](cloudflare-workers-ai.md) · **简体中文**
@@ -44,7 +44,7 @@ Zotero → 设置 → Zotero-TTS → **Cloudflare Workers AI** 那一节：
 - **每天 10,000 个 Neurons**，免费计划和付费计划一样多，每天重置。Neurons 是 Cloudflare 计量推理用量的单位，每个模型的页面上都写着它按 Neurons 怎么算。2026-09-07 实测：一句 160 个字符，Aura-1 大约 220 个 Neurons，Aura-2 是它的两倍，MeloTTS 不到 3 个。所以一天大约是 **7,000 个字符的 Aura-1、3,500 个字符的 Aura-2，或者九个小时的 MeloTTS**。
 - 免费计划上，当天的 Neurons 花完之后，请求会一直失败到第二天——在插件里表现为服务器拒绝合成，朗读停下。不会产生任何费用。
 - 在 **Workers Paid** 计划上（每月 5 美元），额度用完还能接着读，每 1,000 个 Neurons 收 0.011 美元：一篇 6 万字符的论文，MeloTTS 大约一美分，Aura-1 大约一美元，Aura-2 两美元。
-- 插件会在播放之前先合成几句；在 Aura 上，被你跳过的句子同样要付钱。想在文档里跳来跳去时少花一点，把*设置 → Zotero-TTS → 朗读*里的*预取后面的 N 句*改成 1。
+- 插件会在播放之前先合成几句；在 Aura 上，被你跳过的句子同样要付钱。想在文档里跳来跳去时少花一点，在*设置 → Zotero-TTS → 朗读*里打开*自定义预取*，把*预取后面的 … 句*降到最少的 3。
 - 当天用了多少，在控制台的 Workers AI 页面上看。
 
 ## 疑难解答

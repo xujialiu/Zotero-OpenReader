@@ -28,10 +28,16 @@ _Avoid_: chunk
 
 **Engine**:
 Everything between the segments and the highlight: fetching a segment's
-audio, reading ahead, decoding, changing speed, the pause between sentences,
+audio, prefetch, decoding, changing speed, the pause between sentences,
 playing, pausing, skipping, and what happens when audio fails. It is never
 visible. Said alone, it is the plugin's own; Zotero's is Read Aloud's engine.
 _Avoid_: controller, manager, backend, player
+
+**Prefetch**:
+Fetching the audio of the sentences after the one being read before the
+reading reaches them, so it does not wait for the provider. Its two numbers
+are the sentences ahead and the requests at once.
+_Avoid_: read-ahead, warm, warm chain, preload
 
 **Pause between sentences**:
 The silence before the next sentence of the same paragraph, set in the

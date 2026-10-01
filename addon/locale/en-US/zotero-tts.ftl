@@ -193,18 +193,30 @@ ztts-split-sentences =
 ztts-help-split-sentences =
     .value = ?
     .help = Reads a sentence Zotero split in two as one sentence, without the pause in the middle. Turn it off if two paragraphs are read as one; applies to documents opened from now on.
-ztts-prefetch =
-    .label = Prefetch upcoming sentences
-ztts-prefetch-ahead =
-    .value = ahead
-ztts-help-prefetch =
+ztts-prefetch-custom =
+    .label = Custom prefetch
+ztts-help-prefetch-custom =
     .value = ?
-    .help = Synthesizes the sentences ahead so playback never waits for the server. On a paid provider, sentences you skip are billed anyway.
+    .help = Prefetch fetches the sentences ahead while one is read, for every voice, so the reading does not wait for the server. On, it uses the two numbers set below; off, their defaults.
+ztts-prefetch-sentences-before =
+    .value = Prefetch
+ztts-prefetch-sentences-after =
+    .value = sentences ahead
+ztts-help-prefetch-sentences =
+    .value = ?
+    .help = More covers a slower server. A sentence fetched ahead and then skipped is still billed on a paid provider and uses credits on Zotero's Premium voices.
+ztts-prefetch-requests-before =
+    .value = Send
+ztts-prefetch-requests-after =
+    .value = requests at once
+ztts-help-prefetch-requests =
+    .value = ?
+    .help = More fills the sentences ahead faster on a service that works on several at once. A server of your own that works on one sentence at a time is best at 1.
 ztts-cache-audio =
     .label = Cache synthesized audio
 ztts-help-cache-audio =
     .value = ?
-    .help = Keeps synthesized sentences in memory (64 MB, emptied when Zotero restarts), so hearing them again is instant and free. It cannot be turned off while prefetch is on.
+    .help = Keeps synthesized sentences in memory (64 MB, emptied when Zotero restarts), so hearing them again is instant and free. Off, Stop and Play again synthesizes them again, and a paid provider bills them again.
 
 
 ## Highlight
