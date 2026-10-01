@@ -1,10 +1,13 @@
 // Item 6 (#164), Top bar: on the EPUB (paginated) the Appearance popup's
-// top sits at toolbar bottom + 31 (72 on this window), its first two rows
-// (Page Layout 84-106, Columns 118-140) hit-test to themselves, and
-// #ztts-player-style holds .appearance-popup { margin-top: 34px }. On the
-// PDF the first row is Reading mode and its switch answers itself. The
-// frame's computed z-index is 35. Popup raised and closed with the
-// toolbar's #appearance button; player paused at once, closed at the end.
+// top sits at the frame's bottom + 4 (toolbar bottom + 38; 79 on this
+// window), its first two rows (Page Layout 91-113, Columns 125-147)
+// hit-test to themselves, and #ztts-player-style holds
+// .appearance-popup { margin-top: 41px } (BAR_HEIGHT 34 + 3 overhang + 4
+// gap; the 1.16.4-beta build's 34px lay 3 px over the bar and the owner
+// turned it down). On the PDF the first row is Reading Mode (91-107) and
+// its switch answers itself. The frame's computed z-index is 35. Popup
+// raised and closed with the toolbar's #appearance button; player paused
+// at once, closed at the end.
 (async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const wait = async (test, ms = 7000) => { const end = Date.now() + ms; while (Date.now() < end) { const v = test(); if (v) return v; await sleep(60); } return test(); };
