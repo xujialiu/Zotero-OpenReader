@@ -167,8 +167,7 @@ export const TINY_SEGMENT_CHARS = 8;
 export const SILENT_PAUSE_MS = 400;
 
 /** The trimmed text of a segment short enough to be skipped, else null. Never throws. */
-function tinySegmentText(segment: unknown): string | null {
-  const text = (segment as { text?: unknown } | null)?.text;
+function tinySegmentText(text: unknown): string | null {
   if (typeof text !== 'string') return null;
   const trimmed = text.trim();
   return trimmed.length > 0 && trimmed.length <= TINY_SEGMENT_CHARS ? trimmed : null;
@@ -475,6 +474,13 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       const signal = options?.signal;
       const held = options?.held === true;
       if (signal?.aborted) return { audio: null, error: 'network' };
+      // Everything this needs of `segment` and `voice` is read here, before
+      // the first await, and never after it: they are the reader's own objects
+      // (the Engine's fetch, or Read Aloud's controller through the window
+      // wrapper), and a tab closed while the audio is on its way leaves them
+      // dead wrappers, whose every read throws `can't access dead object`
+      // (issue #165). Zotero's own interface, for a Zotero voice, is handed
+      // them before its await.
       // Snapshot the requested voice, not the manager's current voice: a handoff
       // can prepare a different regional voice while the old one is still active.
       const locale = voice?.locale;
@@ -571,7 +577,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         // Zotero's UI understands, so the real cause is gone by the time the
         // user sees "unknown error". Record it before collapsing.
         log(e);
-        const tiny = tinySegmentText(segment);
+        const tiny = tinySegmentText(originalText);
         if (tiny !== null && isServerRefusal(e)) {
           // Not cached: the cache holds what the provider produced, and a
           // server that learns to speak "1." should get the chance.

@@ -106,6 +106,28 @@ come from the design and are corrected from the run.
    the Engine asks its output to run on Play ([engine](engine.md) item
    23).
 
+### 6
+
+6. **A late answer through the Engine reads nothing of the dead reader
+   (issue #165, 1.16.4-beta4).** The Engine asks the interface with the
+   reader's own segment and voice, which die with the tab; `getAudio`
+   reads both before its first await and never after it. A fixture tab
+   on a plugin voice slow enough to have a request in flight (MiMo, as
+   items 1 and 3), started with a trusted Shift+Space (a script-started
+   session's output stays suspended, `prefetch-cache` run of
+   2026-10-01), closed the × way 200–300 ms after the start. Wait ~5 s.
+   Expected: one Engine line `late audio dropped: its reader window was
+   gone` per answer that landed after the close (from `fetchFor`, which
+   a rejected `getAudio` never reaches); `lateResults` unchanged, since
+   the Engine's requests do not pass the window wrapper; **no** `can't
+   access dead object` from `zotero-tts.js` after the close, by content
+   and timestamp. No line means the answer landed before the window
+   died: repeat with a shorter delay, and say so. A *failure* that
+   settles after the close is unit-only, pinned in
+   `test/read-aloud/remote-interface.test.ts`: no provider fails on cue.
+   Build identity: `tinySegmentText(originalText)` in the installed
+   bundle.
+
 **State**: the plugin's volume (snapshot and restore, user-value state
 included), `readAloud.memory` (byte-identical restore, the last write),
 `extensions.zotero.reader.readAloudVoices` (a fixture rewrites its `en`

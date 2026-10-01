@@ -713,4 +713,5 @@ then) and is in the git history before that day.
 - The Appearance popup clears the Top bar with a 4 px gap (issue #164)
 - One prefetch: the two that were stacked, and what the Engine's runner keeps of Read Aloud's (issue #166)
 - Verified live on 1.16.4-beta3: the reach is the number, and a script-started session stayed suspended (issue #166)
+- A late answer read the reader's own voice after its tab closed (issue #165)
 - Verified live on 1.16.4-beta3: the rest of #166, and a baseline held only in memory died with a wedged bridge (issue #166)

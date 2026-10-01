@@ -1032,6 +1032,72 @@ describe('one synthesis per sentence', () => {
   });
 });
 
+describe('a reader closed while its audio is on the way (issue #165)', () => {
+  // The Engine hands getAudio the reader's own segment and voice impl, objects
+  // of the reader window; once the tab closes they are dead wrappers, whose
+  // every property read throws. Comparisons and typeof do not.
+  const DEAD = "can't access dead object";
+  function readerObject<T extends object>(target: T, gone: () => boolean): T {
+    return new Proxy(target, {
+      get(t, key, receiver) {
+        if (gone()) throw new TypeError(DEAD);
+        return Reflect.get(t, key, receiver);
+      },
+      has(t, key) {
+        if (gone()) throw new TypeError(DEAD);
+        return Reflect.has(t, key);
+      },
+    });
+  }
+  const deadLogged = (log: ReturnType<typeof vi.fn>) =>
+    log.mock.calls.filter(([e]) => String((e as Error)?.message ?? e).includes(DEAD));
+
+  function closingDeps(synthesize: TTSProvider['synthesize']) {
+    const log = vi.fn();
+    const cache = fakeCache();
+    return { d: { ...deps(fakeProvider({ synthesize })), cache: () => cache, log }, log };
+  }
+
+  // The reported entry: the voice's id read again for the warm chain once the
+  // audio had come, after the tab had closed (bundle line 7439 of 1.16.4-beta2)
+  it('touches neither the segment nor the voice once the synthesis has settled', async () => {
+    let gone = false;
+    const synthesize = vi.fn(async (text: string) => {
+      gone = true; // the tab closes while the request is on its way
+      return { audio: new Blob([text]) };
+    });
+    const { d, log } = closingDeps(synthesize);
+    const iface = createRemoteInterface(d);
+    const segment = readerObject({ text: 'The sentence being fetched.' }, () => gone);
+    const reader = readerObject({ ...voice, locale: 'en-US' }, () => gone);
+    const result = await iface.getAudio(segment, reader).catch((e: unknown) => ({ audio: null, rejected: e }));
+    await flush();
+    expect(deadLogged(log)).toEqual([]);
+    expect(log).not.toHaveBeenCalled();
+    expect(await result.audio!.text()).toBe('The sentence being fetched.');
+  });
+
+  // The tiny-segment check read the segment's text in the catch: getAudio
+  // rejected, and the window wrapper logged the rejection as a dead object
+  it('a failure that settles after the close is logged as itself, and answered', async () => {
+    let gone = false;
+    const synthesize = vi.fn(async () => {
+      gone = true;
+      throw new SynthesisError('quota', 'fish: quota exceeded');
+    });
+    const { d, log } = closingDeps(synthesize);
+    const iface = createRemoteInterface(d);
+    const segment = readerObject({ text: 'Tiny.' }, () => gone);
+    const reader = readerObject({ ...voice }, () => gone);
+    const result = await iface.getAudio(segment, reader).catch((e: unknown) => ({ audio: null, error: undefined, rejected: e }));
+    await flush();
+    expect(deadLogged(log)).toEqual([]);
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(result.audio).toBeNull();
+    expect(result.error).toBeTruthy();
+  });
+});
+
 describe('the fallback note of a provider reaches the debug output', () => {
   it('names the cause next to the missing timestamps', async () => {
     const debug = vi.fn();
