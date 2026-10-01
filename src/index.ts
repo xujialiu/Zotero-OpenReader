@@ -572,6 +572,8 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
     // The list this reader is about to receive: the remembered voice is
     // planned against it before Zotero resolves from it (issue #35)
     onVoicesListed: (voices) => readAloudMemory?.reconcile(reader, voices, !!reader?._internalReader?._readAloudManager?.active),
+    // A list that lands after the tab closed is planned for nobody: the reader's objects are dead (issue #165)
+    isReaderLive: () => !readerGone(reader, isDeadWrapper),
     listCatalog,
     getFavoriteVoices: () => {
       const s = loadSettings(prefs);

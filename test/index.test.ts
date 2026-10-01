@@ -211,6 +211,21 @@ describe('startup with a reader whose window is gone (issue #143)', () => {
   });
 });
 
+describe('a voice list that lands after its tab closed (issue #165)', () => {
+  it('is planned against nothing: the closed reader is not read, and nothing is logged', async () => {
+    const manager = { active: false, paused: true };
+    const reader = readerInstance({ _item: { id: 7, libraryID: 1, key: 'LIST0001' }, _internalReader: { _readAloudManager: manager }, _iframeWindow: { addEventListener() {}, removeEventListener() {} }, _type: 'pdf' });
+    const { errors } = await start([reader]);
+    const iface = reader._getReadAloudRemoteInterface({ Promise });
+    const listed = iface.getVoices();
+    // The tab closes while the list is on its way: what the reader held dies with its window
+    reader._internalReader = deadWrapper();
+    reader._iframeWindow = deadWrapper();
+    await Promise.race([listed, new Promise((resolve) => setTimeout(resolve, 2000))]);
+    expect(errors.map((e) => String((e as Error)?.message ?? e)).filter((e) => e.includes('dead object'))).toEqual([]);
+  });
+});
+
 describe('a pause sends both positions files up at once (issue #161)', () => {
   const FOLDER = 'https://dav.test/positions/';
   const FILES = ['zotero-tts-positions.json', 'xujialiu-positions.json'];

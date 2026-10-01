@@ -138,9 +138,18 @@ export type RemoteInterfaceDeps = {
    * on the same tick it gets it, with no sync in between, so whatever must
    * be planned against that very list (read-aloud/memory-sync.ts reconcile,
    * issue #35) is planned here. A throw is logged; the list is returned all
-   * the same.
+   * the same. Not called for a reader that is gone by the time the list has
+   * settled (`isReaderLive`).
    */
   onVoicesListed?(voices: { offered: ListedVoice[]; published: ListedVoice[] }): void;
+  /**
+   * Whether the reader this interface serves is still open, asked once an
+   * answer has settled. A tab closed while its voice list is on its way
+   * leaves its internal reader and window dead wrappers, which throw on
+   * every read: the list is then planned for nobody, and the window wrapper
+   * drops it (issue #165). Absent means live.
+   */
+  isReaderLive?(): boolean;
   /**
    * How long to wait for Zotero's side of getVoices. Its promises never
    * reject — an exception inside leaves them pending — so without a limit
@@ -455,7 +464,10 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
         return out;
       };
       const voices = merge(theirVoices, catalog);
-      if (deps.onVoicesListed) {
+      // Past the await the tab may have closed, and its reader with it (issue #165)
+      const gone = deps.isReaderLive?.() === false;
+      if (gone && deps.onVoicesListed) deps.debug?.('voice list not planned: its reader is gone');
+      if (deps.onVoicesListed && !gone) {
         try {
           deps.onVoicesListed({ offered: listVoicesResponse(voices), published: listVoicesResponse(merge(allTheirs, fullCatalog)) });
         } catch (e) {

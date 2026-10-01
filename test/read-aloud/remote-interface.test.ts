@@ -816,6 +816,34 @@ describe('onVoicesRequested', () => {
   });
 });
 
+describe('a voice list that lands after its tab closed (issue #165)', () => {
+  it('is handed to no onVoicesListed: the reader it would be planned for is gone', async () => {
+    let live = true;
+    const onVoicesListed = vi.fn();
+    const debug = vi.fn();
+    const iface = createRemoteInterface({
+      ...deps(),
+      listCatalog: async () => {
+        live = false; // the tab closes while the list is on its way
+        return [];
+      },
+      isReaderLive: () => live,
+      onVoicesListed,
+      debug,
+    });
+    const result = await iface.getVoices();
+    expect(onVoicesListed).not.toHaveBeenCalled();
+    expect(result.voices).toBeTruthy();
+    expect(debug.mock.calls.map(([m]) => String(m))).toContainEqual(expect.stringContaining('its reader is gone'));
+  });
+
+  it('is planned as before while the reader lives', async () => {
+    const onVoicesListed = vi.fn();
+    await createRemoteInterface({ ...deps(), isReaderLive: () => true, onVoicesListed }).getVoices();
+    expect(onVoicesListed).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('segments the page does not show', () => {
   // A LaTeX toolchain draws every equation's source into the text layer at
   // font size zero; on one arXiv paper that made five "sentences" of

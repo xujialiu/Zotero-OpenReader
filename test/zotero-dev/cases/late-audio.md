@@ -113,10 +113,15 @@ come from the design and are corrected from the run.
    reader's own segment and voice, which die with the tab; `getAudio`
    reads both before its first await and never after it. A fixture tab
    on a plugin voice slow enough to have a request in flight (MiMo, as
-   items 1 and 3), started with a trusted Shift+Space (a script-started
-   session's output stays suspended, `prefetch-cache` run of
-   2026-10-01), closed the × way 200–300 ms after the start. Wait ~5 s.
-   Expected: one Engine line `late audio dropped: its reader window was
+   items 1 and 3; `readAloud.defaultVoice` pointed at it too, since a new
+   document reads that, not `readAloud.memory`), started with a trusted
+   Shift+Space (a script-started session's output stays suspended,
+   `prefetch-cache` run of 2026-10-01), closed the × way 200–300 ms after
+   the first `getAudio` is in flight (`diagnostics.engine()`
+   `session.store.inflight`), never after the press: with MiMo's voice
+   listing cold the start waits on it for seconds and no request goes
+   out (run of 2026-10-01, 1.16.4-beta4), so the kit warms the listing
+   first. Wait ~5 s. Expected: one Engine line `late audio dropped: its reader window was
    gone` per answer that landed after the close (from `fetchFor`, which
    a rejected `getAudio` never reaches); `lateResults` unchanged, since
    the Engine's requests do not pass the window wrapper; **no** `can't
@@ -126,7 +131,30 @@ come from the design and are corrected from the run.
    settles after the close is unit-only, pinned in
    `test/read-aloud/remote-interface.test.ts`: no provider fails on cue.
    Build identity: `tinySegmentText(originalText)` in the installed
-   bundle.
+   bundle. Passed on 1.16.4-beta4: one request in flight at the close,
+   one drop line 1.3 s later, `lateResults` flat, no dead object.
+
+### 7
+
+7. **A voice list that lands after its tab closed is planned for nobody
+   (issue #165, 1.16.4-beta5).** Once both halves of a voice list have
+   settled, `getVoices` asks whether its reader still lives
+   (`isReaderLive`, `readerGone` in `src/read-aloud/reader-access.ts`)
+   and hands a list for a closed tab to no `onVoicesListed`, which read
+   `reader._internalReader._readAloudManager.active` and logged `can't
+   access dead object` at bundle line 18952 of 1.16.4-beta4. A fixture
+   tab whose voice list is slow to come — MiMo just enabled, its listing
+   cold (about 8.4 s live, 2026-10-01) — opened, its player opened with
+   `toggleReadAloudPopup(true)`, and the tab closed the × way about 1 s
+   later, before the list lands. Wait until it has (≤ 30 s). Expected:
+   `lateResults.byMethod.getVoices` up by 1 with one `late result
+   dropped: getVoices answered after its reader window was gone` line;
+   one `voice list not planned: its reader is gone` line just before it;
+   **no** `can't access dead object` from `zotero-tts.js` after the
+   close, by content and timestamp (Zotero's own `reader.js:1758` at a
+   close is its noise). No drop line means the list landed before the
+   window died: close sooner, and say so. Build identity: `voice list not
+   planned: its reader is gone` in the installed bundle.
 
 **State**: the plugin's volume (snapshot and restore, user-value state
 included), `readAloud.memory` (byte-identical restore, the last write),
