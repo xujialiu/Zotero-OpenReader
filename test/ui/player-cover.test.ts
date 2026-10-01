@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BAR_HEIGHT, barBand, coveredEdges } from '../../src/ui/player-cover';
+import { BAR_HEIGHT, FRAME_Z, barBand, coveredEdges, popupRules } from '../../src/ui/player-cover';
 
 /** The reader document measured on 2026-09-23 (issue #137): a 41 px toolbar, the document area down to 912. */
 const VIEW = { top: 41, bottom: 912 };
@@ -15,6 +15,28 @@ describe('barBand', () => {
 
   it('is nothing for the Floating panel', () => {
     expect(barBand('B', { top: 51, bottom: 253 })).toBeNull();
+  });
+});
+
+describe('FRAME_Z', () => {
+  it("lies between Zotero's toolbar (30) and its lowest popup layer (40), so every popup Zotero draws is over the player (#164)", () => {
+    expect(FRAME_Z).toBeGreaterThan(30);
+    expect(FRAME_Z).toBeLessThan(40);
+  });
+});
+
+describe('popupRules', () => {
+  const FIND = '.split-view .primary-view .find-popup, body.enable-vertical-split-view .split-view .secondary-view .find-popup { margin-top: 34px !important; }';
+  const APPEARANCE = '.appearance-popup { margin-top: 34px !important; }';
+
+  it("moves the find bar and the Appearance popup below the Top bar, by the bar's height (#137, #164)", () => {
+    expect(popupRules('top', true)).toEqual([FIND, APPEARANCE]);
+  });
+
+  it('leaves both where Zotero puts them with the Bottom bar, the Floating panel, or the player closed', () => {
+    expect(popupRules('A', true)).toEqual([]);
+    expect(popupRules('B', true)).toEqual([]);
+    expect(popupRules('top', false)).toEqual([]);
   });
 });
 

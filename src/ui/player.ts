@@ -1,5 +1,5 @@
 import { floatingMenuPlacement } from './player-menu';
-import { BAR_HEIGHT, barBand, coveredEdges, type Band, type Covered } from './player-cover';
+import { FRAME_Z, barBand, coveredEdges, popupRules, type Band, type Covered } from './player-cover';
 import type { PlayerSnapshot } from '../read-aloud/player-controller';
 import { PREF_PREFIX, playerLayout, setPlayerLayout, type PrefsBackend } from '../core/settings';
 import { t } from '../core/l10n';
@@ -123,12 +123,11 @@ export function createPluginPlayer(deps: {
     entry.style.textContent = HIDDEN_PARTS + '\n' + HIDE_ZOTERO_PLAYER;
     // The bars lie over the document's edge (#135): a resized document area
     // re-lays the document out, and Zotero blurs an EPUB while it does. Only
-    // Zotero's find bar, 15 px below the top of the view it opens in, is moved
-    // out from under the Top bar; side by side, both views reach the top.
-    if (visible && layout === 'top') {
-      entry.style.textContent += '\n.split-view .primary-view .find-popup, body.enable-vertical-split-view .split-view .secondary-view .find-popup { margin-top: ' + BAR_HEIGHT + 'px !important; }';
-    }
-    entry.frame.style.cssText = 'position:fixed;z-index:10000;border:0;background:transparent;color-scheme:light;';
+    // the popups that hang from the reader's top, the find bar and the
+    // Appearance popup, are moved out from under the Top bar (#137, #164);
+    // whatever still meets the player lies over it, by the frame's z-index.
+    for (const rule of popupRules(layout, visible)) entry.style.textContent += '\n' + rule;
+    entry.frame.style.cssText = 'position:fixed;z-index:' + FRAME_Z + ';border:0;background:transparent;color-scheme:light;';
     if (layout === 'A') entry.frame.style.cssText += 'left:0;bottom:0;width:100%;height:34px;';
     if (layout === 'B') entry.frame.style.cssText += 'left:10px;top:51px;width:min(300px,95vw);height:' + panelHeight(entry.expanded, entry.remaining) + 'px;';
     if (layout === 'top') entry.frame.style.cssText += 'left:0;top:41px;width:100%;height:34px;';

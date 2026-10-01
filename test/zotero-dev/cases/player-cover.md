@@ -1,4 +1,4 @@
-# The docked bars lie over the document (issues #135, #137)
+# The docked bars lie over the document (issues #135, #137, #164)
 
 [Checklist index](../README.md)
 
@@ -88,9 +88,49 @@ as offsets from whatever the window gives.
 - With the Top bar, the player's root has a 1 px `border-bottom` and no
   `border-top`. With the Bottom bar it has a 1 px `border-top`.
 
+## 6. Zotero's popups lie over the player (#164)
+
+Open Zotero's Appearance popup with its toolbar button (`#appearance`)
+and close it the same way. Hit-test with `elementFromPoint` at the
+center of each button of the popup's first two rows. A covered button
+answers `iframe#ztts-player-frame`. The 2026-10-01 research probe, on a
+1411 × 887 window with the sidebar open, is the method: see the kit.
+
+- With the Top bar, on the EPUB in paginated flow: the popup's top is at
+  toolbar bottom + 31 (72; Zotero's own `top: 38px` plus 34). Its first
+  row, Page Layout, is at 84–106 and Columns at 118–140. Paginated,
+  Scrolled, Single and Double each answer themselves.
+  `#ztts-player-style` holds
+  `.appearance-popup { margin-top: 34px !important; }`. On the PDF the
+  first row is Reading mode, and its switch answers itself. Before the
+  fix, the EPUB's Page Layout row lay at 50–72 under the frame (41–75),
+  and both its buttons answered the frame.
+- With the Bottom bar, with the Floating panel, and with the player
+  closed: the popup's top is at 38, Zotero's own place, and the sheet
+  holds no `.appearance-popup` rule.
+- In every layout, the frame's computed `z-index` is 35, which lies
+  between Zotero's toolbar (30) and its lowest popup layer (40).
+- The fallback: with the Top bar, a probe sheet of the run's own,
+  removed afterwards, sets
+  `.split-view .primary-view .find-popup { margin-top: 0 !important; }`
+  and `.appearance-popup { margin-top: 0 !important; }`. The find bar's
+  search box, then at 64, and the Page Layout buttons, at 51–71,
+  each answer themselves although they lie over the frame. With
+  Appearance open, its **+** opens Zotero's new-theme dialog, whose name
+  field and Cancel button answer themselves.
+- The player stays over the document. With no popup open,
+  `elementFromPoint` at the Top bar's center and at the Bottom bar's
+  center answers the frame. So does the Floating panel's center once
+  the panel is moved over the open sidebar, as a drag leaves it (the
+  probe sets the frame's `left` to 20 px; by default the panel sits at
+  the document area's left + 10). This holds on the PDF and on the EPUB.
+
 ## Human only
 
 - Whether the page still visibly blurs or jumps when the player opens,
   closes or changes layout. Screenshots are static, so the owner judges
   this by eye.
 - Whether the Top bar's divider reads as the bar's edge over the page.
+- Whether the Appearance popup, laid 3 px over the Top bar's lower edge
+  the way Zotero lays it over the toolbar, looks like it hangs from the
+  bar.

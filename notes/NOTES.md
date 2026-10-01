@@ -708,3 +708,4 @@ then) and is in the git history before that day.
 - Verified live, and the start from a selection still called the switch off (issue #163)
 - #140 never reached main: its branch was deleted unmerged, then rebased over #160-#163 (issue #140)
 - Verified live on 1.16.3-beta8: #140 survived the rebase, and Zotero's side does not cache a failed answer (issue #140)
+- The Top bar lay over the Appearance popup's first row, and the player now sits under every Zotero popup (issue #164)

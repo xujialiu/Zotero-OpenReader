@@ -260,6 +260,38 @@ describe('the Player, the only player (#134)', () => {
     expect(frameOf(doc)).toBeNull();
   });
 
+  it("keeps Zotero's popups over it: the frame sits under them, and the Top bar moves the Appearance popup below itself (#164)", async () => {
+    const { deps } = setup();
+    const { reader, doc, head } = fakeReader();
+    const player = createPluginPlayer(deps);
+    player.attach(reader);
+    expect(frameOf(doc).style.cssText).toContain('z-index:35;');
+    expect(styles(head)[0].textContent).not.toContain('.appearance-popup');
+    toggleOf(doc).click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(frameOf(doc).style.cssText).toContain('z-index:35;');
+    expect(styles(head)[0].textContent).toContain('.appearance-popup { margin-top: 34px !important; }');
+    toggleOf(doc).click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(styles(head)[0].textContent).not.toContain('.appearance-popup');
+    player.dispose({ handBack: true });
+  });
+
+  it('leaves the Appearance popup where Zotero puts it with the Bottom bar and the Floating panel (#164)', async () => {
+    for (const layout of ['A', 'B']) {
+      const { deps } = setup({ prefs: { 'extensions.zotero.zotero-tts.readAloud.playerLayout': layout } });
+      const { reader, doc, head } = fakeReader();
+      const player = createPluginPlayer(deps);
+      player.attach(reader);
+      toggleOf(doc).click();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(frameOf(doc).hidden).toBe(false);
+      expect(styles(head)[0].textContent).not.toContain('.appearance-popup');
+      expect(styles(head)[0].textContent).not.toContain('.find-popup');
+      player.dispose({ handBack: true });
+    }
+  });
+
   it('starts closed over a reading its predecessor left open, and its button carries the reading on', async () => {
     const { deps, state } = setup();
     state.opened = true;
