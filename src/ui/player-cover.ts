@@ -16,9 +16,17 @@ export const BAR_HEIGHT = 34;
 export const FRAME_Z = 35;
 
 /**
+ * How far the Appearance popup moves down under the Top bar (#164): Zotero
+ * hangs it 3 px over the toolbar (`top: 38px` against the toolbar's 41,
+ * reader.css:525 and 1000), and the owner wanted no overlap with the bar, so
+ * it clears the bar's lower edge and leaves a 4 px gap.
+ */
+const APPEARANCE_DROP = BAR_HEIGHT + 3 + 4;
+
+/**
  * The rules that move Zotero's popups hanging from the top of the reader out
- * from under the Top bar, by the bar's height: the find bar in every view that
- * reaches the top (#137), and the Appearance popup, whose first row would
+ * from under the Top bar: the find bar in every view that reaches the top, by
+ * the bar's height (#137), and the Appearance popup, whose first row would
  * otherwise lie under the bar (#164). None for the other layouts, or while
  * the player is closed.
  */
@@ -26,7 +34,7 @@ export function popupRules(layout: string, visible: boolean): string[] {
   if (!visible || layout !== 'top') return [];
   return [
     '.split-view .primary-view .find-popup, body.enable-vertical-split-view .split-view .secondary-view .find-popup { margin-top: ' + BAR_HEIGHT + 'px !important; }',
-    '.appearance-popup { margin-top: ' + BAR_HEIGHT + 'px !important; }',
+    '.appearance-popup { margin-top: ' + APPEARANCE_DROP + 'px !important; }',
   ];
 }
 

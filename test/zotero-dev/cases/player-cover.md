@@ -101,12 +101,14 @@ answers `iframe#ztts-player-frame`. The 2026-10-01 research probe, on a
 1411 × 887 window with the sidebar open, is the method: see the kit.
 
 - With the Top bar, on the EPUB in paginated flow: the popup's top is at
-  toolbar bottom + 31 (72; Zotero's own `top: 38px` plus 34). Its first
-  row, Page Layout, is at 84–106 and Columns at 118–140. Paginated,
-  Scrolled, Single and Double each answer themselves.
-  `#ztts-player-style` holds
-  `.appearance-popup { margin-top: 34px !important; }`. On the PDF the
-  first row is Reading mode, and its switch answers itself. Before the
+  the frame's bottom + 4 (79; Zotero's own `top: 38px` plus 41), so the
+  popup and the bar do not overlap. Its first row, Page Layout, is at
+  91–113 and Columns at 125–147. Paginated, Scrolled, Single and Double
+  each answer themselves. `#ztts-player-style` holds
+  `.appearance-popup { margin-top: 41px !important; }`. On the PDF the
+  first row is Reading mode, and its switch answers itself. The
+  1.16.4-beta run measured 72, 84–106 and 118–140 with a 34 px margin,
+  3 px over the bar, which the owner turned down. Before the
   fix, the EPUB's Page Layout row lay at 50–72 under the frame (41–75),
   and both its buttons answered the frame.
 - With the Bottom bar, with the Floating panel, and with the player
@@ -135,6 +137,5 @@ answers `iframe#ztts-player-frame`. The 2026-10-01 research probe, on a
   closes or changes layout. Screenshots are static, so the owner judges
   this by eye.
 - Whether the Top bar's divider reads as the bar's edge over the page.
-- Whether the Appearance popup, laid 3 px over the Top bar's lower edge
-  the way Zotero lays it over the toolbar, looks like it hangs from the
-  bar.
+- Whether the 4 px gap between the Top bar and the Appearance popup
+  reads well.

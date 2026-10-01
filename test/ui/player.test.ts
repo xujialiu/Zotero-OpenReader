@@ -270,7 +270,7 @@ describe('the Player, the only player (#134)', () => {
     toggleOf(doc).click();
     await vi.advanceTimersByTimeAsync(0);
     expect(frameOf(doc).style.cssText).toContain('z-index:35;');
-    expect(styles(head)[0].textContent).toContain('.appearance-popup { margin-top: 34px !important; }');
+    expect(styles(head)[0].textContent).toContain('.appearance-popup { margin-top: 41px !important; }');
     toggleOf(doc).click();
     await vi.advanceTimersByTimeAsync(0);
     expect(styles(head)[0].textContent).not.toContain('.appearance-popup');

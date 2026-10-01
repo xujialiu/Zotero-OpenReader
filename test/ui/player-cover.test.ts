@@ -27,9 +27,9 @@ describe('FRAME_Z', () => {
 
 describe('popupRules', () => {
   const FIND = '.split-view .primary-view .find-popup, body.enable-vertical-split-view .split-view .secondary-view .find-popup { margin-top: 34px !important; }';
-  const APPEARANCE = '.appearance-popup { margin-top: 34px !important; }';
+  const APPEARANCE = '.appearance-popup { margin-top: 41px !important; }';
 
-  it("moves the find bar and the Appearance popup below the Top bar, by the bar's height (#137, #164)", () => {
+  it("moves the find bar below the Top bar by the bar's height (#137), and the Appearance popup clear of it with a 4 px gap (#164)", () => {
     expect(popupRules('top', true)).toEqual([FIND, APPEARANCE]);
   });
 
