@@ -712,3 +712,4 @@ then) and is in the git history before that day.
 - Verified live on 1.16.4-beta: Zotero's popups over the player, and a case bullet #153 had already retired (issue #164)
 - The Appearance popup clears the Top bar with a 4 px gap (issue #164)
 - One prefetch: the two that were stacked, and what the Engine's runner keeps of Read Aloud's (issue #166)
+- Verified live on 1.16.4-beta3: the reach is the number, and a script-started session stayed suspended (issue #166)
