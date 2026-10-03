@@ -716,3 +716,7 @@ then) and is in the git history before that day.
 - A late answer read the reader's own voice after its tab closed (issue #165)
 - Verified live on 1.16.4-beta3: the rest of #166, and a baseline held only in memory died with a wedged bridge (issue #166)
 - Verified live on 1.16.4-beta4, and the voice list had the same fault (issue #165)
+
+### [2026-10-04](NOTES_2026-10-04.md)
+
+- The WebDAV timeout ended at the headers, and one stalled reply wedged its sync for the session (issue #169)

@@ -9,6 +9,8 @@ import { withTimeout } from './timeout';
  * that insists on Digest is not supported. Every request is bounded by a
  * timeout: the plugin sandbox has no AbortController, so a stalled request
  * cannot be cancelled, but it must still surface as an error, never hang.
+ * The body of a reply is bounded too, in time and in size (#169): see
+ * readText below.
  */
 
 export type WebDAVConfig = { url: string; username: string; password: string };
@@ -20,9 +22,9 @@ export type WebDAVErrorKind =
   | 'auth'
   /** The folder (check) or the file (download) is not there */
   | 'not-found'
-  /** The request could not be made, or got no reply in time */
+  /** The request could not be made, or its reply did not come in time or broke off */
   | 'network'
-  /** Any other status */
+  /** Any other status, or a reply too large to be one of ours */
   | 'http';
 
 export class WebDAVError extends Error {
@@ -37,6 +39,15 @@ export class WebDAVError extends Error {
 }
 
 export const WEBDAV_TIMEOUT_MS = 15_000;
+
+/**
+ * The most of one reply the client reads (#169, the cap #168 proposed). Ours
+ * are a settings file, two positions files whose items cost a few hundred
+ * bytes each (docs/spec/SYNC-FORMAT.md) and one folder's listing, so a reply
+ * past this is a misbehaving server, and reading it whole would only fill
+ * Zotero's memory.
+ */
+export const WEBDAV_MAX_REPLY_BYTES = 10 * 1024 * 1024;
 
 /** The folder URL with exactly one trailing slash; rejects anything that is not http(s). */
 export function normalizeWebDAVURL(url: string): string {
@@ -153,6 +164,44 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
 
   const failed = (what: string, response: Response) => new WebDAVError('http', `${what} failed: HTTP ${response.status}.`, response.status);
 
+  /**
+   * A reply's body as text (#169). The timeout in request() ends when the
+   * headers arrive, and a server that then stops sending would leave the
+   * read pending for good — and with it the single-flight sync waiting on
+   * it, for the rest of the session. So every chunk must come within the
+   * timeout: the gap is bounded, not the whole body, and a reply that keeps
+   * arriving, however slowly, still finishes. A failure cancels the stream,
+   * which closes the connection rather than leaving it open behind the
+   * rejection.
+   */
+  async function readText(response: Response): Promise<string> {
+    const stalled = () => new WebDAVError('network', `The reply from ${url} stalled: nothing arrived for ${Math.round(timeoutMs / 1000)} s.`);
+    const tooLarge = () => new WebDAVError('http', `The reply from ${url} is larger than ${WEBDAV_MAX_REPLY_BYTES / 1024 / 1024} MB; no file of ours is that big.`);
+    const body = response.body;
+    if (!body) return withTimeout(response.text(), timeoutMs, stalled);
+    if (Number(response.headers.get('content-length')) > WEBDAV_MAX_REPLY_BYTES) {
+      body.cancel().catch(() => {});
+      throw tooLarge();
+    }
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    let total = 0;
+    try {
+      for (;;) {
+        const { done, value } = await withTimeout(reader.read(), timeoutMs, stalled);
+        if (done) return text + decoder.decode();
+        total += value.byteLength;
+        if (total > WEBDAV_MAX_REPLY_BYTES) throw tooLarge();
+        text += decoder.decode(value, { stream: true });
+      }
+    } catch (e) {
+      reader.cancel().catch(() => {});
+      if (e instanceof WebDAVError) throw e;
+      throw new WebDAVError('network', `The reply from ${url} broke off: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   return {
     url,
 
@@ -184,7 +233,7 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
       const response = await request('GET', target);
       if (response.status === 404) throw new WebDAVError('not-found', `No backup on the server yet (${target} not found).`, 404);
       if (!response.ok) throw failed('Download', response);
-      return response.text();
+      return readText(response);
     },
 
     async list() {
@@ -193,7 +242,7 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
         throw new WebDAVError('not-found', `The folder ${url} does not exist. It is created on the first upload.`, 404);
       }
       if (!response.ok) throw failed('PROPFIND', response);
-      return parseMultistatus(await response.text());
+      return parseMultistatus(await readText(response));
     },
   };
 }

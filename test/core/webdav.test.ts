@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { basicAuthHeader, createWebDAVClient, normalizeWebDAVURL, parseMultistatus, WebDAVError } from '../../src/core/webdav';
+import { basicAuthHeader, createWebDAVClient, normalizeWebDAVURL, parseMultistatus, WEBDAV_MAX_REPLY_BYTES, WebDAVError } from '../../src/core/webdav';
 
 const cfg = { url: 'https://dav.example.com/zotero-tts', username: 'ann', password: 'pw' };
 
@@ -264,5 +264,105 @@ describe('list', () => {
     await expect(client(vi.fn(async () => status(404))).list()).rejects.toMatchObject({ kind: 'not-found' });
     await expect(client(vi.fn(async () => status(401))).list()).rejects.toMatchObject({ kind: 'auth' });
     await expect(client(vi.fn(async () => status(500))).list()).rejects.toMatchObject({ kind: 'http', status: 500 });
+  });
+});
+
+// The timeout around fetch() ends when the headers arrive; the body that
+// follows is read under its own bounds, in time and in size (#169)
+describe("the reply's body", () => {
+  const enc = new TextEncoder();
+  const ok = (body: ReadableStream<Uint8Array> | null, headers?: Record<string, string>) => vi.fn(async () => new Response(body, { status: 200, headers }));
+
+  /** A body that sends `chunks` and then stays open without another byte: a server stalled mid-reply. */
+  function stalledBody(chunks: string[]) {
+    const state = { cancelled: false };
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        for (const s of chunks) c.enqueue(enc.encode(s));
+      },
+      cancel() {
+        state.cancelled = true;
+      },
+    });
+    return { body, state };
+  }
+
+  it('fails a download whose server stops sending mid-reply, and closes the stream', async () => {
+    const { body, state } = stalledBody(['{"a":']);
+    await expect(client(ok(body), {}, 20).download('f')).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('stalled') });
+    expect(state.cancelled).toBe(true);
+  });
+
+  it('fails a listing whose server stops sending mid-reply, and closes the stream', async () => {
+    const { body, state } = stalledBody(['<d:multistatus xmlns:d="DAV:">']);
+    const fetchImpl = vi.fn(async () => new Response(body, { status: 207 }));
+    await expect(client(fetchImpl, {}, 20).list()).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('stalled') });
+    expect(state.cancelled).toBe(true);
+  });
+
+  it('bounds the gap between chunks, not the whole reply: a slow but steady one finishes', async () => {
+    // 30 chunks 5 ms apart take 150 ms or more, against a 100 ms timeout
+    let sent = 0;
+    const body = new ReadableStream<Uint8Array>({
+      async pull(c) {
+        await new Promise((r) => setTimeout(r, 5));
+        if (sent < 30) c.enqueue(enc.encode(String(sent++ % 10)));
+        else c.close();
+      },
+    });
+    await expect(client(ok(body), {}, 100).download('f')).resolves.toBe('012345678901234567890123456789');
+  });
+
+  it('refuses a reply that grows past the cap, and closes the stream', async () => {
+    const chunk = new Uint8Array(1024 * 1024).fill(0x20);
+    const state = { cancelled: false, sent: 0 };
+    const body = new ReadableStream<Uint8Array>({
+      pull(c) {
+        state.sent += chunk.byteLength;
+        c.enqueue(chunk);
+      },
+      cancel() {
+        state.cancelled = true;
+      },
+    });
+    await expect(client(ok(body)).download('f')).rejects.toMatchObject({ kind: 'http', message: expect.stringContaining('10 MB') });
+    expect(state.cancelled).toBe(true);
+    expect(state.sent).toBeLessThanOrEqual(WEBDAV_MAX_REPLY_BYTES + 3 * chunk.byteLength);
+  });
+
+  it('refuses a declared Content-Length over the cap without reading the body', async () => {
+    // A read would stall on this body and fail as network instead
+    const { body, state } = stalledBody([]);
+    const fetchImpl = ok(body, { 'Content-Length': String(WEBDAV_MAX_REPLY_BYTES + 1) });
+    await expect(client(fetchImpl, {}, 20).download('f')).rejects.toMatchObject({ kind: 'http', message: expect.stringContaining('10 MB') });
+    expect(state.cancelled).toBe(true);
+  });
+
+  it('reports a stream that breaks mid-reply as a network error, with the reason', async () => {
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(enc.encode('{"a":'));
+      },
+      pull(c) {
+        c.error(new TypeError('NetworkError when reading the body.'));
+      },
+    });
+    await expect(client(ok(body)).download('f')).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('NetworkError') });
+  });
+
+  it('decodes a multi-byte character split across chunks', async () => {
+    const bytes = enc.encode('{"a":"café ☕"}');
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        for (const b of bytes) c.enqueue(new Uint8Array([b]));
+        c.close();
+      },
+    });
+    await expect(client(ok(body)).download('f')).resolves.toBe('{"a":"café ☕"}');
+  });
+
+  it('bounds a reply without a body stream as well', async () => {
+    const response = { status: 200, ok: true, headers: new Headers(), body: null, text: () => new Promise<string>(() => {}) };
+    await expect(client(vi.fn(async () => response), {}, 20).download('f')).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('stalled') });
   });
 });
