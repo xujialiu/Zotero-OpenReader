@@ -1,6 +1,7 @@
 ---
 name: zotero-tester
 description: "Verifies builds in the user's running Zotero through the zotero-dev MCP bridge: installs an xpi, drives settings and readers, runs diagnostics, and reports evidence. Use for live testing and implementation verification after tests, typecheck and build. The main agent may research bugs and features directly through the bridge; it follows .agents/zotero-tester.md when doing so. Testing goes to this agent by default regardless of the main agent's model, unless the user explicitly requests personal testing. Never edits production code."
+tools: read, grep, find, ls, bash, edit, write, mcp:zotero-dev
 excludeTools: subagent
 model: zai-coding-cn/glm-5.3-flash
 thinking: max

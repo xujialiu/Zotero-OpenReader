@@ -31,9 +31,16 @@ whose core is `MEMORY/MEMORY.md`.
   or reasoning-effort override requires the user's request. The pi
   definition carries `name` and a quoted `description` and bans nested
   delegation with `excludeTools: subagent` (pi's equivalent of the Claude
-  `disallowedTools`); the `.agents/*.md` workflows themselves stay
-  frontmatter-free, because pi's legacy scan reads `.agents/**/*.md` and
-  would turn any file carrying `name` plus `description` into a pi agent.
+  `disallowedTools`). `zotero-tester`'s also lists `tools: read, grep,
+  find, ls, bash, edit, write, mcp:zotero-dev` (settled 2026-10-04,
+  issue #170): under Pi's built-in MCP a child gets an MCP server's tools
+  only through an `mcp:` entry, and only as the direct tools of a strict
+  allowlist. Without it the tester started with no bridge at all on
+  #169's run, the first since pi-mcp-adapter, whose tools had reached
+  every child unasked, was replaced on 2026-10-02. The `.agents/*.md`
+  workflows themselves stay frontmatter-free, because pi's legacy scan
+  reads `.agents/**/*.md` and would turn any file carrying `name` plus
+  `description` into a pi agent.
   Check all three entry points and their shared targets before finishing;
   do not leave synchronization for later.
 - **Delegation is decided per agent** (settled 2026-08-28, gated
