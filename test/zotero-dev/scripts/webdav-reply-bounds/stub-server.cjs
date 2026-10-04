@@ -4,16 +4,20 @@
  * The local WebDAV stub for the webdav-reply-bounds case (issue #169).
  * Started with node from this kit on 127.0.0.1 and an ephemeral port, and
  * stopped at the end of the case. It holds no data and answers whatever the
- * file or method (GET and PROPFIND alike) under four folders:
+ * file or method (GET and PROPFIND alike) under five folders:
  *
  *   /stall/    — 200 (207 for PROPFIND), headers and a first fragment of
  *                the body, chunked, then nothing; the socket stays open.
  *   /big/      — 200, chunked with no Content-Length, spaces streamed
  *                without pause up to 64 MiB, then the end.
- *   /declared/ — 200 with Content-Length: 10485761, then nothing; the
- *                socket stays open.
+ *   /declared/ — 200 with Content-Length: 10485761 and ONE body byte,
+ *                then nothing; the socket stays open. (Gecko's fetch
+ *                resolves only once a body byte has arrived — 2026-10-04.)
  *   /broken/   — 200, chunked, a first fragment, then the socket is
  *                destroyed mid-chunk.
+ *   /silent/   — the connection is accepted and the request read, then
+ *                nothing at all is sent (no status line); the socket
+ *                stays open for the client to give up on.
  *
  * Per request it logs one JSON line to stdout: the method, the path, the
  * bytes written, and when the client closed the connection, relative to
@@ -94,8 +98,17 @@ const server = http.createServer((req, res) => {
 
   if (folder === "declared") {
     res.writeHead(200, { "Content-Type": "application/json", "Content-Length": String(10 * 1024 * 1024 + 1) });
-    res.flushHeaders(); // the headers must reach the client (2026-10-04: without a body write they never left the stub, and fetch timed out on the headers instead)
-    // ...and then nothing. The socket stays open.
+    // One body byte: Gecko's fetch resolves only once a body byte has
+    // arrived (2026-10-04: a head alone left the fetch pending until the
+    // headers timeout). The byte also flushes the headers. Then nothing —
+    // the socket stays open and the client must refuse the reply unread.
+    write("{");
+    return;
+  }
+
+  if (folder === "silent") {
+    // The request has been read; nothing at all is sent — no status line.
+    // The socket stays open for the client to give up on.
     return;
   }
 
