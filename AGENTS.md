@@ -13,3 +13,20 @@ when following it in the main session.
 
 Keep this entry point thin. Edit shared project rules in `MEMORY/` — `MEMORY/MEMORY.md`
 and the topic files it points to — and shared agent workflows in `.agents/`.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues on `xujialiu/Zotero-TTS`, through `gh`. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default triage state labels, each named after its role. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` and `docs/adr/` at the root. See
+`docs/agents/domain.md`.

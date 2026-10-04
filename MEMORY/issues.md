@@ -62,7 +62,10 @@ rule book, whose core is `MEMORY/MEMORY.md`.
   meet, or a diagnostic that reports wrongly; when convenient. It is
   decided from the impact on the user when the issue is written, never
   from the size of the fix, and moved when the evidence changes.
-  `enhancement` and `chore` carry none; no other labels, no milestones.
+  `enhancement` and `chore` carry none. The only other labels are the
+  skills' (settled 2026-10-04): the five triage state labels of
+  `docs/agents/triage-labels.md` and wayfinder's `wayfinder:*`; no
+  milestones.
 - **An issue closes at the commit that finishes it** (settled 2026-09-23,
   issue #133): that commit carries the number in its subject
   (`fix: … (#5)`), and `gh issue close 5` runs right after it, the
