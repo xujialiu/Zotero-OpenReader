@@ -59,7 +59,7 @@ import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } f
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
 import { createPositionTransport, SYNC_POSITIONS_OBSERVER, type PositionTransport } from './read-aloud/position-transport';
 import { POSITIONS_FILENAME } from './read-aloud/position-file';
-import { createWebDAVClient } from './core/webdav';
+import { createWebDAVClient, type WebDAVDeps } from './core/webdav';
 import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
 import { createDocumentPositions, type DocumentPositions } from './read-aloud/document-positions';
 import { createSharedTransport, type SharedTransport } from './read-aloud/xujialiu-positions-transport';
@@ -501,6 +501,15 @@ function providerDeps() {
 function newChromeAbortController(): AbortController | null {
   const win = Zotero.getMainWindow() ?? Services.wm.getMostRecentWindow(null);
   return typeof win?.AbortController === 'function' ? new win.AbortController() : null;
+}
+
+/**
+ * A WebDAV client's plumbing: the sandbox's fetch, and a chrome window's
+ * AbortController per request, whose abort is what closes the connection
+ * of a reply that stalled or ran too large (core/webdav.ts, issue #169).
+ */
+function webdavDeps(): WebDAVDeps {
+  return { fetch, newAbortController: newChromeAbortController };
 }
 
 /** The voices of every enabled provider; one failing, or not answering within its bound, is logged and skipped, not fatal. */
@@ -1752,7 +1761,7 @@ async function startPositionTracking(): Promise<void> {
   const store = positionStore;
   positionTransport = createPositionTransport({
     enabled: () => loadSettings(prefs).webdav.syncPositions,
-    client: () => createWebDAVClient(loadSettings(prefs).webdav, { fetch }),
+    client: () => createWebDAVClient(loadSettings(prefs).webdav, webdavDeps()),
     local: () => sync.list(),
     adopt: (entry) => sync.adopt(entry),
     itemExists: (lib, key) => !!Zotero.Items.getIDFromLibraryAndKey(lib, key),
@@ -1777,7 +1786,7 @@ async function startPositionTracking(): Promise<void> {
   // the upgrade's backfill of Document Ids before its first sync
   const shared = createSharedTransport({
     enabled: () => loadSettings(prefs).webdav.syncPositions,
-    client: () => createWebDAVClient(loadSettings(prefs).webdav, { fetch }),
+    client: () => createWebDAVClient(loadSettings(prefs).webdav, webdavDeps()),
     local: () => positions.list(),
     adopt: (item) => positions.adopt(item),
     prepare: async () => {
@@ -1971,7 +1980,7 @@ function startSettingsAutoUpload(): void {
       const id = machineId(prefs, defaultMachineName);
       const name = machineSettingsFilename(id);
       const backup = createBackup(prefs, { pluginVersion, exportedAt: new Date().toISOString(), machine: id });
-      const client = createWebDAVClient(loadSettings(prefs).webdav, { fetch });
+      const client = createWebDAVClient(loadSettings(prefs).webdav, webdavDeps());
       await client.upload(name, serializeBackup(backup));
       return { name, count: Object.keys(backup.settings).length };
     },
@@ -2001,7 +2010,7 @@ function startSettingsSync(): void {
   dropSettingsSync();
   const transport = createSettingsSyncTransport({
     enabled: () => loadSettings(prefs).webdav.syncSettings,
-    client: () => createWebDAVClient(loadSettings(prefs).webdav, { fetch }),
+    client: () => createWebDAVClient(loadSettings(prefs).webdav, webdavDeps()),
     values: () => ({ ...flattenSettings(loadSettings(prefs)), ...documentVoiceSettings(prefs) }),
     machine: () => machineId(prefs, defaultMachineName),
     readState: () => readSyncState(prefs),
@@ -3580,7 +3589,7 @@ const diagnostics = {
    */
   sharedSettings: async () => {
     try {
-      const client = createWebDAVClient(loadSettings(prefs).webdav, { fetch });
+      const client = createWebDAVClient(loadSettings(prefs).webdav, webdavDeps());
       const items = parseSharedSettings(await client.download(SHARED_SETTINGS_FILENAME));
       // The account id is an identifier, not a credential, but it is a 32-hex string the pre-push key scan would flag in a transcript
       const secret = /apiKey|apiToken|accountId|password|headers/i;
@@ -3605,7 +3614,7 @@ const diagnostics = {
    */
   settingsFiles: async () => {
     try {
-      const client = createWebDAVClient(loadSettings(prefs).webdav, { fetch });
+      const client = createWebDAVClient(loadSettings(prefs).webdav, webdavDeps());
       const files = (await client.list()).filter(
         (f) => SETTINGS_FILE_PATTERN.test(f.name) || f.name === POSITIONS_FILENAME || f.name === SHARED_SETTINGS_FILENAME || f.name === SHARED_POSITIONS_FILENAME,
       );

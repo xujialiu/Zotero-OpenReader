@@ -26,6 +26,13 @@ describe('withTimeout', () => {
     ).rejects.toThrow('late');
   });
 
+  it("rejects with the caller's error even when the abort makes the promise reject at once", async () => {
+    // An aborted fetch rejects with its own AbortError; the deadline is the reason (#169)
+    let rejectNow: (e: Error) => void = () => {};
+    const aborted = new Promise<never>((_, reject) => (rejectNow = reject));
+    await expect(withTimeout(aborted, 10, () => new Error('late'), () => rejectNow(new Error('AbortError')))).rejects.toThrow('late');
+  });
+
   it('does not fire the callback once the promise has settled', async () => {
     const onTimeout = vi.fn();
     await withTimeout(Promise.resolve('ok'), 10, () => new Error('late'), onTimeout);

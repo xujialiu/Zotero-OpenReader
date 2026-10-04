@@ -7,10 +7,11 @@ import { withTimeout } from './timeout';
  * WebDAV host the plugin is likely to meet (Nextcloud, Synology, Jianguoyun,
  * Koofr, Apache or nginx with a password file) accepts over HTTPS; a server
  * that insists on Digest is not supported. Every request is bounded by a
- * timeout: the plugin sandbox has no AbortController, so a stalled request
- * cannot be cancelled, but it must still surface as an error, never hang.
- * The body of a reply is bounded too, in time and in size (#169): see
- * readText below.
+ * timeout, and its body too, in time and in size (#169): see readText below.
+ * A failure aborts the request through an AbortController injected from a
+ * chrome window — the plugin sandbox has none — which is what closes its
+ * connection; without one (no window up) the request still fails in time,
+ * only its connection is left to the network.
  */
 
 export type WebDAVConfig = { url: string; username: string; password: string };
@@ -139,18 +140,60 @@ export interface WebDAVClient {
   list(): Promise<WebDAVFile[]>;
 }
 
-export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetch; timeoutMs?: number }): WebDAVClient {
+export interface WebDAVDeps {
+  fetch: typeof fetch;
+  timeoutMs?: number;
+  /**
+   * An AbortController from a chrome window, one per request (#169).
+   * Cancelling a reply's stream does not close Gecko's connection (measured
+   * 2026-10-04: the socket of a stalled reply stayed open for minutes after
+   * the cancel); aborting the request's signal does. Null, or absent, when
+   * no window is up: the request is then still bounded, not closed.
+   */
+  newAbortController?: () => AbortController | null;
+}
+
+/** A reply, and the abort that closes its connection. */
+interface Reply {
+  response: Response;
+  abort: () => void;
+}
+
+export function createWebDAVClient(cfg: WebDAVConfig, deps: WebDAVDeps): WebDAVClient {
   const url = normalizeWebDAVURL(cfg.url);
   const timeoutMs = deps.timeoutMs ?? WEBDAV_TIMEOUT_MS;
   const auth: Record<string, string> = cfg.username ? { Authorization: basicAuthHeader(cfg.username, cfg.password) } : {};
 
-  async function request(method: string, target: string, init: { headers?: Record<string, string>; body?: string } = {}): Promise<Response> {
+  function newController(): AbortController | null {
+    try {
+      return deps.newAbortController?.() ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function request(method: string, target: string, init: { headers?: Record<string, string>; body?: string } = {}): Promise<Reply> {
+    const controller = newController();
+    const abort = () => {
+      try {
+        controller?.abort();
+      } catch {
+        // Best-effort: the error the caller gets is what matters
+      }
+    };
     let response: Response;
     try {
       response = await withTimeout(
-        deps.fetch(target, { method, headers: { ...auth, ...init.headers }, body: init.body, cache: 'no-store' }),
+        deps.fetch(target, {
+          method,
+          headers: { ...auth, ...init.headers },
+          body: init.body,
+          cache: 'no-store',
+          ...(controller ? { signal: controller.signal } : {}),
+        }),
         timeoutMs,
         () => new WebDAVError('network', `No reply from ${url} within ${Math.round(timeoutMs / 1000)} s.`),
+        abort,
       );
     } catch (e) {
       if (e instanceof WebDAVError) throw e;
@@ -159,7 +202,7 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
     if (response.status === 401 || response.status === 403) {
       throw new WebDAVError('auth', `The server rejected the username or password (HTTP ${response.status}).`, response.status);
     }
-    return response;
+    return { response, abort };
   }
 
   const failed = (what: string, response: Response) => new WebDAVError('http', `${what} failed: HTTP ${response.status}.`, response.status);
@@ -170,16 +213,18 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
    * read pending for good — and with it the single-flight sync waiting on
    * it, for the rest of the session. So every chunk must come within the
    * timeout: the gap is bounded, not the whole body, and a reply that keeps
-   * arriving, however slowly, still finishes. A failure cancels the stream,
+   * arriving, however slowly, still finishes. A failure aborts the request,
    * which closes the connection rather than leaving it open behind the
-   * rejection.
+   * rejection, and cancels the stream, the one release left when no
+   * controller could be made.
    */
-  async function readText(response: Response): Promise<string> {
+  async function readText({ response, abort }: Reply): Promise<string> {
     const stalled = () => new WebDAVError('network', `The reply from ${url} stalled: nothing arrived for ${Math.round(timeoutMs / 1000)} s.`);
     const tooLarge = () => new WebDAVError('http', `The reply from ${url} is larger than ${WEBDAV_MAX_REPLY_BYTES / 1024 / 1024} MB; no file of ours is that big.`);
     const body = response.body;
-    if (!body) return withTimeout(response.text(), timeoutMs, stalled);
+    if (!body) return withTimeout(response.text(), timeoutMs, stalled, abort);
     if (Number(response.headers.get('content-length')) > WEBDAV_MAX_REPLY_BYTES) {
+      abort();
       body.cancel().catch(() => {});
       throw tooLarge();
     }
@@ -196,6 +241,7 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
         text += decoder.decode(value, { stream: true });
       }
     } catch (e) {
+      abort();
       reader.cancel().catch(() => {});
       if (e instanceof WebDAVError) throw e;
       throw new WebDAVError('network', `The reply from ${url} broke off: ${e instanceof Error ? e.message : String(e)}`);
@@ -206,7 +252,7 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
     url,
 
     async check() {
-      const response = await request('PROPFIND', url, { headers: { Depth: '0' } });
+      const { response } = await request('PROPFIND', url, { headers: { Depth: '0' } });
       if (response.status === 404) {
         throw new WebDAVError('not-found', `The folder ${url} does not exist. It is created on the first upload.`, 404);
       }
@@ -215,13 +261,13 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
 
     async upload(name, text) {
       const target = url + name;
-      const put = () => request('PUT', target, { headers: { 'Content-Type': 'application/json' }, body: text });
+      const put = async () => (await request('PUT', target, { headers: { 'Content-Type': 'application/json' }, body: text })).response;
       let response = await put();
       // RFC 4918 answers 409 to a PUT whose parent collection is missing;
       // some servers say 404. Make the folder and write once more. A 405
       // from MKCOL means the folder exists after all.
       if (response.status === 404 || response.status === 409) {
-        const made = await request('MKCOL', url);
+        const { response: made } = await request('MKCOL', url);
         if (!made.ok && made.status !== 405) throw failed(`Creating the folder ${url}`, made);
         response = await put();
       }
@@ -230,19 +276,21 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: { fetch: typeof fetc
 
     async download(name) {
       const target = url + name;
-      const response = await request('GET', target);
+      const reply = await request('GET', target);
+      const { response } = reply;
       if (response.status === 404) throw new WebDAVError('not-found', `No backup on the server yet (${target} not found).`, 404);
       if (!response.ok) throw failed('Download', response);
-      return readText(response);
+      return readText(reply);
     },
 
     async list() {
-      const response = await request('PROPFIND', url, { headers: { Depth: '1', 'Content-Type': 'application/xml' }, body: PROPFIND_BODY });
+      const reply = await request('PROPFIND', url, { headers: { Depth: '1', 'Content-Type': 'application/xml' }, body: PROPFIND_BODY });
+      const { response } = reply;
       if (response.status === 404) {
         throw new WebDAVError('not-found', `The folder ${url} does not exist. It is created on the first upload.`, 404);
       }
       if (!response.ok) throw failed('PROPFIND', response);
-      return parseMultistatus(await readText(response));
+      return parseMultistatus(await readText(reply));
     },
   };
 }

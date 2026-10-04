@@ -108,7 +108,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Synced settings wait while a tab reads](cases/settings-sync-while-reading.md) — 1.16, 6.16
 - [A synced provider that fails its check goes off here only](cases/settings-sync-provider-check.md) — 3.20, 6.20
 - [The global speed travels](cases/global-speed.md) — 1–7 (issue #82)
-- [A WebDAV reply that stalls, breaks or runs too large fails instead of hanging](cases/webdav-reply-bounds.md) — 1–7 (issue #169)
+- [A WebDAV reply that stalls, breaks or runs too large fails instead of hanging, and its connection is closed](cases/webdav-reply-bounds.md) — 1–8 (issue #169)
 
 ## The end of a pass
 

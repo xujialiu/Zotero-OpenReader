@@ -720,3 +720,4 @@ then) and is in the git history before that day.
 ### [2026-10-04](NOTES_2026-10-04.md)
 
 - The WebDAV timeout ended at the headers, and one stalled reply wedged its sync for the session (issue #169)
+- Cancelling a fetch body's stream does not close Gecko's connection; aborting the request's signal does (issue #169)

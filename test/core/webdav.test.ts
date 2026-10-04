@@ -366,3 +366,121 @@ describe("the reply's body", () => {
     await expect(client(vi.fn(async () => response), {}, 20).download('f')).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('stalled') });
   });
 });
+
+// Cancelling the body's stream leaves Gecko's connection open (the live run
+// of 2026-10-04 on 1.16.5-beta): only an abort of the request's own signal
+// closes it, so every failure aborts a controller injected from a chrome
+// window, the plugin sandbox having none (#169)
+describe('closing the connection', () => {
+  const enc = new TextEncoder();
+
+  /** A client whose requests each get a fresh controller, kept in `controllers`. */
+  function withControllers(fetchImpl: unknown, timeoutMs?: number) {
+    const controllers: AbortController[] = [];
+    const newAbortController = () => {
+      const c = new AbortController();
+      controllers.push(c);
+      return c;
+    };
+    return { client: createWebDAVClient(cfg, { fetch: fetchImpl as typeof fetch, timeoutMs, newAbortController }), controllers };
+  }
+
+  /** A fetch answering `body` with 200 that, like Gecko's, errors the body when its signal aborts. */
+  function answering(makeBody: () => ReadableStream<Uint8Array> | null, headers?: Record<string, string>, code = 200) {
+    return vi.fn(async (_url: string, init: RequestInit) => {
+      const body = makeBody();
+      if (body) {
+        const tee = new TransformStream<Uint8Array, Uint8Array>();
+        void body.pipeTo(tee.writable, { signal: init.signal ?? undefined }).catch(() => {});
+        return new Response(tee.readable, { status: code, headers });
+      }
+      return new Response(null, { status: code, headers });
+    });
+  }
+
+  /** A body that sends `chunks` and then nothing more. */
+  const stalled = (chunks: string[]) => () =>
+    new ReadableStream<Uint8Array>({
+      start(c) {
+        for (const s of chunks) c.enqueue(enc.encode(s));
+      },
+    });
+
+  it('hands each request its own signal', async () => {
+    const fetchImpl = vi.fn(async () => new Response('x', { status: 200 }));
+    const { client: c, controllers } = withControllers(fetchImpl);
+    await c.download('a');
+    await c.download('b');
+    expect(controllers).toHaveLength(2);
+    expect(call(fetchImpl, 0).init.signal).toBe(controllers[0].signal);
+    expect(call(fetchImpl, 1).init.signal).toBe(controllers[1].signal);
+  });
+
+  it('aborts a request whose headers do not come within the timeout', async () => {
+    // Like Gecko's fetch, this one rejects once its signal aborts: the late rejection must be handled
+    const fetchImpl = vi.fn(
+      (_url: string, init: RequestInit) =>
+        new Promise<Response>((_, reject) => init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))),
+    );
+    const { client: c, controllers } = withControllers(fetchImpl, 20);
+    await expect(c.download('f')).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('No reply') });
+    expect(controllers[0].signal.aborted).toBe(true);
+  });
+
+  it('aborts a download and a listing whose server stops sending mid-reply', async () => {
+    const download = withControllers(answering(stalled(['{"a":'])), 20);
+    await expect(download.client.download('f')).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('stalled') });
+    expect(download.controllers[0].signal.aborted).toBe(true);
+
+    const list = withControllers(answering(stalled(['<d:multistatus xmlns:d="DAV:">']), undefined, 207), 20);
+    await expect(list.client.list()).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('stalled') });
+    expect(list.controllers[0].signal.aborted).toBe(true);
+  });
+
+  it('aborts a reply over the cap, declared or grown while reading', async () => {
+    const declared = withControllers(answering(stalled(['{']), { 'Content-Length': String(WEBDAV_MAX_REPLY_BYTES + 1) }), 20);
+    await expect(declared.client.download('f')).rejects.toMatchObject({ kind: 'http', message: expect.stringContaining('10 MB') });
+    expect(declared.controllers[0].signal.aborted).toBe(true);
+
+    const chunk = new Uint8Array(1024 * 1024).fill(0x20);
+    const endless = () => new ReadableStream<Uint8Array>({ pull: (c) => c.enqueue(chunk) });
+    const grown = withControllers(answering(endless));
+    await expect(grown.client.download('f')).rejects.toMatchObject({ kind: 'http', message: expect.stringContaining('10 MB') });
+    expect(grown.controllers[0].signal.aborted).toBe(true);
+  });
+
+  it('aborts a reply that breaks mid-body', async () => {
+    const broken = () =>
+      new ReadableStream<Uint8Array>({
+        start: (c) => c.enqueue(enc.encode('{"a":')),
+        pull: (c) => c.error(new TypeError('NetworkError when reading the body.')),
+      });
+    const { client: c, controllers } = withControllers(answering(broken));
+    await expect(c.download('f')).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('NetworkError') });
+    expect(controllers[0].signal.aborted).toBe(true);
+  });
+
+  it('aborts nothing that succeeds', async () => {
+    const fetchImpl = vi.fn(async (_url: string, init: RequestInit) => {
+      if (init.method === 'PROPFIND') return new Response('<d:multistatus xmlns:d="DAV:"></d:multistatus>', { status: 207 });
+      if (init.method === 'PUT') return new Response(null, { status: 201 });
+      return new Response('{"a":1}', { status: 200 });
+    });
+    const { client: c, controllers } = withControllers(fetchImpl);
+    await c.check();
+    await c.upload('f', '{}');
+    await expect(c.download('f')).resolves.toBe('{"a":1}');
+    await expect(c.list()).resolves.toEqual([]);
+    expect(controllers).toHaveLength(4);
+    expect(controllers.every((x) => !x.signal.aborted)).toBe(true);
+  });
+
+  it('still fails in time when no controller can be made, sending no signal', async () => {
+    for (const newAbortController of [() => null, () => { throw new Error('no window'); }]) {
+      const fetchImpl = vi.fn(async () => new Response(stalled(['{'])(), { status: 200 }));
+      const c = createWebDAVClient(cfg, { fetch: fetchImpl as unknown as typeof fetch, timeoutMs: 20, newAbortController });
+      await expect(c.download('f')).rejects.toMatchObject({ kind: 'network', message: expect.stringContaining('stalled') });
+      expect(call(fetchImpl).init.signal).toBeUndefined();
+    }
+  });
+});

@@ -786,10 +786,11 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     verifyProviders: () => providerRows.verifyEnabled(),
   };
   initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps, positions: hooks.positionsIO });
-  // The sandbox's own fetch: Basic auth needs nothing from a window
+  // The sandbox's own fetch, and the pane window's AbortController, whose
+  // abort closes the connection of a reply that stalled (issue #169)
   initWebDAVRows(doc, {
     ...restoreDeps,
-    createClient: (cfg) => createWebDAVClient(cfg, { fetch }),
+    createClient: (cfg) => createWebDAVClient(cfg, { fetch, newAbortController: newPaneAbortController }),
     machineId: {
       get: () => machineId(prefs, defaultMachineName),
       set: (raw) => renameMachineId(prefs, raw, defaultMachineName),
