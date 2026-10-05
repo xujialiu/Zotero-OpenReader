@@ -212,3 +212,11 @@ Holding back a settings change that would affect a reading session in
 progress, playing, paused or in a handoff, and naming the tabs it
 affects.
 _Avoid_: lock, block
+
+### Between computers
+
+**WebDAV folder**:
+A folder on the user's own WebDAV server, through which the sync and the
+server backup reach their other computers and the phone. It is switched
+on and off on each computer, like a provider.
+_Avoid_: WebDAV connection, server (alone), cloud

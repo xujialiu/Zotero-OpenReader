@@ -5,7 +5,7 @@ import { initBracketRows } from './bracket-rows';
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider, type ProviderDeps } from '../core/providers/factory';
-import { createZoteroPrefs, hiddenZoteroTiers, isZoteroSwitch, loadSettings, PREF_PREFIX, type PrefsBackend, type SwitchId, zoteroSwitchTier } from '../core/settings';
+import { createZoteroPrefs, hiddenZoteroTiers, isZoteroSwitch, loadSettings, PREF_PREFIX, type PrefsBackend, type SwitchId, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, zoteroSwitchTier } from '../core/settings';
 import { machineId, renameMachineId } from '../core/machine-id';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
@@ -28,7 +28,7 @@ import { initSecretRows, type SecretRowsDocument } from './secret-rows';
 import { markPlatform } from './platform-class';
 import { initBoldLabels } from './bold-labels';
 import { initAboutRows } from './about-rows';
-import { initWebDAVRows } from './webdav-rows';
+import { initWebDAVRows, type WebDAVRows } from './webdav-rows';
 import { initSyncStatusRows } from './sync-status-rows';
 import { SYNC_SETTINGS_OBSERVER } from '../core/settings-sync';
 import type { SettingsSyncApplied, SettingsSyncStats } from '../core/settings-sync-transport';
@@ -758,6 +758,8 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     renderSectionHeading(doc as unknown as HeadingDoc, localHeading, engineLabel(engineId), LOCAL_ENGINES.find((e) => e.id === engineId)?.site ?? null);
   }
 
+  // The folder's switch and lock, repainted by a restore like the provider switches (issue #173)
+  let webdavRows: WebDAVRows | null = null;
   const restoreDeps = {
     prefs,
     ...readingGuard,
@@ -778,6 +780,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       providerRows.refresh();
       fishVoiceSources.refresh();
       void voiceBrowserRows.load();
+      webdavRows?.refresh();
     },
     // A restore writes the provider switches straight to the prefs, so it
     // ends in the check Enable would have run: a provider the restored
@@ -788,7 +791,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps, positions: hooks.positionsIO });
   // The sandbox's own fetch, and the pane window's AbortController, whose
   // abort closes the connection of a reply that stalled (issue #169)
-  initWebDAVRows(doc, {
+  webdavRows = initWebDAVRows(doc, {
     ...restoreDeps,
     createClient: (cfg) => createWebDAVClient(cfg, { fetch, newAbortController: newPaneAbortController }),
     machineId: {
@@ -811,20 +814,25 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     const token = Zotero.Prefs.registerObserver(name, onChange);
     return () => Zotero.Prefs.unregisterObserver(token);
   };
+  // A line follows its switch and the folder's: off, either one hides it (issue #173)
+  const watchSwitchAndFolder = (name: string, onChange: () => void) => {
+    const unwatch = [watchPref(name, onChange), watchPref(WEBDAV_FOLDER_OBSERVER, onChange)];
+    return () => unwatch.forEach((stop) => stop());
+  };
   const syncStatus = initSyncStatusRows(doc, {
     formatTime: (ts) => new Date(ts).toLocaleTimeString(),
     settings: {
-      enabled: () => loadSettings(prefs).webdav.syncSettings,
+      enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'syncSettings'),
       stats: () => hooks.sync?.settings.stats() ?? null,
       watch: (onSynced) => hooks.sync?.settings.watch(onSynced) ?? (() => {}),
-      watchSwitch: (onChange) => watchPref(SYNC_SETTINGS_OBSERVER, onChange),
+      watchSwitch: (onChange) => watchSwitchAndFolder(SYNC_SETTINGS_OBSERVER, onChange),
       onApplied: () => restoreDeps.onRestored(),
     },
     positions: {
-      enabled: () => loadSettings(prefs).webdav.syncPositions,
+      enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'syncPositions'),
       stats: () => hooks.sync?.positions.stats() ?? null,
       watch: (onSynced) => hooks.sync?.positions.watch(onSynced) ?? (() => {}),
-      watchSwitch: (onChange) => watchPref(SYNC_POSITIONS_OBSERVER, onChange),
+      watchSwitch: (onChange) => watchSwitchAndFolder(SYNC_POSITIONS_OBSERVER, onChange),
     },
   });
   win?.addEventListener('unload', () => syncStatus.dispose(), { once: true });

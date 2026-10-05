@@ -693,8 +693,10 @@
   <!-- webdav-rows.ts: the WebDAV folder — the connection alone, first,
        because the two groups under it use it: the sync (#40, #68) and
        this computer's copy on the server (#41). The URL's placeholder is an
-       example address, the same in every language. -->
-  <groupbox>
+       example address, the same in every language. Enable / Disable is the
+       folder's switch, run like a provider's (#173): its fields locked while
+       it is on, the rows that use it greyed while it is off. -->
+  <groupbox id="ztts-webdav-folder">
     <label><html:h2 data-l10n-id="ztts-heading-webdav"/></label>
     <hbox align="center">
       <label data-l10n-id="ztts-field-webdav-url" class="ztts-field-label"/>
@@ -709,6 +711,7 @@
       <html:input type="text" class="ztts-secret" preference="extensions.zotero.zotero-tts.webdav.password"/>
     </hbox>
     <hbox align="center">
+      <button id="ztts-webdav-enable"/>
       <button id="ztts-webdav-test" data-l10n-id="ztts-test-connection"/>
     </hbox>
     <description id="ztts-webdav-message"/>

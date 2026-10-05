@@ -15,8 +15,21 @@ class FakeElement {
   textContent = '';
   listeners = new Map<string, Array<() => unknown>>();
   value?: string;
+  disabled = false;
+  /** The folder's fields, for the group that holds them (issue #173). */
+  children: FakeElement[] = [];
   setAttribute(k: string, v: string) {
     this.attrs.set(k, String(v));
+  }
+  getAttribute(k: string) {
+    return this.attrs.get(k) ?? null;
+  }
+  removeAttribute(k: string) {
+    this.attrs.delete(k);
+  }
+  after() {}
+  querySelectorAll(_selector: string) {
+    return this.children;
   }
   addEventListener(type: string, fn: () => unknown) {
     if (!this.listeners.has(type)) this.listeners.set(type, []);
@@ -45,8 +58,14 @@ function setup(
   } = {},
 ) {
   const els = new Map((Object.values(WEBDAV_IDS) as string[]).map((id) => [id, new FakeElement()]));
+  // The folder's three fields, the password a secret (issue #173)
+  const fields = { url: new FakeElement(), username: new FakeElement(), password: new FakeElement() };
+  fields.password.setAttribute('class', 'ztts-secret');
+  els.get(WEBDAV_IDS.folder)!.children = Object.values(fields);
   const doc = { getElementById: (id: string) => els.get(id) ?? null };
   const prefs = fakePrefs({
+    // On unless a test says otherwise: the server copy's buttons use the folder only while it is (issue #173)
+    [PREF_PREFIX + 'webdav.enabled']: true,
     [PREF_PREFIX + 'webdav.url']: options.url ?? 'https://dav.example.com/zotero-tts',
     [PREF_PREFIX + 'webdav.username']: 'ann',
     [PREF_PREFIX + 'webdav.password']: 'pw',
@@ -86,11 +105,13 @@ function setup(
     ...(options.select ? { select: vi.fn(options.select) } : {}),
     ...(options.verify ? { verifyProviders: options.verify } : {}),
   } satisfies WebDAVRowsDeps;
-  initWebDAVRows(doc, deps);
+  const rows = initWebDAVRows(doc, deps);
   return {
     prefs,
     deps,
     client,
+    rows,
+    fields,
     el: (id: string) => els.get(id)!,
     // Test connection writes the WebDAV group's line, the server copy's buttons the Backup group's; a test reads whichever was written
     message: () => [els.get(WEBDAV_IDS.backupMessage)!.textContent, els.get(WEBDAV_IDS.message)!.textContent].filter(Boolean).join(' '),
@@ -102,6 +123,7 @@ describe('Upload settings now', () => {
     const t = setup({ prefs: { [PREF_PREFIX + 'azure.apiKey']: 'secret' } });
     await t.el(WEBDAV_IDS.upload).fire('command');
     expect(t.deps.createClient).toHaveBeenCalledWith({
+      enabled: true,
       url: 'https://dav.example.com/zotero-tts',
       username: 'ann',
       password: 'pw',
@@ -126,6 +148,7 @@ describe('Upload settings now', () => {
     t.prefs.set(PREF_PREFIX + 'webdav.password', 'new');
     await t.el(WEBDAV_IDS.upload).fire('command');
     expect(t.deps.createClient).toHaveBeenCalledWith({
+      enabled: true,
       url: 'https://other.example.com/dav',
       username: 'ann',
       password: 'new',
@@ -354,6 +377,126 @@ describe('Test connection', () => {
     t.client.check.mockRejectedValueOnce(new WebDAVError('not-found', 'The folder x does not exist. It is created on the first upload.', 404));
     await t.el(WEBDAV_IDS.test).fire('command');
     expect(t.message()).toBe('Connection failed: The folder x does not exist. It is created on the first upload.');
+  });
+});
+
+// Issue #173: the folder has a switch of its own, run like a provider's
+describe('The folder\u2019s switch', () => {
+  const ENABLED = PREF_PREFIX + 'webdav.enabled';
+  const USE_ROWS = [WEBDAV_IDS.syncPositions, WEBDAV_IDS.syncSettings, WEBDAV_IDS.autoUpload, WEBDAV_IDS.upload, WEBDAV_IDS.download];
+  const off = { prefs: { [PREF_PREFIX + 'webdav.enabled']: false } };
+
+  it('paints off as Enable, the fields open and the rows that use the folder greyed', () => {
+    const t = setup(off);
+    expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Enable');
+    for (const field of Object.values(t.fields)) expect(field.disabled).toBe(false);
+    for (const id of USE_ROWS) expect(t.el(id).disabled, id).toBe(true);
+    expect(t.el(WEBDAV_IDS.test).disabled).toBe(false);
+  });
+
+  it('paints on as Disable, the fields locked and the rows live', () => {
+    const t = setup();
+    expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Disable');
+    for (const field of Object.values(t.fields)) expect(field.disabled).toBe(true);
+    for (const id of USE_ROWS) expect(t.el(id).disabled, id).toBe(false);
+  });
+
+  it('Enable checks the folder first, then turns it on and locks its fields', async () => {
+    const t = setup(off);
+    t.fields.password.setAttribute('data-revealed', 'true');
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.client.check).toHaveBeenCalledOnce();
+    expect(t.prefs.store[ENABLED]).toBe(true);
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe(`Connected to ${FOLDER}.`);
+    expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Disable');
+    for (const field of Object.values(t.fields)) expect(field.disabled).toBe(true);
+    // The password a user uncovered to type it is covered by the lock (issue #19)
+    expect(t.fields.password.getAttribute('data-revealed')).toBeNull();
+    for (const id of USE_ROWS) expect(t.el(id).disabled, id).toBe(false);
+  });
+
+  it('a failed check leaves the folder off, with the reason on its line', async () => {
+    const t = setup(off);
+    t.client.check.mockRejectedValueOnce(new WebDAVError('auth', 'The server rejected the username or password (HTTP 401).', 401));
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.prefs.store[ENABLED]).toBe(false);
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe('Connection failed: The server rejected the username or password (HTTP 401).');
+    expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Enable');
+    expect(t.el(WEBDAV_IDS.toggle).disabled).toBe(false);
+    for (const field of Object.values(t.fields)) expect(field.disabled).toBe(false);
+  });
+
+  it('an empty address cannot go on', async () => {
+    const t = setup({ ...off, url: '' });
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.prefs.store[ENABLED]).toBe(false);
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe('Connection failed: Set the WebDAV URL first.');
+  });
+
+  it('holds both buttons while the check runs, and a second click does nothing', async () => {
+    const t = setup(off);
+    let finish!: () => void;
+    t.client.check.mockImplementationOnce(() => new Promise<void>((resolve) => (finish = resolve)));
+    const first = t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.el(WEBDAV_IDS.toggle).disabled).toBe(true);
+    expect(t.el(WEBDAV_IDS.test).disabled).toBe(true);
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe('Checking\u2026');
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    await t.el(WEBDAV_IDS.test).fire('command');
+    expect(t.client.check).toHaveBeenCalledOnce();
+    finish();
+    await first;
+    expect(t.prefs.store[ENABLED]).toBe(true);
+    expect(t.el(WEBDAV_IDS.toggle).disabled).toBe(false);
+    expect(t.el(WEBDAV_IDS.test).disabled).toBe(false);
+  });
+
+  it('Disable turns the folder off at once, with no check and no reading guard, and opens the fields', async () => {
+    const t = setup({ reading: ['Moby-Dick'] });
+    t.el(WEBDAV_IDS.message).textContent = `Connected to ${FOLDER}.`;
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.client.check).not.toHaveBeenCalled();
+    expect(t.prefs.store[ENABLED]).toBe(false);
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe('');
+    expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Enable');
+    for (const field of Object.values(t.fields)) expect(field.disabled).toBe(false);
+    for (const id of USE_ROWS) expect(t.el(id).disabled, id).toBe(true);
+  });
+
+  it('keeps the ticks of the switches under it while it is off', async () => {
+    const t = setup({ prefs: { [PREF_PREFIX + 'webdav.syncPositions']: true, [PREF_PREFIX + 'webdav.autoUploadSettings']: true } });
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.prefs.store[PREF_PREFIX + 'webdav.syncPositions']).toBe(true);
+    expect(t.prefs.store[PREF_PREFIX + 'webdav.autoUploadSettings']).toBe(true);
+  });
+
+  it('a command that reaches a greyed server-copy button does nothing', async () => {
+    const t = setup(off);
+    await t.el(WEBDAV_IDS.upload).fire('command');
+    await t.el(WEBDAV_IDS.download).fire('command');
+    expect(t.deps.createClient).not.toHaveBeenCalled();
+    expect(t.message()).toBe('');
+  });
+
+  it('Test connection probes without switching anything, off or on', async () => {
+    const t = setup(off);
+    await t.el(WEBDAV_IDS.test).fire('command');
+    expect(t.client.check).toHaveBeenCalledOnce();
+    expect(t.prefs.store[ENABLED]).toBe(false);
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe(`Connected to ${FOLDER}.`);
+    const on = setup();
+    on.client.check.mockRejectedValueOnce(new WebDAVError('network', 'Cannot reach the server.'));
+    await on.el(WEBDAV_IDS.test).fire('command');
+    expect(on.prefs.store[ENABLED]).toBe(true);
+    expect(on.el(WEBDAV_IDS.message).textContent).toBe('Connection failed: Cannot reach the server.');
+  });
+
+  it('refresh() paints the switch as the prefs say now', () => {
+    const t = setup(off);
+    t.prefs.set(ENABLED, true);
+    t.rows.refresh();
+    expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Disable');
+    for (const field of Object.values(t.fields)) expect(field.disabled).toBe(true);
   });
 });
 

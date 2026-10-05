@@ -337,7 +337,7 @@ ztts-sync-settings =
     .label = Sync settings between computers
 ztts-help-sync-settings =
     .value = ?
-    .help = Keeps the settings the same on every computer sharing the folder above. Voice servers at a local or home-network address, the System voices switch and this WebDAV connection stay per computer.
+    .help = Keeps the settings the same on every computer sharing the folder above. Voice servers at a local or home-network address, the System voices switch and this WebDAV folder stay per computer.
 # The line under each switch (ui/sync-status-rows.ts): what the last sync did on this computer
 ztts-positions-status-waiting = Reading positions sync: waiting for the first sync.
 ztts-positions-status-none = Reading positions synced { $time }; nothing new for this computer.

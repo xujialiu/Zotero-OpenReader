@@ -102,8 +102,11 @@ export interface Settings {
    * this machine's settings file there fresh (core/settings-autoupload.ts,
    * #41). Both are switches, so they live here in DEFAULTS and ride
    * settings backup; the position data and the machine id never do.
+   * `enabled` is the folder's own switch (issue #172, ADR 0015), run like
+   * a provider's: the sync and the server backup use the folder only while
+   * it is on — read them through webdavSwitchOn.
    */
-  webdav: { url: string; username: string; password: string; syncPositions: boolean; autoUploadSettings: boolean; syncSettings: boolean };
+  webdav: { enabled: boolean; url: string; username: string; password: string; syncPositions: boolean; autoUploadSettings: boolean; syncSettings: boolean };
   /** Keep synthesized audio in the in-memory LRU (core/memory-cache.ts), for hearing it again and reopening a document. */
   cacheAudio: boolean;
   /**
@@ -260,7 +263,7 @@ export const DEFAULTS: Settings = {
   system: { enabled: false },
   'zotero-standard': { enabled: true },
   'zotero-premium': { enabled: true },
-  webdav: { url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false, syncSettings: false },
+  webdav: { enabled: false, url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false, syncSettings: false },
   cacheAudio: true,
   shortcuts: {
     speedReset: 'Shift+Z',
@@ -417,6 +420,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     'zotero-standard': { enabled: bool(prefs, 'zotero-standard.enabled', DEFAULTS['zotero-standard'].enabled) },
     'zotero-premium': { enabled: bool(prefs, 'zotero-premium.enabled', DEFAULTS['zotero-premium'].enabled) },
     webdav: {
+      enabled: bool(prefs, 'webdav.enabled', DEFAULTS.webdav.enabled),
       url: str(prefs, 'webdav.url', DEFAULTS.webdav.url),
       username: str(prefs, 'webdav.username', DEFAULTS.webdav.username),
       password: str(prefs, 'webdav.password', DEFAULTS.webdav.password),
@@ -540,6 +544,46 @@ export function migrateLegacyProviderPref(prefs: PrefsBackend): boolean {
   if (prefs.clear) prefs.clear(legacyKey);
   else prefs.set(legacyKey, '');
   return true;
+}
+
+/** The WebDAV folder's switches that use it: the sync both ways and the server backup. */
+export type WebDAVUseSwitch = 'syncPositions' | 'syncSettings' | 'autoUploadSettings';
+
+/**
+ * Whether the sync or the server backup may use the WebDAV folder: the
+ * folder is on and so is that switch (issue #172). The switch's own value
+ * is kept while the folder is off, so it applies again when the folder
+ * comes back on.
+ */
+export function webdavSwitchOn(webdav: Settings['webdav'], key: WebDAVUseSwitch): boolean {
+  return webdav.enabled && webdav[key];
+}
+
+/** The folder's switch, for Zotero.Prefs.registerObserver (names relative to extensions.zotero.). */
+export const WEBDAV_FOLDER_OBSERVER = 'zotero-tts.webdav.enabled';
+
+/**
+ * The upgrade's marker for the folder's switch (issue #172): undeclared,
+ * outside DEFAULTS like `globalSpeedMigrated`, so neither the backup nor
+ * the sync carries it.
+ */
+export const WEBDAV_FOLDER_MIGRATED_PREF = PREF_PREFIX + 'webdav.enabledMigrated';
+
+/**
+ * Builds before issue #172 used the WebDAV folder whenever an address was
+ * set. Such a profile gets the folder on, once, so no sync stops at the
+ * update; one without an address keeps the default, off. The marker, not
+ * the switch's own pref, says whether this has run: Gecko drops a user
+ * value equal to the default, so after a Disable the switch reads as
+ * never written. Returns whether the folder was turned on.
+ */
+export function migrateWebDAVFolderSwitch(prefs: PrefsBackend): boolean {
+  if (prefs.get(WEBDAV_FOLDER_MIGRATED_PREF) === true) return false;
+  const url = prefs.get(PREF_PREFIX + 'webdav.url');
+  const inUse = typeof url === 'string' && url.trim() !== '';
+  if (inUse) prefs.set(PREF_PREFIX + 'webdav.enabled', true);
+  prefs.set(WEBDAV_FOLDER_MIGRATED_PREF, true);
+  return inUse;
 }
 
 /** The only place that touches the Zotero global; deliberately isolated here so the rest of the code depends only on PrefsBackend. */

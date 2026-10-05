@@ -312,7 +312,7 @@ ztts-sync-settings =
     .label = 在电脑之间同步设置
 ztts-help-sync-settings =
     .value = ?
-    .help = 让共用上面这个文件夹的电脑保持相同设置。本机或局域网地址的语音服务器、系统语音开关和这个 WebDAV 连接各台电脑独立。
+    .help = 让共用上面这个文件夹的电脑保持相同设置。本机或局域网地址的语音服务器、系统语音开关和这个 WebDAV 文件夹各台电脑独立。
 # The line under each switch (ui/sync-status-rows.ts): what the last sync did on this computer
 ztts-positions-status-waiting = 朗读位置同步：等待第一次同步。
 ztts-positions-status-none = 朗读位置已于 { $time } 同步；这台电脑没有新内容。

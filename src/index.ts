@@ -16,7 +16,7 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t, type L10nArgs } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, PREF_PREFIX, prefetchOf, ZOTERO_SWITCH_IDS } from './core/settings';
+import { autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
 import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, legacyPrefSet, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
@@ -142,13 +142,13 @@ let positionTransport: PositionTransport | null = null;
 let documentPositions: DocumentPositions | null = null;
 let sharedTransport: SharedTransport | null = null;
 /** The syncPositions checkbox's observer token, so flipping it on syncs at once. */
-let syncSwitchObserver: unknown = null;
+let syncSwitchObservers: unknown[] = [];
 /** Keeps this machine's settings file on the server fresh (#41, core/settings-autoupload.ts). */
 let settingsAutoUpload: SettingsAutoUpload | null = null;
 /** Carries the settings both ways over the folder (#68, core/settings-sync-transport.ts); null while stopped. */
 let settingsSyncTransport: SettingsSyncTransport | null = null;
 /** The syncSettings checkbox's observer token, so flipping it on syncs at once. */
-let settingsSyncSwitchObserver: unknown = null;
+let settingsSyncSwitchObservers: unknown[] = [];
 /** What the pane registers to hear every completed settings sync (ui/sync-status-rows.ts). */
 const settingsSyncListeners = new Set<(report: SettingsSyncApplied | null) => void>();
 /** The same for the positions transport (#40): the pane's other status line. */
@@ -1439,7 +1439,7 @@ function syncAfterPause(): void {
 
 /** Whether a pull may bring a Positions File item for this attachment: an EPUB, with the switch on and the transport up. */
 function canPullShared(attachment: { epub: boolean } | null): boolean {
-  return !!attachment?.epub && !!sharedTransport && !!documentPositions && loadSettings(prefs).webdav.syncPositions;
+  return !!attachment?.epub && !!sharedTransport && !!documentPositions && webdavSwitchOn(loadSettings(prefs).webdav, 'syncPositions');
 }
 
 /**
@@ -1583,7 +1583,7 @@ function pullBeforePlay(reader: any, control: { resume(): void; release(): void 
   const sync = positionSync;
   const positions = documentPositions;
   if (!sync || !positions || !sharedTransport) return false;
-  if (!loadSettings(prefs).webdav.syncPositions) return false;
+  if (!webdavSwitchOn(loadSettings(prefs).webdav, 'syncPositions')) return false;
   const attachment = readerAttachment(reader);
   if (!attachment?.epub) return false;
   void (async () => {
@@ -1760,7 +1760,7 @@ async function startPositionTracking(): Promise<void> {
   // a shutdown flush still sees the final captures after the global clears.
   const store = positionStore;
   positionTransport = createPositionTransport({
-    enabled: () => loadSettings(prefs).webdav.syncPositions,
+    enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'syncPositions'),
     client: () => createWebDAVClient(loadSettings(prefs).webdav, webdavDeps()),
     local: () => sync.list(),
     adopt: (entry) => sync.adopt(entry),
@@ -1785,7 +1785,7 @@ async function startPositionTracking(): Promise<void> {
   // The Positions File (spec 6), under the same switch: the same pokes, plus
   // the upgrade's backfill of Document Ids before its first sync
   const shared = createSharedTransport({
-    enabled: () => loadSettings(prefs).webdav.syncPositions,
+    enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'syncPositions'),
     client: () => createWebDAVClient(loadSettings(prefs).webdav, webdavDeps()),
     local: () => positions.list(),
     adopt: (item) => positions.adopt(item),
@@ -1810,16 +1810,20 @@ async function startPositionTracking(): Promise<void> {
   shared.poke('startup');
   // Ticking the checkbox syncs right away — the user is at the pane,
   // watching for exactly that; without this the first sync would wait for
-  // the next opened or closed tab
-  try {
-    syncSwitchObserver = Zotero.Prefs.registerObserver(SYNC_POSITIONS_OBSERVER, () => {
-      if (loadSettings(prefs).webdav.syncPositions) {
-        positionTransport?.poke('switch-on');
-        sharedTransport?.poke('switch-on');
-      }
-    });
-  } catch (e) {
-    Zotero.logError(e);
+  // the next opened or closed tab. Enabling the folder is the same moment
+  // (issue #173)
+  const positionsSwitchedOn = () => {
+    if (webdavSwitchOn(loadSettings(prefs).webdav, 'syncPositions')) {
+      positionTransport?.poke('switch-on');
+      sharedTransport?.poke('switch-on');
+    }
+  };
+  for (const name of [SYNC_POSITIONS_OBSERVER, WEBDAV_FOLDER_OBSERVER]) {
+    try {
+      syncSwitchObservers.push(Zotero.Prefs.registerObserver(name, positionsSwitchedOn));
+    } catch (e) {
+      Zotero.logError(e);
+    }
   }
   startCloseTrace();
   startDeletionObserver();
@@ -1832,14 +1836,14 @@ async function stopPositionTracking(): Promise<void> {
   unhookPositionCaptures();
   positionSync?.stop(); // the final reads become queued saves
   positionSync = null;
-  if (syncSwitchObserver !== null) {
+  for (const token of syncSwitchObservers) {
     try {
-      Zotero.Prefs.unregisterObserver(syncSwitchObserver);
+      Zotero.Prefs.unregisterObserver(token);
     } catch {
       // Already gone at shutdown
     }
-    syncSwitchObserver = null;
   }
+  syncSwitchObservers = [];
   const transport = positionTransport;
   positionTransport = null;
   const sharedFlush = sharedTransport;
@@ -1971,7 +1975,7 @@ function stopDeletionObserver(): void {
 function startSettingsAutoUpload(): void {
   stopSettingsAutoUpload();
   settingsAutoUpload = createSettingsAutoUpload({
-    enabled: () => loadSettings(prefs).webdav.autoUploadSettings,
+    enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'autoUploadSettings'),
     // Every settings pref there is; the observer names are relative to extensions.zotero.
     keys: [...Object.keys(flattenSettings(DEFAULTS)).map((key) => 'zotero-tts.' + key), DOCUMENT_VOICE_CHANGED],
     registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
@@ -2009,7 +2013,7 @@ function stopSettingsAutoUpload(): void {
 function startSettingsSync(): void {
   dropSettingsSync();
   const transport = createSettingsSyncTransport({
-    enabled: () => loadSettings(prefs).webdav.syncSettings,
+    enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'syncSettings'),
     client: () => createWebDAVClient(loadSettings(prefs).webdav, webdavDeps()),
     values: () => ({ ...flattenSettings(loadSettings(prefs)), ...documentVoiceSettings(prefs) }),
     machine: () => machineId(prefs, defaultMachineName),
@@ -2042,26 +2046,30 @@ function startSettingsSync(): void {
   settingsSyncTransport = transport;
   transport.start();
   transport.poke('startup');
-  // Ticking the checkbox syncs right away — the user is at the pane, watching for exactly that
-  try {
-    settingsSyncSwitchObserver = Zotero.Prefs.registerObserver(SYNC_SETTINGS_OBSERVER, () => {
-      if (loadSettings(prefs).webdav.syncSettings) settingsSyncTransport?.poke('switch-on');
-    });
-  } catch (e) {
-    Zotero.logError(e);
+  // Ticking the checkbox syncs right away — the user is at the pane,
+  // watching for exactly that; and so does enabling the folder (issue #173)
+  const settingsSwitchedOn = () => {
+    if (webdavSwitchOn(loadSettings(prefs).webdav, 'syncSettings')) settingsSyncTransport?.poke('switch-on');
+  };
+  for (const name of [SYNC_SETTINGS_OBSERVER, WEBDAV_FOLDER_OBSERVER]) {
+    try {
+      settingsSyncSwitchObservers.push(Zotero.Prefs.registerObserver(name, settingsSwitchedOn));
+    } catch (e) {
+      Zotero.logError(e);
+    }
   }
 }
 
 /** Forget the transport without a flush: a restart of the step, or after the shutdown's own flush. */
 function dropSettingsSync(): void {
-  if (settingsSyncSwitchObserver !== null) {
+  for (const token of settingsSyncSwitchObservers) {
     try {
-      Zotero.Prefs.unregisterObserver(settingsSyncSwitchObserver);
+      Zotero.Prefs.unregisterObserver(token);
     } catch {
       // Already gone at shutdown
     }
-    settingsSyncSwitchObserver = null;
   }
+  settingsSyncSwitchObservers = [];
   settingsSyncTransport?.stop();
   settingsSyncTransport = null;
 }
@@ -2591,6 +2599,14 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
         'legacy provider setting',
         () => {
           if (migrateLegacyProviderPref(prefs)) Zotero.debug('[zotero-tts] migrated the single-provider setting');
+        },
+      ],
+      // Before the sync and the server backup start, so a profile that
+      // already used the folder keeps using it (issue #173)
+      [
+        'WebDAV folder switch',
+        () => {
+          if (migrateWebDAVFolderSwitch(prefs)) Zotero.debug('[zotero-tts] the WebDAV folder is on: its address was already set');
         },
       ],
       // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts):
@@ -3514,6 +3530,8 @@ const diagnostics = {
     return JSON.stringify(
       {
         enabled: webdav.syncPositions,
+        // The folder's own switch (issue #173): off, the sync above does nothing
+        folder: webdav.enabled,
         configured: !!webdav.url,
         localEntries: safe(() => positionSync?.list().length ?? null),
         // Attachments permanently deleted here whose bookmark this machine
@@ -3544,6 +3562,7 @@ const diagnostics = {
     return JSON.stringify(
       {
         enabled: webdav.autoUploadSettings,
+        folder: webdav.enabled,
         configured: !!webdav.url,
         machine: id,
         filename: typeof id === 'string' ? machineSettingsFilename(id) : null,
@@ -3568,6 +3587,7 @@ const diagnostics = {
     return JSON.stringify(
       {
         enabled: settings.webdav.syncSettings,
+        folder: settings.webdav.enabled,
         configured: !!settings.webdav.url,
         machine: safe(() => machineId(prefs, defaultMachineName)),
         file: SHARED_SETTINGS_FILENAME,

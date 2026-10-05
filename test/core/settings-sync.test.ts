@@ -90,6 +90,8 @@ describe('the sync set', () => {
     expect(SYNCABLE_KEYS).toContain('shortcuts.speedUp');
     expect(SYNCABLE_KEYS).not.toContain('webdav.syncSettings');
     expect(SYNCABLE_KEYS).not.toContain('webdav.password');
+    // The folder's own switch stays on each computer, like its address (issue #172)
+    expect(SYNCABLE_KEYS).not.toContain('webdav.enabled');
     expect(SYNCABLE_KEYS).not.toContain('system.enabled');
   });
 

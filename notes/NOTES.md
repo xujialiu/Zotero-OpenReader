@@ -721,3 +721,7 @@ then) and is in the git history before that day.
 
 - The WebDAV timeout ended at the headers, and one stalled reply wedged its sync for the session (issue #169)
 - Cancelling a fetch body's stream does not close Gecko's connection; aborting the request's signal does (issue #169)
+
+### [2026-10-05](NOTES_2026-10-05.md)
+
+- The WebDAV folder gets a switch, and an http:// address a warning instead of a refusal (issues #172, #173)

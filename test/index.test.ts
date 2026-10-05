@@ -291,3 +291,51 @@ describe('a pause sends both positions files up at once (issue #161)', () => {
     expect(FILES.map((name) => after.some((request) => request.method === 'GET' && request.name === name))).toEqual([true, true]);
   });
 });
+
+// Issue #173: the folder's switch gates every use of it, from the start
+describe('the WebDAV folder switch at startup', () => {
+  const FOLDER = 'https://dav.test/folder/';
+  const realFetch = globalThis.fetch;
+  afterEach(async () => {
+    await running?.shutdown(ADDON_UPGRADE);
+    running = null;
+    vi.useRealTimers();
+    globalThis.fetch = realFetch;
+  });
+
+  /** Starts with the positions sync ticked and the folder set, counting what reaches it. */
+  async function startWith(prefs: Record<string, unknown>) {
+    vi.useFakeTimers();
+    const requests: string[] = [];
+    globalThis.fetch = (async (target: string, init: { method: string }) => {
+      requests.push(`${init.method} ${target}`);
+      return new Response(null, { status: 404 });
+    }) as never;
+    const { diagnostics } = await start([], {
+      prefs: {
+        'extensions.zotero.zotero-tts.webdav.url': FOLDER,
+        'extensions.zotero.zotero-tts.webdav.syncPositions': true,
+        'extensions.zotero.zotero-tts.webdav.syncSettings': true,
+        ...prefs,
+      },
+    });
+    await vi.advanceTimersByTimeAsync(5000);
+    return { diagnostics, requests };
+  }
+
+  it('turns the folder on for a profile that already had an address, and the sync goes on', async () => {
+    const { diagnostics, requests } = await startWith({});
+    const sync = JSON.parse(diagnostics.positionSync());
+    expect({ folder: sync.folder, outcome: sync.transport.lastOutcome }).toEqual({ folder: true, outcome: 'ok' });
+    expect(JSON.parse(diagnostics.settingsSync()).folder).toBe(true);
+    expect(requests.length).toBeGreaterThan(0);
+  });
+
+  it('leaves a disabled folder alone: nothing reaches it, whatever the sync switches say', async () => {
+    // A profile past the upgrade whose folder was then disabled
+    const { diagnostics, requests } = await startWith({ 'extensions.zotero.zotero-tts.webdav.enabledMigrated': true });
+    expect(JSON.parse(diagnostics.positionSync()).folder).toBe(false);
+    expect(JSON.parse(diagnostics.settingsSync()).folder).toBe(false);
+    expect(requests).toEqual([]);
+  });
+});

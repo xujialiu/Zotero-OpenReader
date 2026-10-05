@@ -535,8 +535,13 @@ provider (or Zotero's Standard / Premium), language, voice.
 **WebDAV** — one folder of your own, used by the sync and by the server
 backup below.
 
-- Enter the folder's address, your user name and password, and press *Test
-  connection*.
+- Enter the folder's address, your user name and password, and press
+  *Enable*: it checks the connection first, and the sync and the server
+  backup use the folder only while it is on.
+- While the folder is on its fields are locked — *Disable* to edit them.
+  While it is off, the sync and the server backup below are greyed and do
+  nothing; their switches keep their ticks for when it is back on.
+- *Test connection* probes without switching anything on.
 
 <details>
 <summary><b>WebDAV URL examples</b></summary>
@@ -558,7 +563,8 @@ password.
   others within seconds, and theirs reach it, with nothing to restore. Off
   by default.
 - *What stays on each computer:* a voice server at a local or home-network
-  address, the *System voices* switch, and the WebDAV connection itself.
+  address, the *System voices* switch, and the WebDAV folder itself,
+  whether it is on included.
 - *Two computers change the same setting:* the later change wins.
 - A provider the sync brings a change to, but that cannot work on that
   computer, stays off there and says why.

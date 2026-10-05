@@ -6,10 +6,13 @@ import {
   loadSettings,
   MAX_PAUSE_MS,
   migrateLegacyProviderPref,
+  migrateWebDAVFolderSwitch,
   PREF_PREFIX,
   prefetchOf,
   PROVIDER_IDS,
   saveSettings,
+  WEBDAV_FOLDER_MIGRATED_PREF,
+  webdavSwitchOn,
   type PrefsBackend,
 } from '../../src/core/settings';
 
@@ -232,6 +235,55 @@ describe('migrateLegacyProviderPref', () => {
     expect(migrateLegacyProviderPref(prefs)).toBe(true);
     expect(store[key('provider')]).toBe('');
     expect(migrateLegacyProviderPref(prefs)).toBe(false);
+  });
+});
+
+// Issue #172: the WebDAV folder has a switch of its own, like a provider's
+describe('the WebDAV folder switch', () => {
+  const key = (name: string) => PREF_PREFIX + name;
+
+  it('is off by default', () => {
+    expect(DEFAULTS.webdav.enabled).toBe(false);
+    expect(loadSettings(fakePrefs()).webdav.enabled).toBe(false);
+  });
+
+  it('lets the sync and the server backup use the folder only while it is on', () => {
+    const on = { ...DEFAULTS.webdav, enabled: true, syncPositions: true, syncSettings: true, autoUploadSettings: true };
+    expect(webdavSwitchOn(on, 'syncPositions')).toBe(true);
+    expect(webdavSwitchOn(on, 'syncSettings')).toBe(true);
+    expect(webdavSwitchOn(on, 'autoUploadSettings')).toBe(true);
+    const off = { ...on, enabled: false };
+    expect(webdavSwitchOn(off, 'syncPositions')).toBe(false);
+    expect(webdavSwitchOn(off, 'syncSettings')).toBe(false);
+    expect(webdavSwitchOn(off, 'autoUploadSettings')).toBe(false);
+    expect(webdavSwitchOn({ ...on, syncSettings: false }, 'syncSettings')).toBe(false);
+  });
+
+  describe('the upgrade', () => {
+    it('turns the folder on where an address is already set, so no sync stops', () => {
+      const prefs = fakePrefs({ [key('webdav.url')]: 'https://dav.example.com/zotero-tts/', [key('webdav.syncPositions')]: true });
+      expect(migrateWebDAVFolderSwitch(prefs)).toBe(true);
+      expect(loadSettings(prefs).webdav.enabled).toBe(true);
+      expect(prefs.store[WEBDAV_FOLDER_MIGRATED_PREF]).toBe(true);
+    });
+
+    it('leaves a profile without an address off', () => {
+      for (const url of [undefined, '', '   ']) {
+        const prefs = fakePrefs(url === undefined ? {} : { [key('webdav.url')]: url });
+        expect(migrateWebDAVFolderSwitch(prefs)).toBe(false);
+        expect(loadSettings(prefs).webdav.enabled).toBe(false);
+        expect(prefs.store[WEBDAV_FOLDER_MIGRATED_PREF]).toBe(true);
+      }
+    });
+
+    it('runs once: a later Disable stays, though Gecko then holds no user value for the switch', () => {
+      const prefs = fakePrefs({ [key('webdav.url')]: 'http://nas.local/dav/' });
+      expect(migrateWebDAVFolderSwitch(prefs)).toBe(true);
+      // Disable writes the default back, which Gecko keeps as no user value at all
+      delete prefs.store[key('webdav.enabled')];
+      expect(migrateWebDAVFolderSwitch(prefs)).toBe(false);
+      expect(loadSettings(prefs).webdav.enabled).toBe(false);
+    });
   });
 });
 
