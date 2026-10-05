@@ -101,9 +101,11 @@ rule book, whose core is `MEMORY/MEMORY.md`.
 - **An issue opened by someone outside the project gets a reply once its
   fix is released** (settled 2026-09-06, issue #50): a couple of plain
   lines that read like a person wrote them — thanks for the report or
-  suggestion, it is done, the released version it is in, and a star if
-  they like the plugin — in the reporter's language, posted once that
-  version is actually released so they can install it. The issue itself
+  suggestion, it is done, the released version it is in — in the
+  reporter's language, posted once that version is actually released so
+  they can install it. **No request for a star** (settled 2026-10-05):
+  "If you like the plugin, a star would mean a lot." goes into a reply
+  only when the user explicitly asks for it there. The issue itself
   closed at its commit (above), so the reply goes on the closed issue. It
   sits beside the closing summary, not instead of it, and nothing in it
   reads like a generated changelog.
@@ -113,8 +115,8 @@ rule book, whose core is `MEMORY/MEMORY.md`.
   internals cited by file and line, no solution; then, as a comment of its
   own, the reply to the reporter: it opens `@<reporter> Thanks for the
   report, …`, says in plain words what was found, what to use meanwhile
-  and the one thing still to confirm, and ends with "If you like the
-  plugin, a star would mean a lot." The evidence is for the record and the
+  and the one thing still to confirm — no star request, by the rule
+  above. The evidence is for the record and the
   next session, the reply is for a person, and the two never share a
   comment. The labels follow the cause, not the report: a fault that turns
   out to be the docs' is `chore`, whatever the title says. The closing

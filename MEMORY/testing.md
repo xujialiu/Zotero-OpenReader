@@ -56,31 +56,48 @@ behavior before it is merged, and **researching** — reproducing a bug,
 reading a reader's live state, digging an issue's evidence out of Zotero
 before the issue is written.
 
-- **Test WebDAV first — zotero-tester only** (scope clarified 2026-10-05):
-  every run by `zotero-tester`, research included, uses
-  `~/.secrets/Zotero-TTS/test_webdav.txt` for the dedicated
-  test WebDAV configuration to protect the owner's bookmarks and reading
-  positions. On Windows and macOS, resolve `~` to the current user's home
-  directory, including when working in a worktree.
-  After `zotero_ping`, before
-  installing a build or driving checks, snapshot the affected settings
-  privately, suspend automatic sync/backup and settle pending requests,
-  then switch Zotero-OpenReader and OpenReader Position to the test configuration
-  wherever they use WebDAV. Confirm the effective destinations match the
-  file before proceeding; report only the match result, never its contents
-  or credentials. If the file is unavailable or isolation cannot be
-  confirmed, stop the live run and report the blocker; never fall back to
-  the owner's normal WebDAV. During cleanup, keep sync/backup suspended
-  until test-created or downloaded bookmark/position data and pending
-  writes are isolated and the original local state and settings restored;
-  only then restore automatic sync/backup. Restore the original WebDAV
-  configuration after every tester run, including failed or interrupted
-  runs; a run is not complete until restoration is confirmed. If cleanup
-  cannot be confirmed, leave sync/backup suspended and report the blocker
-  and recovery still owed. Include isolation and restoration evidence in
-  the report. Main-session bridge operations, including an install-only
-  request, do not require this isolation and leave WebDAV settings alone.
-  Mirrored in `.agents/zotero-tester.md`.
+- **WebDAV first: off, or the test folder** (settled 2026-10-05; the
+  folder's switch is issue #173). Every functional test driven through
+  the zotero-dev bridge — by `zotero-tester`, research included, or by
+  the main session — first sorts itself by whether it is about WebDAV:
+  the WebDAV folder, the sync, the server backup, or OpenReader
+  Position's use of WebDAV.
+  - *Not about WebDAV:* after `zotero_ping`, before installing a build or
+    driving checks, snapshot the folder's switch privately (its value and
+    whether it had a user value), settle pending requests, and switch the
+    WebDAV folder off (`webdav.enabled` false; on a build without the
+    switch, the three sync and server-backup switches instead), and
+    OpenReader Position's WebDAV use where it has a switch. Confirm
+    `"folder": false` in `diagnostics.positionSync()` — again after every
+    install, since an upgrade may turn the folder on. The owner's WebDAV
+    settings are not otherwise touched and the test configuration is not
+    needed. At the end, including failed or interrupted runs, put the
+    snapshot back and confirm it.
+  - *About WebDAV:* use `~/.secrets/Zotero-TTS/test_webdav.txt` for the
+    dedicated test WebDAV configuration, to protect the owner's bookmarks
+    and reading positions. On Windows and macOS, resolve `~` to the
+    current user's home directory, including when working in a worktree.
+    After `zotero_ping`, before installing a build or driving checks,
+    snapshot the affected settings privately, suspend automatic
+    sync/backup and settle pending requests, then switch
+    Zotero-OpenReader and OpenReader Position to the test configuration
+    wherever they use WebDAV. Confirm the effective destinations match
+    the file before proceeding; report only the match result, never its
+    contents or credentials. If the file is unavailable or isolation
+    cannot be confirmed, stop the live run and report the blocker; never
+    fall back to the owner's normal WebDAV. During cleanup, keep
+    sync/backup suspended until test-created or downloaded
+    bookmark/position data and pending writes are isolated and the
+    original local state and settings restored; only then restore
+    automatic sync/backup. Restore the original WebDAV configuration
+    after every such run, including failed or interrupted runs.
+
+  Either way a run is not complete until restoration is confirmed; if
+  cleanup cannot be confirmed, leave the folder off or sync/backup
+  suspended and report the blocker and the recovery still owed. Include
+  the isolation and restoration evidence in the report. An install-only
+  request and a release's update check are not tests and leave WebDAV
+  alone. Mirrored in `.agents/zotero-tester.md`.
 - **The driving rules are `.agents/zotero-tester.md`** (the bridge's tools,
   provider test authorization, the kit runner, and reports; the per-topic
   driving notes are `.agents/zotero-tester-driving.md`, read on demand).
@@ -118,6 +135,18 @@ before the issue is written.
   the player itself with the popup toggle, notes the tab, says so in the
   report and never reopens it — the owner is not asked first. Mirrored
   in `.agents/zotero-tester.md`.
+- **Never open a native dialog through the bridge** (settled 2026-10-05,
+  issue #175's run). The save and open panels behind *Backup settings…*,
+  *Restore settings…* and *Export / Import reading positions…* — any
+  button that calls Zotero's `FilePicker` — are system windows the bridge
+  can neither press nor dismiss, and so are the prompts `limitations.md`
+  §8 lists as human-only. A script that replaced `FilePicker.prototype.show`
+  did not intercept the panel: each click opened a real one, seven
+  stacked on the owner's screen; an earlier probe of `nsIFilePicker`
+  crashed Zotero (SIGSEGV). A check that needs such a dialog is a human
+  check or a unit test's: a case item asking for one is reported NOT
+  TESTABLE, never worked around. Mirrored in
+  `.agents/zotero-tester.md`.
 - **Plan first.** List every new behavior on the branch and the check that
   covers it — for research, every question and the observation that would
   settle it; name what only unit tests can cover and why, and what only a
