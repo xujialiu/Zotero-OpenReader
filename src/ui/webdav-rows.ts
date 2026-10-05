@@ -118,6 +118,15 @@ const USE_ROWS = [WEBDAV_IDS.syncPositions, WEBDAV_IDS.syncSettings, WEBDAV_IDS.
 export interface WebDAVRows {
   /** After a restore: the switch, the lock and the greyed rows as the prefs say now. */
   refresh(): void;
+  /**
+   * The commit point a restore skipped (issue #175, as ui/provider-rows.ts
+   * does for the providers, issue #21): a restore writes `webdav.enabled`
+   * straight to the prefs, so a folder it leaves on is checked as Enable
+   * would check it. One that fails goes back off, its failure on the
+   * WebDAV line; the returned sentence, for the restore's line, says so,
+   * and is empty otherwise.
+   */
+  verifyEnabled(): Promise<string>;
 }
 
 export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVRows {
@@ -300,6 +309,18 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
   return {
     refresh: () => {
       if (!busy) paint();
+    },
+    // Not held back by `busy`: a restore from the server runs this from inside its own button
+    verifyEnabled: async () => {
+      if (!enabled()) return '';
+      hold();
+      doc.getElementById(WEBDAV_IDS.toggle)?.setAttribute('label', t('ztts-switch-checking'));
+      connectionLine(t('ztts-switch-checking'));
+      const outcome = await check();
+      connectionLine(outcome.message);
+      if (!outcome.ok) deps.prefs.set(ENABLED_PREF, false);
+      paint();
+      return outcome.ok ? '' : t('ztts-webdav-turned-off');
     },
   };
 }

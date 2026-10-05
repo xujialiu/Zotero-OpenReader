@@ -583,8 +583,8 @@ password.
   *Back up to the server now* writes it by hand, and *Restore settings from
   server…* brings any computer's copy back. A backup, not the sync: nothing
   changes anywhere until you restore it.
-- A provider that cannot work on the computer you restore to stays off and
-  says why.
+- A provider, or the WebDAV folder, that cannot work on the computer you
+  restore to stays off and says why.
 - Restoring a backup counts as changing every setting in it, so with the
   sync on it reaches your other computers too.
 

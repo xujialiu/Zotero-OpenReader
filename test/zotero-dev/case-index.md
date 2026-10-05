@@ -109,6 +109,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [A synced provider that fails its check goes off here only](cases/settings-sync-provider-check.md) — 3.20, 6.20
 - [The global speed travels](cases/global-speed.md) — 1–7 (issue #82)
 - [A WebDAV reply that stalls, breaks or runs too large fails instead of hanging, and its connection is closed](cases/webdav-reply-bounds.md) — 1–8 (issue #169)
+- [The WebDAV folder has Enable / Disable, and an http:// folder is warned about, never refused](cases/webdav-folder-switch.md) — 1–9 (issues #172–#175)
 
 ## The end of a pass
 

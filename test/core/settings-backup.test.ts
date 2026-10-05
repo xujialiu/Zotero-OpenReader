@@ -148,6 +148,22 @@ describe('parseBackup / applyBackup', () => {
     expect(prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastus');
   });
 
+  // Issue #172: the same rule as the upgrade, and the restore then checks it like Enable
+  it('turns the WebDAV folder on for a backup from before its switch that holds an address', () => {
+    const old = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'webdav.url': 'https://dav.example.com/zotero-tts/', 'webdav.syncPositions': true } }));
+    expect(old.settings['webdav.enabled']).toBe(true);
+    const prefs = fakePrefs();
+    applyBackup(prefs, old);
+    expect(loadSettings(prefs).webdav.enabled).toBe(true);
+    // A file that says off, or holds no address, is taken as it is
+    const off = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'webdav.url': 'https://dav.example.com/zotero-tts/', 'webdav.enabled': false } }));
+    expect(off.settings['webdav.enabled']).toBe(false);
+    for (const url of ['', '  ']) {
+      expect(parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'webdav.url': url } })).settings).not.toHaveProperty('webdav.enabled');
+    }
+    expect(parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'azure.region': 'eastus' } })).settings).not.toHaveProperty('webdav.enabled');
+  });
+
   it('carries the file metadata along when it is there', () => {
     const parsed = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, pluginVersion: '0.1.0', exportedAt: 'x', settings: {} }));
     expect(parsed).toMatchObject({ pluginVersion: '0.1.0', exportedAt: 'x' });

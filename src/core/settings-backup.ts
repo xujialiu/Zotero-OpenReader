@@ -124,6 +124,11 @@ export function parseBackup(text: string): ParsedBackup {
     if (value === undefined) ignored.push(key);
     else settings[key] = value;
   }
+  // A file from before the WebDAV folder's switch (issue #172) used the
+  // folder whenever it held an address: the upgrade's rule, and the
+  // restore then checks the folder as Enable would
+  const url = settings['webdav.url'];
+  if (!('webdav.enabled' in settings) && typeof url === 'string' && url.trim() !== '') settings['webdav.enabled'] = true;
   return {
     settings,
     ignored,
