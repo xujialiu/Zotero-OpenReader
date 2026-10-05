@@ -1,3 +1,4 @@
+import { isLocalAddress } from './settings-sync';
 import { withTimeout } from './timeout';
 
 /**
@@ -50,11 +51,19 @@ export const WEBDAV_TIMEOUT_MS = 15_000;
  */
 export const WEBDAV_MAX_REPLY_BYTES = 10 * 1024 * 1024;
 
-/** The folder URL with exactly one trailing slash; rejects anything that is not http(s). */
+/**
+ * The folder URL with exactly one trailing slash; rejects anything that is
+ * not http(s), and rejects plain http for anything but a loopback/LAN/
+ * local-name address — Basic auth (below) sends the password as reversible
+ * base64, so a public http:// URL would put it on the wire in the clear.
+ */
 export function normalizeWebDAVURL(url: string): string {
   const trimmed = url.trim();
   if (!trimmed) throw new WebDAVError('config', 'Set the WebDAV URL first.');
   if (!/^https?:\/\//i.test(trimmed)) throw new WebDAVError('config', 'The WebDAV URL must start with http:// or https://.');
+  if (/^http:\/\//i.test(trimmed) && !isLocalAddress(trimmed)) {
+    throw new WebDAVError('config', 'A non-local WebDAV URL must use https:// — http:// sends the password unencrypted.');
+  }
   return trimmed.replace(/\/+$/, '') + '/';
 }
 
