@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { basicAuthHeader, createWebDAVClient, normalizeWebDAVURL, parseMultistatus, WEBDAV_MAX_REPLY_BYTES, WebDAVError } from '../../src/core/webdav';
+import { basicAuthHeader, createWebDAVClient, isPlainHttpURL, normalizeWebDAVURL, parseMultistatus, WEBDAV_MAX_REPLY_BYTES, WebDAVError } from '../../src/core/webdav';
 
 const cfg = { url: 'https://dav.example.com/zotero-tts', username: 'ann', password: 'pw' };
 
@@ -37,6 +37,22 @@ describe('normalizeWebDAVURL', () => {
     expect(kindOf(() => normalizeWebDAVURL('dav.example.com/zotero-tts'))).toBe('config');
     expect(kindOf(() => normalizeWebDAVURL('ftp://dav.example.com/zotero-tts'))).toBe('config');
     expect(() => normalizeWebDAVURL('')).toThrow(WebDAVError);
+  });
+
+  it('accepts a plain http:// URL of any host: unencrypted is warned about, never refused (issue #172, ADR 0015)', () => {
+    expect(normalizeWebDAVURL('http://dav.example.com/zotero-tts')).toBe('http://dav.example.com/zotero-tts/');
+    expect(normalizeWebDAVURL('http://nas.tail1234.ts.net/dav')).toBe('http://nas.tail1234.ts.net/dav/');
+  });
+});
+
+// Issue #172: the scheme alone decides the warning, whatever the host
+describe('isPlainHttpURL', () => {
+  it.each(['http://dav.example.com/zotero-tts/', '  HTTP://nas.local:5005/dav', 'http://localhost:8080/', 'http://192.168.1.10/dav'])('%s is unencrypted', (url) => {
+    expect(isPlainHttpURL(url)).toBe(true);
+  });
+
+  it.each(['https://dav.example.com/zotero-tts/', ' HTTPS://dav.jianguoyun.com/dav/', '', 'dav.example.com', 'ftp://dav.example.com/', 'httpx://a'])('%s is not', (url) => {
+    expect(isPlainHttpURL(url)).toBe(false);
   });
 });
 

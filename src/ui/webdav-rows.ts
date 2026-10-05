@@ -1,7 +1,7 @@
 import { sentences, t } from '../core/l10n';
 import { loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { applyBackup, createBackup, machineSettingsFilename, parseBackup, serializeBackup, SETTINGS_FILE_PATTERN } from '../core/settings-backup';
-import type { WebDAVClient, WebDAVConfig, WebDAVFile } from '../core/webdav';
+import { isPlainHttpURL, type WebDAVClient, type WebDAVConfig, type WebDAVFile } from '../core/webdav';
 import { checkingProviders, verifyRestoredProviders } from './backup-rows';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 import { isSecretField, setSecretLocked } from './secret-rows';
@@ -164,14 +164,20 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
     }
   }
 
-  /** The folder's check as Test connection runs it, on the settings as they are now; never throws. */
+  /**
+   * The folder's check as Test connection runs it, on the settings as they
+   * are now; never throws. An http:// address adds the warning (issue
+   * #174, ADR 0015), on a failure too: the request has already gone out.
+   */
   async function check(): Promise<{ ok: boolean; message: string }> {
+    const cfg = loadSettings(deps.prefs).webdav;
+    const warning = isPlainHttpURL(cfg.url) ? t('ztts-webdav-plain-http') : '';
     try {
-      const client = deps.createClient(loadSettings(deps.prefs).webdav);
+      const client = deps.createClient(cfg);
       await client.check();
-      return { ok: true, message: t('ztts-webdav-connected', { url: client.url }) };
+      return { ok: true, message: sentences(t('ztts-webdav-connected', { url: client.url }), warning) };
     } catch (e) {
-      return { ok: false, message: t('ztts-connection-failed', { detail: describe(e) }) };
+      return { ok: false, message: sentences(t('ztts-connection-failed', { detail: describe(e) }), warning) };
     }
   }
 

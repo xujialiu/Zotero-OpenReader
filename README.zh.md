@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:eb6c9aed24c3 -->
+<!-- translated-from: README.md sha256:ab7417ae1937 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -256,6 +256,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 - 填好文件夹地址、用户名和密码，按*启用*：它先检查连接，同步和服务器备份只在文件夹启用时才用它。
 - 文件夹启用时它的字段锁定——按*停用*才能编辑。停用时，下面的同步和服务器备份变灰、不工作；它们的开关保留勾选，重新启用后照旧生效。
 - *测试连接*只探测，不启用任何东西。
+- *`http://` 地址*不加密：密码和发到那里的设置（含 API 密钥）在传输途中可能被他人看到。*启用*和*测试连接*每次都会提醒，文件夹照常可用。
 
 <details>
 <summary><b>WebDAV 地址示例</b></summary>

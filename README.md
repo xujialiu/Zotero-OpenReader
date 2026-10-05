@@ -542,6 +542,9 @@ backup below.
   While it is off, the sync and the server backup below are greyed and do
   nothing; their switches keep their ticks for when it is back on.
 - *Test connection* probes without switching anything on.
+- *An `http://` address* is not encrypted: the password and the settings
+  sent there, API keys included, can be read on the way. *Enable* and
+  *Test connection* say so every time, and the folder still works.
 
 <details>
 <summary><b>WebDAV URL examples</b></summary>

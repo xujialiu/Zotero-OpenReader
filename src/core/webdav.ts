@@ -58,6 +58,15 @@ export function normalizeWebDAVURL(url: string): string {
   return trimmed.replace(/\/+$/, '') + '/';
 }
 
+/**
+ * Whether the folder's address is unencrypted: `http://`, whatever the host
+ * (issue #172, ADR 0015). Such an address is warned about, never refused —
+ * the plugin cannot tell a trusted network from an untrusted one.
+ */
+export function isPlainHttpURL(url: string): boolean {
+  return /^http:\/\//i.test(url.trim());
+}
+
 /** `Basic` credentials: base64 of the UTF-8 bytes of `user:password` (RFC 7617). */
 export function basicAuthHeader(username: string, password: string): string {
   const bytes = new TextEncoder().encode(`${username}:${password}`);

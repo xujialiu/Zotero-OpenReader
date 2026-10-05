@@ -500,6 +500,48 @@ describe('The folder\u2019s switch', () => {
   });
 });
 
+// Issue #174: an http:// folder is warned about at Enable and Test connection, never refused
+describe('An unencrypted folder', () => {
+  const WARNING =
+    'Warning: http:// is not encrypted, so the password and the settings sent here, API keys included, can be read on the way. Use https:// if the server supports it.';
+  const off = { [PREF_PREFIX + 'webdav.enabled']: false };
+
+  it('Test connection says connected, then warns', async () => {
+    const t = setup({ url: 'http://dav.example.com/zotero-tts' });
+    await t.el(WEBDAV_IDS.test).fire('command');
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe(`Connected to ${FOLDER}. ${WARNING}`);
+  });
+
+  it('warns after a failure too: the request has already gone out', async () => {
+    const t = setup({ url: 'http://dav.example.com/zotero-tts' });
+    t.client.check.mockRejectedValueOnce(new WebDAVError('auth', 'The server rejected the username or password (HTTP 401).', 401));
+    await t.el(WEBDAV_IDS.test).fire('command');
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe(`Connection failed: The server rejected the username or password (HTTP 401). ${WARNING}`);
+  });
+
+  it('Enable warns, and the folder still goes on', async () => {
+    const t = setup({ url: 'HTTP://nas.local:5005/dav', prefs: off });
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.prefs.store[PREF_PREFIX + 'webdav.enabled']).toBe(true);
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe(`Connected to ${FOLDER}. ${WARNING}`);
+  });
+
+  it('warns about a home-network or local address as much as any other', async () => {
+    for (const url of ['http://localhost:8080/dav', 'http://192.168.1.10/dav', 'http://nas.tail1234.ts.net/dav']) {
+      const t = setup({ url, prefs: off });
+      await t.el(WEBDAV_IDS.toggle).fire('command');
+      expect(t.el(WEBDAV_IDS.message).textContent, url).toContain(WARNING);
+    }
+  });
+
+  it('says nothing more for https://', async () => {
+    const t = setup({ prefs: off });
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    await t.el(WEBDAV_IDS.test).fire('command');
+    expect(t.el(WEBDAV_IDS.message).textContent).toBe(`Connected to ${FOLDER}.`);
+  });
+});
+
 describe('This computer', () => {
   it('shows the stored id when the pane loads', () => {
     const t = setup();
