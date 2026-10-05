@@ -1,4 +1,4 @@
-# Testing — Zotero-TTS
+# Testing — Zotero-OpenReader
 
 How a change beyond the simple requests is built, installed and verified
 in the running Zotero, and how that Zotero is driven for research. Part of
@@ -64,7 +64,7 @@ before the issue is written.
   After `zotero_ping`, before
   installing a build or driving checks, snapshot the affected settings
   privately, suspend automatic sync/backup and settle pending requests,
-  then switch Zotero-TTS and OpenReader Position to the test configuration
+  then switch Zotero-OpenReader and OpenReader Position to the test configuration
   wherever they use WebDAV. Confirm the effective destinations match the
   file before proceeding; report only the match result, never its contents
   or credentials. If the file is unavailable or isolation cannot be

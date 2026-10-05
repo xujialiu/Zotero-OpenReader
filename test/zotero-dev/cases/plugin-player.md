@@ -66,7 +66,7 @@ top-bar default, also run [the player-controls case](player-controls.md).
 
 ## 5. The only player (issue #134, ADR 0007)
 
-1. **No switch.** Settings → Zotero-TTS → Player has no *Use plugin
+1. **No switch.** Settings → Zotero-OpenReader → Player has no *Use plugin
    player* row. `diagnostics.pluginPlayer()` has no `enabled`; each
    reader reports `open` and `failed` (`null`). A profile holding
    `zotero-tts.readAloud.usePluginPlayer` `false` (written before the
@@ -94,7 +94,7 @@ top-bar default, also run [the player-controls case](player-controls.md).
    `failed: "frame"`, and one `player did not finish loading` error is
    logged. Let the document settle before a key: on a reader given no
    time, Shift+Space started nothing. Then:
-   - the plugin's button shows the toast *The Zotero-TTS player could not
+   - the plugin's button shows the toast *The Zotero-OpenReader player could not
      load here. …* and nothing reads (`active` false);
    - Shift+Space's reading is closed at the Player's next check, every
      250 ms and later when Zotero is busy (`popupOpen` false), with the
@@ -115,7 +115,7 @@ top-bar default, also run [the player-controls case](player-controls.md).
      `adopted`, as in the Engine case's item 24);
    - the plugin's button opens the Player and resumes from that segment.
 5. **A disable hands Zotero's player back.** Tools → Plugins, disable
-   Zotero-TTS: no `#ztts-player-style`, `#ztts-player-toggle` or
+   Zotero-OpenReader: no `#ztts-player-style`, `#ztts-player-toggle` or
    `#ztts-player-frame` in any open reader; Zotero's headphone button
    shows and opens Zotero's own player. Enable it again: the Player is
    back in every reader.

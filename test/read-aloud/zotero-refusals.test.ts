@@ -56,7 +56,7 @@ describe('createZoteroRefusals (issue #140)', () => {
     expect(h.switchOff).toHaveBeenCalledWith('premium');
     expect(h.reminders).toEqual([{
       reader: 'this', action: 'used-up', tier: 'premium', buy: true, others: 1,
-      text: 'Zotero Premium has no remaining time and has been switched off. Add more time, then enable it again in Zotero-TTS settings. Reading also stopped in 1 other tab.',
+      text: 'Zotero Premium has no remaining time and has been switched off. Add more time, then enable it again in Zotero-OpenReader settings. Reading also stopped in 1 other tab.',
     }]);
     expect(h.refusals.last()).toMatchObject({ action: 'used-up', tier: 'premium', credits: 0, closed: 2 });
   });
@@ -74,7 +74,7 @@ describe('createZoteroRefusals (issue #140)', () => {
     await h.refusals.refused(h.readers[0], { code: 'daily-limit-exceeded', tier: 'premium', minutes: 20 });
     expect(h.switchOff).toHaveBeenCalledWith('premium');
     expect(h.reminders[0]).toMatchObject({ action: 'daily-limit', buy: false, others: 1 });
-    expect(h.reminders[0].text).toBe('Zotero Premium has reached today\'s limit and has been switched off. Enable it again in Zotero-TTS settings tomorrow. Reading also stopped in 1 other tab.');
+    expect(h.reminders[0].text).toBe('Zotero Premium has reached today\'s limit and has been switched off. Enable it again in Zotero-OpenReader settings tomorrow. Reading also stopped in 1 other tab.');
     expect(h.credits).not.toHaveBeenCalled();
   });
 
@@ -102,7 +102,7 @@ describe('createZoteroRefusals (issue #140)', () => {
     h.readers[1].open = false;
     await h.refusals.refused(h.readers[0], { code: 'quota-exceeded', tier: 'premium', minutes: 0 });
     expect(h.reminders[0].others).toBe(0);
-    expect(h.reminders[0].text).toBe('Zotero Premium has no remaining time and has been switched off. Add more time, then enable it again in Zotero-TTS settings.');
+    expect(h.reminders[0].text).toBe('Zotero Premium has no remaining time and has been switched off. Add more time, then enable it again in Zotero-OpenReader settings.');
   });
 
   it('does nothing twice: a tier already off, or one being switched off, is left alone', async () => {

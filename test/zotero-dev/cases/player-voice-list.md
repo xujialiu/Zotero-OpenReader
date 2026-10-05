@@ -45,6 +45,6 @@ and selection; accent quality and playback comfort require listening.
 
 The [script kit](../scripts/player-voice-list/README.md) retains executed
 methods, prerequisites, expected outputs and cleanup. The
-[1.12.9-beta verification](https://github.com/xujialiu/Zotero-TTS/issues/106#issuecomment-5664976874)
+[1.12.9-beta verification](https://github.com/xujialiu/Zotero-OpenReader/issues/106#issuecomment-5664976874)
 passed these checks with a controlled catalog and a read-only check of the
 owner's real Fish catalog. Reuse the methods, not that run's PASS results.

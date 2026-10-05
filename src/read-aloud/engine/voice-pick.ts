@@ -246,7 +246,7 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
     }
     if (target.segmentGranularity !== manager.segmentGranularity) {
       existing?.cancel();
-      deps.error(new Error('Zotero-TTS: pause before switching between different segment granularities'));
+      deps.error(new Error('Zotero-OpenReader: pause before switching between different segment granularities'));
       notice(reader, 'failed', label(target));
       return true;
     }

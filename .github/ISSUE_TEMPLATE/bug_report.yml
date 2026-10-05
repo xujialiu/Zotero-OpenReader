@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Zotero-TTS does not work
+description: Something in Zotero-OpenReader does not work
 labels: ["bug"]
 body:
   - type: markdown
@@ -34,18 +34,18 @@ body:
   - type: input
     id: plugin-version
     attributes:
-      label: Zotero-TTS version
-      description: Tools → Plugins, on the Zotero-TTS row.
+      label: Zotero-OpenReader version
+      description: Tools → Plugins, on the Zotero-OpenReader row.
       placeholder: 1.11.6
     validations:
       required: true
   - type: dropdown
     id: without-plugin
     attributes:
-      label: Does it still happen with Zotero-TTS turned off?
-      description: Tools → Plugins, switch Zotero-TTS off, restart Zotero, and try the same thing with one of Zotero's own voices. This is what says whether the plugin is the thing to fix.
+      label: Does it still happen with Zotero-OpenReader turned off?
+      description: Tools → Plugins, switch Zotero-OpenReader off, restart Zotero, and try the same thing with one of Zotero's own voices. This is what says whether the plugin is the thing to fix.
       options:
-        - "No — only with Zotero-TTS on"
+        - "No — only with Zotero-OpenReader on"
         - "Yes — Zotero does it on its own too"
         - "I could not test it (say why under What happens)"
     validations:

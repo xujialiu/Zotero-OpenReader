@@ -31,7 +31,7 @@ Limits:
 - Trusted input is injected through `nsITextInputProcessor`; a consumed keydown proves the listener took the event, while layout/frame/pref values prove the action.
 - The beta9 run accumulated one candidate bundle error (`list is undefined` at bundle line 0, column 73, 00:29:09 local) during the post-install voice-list refresh; no shortcut/menu row failed and no dead-object error was observed. Zotero's `InvalidStateError: Navigated away from page` cleanup entries are expected fixture-close noise.
 
-Results: [issue #122 completion table](https://github.com/xujialiu/Zotero-TTS/issues/122#issuecomment-5717278769), [issue #124 geometry verification](https://github.com/xujialiu/Zotero-TTS/issues/124#issuecomment-5718120881).
+Results: [issue #122 completion table](https://github.com/xujialiu/Zotero-OpenReader/issues/122#issuecomment-5717278769), [issue #124 geometry verification](https://github.com/xujialiu/Zotero-OpenReader/issues/124#issuecomment-5718120881).
 
 Runs:
 
@@ -43,5 +43,5 @@ Runs:
 | 2026-09-17 / 1.12.12-beta7 | Settings row/help, manual layout agreement, remap/clear/defaults/conflict, and close/reopen persistence PASS | `2026-09-17-1.12.12-beta7-player-position-key-recorder2` |
 | 2026-09-17 / 1.12.12-beta7 | In-place reinstall persistence PASS; startup and reader internals recovered; B/user flag and both reopened frames agreed | `2026-09-17-1.12.12-beta7-player-position-key-reinstall1` |
 | 2026-09-17 / 1.12.12-beta7 | Cleanup PASS: fixtures erased, exact named values/user flags restored, owner state restored, host minimized | `one-90-cleanup.js` (after both fixture passes) |
-| 2026-09-18 / 1.12.12-beta9 | [Issue #124](https://github.com/xujialiu/Zotero-TTS/issues/124#issuecomment-5718120881): renderer probe, expanded/collapsed trusted cycles, menu regressions and cleanup PASS; one known bundle error above | `2026-09-18-1.12.12-beta9-player-position-key-issue124-final2` |
+| 2026-09-18 / 1.12.12-beta9 | [Issue #124](https://github.com/xujialiu/Zotero-OpenReader/issues/124#issuecomment-5718120881): renderer probe, expanded/collapsed trusted cycles, menu regressions and cleanup PASS; one known bundle error above | `2026-09-18-1.12.12-beta9-player-position-key-issue124-final2` |
 | 2026-09-18 / 1.12.12-beta9 | Baseline reconciliation cleanup PASS: original volume `100/user=false` restored; sync guards `false/user=false`; owner and host unchanged | `one-90-cleanup.js` (baseline-reconciliation) |

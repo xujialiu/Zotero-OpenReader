@@ -5,7 +5,7 @@ import { ABOUT_AUTHOR_ID, ABOUT_BUILD_ID, PLUGIN_AUTHOR, PLUGIN_EMAIL, authorLin
 import { englishValue } from '../setup';
 
 /** Where the star goes: the pane's link and the README's point at the same page. */
-const REPOSITORY_URL = 'https://github.com/xujialiu/Zotero-TTS';
+const REPOSITORY_URL = 'https://github.com/xujialiu/Zotero-OpenReader';
 
 describe('buildLine', () => {
   it('names the version, the build date and the build time on one line', () => {
@@ -119,7 +119,7 @@ describe('addon/', () => {
   });
 
   it('asks for the star in one sentence, GitHub the link', () => {
-    expect(englishValue('ztts-about-star')).toBe('If you like Zotero-TTS, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.');
+    expect(englishValue('ztts-about-star')).toBe('If you like Zotero-OpenReader, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.');
   });
 
   // Fluent fills the label named github and drops a name the markup lacks:

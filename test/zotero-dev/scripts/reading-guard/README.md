@@ -31,7 +31,7 @@ Limits:
 - A used-provider Disable during `05`/`06`-style flows applies without a question only while no player is open on that provider.
 - Failures and reruns: early harness revisions r1-r3, r5, r8-r15, r22-r23, r25, r28, r31, r34, r36, r38, r40, r42 failed on setup/timing/evidence assumptions and were cleaned; r4, r6-r7, r16-r19, r21, r24, r33, r43, r44 are PASS; r20/r27/r30/r32/r35/r37/r39/r41 teardown-only cleanup reruns. 2026-09-30: r45 isolation PASS; r46 identity PASS, its first fixtures attempt failed (Zotero's last-used voice left a `fish::` pick and the tier id must come from the voice entry) and was superseded; r46b fixtures PASS; r47's Enable row failed (fish probe timed out; its unused-disable and uncertain-session evidence stands); r48 Enable-never-asked PASS; r48c question PASS (Enter NOT TESTABLE); r48d Close-and-continue PASS; r48e/r48f favorites attempt failures (single-voice favorite; heart toggled an existing mark) superseded; r48g favorites PASS; its teardown audit failed only on `webdav.syncState` churn, completed by the post-switch re-restore that is now part of `90`.
 
-Runs (2026-09-17 evidence in the [issue #121 table](https://github.com/xujialiu/Zotero-TTS/issues/121#issuecomment-5713289694); 2026-09-30 evidence in the [issue #160 table](https://github.com/xujialiu/Zotero-TTS/issues/160#issuecomment-5903420541)):
+Runs (2026-09-17 evidence in the [issue #121 table](https://github.com/xujialiu/Zotero-OpenReader/issues/121#issuecomment-5713289694); 2026-09-30 evidence in the [issue #160 table](https://github.com/xujialiu/Zotero-OpenReader/issues/160#issuecomment-5903420541)):
 
 | Date / build | What ran | Runner run |
 | --- | --- | --- |

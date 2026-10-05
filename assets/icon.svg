@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <title>Zotero-TTS</title>
+  <title>Zotero-OpenReader</title>
   <defs>
     <linearGradient id="headphones" x1="26" y1="18" x2="240" y2="233" gradientUnits="userSpaceOnUse">
       <stop stop-color="#d51f32"/>

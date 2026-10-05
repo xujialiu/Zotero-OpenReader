@@ -75,7 +75,7 @@ two exist so one can be rotated while the other stays in use.
 
 ## 4. Point the plugin at it
 
-Zotero → Settings → Zotero-TTS → **Azure** section:
+Zotero → Settings → Zotero-OpenReader → **Azure** section:
 
 | Field | Value |
 |---|---|
@@ -103,7 +103,7 @@ Read Aloud → Highlight current* to **Word**.
   prefetches a few ahead. Ordinary reading stays well under the limit, but a
   run of very short sentences (a reference list, a table) can exceed it;
   Azure then answers 429 and Read Aloud stops with a quota message. If that
-  happens often, turn on *Custom prefetch* under *Settings → Zotero-TTS →
+  happens often, turn on *Custom prefetch* under *Settings → Zotero-OpenReader →
   Reading* and lower *Prefetch … sentences ahead* to 3 and *Send … requests
   at once* to 1, or press play again.
 - When the month's allowance is used up, Azure refuses further requests

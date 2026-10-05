@@ -1,4 +1,4 @@
-// Item 5: Tools -> Plugins, disable Zotero-TTS -- no #ztts-player-style,
+// Item 5: Tools -> Plugins, disable Zotero-OpenReader -- no #ztts-player-style,
 // #ztts-player-toggle or #ztts-player-frame in any open reader; Zotero's
 // headphone button shows and opens Zotero's own player. Enable it again --
 // the Player is back in every reader. Samples the fixture PDF and EPUB

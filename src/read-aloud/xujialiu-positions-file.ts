@@ -174,7 +174,7 @@ export function parseSharedPositions(text: string): ParsedSharedPositions {
   if ((parsed.version as number) > SHARED_POSITIONS_VERSION) {
     throw new SharedPositionsFileError(
       'newer',
-      `The positions file on the server is version ${parsed.version}; this build reads up to ${SHARED_POSITIONS_VERSION}. Update Zotero-TTS on this computer.`,
+      `The positions file on the server is version ${parsed.version}; this build reads up to ${SHARED_POSITIONS_VERSION}. Update Zotero-OpenReader on this computer.`,
     );
   }
   const byId = new Map<string, SharedEntry>();

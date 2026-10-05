@@ -43,4 +43,4 @@ Runs:
 
 | Run | Build | Result |
 | --- | --- | --- |
-| 2026-09-26 | 1.15.2-beta2 (`30d5770`), XPI `065f7cd8…`, bundle `2c7d6758…` | PASS. Baseline + items 1–10 completed; real WebDAV isolated and restored (HTTP 204), 3 fixture items erased, startup failed `[]`, final host minimized. [Field-by-field verification table](https://github.com/xujialiu/Zotero-TTS/issues/146#issuecomment-5843709158). |
+| 2026-09-26 | 1.15.2-beta2 (`30d5770`), XPI `065f7cd8…`, bundle `2c7d6758…` | PASS. Baseline + items 1–10 completed; real WebDAV isolated and restored (HTTP 204), 3 fixture items erased, startup failed `[]`, final host minimized. [Field-by-field verification table](https://github.com/xujialiu/Zotero-OpenReader/issues/146#issuecomment-5843709158). |

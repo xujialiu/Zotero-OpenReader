@@ -1,6 +1,6 @@
 # Live checks through zotero-dev
 
-This is the entry point for checking Zotero-TTS in the running Zotero.
+This is the entry point for checking Zotero-OpenReader in the running Zotero.
 **Run the whole checklist only when the user asks.** A branch's own
 verification runs its case plus the baseline.
 

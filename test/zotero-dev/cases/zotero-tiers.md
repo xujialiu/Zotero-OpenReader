@@ -36,7 +36,7 @@ open does). Expected
 values below were derived from `src/` and corrected by the first run
 (`scripts/zotero-tiers/README.md`).
 
-1. **The section.** Settings → Zotero-TTS: the groupbox
+1. **The section.** Settings → Zotero-OpenReader: the groupbox
    `ztts-zotero-section` is the last provider section, right after
    `ztts-provider-mimo` (since #113) and before the voice browser, its `h2` `Zotero Read Aloud`
    (plain text, no link) with a `?` (`ztts-help-zotero`) beside it; then per tier a caption reading

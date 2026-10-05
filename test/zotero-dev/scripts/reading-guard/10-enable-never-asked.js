@@ -53,7 +53,7 @@ return (async () => {
     try { await paneWin.Zotero_Preferences.navigateToPane('zotero-tts-pane'); } catch {}
     await waitFor(() => paneWin.document.getElementById('ztts-enable-' + C), 10000, 100);
     const doc = paneWin.document;
-    if (!doc.getElementById('ztts-enable-' + C)) throw new Error('Zotero-TTS pane is not ready');
+    if (!doc.getElementById('ztts-enable-' + C)) throw new Error('Zotero-OpenReader pane is not ready');
     const beforeControllers = { X: mA._controller ?? null, Y: mB._controller ?? null };
     const beforeVoices = { X: mA.selectedVoiceID || null, Y: mB.selectedVoiceID || null };
 

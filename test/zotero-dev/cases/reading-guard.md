@@ -53,7 +53,7 @@ access, native choices, real playback continuity, and the actual UI refusals.
 Subjective sound quality and moving highlight alignment remain human-only.
 
 Verified on 1.12.12-beta6 (candidate 163fc22): [observed values and
-limits](https://github.com/xujialiu/Zotero-TTS/issues/121#issuecomment-5713289694).
+limits](https://github.com/xujialiu/Zotero-OpenReader/issues/121#issuecomment-5713289694).
 
 The #160 rows verified on 1.16.3-beta4 (candidate f656619): [observed values
-and limits](https://github.com/xujialiu/Zotero-TTS/issues/160#issuecomment-5903420541).
+and limits](https://github.com/xujialiu/Zotero-OpenReader/issues/160#issuecomment-5903420541).

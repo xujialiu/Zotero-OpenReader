@@ -73,7 +73,7 @@ export function parsePositions(text: string): PositionEntry[] {
     throw new PositionsFileError('malformed', 'The positions file on the server is not valid JSON.');
   }
   if (!parsed || typeof parsed !== 'object' || parsed.format !== POSITIONS_FORMAT) {
-    throw new PositionsFileError('malformed', 'The file on the server is not a Zotero-TTS positions file.');
+    throw new PositionsFileError('malformed', 'The file on the server is not a Zotero-OpenReader positions file.');
   }
   if (typeof parsed.version !== 'number' || !Array.isArray(parsed.items)) {
     throw new PositionsFileError('malformed', 'The positions file on the server has no readable entries.');
@@ -81,7 +81,7 @@ export function parsePositions(text: string): PositionEntry[] {
   if (parsed.version > POSITIONS_VERSION) {
     throw new PositionsFileError(
       'newer',
-      `The positions file on the server is version ${parsed.version}; this build reads up to ${POSITIONS_VERSION}. Update Zotero-TTS on this computer.`,
+      `The positions file on the server is version ${parsed.version}; this build reads up to ${POSITIONS_VERSION}. Update Zotero-OpenReader on this computer.`,
     );
   }
   return parsed.items.filter(isPositionEntry).map((e) => ({ lib: e.lib, key: e.key, pos: normalizePosition(e.pos), ts: e.ts }));

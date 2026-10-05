@@ -2,12 +2,12 @@
 
 **English** · [简体中文](PHILOSOPHY.zh.md)
 
-**I build Zotero-TTS for the way I read, and step by step it is moving off
+**I build Zotero-OpenReader for the way I read, and step by step it is moving off
 Zotero's Read Aloud.**
 
 ## Why it exists
 
-I use Zotero-TTS every day to listen to papers and novels. Zotero 10's Read
+I use Zotero-OpenReader every day to listen to papers and novels. Zotero 10's Read
 Aloud makes design choices and trade-offs that do not suit me. The plugin
 began by adding voices to it and now changes it wherever I want it to work
 differently; step by step, it will stop depending on Read Aloud.

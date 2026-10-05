@@ -251,7 +251,7 @@ class NotHeld extends Error {}
 
 export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterface {
   const log = (e: unknown) => deps.log?.(e);
-  const cancelled = () => new SynthesisError('network', 'Zotero-TTS: voice preparation cancelled');
+  const cancelled = () => new SynthesisError('network', 'Zotero-OpenReader: voice preparation cancelled');
   function abortable<T>(job: Promise<T>, signal?: AbortSignal, abort?: () => void): Promise<T> {
     if (!signal) return job;
     return new Promise<T>((resolve, reject) => {

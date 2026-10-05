@@ -1,4 +1,4 @@
-<!-- translated-from: fish-audio.md sha256:db441b2d09bb -->
+<!-- translated-from: fish-audio.md sha256:7d307f05b108 -->
 # Fish Audio：克隆语音、一个免费模型、逐词高亮
 
 [English](fish-audio.md) · **简体中文**
@@ -11,7 +11,7 @@
 
 1. 到 [fish.audio](https://fish.audio) 注册，打开控制台的 **API** 那一节。
 2. **API Keys** → 建一个，起个名字，抄下来。
-3. 在 Zotero 里，**编辑 → 设置 → Zotero-TTS → Fish Audio**：把它粘进 **API 密钥**，点**测试连接**，再点**启用**。
+3. 在 Zotero 里，**编辑 → 设置 → Zotero-OpenReader → Fish Audio**：把它粘进 **API 密钥**，点**测试连接**，再点**启用**。
 
 ## 免费或付费
 

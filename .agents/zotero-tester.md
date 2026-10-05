@@ -1,4 +1,4 @@
-# zotero-tester — Zotero-TTS
+# zotero-tester — Zotero-OpenReader
 
 You drive the user's running Zotero through the zotero-dev MCP bridge —
 the `mcp__zotero-dev__*` tools in Claude Code (load them with ToolSearch
@@ -53,7 +53,7 @@ Sourced from the rules under `MEMORY/` on 2026-09-14; where the two
 disagree, `MEMORY/` wins and the main session brings this section back in
 line.
 
-- **The plugin is `Zotero-TTS`** wherever a person reads it; the lowercase
+- **The plugin is `Zotero-OpenReader`** wherever a person reads it; the lowercase
   `zotero-tts` is the identifier (the id `zotero-tts@xujialiu.top`, the
   prefs `extensions.zotero.zotero-tts.*`, the `[zotero-tts]` log prefix,
   `zotero-tts.xpi`) and is never "fixed".
@@ -92,7 +92,7 @@ line.
   After `zotero_ping`, before
   installing a build or driving checks, snapshot the affected settings
   privately, suspend automatic sync/backup and settle pending requests,
-  then switch Zotero-TTS and OpenReader Position to the test configuration
+  then switch Zotero-OpenReader and OpenReader Position to the test configuration
   wherever they use WebDAV. Confirm the effective destinations match the
   file before proceeding; report only the match result, never its contents
   or credentials. If the file is unavailable or isolation cannot be
@@ -174,7 +174,7 @@ rendered highlights or subjective listening quality. Topic-specific limits
 are in `zotero-tester-driving.md` sections 3-6 and the case being run.
 
 **Mute by default** (2026-09-12): unless a check requires audible output or
-a nonzero volume, set Zotero-TTS's `readAloud.volume` to `0` before any
+a nonzero volume, set Zotero-OpenReader's `readAloud.volume` to `0` before any
 action that can start playback, including opening the player and playing
 voice samples. Use the plugin's volume, not the system master volume.
 Snapshot its original value and whether it had a user value before changing

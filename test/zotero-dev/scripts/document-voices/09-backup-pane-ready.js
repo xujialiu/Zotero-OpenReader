@@ -25,7 +25,7 @@
   if (!win) throw new Error('settings window did not open');
   await win.Zotero_Preferences.navigateToPane('zotero-tts-pane');
   const doc = await waitFor(() => win.document.getElementById('ztts-provider-openai-official') ? win.document : null, 10000);
-  if (!doc) throw new Error('Zotero-TTS settings pane did not load');
+  if (!doc) throw new Error('Zotero-OpenReader settings pane did not load');
   await waitFor(() => {
     const status = doc.getElementById('ztts-voices-status')?.textContent || '';
     return !/listing voices/i.test(status) && doc.getElementById('ztts-voices-list')?.children?.length ? true : null;

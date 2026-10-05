@@ -207,7 +207,7 @@ export class Handoff<Clip extends EngineClip> {
       const now = this.deps.clock.now();
       if (this.session.paused) this.deadline = now + HANDOFF_SWITCH_MS;
       if (now > this.deadline) {
-        this.fail(new Error('Zotero-TTS: no prepared handoff boundary was reached'));
+        this.fail(new Error('Zotero-OpenReader: no prepared handoff boundary was reached'));
         return;
       }
       if (this.waitingAt !== null && this.waitingAt !== this.session.position) this.waitingAt = null;
@@ -246,7 +246,7 @@ export class Handoff<Clip extends EngineClip> {
     if (this.loading || !this.valid()) return;
     this.loading = true;
     try {
-      await this.within(this.store.get(index), HANDOFF_REQUEST_MS, 'Zotero-TTS: preparing the next voice timed out');
+      await this.within(this.store.get(index), HANDOFF_REQUEST_MS, 'Zotero-OpenReader: preparing the next voice timed out');
       if (!this.valid()) return;
       if (!this.session.paused) await this.openOutput();
       if (!this.valid()) return;
@@ -511,7 +511,7 @@ export class Handoff<Clip extends EngineClip> {
     }
     if (!taken) {
       report.stage = 'failed';
-      this.deps.log?.(new Error('Zotero-TTS: the manager did not take the new voice'));
+      this.deps.log?.(new Error('Zotero-OpenReader: the manager did not take the new voice'));
       this.options.notice('failed');
       return true;
     }
@@ -535,7 +535,7 @@ export class Handoff<Clip extends EngineClip> {
       }
       if (this.deps.clock.now() > this.deadline) {
         this.options.report.stage = 'failed';
-        this.deps.log?.(new Error('Zotero-TTS: the new voice did not start'));
+        this.deps.log?.(new Error('Zotero-OpenReader: the new voice did not start'));
         this.options.notice('failed');
         return;
       }
@@ -594,7 +594,7 @@ export class Handoff<Clip extends EngineClip> {
     this.deps.audio.resume();
     const until = this.deps.clock.now() + OUTPUT_OPEN_MS;
     while (!this.deps.audio.running()) {
-      if (this.deps.clock.now() >= until) throw new Error('Zotero-TTS: the new voice audio output is blocked');
+      if (this.deps.clock.now() >= until) throw new Error('Zotero-OpenReader: the new voice audio output is blocked');
       await new Promise<void>((resolve) => this.deps.clock.setTimeout(resolve, HANDOFF_POLL_MS));
     }
   }

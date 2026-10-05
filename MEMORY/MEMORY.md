@@ -1,4 +1,4 @@
-# Project rules — Zotero-TTS
+# Project rules — Zotero-OpenReader
 
 This file is the core of the shared project rule book, maintained in
 version control: the rules every session needs, and a pointer to each
@@ -39,7 +39,7 @@ covers — its rules bind that work as much as this file's do:
 - **Testing** — `MEMORY/testing.md`: before building an xpi to test,
   verifying a change, or driving the running Zotero through the zotero-dev
   bridge, research included. Its test WebDAV prerequisite applies before
-  every live run, including Zotero-TTS and OpenReader Position work.
+  every live run, including Zotero-OpenReader and OpenReader Position work.
 - **Agents** — `MEMORY/agents.md`: before delegating to an agent or doing
   its work yourself, and before editing an agent definition or workflow.
 - **Git** — `MEMORY/git-workflow.md`: before any commit, merge, push, tag
@@ -84,7 +84,8 @@ Four project documents are reached the same way:
   product strings (Azure's "多语言" voice names, the rendered "多语种"
   label) and test fixtures for the Chinese collation are data, not prose,
   and stay as they are.
-- **The plugin is called `Zotero-TTS`** (settled 2026-08-30, issue #20):
+- **The plugin is called `Zotero-OpenReader`** (settled 2026-10-05,
+  issue #167, ADR 0014; supersedes issue #20's display name):
   that hyphen, that capitalization, everywhere a person reads it — the
   manifest's `name` (which is what Tools → Plugins shows), the settings
   pane's label, dialog titles, error messages, the README and tutorials,
@@ -98,7 +99,10 @@ Four project documents are reached the same way:
   any of those throws away every user's settings or breaks the update
   flow, so a sweep for the display name leaves them alone. The name in the
   plugin store at zotero-chinese.com is scraped from a release's
-  `manifest.json` and needs no submission of its own.
+  `manifest.json` and needs no submission of its own. Keep the old
+  `xujialiu/Zotero-TTS` repository name unused forever: existing installed
+  copies depend on its redirect for updates. Historical records, fixture
+  content, local paths, and the test-secret directory retain their old names.
 - Architecture-level forks: present the options with concrete costs and a
   recommendation, then wait. Implementation details: pick the sane default,
   state it in one line, move on.

@@ -32,7 +32,7 @@
 
 ## Runs
 
-[Accepted beta5 result table](https://github.com/xujialiu/Zotero-TTS/issues/120#issuecomment-5710577358).
+[Accepted beta5 result table](https://github.com/xujialiu/Zotero-OpenReader/issues/120#issuecomment-5710577358).
 
 | Date/build | Coverage and result | Run/evidence |
 |---|---|---|

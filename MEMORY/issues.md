@@ -1,4 +1,4 @@
-# Issues — Zotero-TTS
+# Issues — Zotero-OpenReader
 
 The rules for GitHub issues: when one is due, how it is written, worked,
 labeled and closed, and how its reporter is answered. Part of the project

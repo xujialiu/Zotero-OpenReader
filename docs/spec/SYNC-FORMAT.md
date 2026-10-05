@@ -1,6 +1,6 @@
 # The sync folder, file by file
 
-The folder on the owner's own WebDAV server that Zotero-TTS and OpenReader
+The folder on the owner's own WebDAV server that Zotero-OpenReader and OpenReader
 share. It used to be one plugin's private storage; since 2026-09-21 it is a
 contract between two products, and this document is that contract. A change
 to any file's shape ships in the same change as this document, and the next

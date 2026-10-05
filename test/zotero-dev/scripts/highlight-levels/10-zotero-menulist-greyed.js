@@ -1,5 +1,5 @@
 // Item 8: Zotero's own Highlight current menulist is greyed while the
-// plugin runs. A window opened on the Zotero-TTS pane first reads
+// plugin runs. A window opened on the Zotero-OpenReader pane first reads
 // {found:false} until General is shown (MutationObserver route); forcing
 // the pick through the binding writes the pref, which the pin snaps back.
 return (async () => {

@@ -1,13 +1,13 @@
-<!-- translated-from: PHILOSOPHY.md sha256:87595ae24db9 -->
+<!-- translated-from: PHILOSOPHY.md sha256:3ea53acd4629 -->
 # 理念
 
 [English](PHILOSOPHY.md) · **简体中文**
 
-**我按自己的阅读习惯做 Zotero-TTS，它正一步步脱离 Zotero 的朗读**。
+**我按自己的阅读习惯做 Zotero-OpenReader，它正一步步脱离 Zotero 的朗读**。
 
 ## 为什么做它
 
-我每天用 Zotero-TTS 听论文、听小说。Zotero 10 的朗读有些设计和取舍不合我意。插件起初只是给朗读添语音，现在凡是我想让朗读换个做法的地方都会改；它会一步步摆脱对朗读的依赖。
+我每天用 Zotero-OpenReader 听论文、听小说。Zotero 10 的朗读有些设计和取舍不合我意。插件起初只是给朗读添语音，现在凡是我想让朗读换个做法的地方都会改；它会一步步摆脱对朗读的依赖。
 
 ## 衡量标准
 

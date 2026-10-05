@@ -4,7 +4,7 @@
       "updates": [
         {
           "version": "1.16.5",
-          "update_link": "https://github.com/xujialiu/Zotero-TTS/releases/download/v1.16.5/zotero-tts.xpi",
+          "update_link": "https://github.com/xujialiu/Zotero-OpenReader/releases/download/v1.16.5/zotero-tts.xpi",
           "applications": {
             "zotero": {
               "strict_min_version": "9.999",

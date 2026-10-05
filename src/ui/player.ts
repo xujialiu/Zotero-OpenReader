@@ -168,8 +168,8 @@ export function createPluginPlayer(deps: {
     button.id = 'ztts-player-toggle';
     button.className = 'toolbar-button';
     button.type = 'button';
-    button.title = 'Zotero-TTS';
-    button.setAttribute('aria-label', 'Zotero-TTS');
+    button.title = 'Zotero-OpenReader';
+    button.setAttribute('aria-label', 'Zotero-OpenReader');
     button.setAttribute('aria-controls', 'ztts-player-frame');
     const icon = doc.createElement('img');
     icon.src = deps.iconURI;
@@ -179,7 +179,7 @@ export function createPluginPlayer(deps: {
     button.append(icon);
     const frame = doc.createElement('iframe');
     frame.id = 'ztts-player-frame';
-    frame.setAttribute('title', 'Zotero-TTS');
+    frame.setAttribute('title', 'Zotero-OpenReader');
     const listener = (event: MessageEvent) => {
       if (event.source !== frame.contentWindow || typeof event.data !== 'string') return;
       if (event.data === 'ztts-preview-ready') {
@@ -265,7 +265,7 @@ export function createPluginPlayer(deps: {
           else {
             const entry = entries.get(doc);
             if (entry && !entry.failed) entry.failed = 'frame';
-            deps.error(new Error('Zotero-TTS: player did not finish loading.'));
+            deps.error(new Error('Zotero-OpenReader: player did not finish loading.'));
           }
         } catch (error) { deps.error(error); }
       };

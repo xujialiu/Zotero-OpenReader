@@ -15,7 +15,7 @@ player.
 1. Sign up at [fish.audio](https://fish.audio) and open the dashboard's
    **API** section.
 2. **API Keys** → create one, name it, copy it.
-3. In Zotero, **Edit → Settings → Zotero-TTS → Fish Audio**: paste it
+3. In Zotero, **Edit → Settings → Zotero-OpenReader → Fish Audio**: paste it
    into **API key**, click **Test connection**, then **Enable**.
 
 ## Free or paid

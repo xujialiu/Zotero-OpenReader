@@ -1,4 +1,4 @@
-<!-- translated-from: chatterbox-tts-server.md sha256:93112aed8bb3 -->
+<!-- translated-from: chatterbox-tts-server.md sha256:bc0674684e1c -->
 # 用 Docker 跑 Chatterbox-TTS-Server（NVIDIA 显卡）
 
 [English](chatterbox-tts-server.md) · **简体中文**
@@ -85,7 +85,7 @@ curl -s -o test.mp3 -H "Content-Type: application/json" \
 
 ## 5. 把插件指过去
 
-Zotero → 设置 → Zotero-TTS → **OpenAI Compatible** 那一节：
+Zotero → 设置 → Zotero-OpenReader → **OpenAI Compatible** 那一节：
 
 | 字段 | 填什么 |
 |---|---|

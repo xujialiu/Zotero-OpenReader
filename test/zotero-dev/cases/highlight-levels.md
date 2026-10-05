@@ -41,7 +41,7 @@ what it held before and what it holds after. Expected values below come
 from the design and the diagnostics the build carries; the first run
 corrects them.
 
-1. **The section.** Edit → Settings → Zotero-TTS → Highlight, after the
+1. **The section.** Edit → Settings → Zotero-OpenReader → Highlight, after the
    auto-scroll rows: an hbox with `checkbox#ztts-highlight-sentence`
    (label `Sentence`, zh-CN `句子`), `input#ztts-highlight-sentenceColor`,
    the `Opacity (%)` label, `input#ztts-highlight-sentenceAlpha` and a `?`
@@ -141,10 +141,10 @@ corrects them.
    counts nothing.
 8. **Zotero's menulist is greyed.** Open Edit → Settings on its General
    pane: `#read-aloud-highlight-granularity-menulist` has `disabled="true"`
-   and `tooltiptext` `Chosen in Zotero-TTS's settings, under Highlight`
-   (zh-CN `在 Zotero-TTS 设置的“高亮”一节里选择`), its `value` the pinned
+   and `tooltiptext` `Chosen in Zotero-OpenReader's settings, under Highlight`
+   (zh-CN `在 Zotero-OpenReader 设置的“高亮”一节里选择`), its `value` the pinned
    level; `menu.windows` holds `{ found: true, disabled: true }`. A window
-   opened on the Zotero-TTS pane first reads `{ found: false, disabled:
+   opened on the Zotero-OpenReader pane first reads `{ found: false, disabled:
    false }` until General is shown, then `true` (the MutationObserver
    route). A settings window open on General *across* the in-place install
    of item 3 is greyed by the new instance too. Closing the window drops

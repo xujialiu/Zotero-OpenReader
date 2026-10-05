@@ -1,4 +1,4 @@
-// Item 5: the row in Settings → Zotero-TTS. Opens the window, navigates to the
+// Item 5: the row in Settings → Zotero-OpenReader. Opens the window, navigates to the
 // pane, reads the row's position, label, binding and checked state, opens its ?
 // with a mouseenter (help-tips.ts opens the tooltip on mouseenter, not click)
 // and closes the window again. An open settings window keeps the OLD pane after

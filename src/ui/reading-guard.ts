@@ -174,7 +174,7 @@ function openNotice(doc: NoticeDoc, message: string, title: string, buttons: rea
  * prompt — is used where the dialog cannot be shown. Returns at once; the
  * dialog closes on OK or Escape.
  */
-export function showPaneNotice(doc: NoticeDoc, message: string, fallback: (message: string) => void, title = 'Zotero-TTS'): void {
+export function showPaneNotice(doc: NoticeDoc, message: string, fallback: (message: string) => void, title = 'Zotero-OpenReader'): void {
   if (!openNotice(doc, message, title, [{ label: t('ztts-ok'), value: true, focus: true }])) fallback(message);
 }
 
@@ -189,7 +189,7 @@ export function askPaneQuestion(
   message: string,
   labels: { confirm: string; cancel: string },
   fallback: (message: string) => boolean,
-  title = 'Zotero-TTS',
+  title = 'Zotero-OpenReader',
 ): Promise<boolean> {
   const answer = openNotice(doc, message, title, [
     { label: labels.confirm, value: true },

@@ -1,6 +1,6 @@
 # The public docs site (issue #57): README (both languages), PHILOSOPHY and
 # the tutorials, rendered by scripts/build-site.mjs and published to
-# https://xujialiu.github.io/Zotero-TTS/ on every push to main that touches
+# https://xujialiu.github.io/Zotero-OpenReader/ on every push to main that touches
 # them. Run it by hand (Actions → Docs site → Run workflow) after changing the
 # GOOGLE_SITE_VERIFICATION repository variable.
 name: Docs site

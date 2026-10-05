@@ -1,6 +1,6 @@
 // Redo of item 9 / 4.10's "hand-edited profile, both prefs false" press:
 // 11's attempt left the settings window open (on General), and the
-// Zotero-TTS pane stays resident once loaded (driving doc §1), so its own
+// Zotero-OpenReader pane stays resident once loaded (driving doc §1), so its own
 // highlight-rows.ts watcher caught "both false" and wrote sentence back to
 // true before the press ever ran. Closing the settings window stops that
 // watcher, so the raw prefs actually hold {false,false} for the press.

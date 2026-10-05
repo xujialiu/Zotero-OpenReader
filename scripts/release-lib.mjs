@@ -38,7 +38,7 @@ export function setVersionLine(text, version) {
 
 /** The release asset's URL — what update.json's `update_link` must name. */
 export function releaseLink(version) {
-  return `https://github.com/xujialiu/Zotero-TTS/releases/download/v${version}/zotero-tts.xpi`;
+  return `https://github.com/xujialiu/Zotero-OpenReader/releases/download/v${version}/zotero-tts.xpi`;
 }
 
 /**

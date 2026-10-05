@@ -94,7 +94,7 @@ switches themselves are [highlight-levels.md](highlight-levels.md).
       that view reports `granularity: "sentence"`, `activeWordTimestamp:
       "stand-in"`, `state.highlightGranularity: "word"`, and the primary
       stays the whole segment in `#ffff00b3`.
-    - **The recorder row.** Edit → Settings → Zotero-TTS: **Word
+    - **The recorder row.** Edit → Settings → Zotero-OpenReader: **Word
       highlight on / off** sits after *Player options* and before *Stop
       reading everywhere* (other rows between them since);
       `#ztts-key-toggleWordHighlight` reads

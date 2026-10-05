@@ -1,13 +1,13 @@
-<p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS icon"></p>
-<h1 align="center">Zotero-TTS</h1>
+<p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader icon"></p>
+<h1 align="center">Zotero-OpenReader</h1>
 
 <p align="center"><em>Text-to-speech for Zotero 10: more voices, word-and-sentence highlighting in your colors, keyboard shortcuts.</em></p>
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-10-green?style=flat-square&logo=zotero&logoColor=CC2936" alt="Zotero 10"></a>
-  <a href="https://github.com/xujialiu/Zotero-TTS/releases/latest"><img src="https://img.shields.io/github/v/release/xujialiu/Zotero-TTS?style=flat-square&label=Release" alt="Latest release"></a>
-  <a href="https://github.com/xujialiu/Zotero-TTS/releases"><img src="https://img.shields.io/github/downloads/xujialiu/Zotero-TTS/total?style=flat-square&label=Downloads" alt="Downloads"></a>
-  <a href="https://github.com/xujialiu/Zotero-TTS/commits/main"><img src="https://img.shields.io/github/last-commit/xujialiu/Zotero-TTS?style=flat-square&label=Last%20commit" alt="Last commit"></a>
+  <a href="https://github.com/xujialiu/Zotero-OpenReader/releases/latest"><img src="https://img.shields.io/github/v/release/xujialiu/Zotero-OpenReader?style=flat-square&label=Release" alt="Latest release"></a>
+  <a href="https://github.com/xujialiu/Zotero-OpenReader/releases"><img src="https://img.shields.io/github/downloads/xujialiu/Zotero-OpenReader/total?style=flat-square&label=Downloads" alt="Downloads"></a>
+  <a href="https://github.com/xujialiu/Zotero-OpenReader/commits/main"><img src="https://img.shields.io/github/last-commit/xujialiu/Zotero-OpenReader?style=flat-square&label=Last%20commit" alt="Last commit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
 </p>
 
@@ -15,11 +15,11 @@
 
 <p align="center"><img src="assets/word-highlight.gif" width="720" alt="Read Aloud reading a paragraph: the word being read in blue, its sentence in yellow"></p>
 
-<p align="center">If you like Zotero-TTS, give it a ⭐ on <a href="https://github.com/xujialiu/Zotero-TTS">GitHub</a> — it helps others find it.</p>
+<p align="center">If you like Zotero-OpenReader, give it a ⭐ on <a href="https://github.com/xujialiu/Zotero-OpenReader">GitHub</a> — it helps others find it.</p>
 
 ## What it adds
 
-Zotero-TTS adds voices and a player to Zotero 10: each provider is an entry
+Zotero-OpenReader adds voices and a player to Zotero 10: each provider is an entry
 of the player's first dropdown, and Zotero's own Standard and Premium are
 two more, each behind a switch of its own. It
 is built for the way its author reads —
@@ -41,9 +41,9 @@ is built for the way its author reads —
 
 ## Install
 
-1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-TTS/releases/latest) — in Firefox, right-click → *Save Link As…*
+1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-OpenReader/releases/latest) — in Firefox, right-click → *Save Link As…*
 2. **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart Zotero.
-3. Enable a provider in **Edit → Settings → Zotero-TTS** — **Fish Audio** first, if you are not sure ([why](#providers)) — then pick it in the player's first dropdown and one of its voices.
+3. Enable a provider in **Edit → Settings → Zotero-OpenReader** — **Fish Audio** first, if you are not sure ([why](#providers)) — then pick it in the player's first dropdown and one of its voices.
 
 <p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a provider chosen in its first dropdown"></p>
 
@@ -203,7 +203,7 @@ for every document you have listened to.
   player no longer appears. Click the red headphones icon in the reader to
   open it and start reading; click again to stop and close it. Where the
   player cannot load, a message says so and nothing is read: turn
-  Zotero-TTS off under Tools → Plugins to read with Zotero's own player
+  Zotero-OpenReader off under Tools → Plugins to read with Zotero's own player
   meanwhile.
 - **Bottom bar, Top bar, Floating panel** are available in Settings and
   from the player's layout button. A bar lies over the top or bottom edge
@@ -258,7 +258,7 @@ for every document you have listened to.
   some time is left, nothing is switched off: the reminder suggests a
   cheaper voice.
 
-Everything is under **Edit → Settings → Zotero-TTS**.
+Everything is under **Edit → Settings → Zotero-OpenReader**.
 
 ### Highlight
 
@@ -272,7 +272,7 @@ Everything is under **Edit → Settings → Zotero-TTS**.
   default colors* brings it all back, the switches included.
 - The preview is painted in your reader's theme.
 - Zotero's own **Highlight current** setting (Settings → General → Read
-  Aloud) follows this choice and is greyed out while Zotero-TTS is
+  Aloud) follows this choice and is greyed out while Zotero-OpenReader is
   installed; there is no paragraph level.
 - A voice without word timing highlights the sentence whatever the
   switches say.
@@ -602,7 +602,7 @@ password.
 - **The plugin's voices are missing after a Zotero update.** An update can
   take them out until the plugin catches up; Zotero's own keep working.
   Open an
-  [issue](https://github.com/xujialiu/Zotero-TTS/issues) with the Zotero
+  [issue](https://github.com/xujialiu/Zotero-OpenReader/issues) with the Zotero
   version.
 
 </details>

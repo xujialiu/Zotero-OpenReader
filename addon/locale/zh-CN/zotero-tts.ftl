@@ -1,4 +1,4 @@
-# Zotero-TTS — 简体中文。en-US 文件是源头；这里的每条消息、属性和变量都与它一一对应
+# Zotero-OpenReader — 简体中文。en-US 文件是源头；这里的每条消息、属性和变量都与它一一对应
 # (test/l10n.test.ts)。用词沿用 Zotero 自己的中文：朗读、语音、语音模式、设置。
 
 
@@ -99,8 +99,8 @@ ztts-duration-m = { $minutes }分钟
 ztts-duration-hm = { $hours }小时{ $minutes }分钟
 ztts-duration-dhm = { $days }天{ $hours }小时{ $minutes }分钟
 ztts-duration-d = { $days }天
-ztts-reminder-used-up = { $tier }的剩余时间已用完，已自动关闭。请添加时长后，在 Zotero-TTS 设置里重新启用。
-ztts-reminder-daily-limit = { $tier }已达到今天的限额，已自动关闭。明天可以在 Zotero-TTS 设置里重新启用。
+ztts-reminder-used-up = { $tier }的剩余时间已用完，已自动关闭。请添加时长后，在 Zotero-OpenReader 设置里重新启用。
+ztts-reminder-daily-limit = { $tier }已达到今天的限额，已自动关闭。明天可以在 Zotero-OpenReader 设置里重新启用。
 ztts-reminder-short = { $tier }的剩余时间不够这个语音使用，可以换一个更便宜的语音，或添加更多时长。
 ztts-reminder-others = 另外 { $count } 个标签页的朗读也已停止。
 ztts-reminder-close = 关闭
@@ -359,7 +359,7 @@ ztts-about-date = 日期 { $date }
 ztts-about-time = 时间 { $time }
 ztts-about-author = 作者 { $author }
 ztts-about-email = 邮箱 { $email }
-ztts-about-star = 如果你喜欢 Zotero-TTS，欢迎到 <label data-l10n-name="github">GitHub</label> 给它点个 ⭐——让更多人发现它。
+ztts-about-star = 如果你喜欢 Zotero-OpenReader，欢迎到 <label data-l10n-name="github">GitHub</label> 给它点个 ⭐——让更多人发现它。
 
 
 ## What TypeScript writes into the pane (issue #43)
@@ -489,12 +489,12 @@ ztts-highlight-toast-both = 高亮：单词和句子
 ztts-highlight-toast-word = 高亮：单词
 ztts-highlight-toast-sentence = 高亮：句子
 ztts-highlight-toast-word-no-timing = 高亮：单词（此语音没有单词时间，仍按整句高亮）
-ztts-zotero-highlight-hint = 在 Zotero-TTS 设置的“高亮”一节里选择
+ztts-zotero-highlight-hint = 在 Zotero-OpenReader 设置的“高亮”一节里选择
 
 ## Backup and Sync
 
-ztts-picker-backup = 备份 Zotero-TTS 设置
-ztts-picker-restore = 恢复 Zotero-TTS 设置
+ztts-picker-backup = 备份 Zotero-OpenReader 设置
+ztts-picker-restore = 恢复 Zotero-OpenReader 设置
 ztts-backup-saved = 已保存到 { $path }。文件包含全部设置，其中有 API 密钥、网关请求头和 WebDAV 密码——请妥善保管。
 ztts-backup-failed = 备份失败：{ $detail }
 ztts-restore-confirm = 用 { $path } 中的 { $count } 项设置替换当前设置？
@@ -526,9 +526,9 @@ ztts-webdav-machine-file = 本机在服务器上的备份是 { $file }。
 
 ## The reader: the line shown when Read Aloud does not start with the remembered voice
 
-ztts-substitute = Zotero-TTS：这里没有提供 { $missing }，改用 { $instead } 朗读。
-ztts-substitute-none = Zotero-TTS：这里没有提供 { $missing }，也没有 Zotero-TTS 的其他语音。由 Zotero 选择语音。
-ztts-substitute-paid = Zotero-TTS：这里没有提供 { $missing }，也没有 Zotero-TTS 的其他语音。由 Zotero 选择语音，可能会消耗额度。
+ztts-substitute = Zotero-OpenReader：这里没有提供 { $missing }，改用 { $instead } 朗读。
+ztts-substitute-none = Zotero-OpenReader：这里没有提供 { $missing }，也没有 Zotero-OpenReader 的其他语音。由 Zotero 选择语音。
+ztts-substitute-paid = Zotero-OpenReader：这里没有提供 { $missing }，也没有 Zotero-OpenReader 的其他语音。由 Zotero 选择语音，可能会消耗额度。
 
 ## Scrolling (issue #155: its own section, out of Highlight)
 
@@ -632,13 +632,13 @@ ztts-player-manual = 手动滚动。点击返回朗读位置并切换为自动�
 ztts-player-search = 搜索
 ztts-player-empty = 没有匹配结果
 ztts-player-loading = 正在加载声音…
-ztts-player-no-voices = 没有可用声音，请在 Zotero-TTS 设置中启用语音服务。
+ztts-player-no-voices = 没有可用声音，请在 Zotero-OpenReader 设置中启用语音服务。
 ztts-player-favorite = 收藏
 ztts-player-unfavorite = 取消收藏
 ztts-player-retry = 重试
 ztts-player-buffering = 正在缓冲…
 ztts-player-unavailable = 此文档无法朗读。
-ztts-player-failed = Zotero-TTS 的播放器没能在这里加载。要先用 Zotero 自己的播放器朗读，请在“工具 → 插件”中关闭 Zotero-TTS。
+ztts-player-failed = Zotero-OpenReader 的播放器没能在这里加载。要先用 Zotero 自己的播放器朗读，请在“工具 → 插件”中关闭 Zotero-OpenReader。
 ztts-player-unavailable-choice = 此声音或语言已不可用，请选择其他选项。
 ztts-player-invalid-value = 不支持所选值。
 ztts-player-playback-error = 播放失败，请检查语音服务连接后重试。
@@ -664,7 +664,7 @@ ztts-help-key-player-layout =
     .help = 播放器打开时，循环切换顶部栏 → 底部栏 → 悬浮面板；所有播放器共用此布局。
 
 ztts-document-voice-unavailable = 保存的声音（{ $voice }）不可用，请在播放器中选择声音后继续。
-ztts-default-voice-required = 请先在 Zotero-TTS 设置中选择默认声音。
+ztts-default-voice-required = 请先在 Zotero-OpenReader 设置中选择默认声音。
 
 ztts-remaining-time =
     .label = 显示预计剩余朗读时间

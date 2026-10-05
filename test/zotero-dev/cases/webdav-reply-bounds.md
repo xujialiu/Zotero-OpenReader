@@ -18,7 +18,7 @@ settings window's client uses the pane's own), and that abort is what
 closes the connection. 1.16.5-beta only cancelled the body's stream, and
 the 2026-10-04 run on it found every silent server's socket still
 ESTABLISHED minutes later, after a forced GC and CC too ([issue #169's
-comment](https://github.com/xujialiu/Zotero-TTS/issues/169#issuecomment-5976059674));
+comment](https://github.com/xujialiu/Zotero-OpenReader/issues/169#issuecomment-5976059674));
 since 1.16.5-beta2 the stream is cancelled after the abort, as the release
 left when no controller could be made.
 

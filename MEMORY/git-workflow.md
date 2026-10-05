@@ -1,4 +1,4 @@
-# Git workflow — Zotero-TTS
+# Git workflow — Zotero-OpenReader
 
 The main session performs Git housekeeping — commits, pulls, branch
 cleanup, tags, pushes, fast-forward merges — and releases directly, within

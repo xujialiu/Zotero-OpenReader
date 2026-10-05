@@ -1,11 +1,11 @@
 name: Feature request
-description: Suggest something Zotero-TTS should do
+description: Suggest something Zotero-OpenReader should do
 labels: ["enhancement"]
 body:
   - type: markdown
     attributes:
       value: |
-        Zotero-TTS adds voices and shortcuts to Zotero's own Read Aloud; it does not replace it. Answers in English or 中文 are both fine.
+        Zotero-OpenReader adds voices and shortcuts to Zotero's own Read Aloud; it does not replace it. Answers in English or 中文 are both fine.
   - type: textarea
     id: what
     attributes:
@@ -30,8 +30,8 @@ body:
   - type: input
     id: plugin-version
     attributes:
-      label: Zotero-TTS version
-      description: Tools → Plugins, on the Zotero-TTS row. A newer version may already do it.
+      label: Zotero-OpenReader version
+      description: Tools → Plugins, on the Zotero-OpenReader row. A newer version may already do it.
       placeholder: 1.11.6
     validations:
       required: true

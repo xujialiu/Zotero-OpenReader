@@ -34,8 +34,8 @@ const skipControl = action => `<button class="skip" data-navigate="${action}" ty
 function render() {
   // The outgoing DOM still has the previous layout's dimensions.
   closePopover(false);
-  $('#player-root').innerHTML = `<section class="player ${variant === 'B' ? 'layout-B' : 'layout-A'} ${variant === 'top' ? 'layout-top' : ''}" aria-label="Zotero-TTS">
-    <div class="identity"><button class="options-toggle" type="button" aria-controls="player-choices">${nativeOptions}</button><span class="grip" aria-hidden="true">Zotero-TTS ⠿</span>${variant === 'B' ? layoutControl : ''}</div>
+  $('#player-root').innerHTML = `<section class="player ${variant === 'B' ? 'layout-B' : 'layout-A'} ${variant === 'top' ? 'layout-top' : ''}" aria-label="Zotero-OpenReader">
+    <div class="identity"><button class="options-toggle" type="button" aria-controls="player-choices">${nativeOptions}</button><span class="grip" aria-hidden="true">Zotero-OpenReader ⠿</span>${variant === 'B' ? layoutControl : ''}</div>
     ${variant === 'B' ? `<div class="transport">${skipControl('previousParagraph')}${skipControl('previousSentence')}${playControl}${skipControl('nextSentence')}${skipControl('nextParagraph')}</div>` : playControl}
     <div class="voice-group" id="player-choices">${field('provider')}${field('locale')}${field('voice')}</div>
     ${variant === 'B' ? remainingControl : ''}
@@ -225,7 +225,7 @@ function openLayoutMenu(button) {
   place(); popover.querySelector('button')?.focus({ preventScroll: true });
 }
 function openStatus(button) {
-  if (!createPopover(button, 'Zotero-TTS')) return;
+  if (!createPopover(button, 'Zotero-OpenReader')) return;
   const message = document.createElement('div'); message.className = 'error-message';
   message.textContent = state.error || text(state.loading ? 'loading' : 'no-voices'); popover.append(message);
   if (state.error || (!state.loading && !state.voices.length)) { const retry = document.createElement('button'); retry.className = 'retry'; retry.textContent = text('retry'); retry.onclick = () => { closePopover(); send('retry'); }; popover.append(retry); }

@@ -171,7 +171,7 @@
     const close = buttons.find((b) => b.getAttribute('aria-label') === 'Close') || null;
     out.reminder = {
       text: box.textContent,
-      textHasDailyLimit: box.textContent.indexOf('Zotero Premium has reached today\'s limit and has been switched off. Enable it again in Zotero-TTS settings tomorrow.') === 0,
+      textHasDailyLimit: box.textContent.indexOf('Zotero Premium has reached today\'s limit and has been switched off. Enable it again in Zotero-OpenReader settings tomorrow.') === 0,
       hasLink: !!link,
       hasClose: !!close,
     };

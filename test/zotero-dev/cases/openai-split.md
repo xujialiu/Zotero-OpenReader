@@ -71,7 +71,7 @@ first run (`scripts/openai-split/README.md`).
    an entry's `voice`, any `tierVoices` value — and a `tierVoices` key that
    is literally `openai` becomes the target key in the same position (this
    profile's `mul` entry kept its `local` key and had its value rewritten).
-2. **The pane.** Settings → Zotero-TTS: no `ztts-openai-server` menulist
+2. **The pane.** Settings → Zotero-OpenReader: no `ztts-openai-server` menulist
    and no `ztts-provider-openai` groupbox; `ztts-provider-openai-official`
    right after `ztts-provider-local`, its `h2` `OpenAI (platform.openai.com)`
    with the host a `zotero-text-link`, then rows API key (password, pref

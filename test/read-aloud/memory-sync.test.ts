@@ -1354,7 +1354,7 @@ describe('the remembered voice is not in the list', () => {
     expect(z.voices().en.voice).toBe(PUCK);
     expect(z.storedMemory()).toEqual(puck);
     expect(t.announce).toHaveBeenCalledTimes(1);
-    expect(t.announce).toHaveBeenCalledWith(r.reader, 'Zotero-TTS: local::am_puck is not offered here. Reading with Ava Multilingual instead.');
+    expect(t.announce).toHaveBeenCalledWith(r.reader, 'Zotero-OpenReader: local::am_puck is not offered here. Reading with Ava Multilingual instead.');
     expect(z.deps.debug).toHaveBeenCalledWith(expect.stringContaining('not offered'));
     expect(sync.substitution(r.reader)).toEqual({ missing: PUCK, instead: AVA.id });
     expect(sync.documentLanguage(r.reader)).toBe('en');
@@ -1401,7 +1401,7 @@ describe('the remembered voice is not in the list', () => {
     expect(z.storedMemory()).toEqual(puck);
     expect(t.announce).toHaveBeenCalledWith(
       r.reader,
-      'Zotero-TTS: local::am_puck is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice; it may use credits.',
+      'Zotero-OpenReader: local::am_puck is not offered here, and no other voice of Zotero-OpenReader is. Zotero picks the voice; it may use credits.',
     );
     expect(sync.substitution(r.reader)).toEqual({ missing: PUCK, instead: null });
   });
@@ -1580,7 +1580,7 @@ describe('the remembered voice is not in the list', () => {
       expect(r.manager.lang).toBe(MULTILINGUAL);
       expect(r.manager.selectedVoiceID).toBe(AVA.id);
       // Named as the player names it, from the untrimmed list the hook carried
-      expect(t.announce).toHaveBeenCalledWith(r.reader, 'Zotero-TTS: am_puck is not offered here. Reading with Ava Multilingual instead.');
+      expect(t.announce).toHaveBeenCalledWith(r.reader, 'Zotero-OpenReader: am_puck is not offered here. Reading with Ava Multilingual instead.');
     });
 
     it('attaches a reader it has not seen, and ignores what is not a reader', () => {

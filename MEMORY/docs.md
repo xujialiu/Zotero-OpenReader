@@ -1,4 +1,4 @@
-# Docs — Zotero-TTS
+# Docs — Zotero-OpenReader
 
 The rules for the repository's Markdown: where a thing gets written down,
 the README and the public site, the Chinese pages, and the notes log. Part
@@ -91,7 +91,7 @@ Putting something in the wrong one is how it stops being read.
   tell the user which `.docs/….html` to open. `docs/` holds pages of the
   repo (issue #109). The README and `docs/PHILOSOPHY.md` in both languages,
   and `tutorials/`, are also the public site
-  https://xujialiu.github.io/Zotero-TTS/ — `npm run site` builds it into
+  https://xujialiu.github.io/Zotero-OpenReader/ — `npm run site` builds it into
   `site/` (gitignored), `.github/workflows/pages.yml` deploys it on every
   push to `main` that touches them (issue #57); `notes/` and the test
   checklist stay off it, and its links to them go to GitHub.

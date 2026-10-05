@@ -1,6 +1,6 @@
 # design
 
-Why Zotero-TTS is the way it is, written for someone who does not read code.
+Why Zotero-OpenReader is the way it is, written for someone who does not read code.
 
 Every file here is one decision: what was chosen, what was turned down, and
 what that costs the person using the plugin. You should be able to read any of
@@ -27,7 +27,7 @@ server that keeps positions and settings in step.
 From [`../PHILOSOPHY.md`](../PHILOSOPHY.md), which everything here is measured
 against:
 
-> **I build Zotero-TTS for the way I read, and step by step it is moving off
+> **I build Zotero-OpenReader for the way I read, and step by step it is moving off
 > Zotero's Read Aloud.**
 
 The owner listens to papers and novels with the plugin every day, and a feature
@@ -54,7 +54,7 @@ Four other places hold things that are deliberately **not** here:
 | [`../PHILOSOPHY.md`](../PHILOSOPHY.md) | The yardstick. What the plugin is for, and what stays out of it |
 | [`../../CONTEXT.md`](../../CONTEXT.md) | The glossary. What each word means, and which words to avoid |
 | [`../../notes/`](../../notes/) | What was measured, and when |
-| [The issues](https://github.com/xujialiu/Zotero-TTS/issues) | Each piece of work as it happened: the plan, what changed on the way, how it was checked |
+| [The issues](https://github.com/xujialiu/Zotero-OpenReader/issues) | Each piece of work as it happened: the plan, what changed on the way, how it was checked |
 
 The glossary is worth ten minutes before anything else. Its words are used
 strictly — a **Provider** is one source of voices, a **Segment** is one

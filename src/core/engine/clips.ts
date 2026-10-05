@@ -34,7 +34,7 @@ export class ClipError extends Error {
     readonly stage: 'fetch' | 'decode' | 'closed',
     readonly cause?: unknown,
   ) {
-    super(`Zotero-TTS: no audio (${stage}: ${code})`);
+    super(`Zotero-OpenReader: no audio (${stage}: ${code})`);
     this.name = 'ClipError';
   }
 }

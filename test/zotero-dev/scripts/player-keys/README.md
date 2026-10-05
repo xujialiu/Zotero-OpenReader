@@ -19,7 +19,7 @@ Limits:
 
 - `nsITextInputProcessor` supplies trusted initial and repeat keydowns in one transaction; the event cadence is represented by the repeat flags. Natural audio quality remains a human observation.
 
-Final results: [issue #122 completion table](https://github.com/xujialiu/Zotero-TTS/issues/122#issuecomment-5717278769).
+Final results: [issue #122 completion table](https://github.com/xujialiu/Zotero-OpenReader/issues/122#issuecomment-5717278769).
 
 Runs:
 

@@ -254,7 +254,7 @@ export function createPdfFollow(deps: Deps) {
     const descriptor = Object.getOwnPropertyDescriptor(view, '_readAloudPositionLocked');
     if (descriptor?.configurable === false || descriptor?.get || descriptor?.set) {
       failed.add(view);
-      deps.error(new Error('Zotero-TTS: PDF follow cannot own the native position lock'));
+      deps.error(new Error('Zotero-OpenReader: PDF follow cannot own the native position lock'));
       return;
     }
     const state = waive(view._readAloudState);

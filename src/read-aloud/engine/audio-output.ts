@@ -94,7 +94,7 @@ export function createAudioOutput(deps: AudioOutputDeps): AudioOutput {
   function open(): any {
     if (context && context.state !== 'closed') return context;
     const w = deps.window();
-    if (!w) throw new Error('Zotero-TTS: the reader window is gone');
+    if (!w) throw new Error('Zotero-OpenReader: the reader window is gone');
     win = w;
     context = new w.AudioContext();
     chain = buildSpeechChain(context, deps.level());

@@ -1,4 +1,4 @@
-# AGENTS.md — Zotero-TTS
+# AGENTS.md — Zotero-OpenReader
 
 Before starting any task, read `MEMORY/MEMORY.md` from the repository root in full
 and follow its instructions throughout the task. If a read is truncated,
@@ -18,7 +18,7 @@ and the topic files it points to — and shared agent workflows in `.agents/`.
 
 ### Issue tracker
 
-GitHub Issues on `xujialiu/Zotero-TTS`, through `gh`. See
+GitHub Issues on `xujialiu/Zotero-OpenReader`, through `gh`. See
 `docs/agents/issue-tracker.md`.
 
 ### Triage labels

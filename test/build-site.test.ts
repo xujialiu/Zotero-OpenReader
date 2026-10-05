@@ -63,7 +63,7 @@ describe('build-site', () => {
   it('puts what a search engine reads into the head of the index', () => {
     const h = head('index.html');
     expect(read('index.html')).toMatch(/^<!doctype html>\n<html lang="en">/);
-    expect(h).toContain('<title>Zotero-TTS</title>');
+    expect(h).toContain('<title>Zotero-OpenReader</title>');
     expect(h).toMatch(/<meta name="description" content="Text-to-speech for Zotero 10: more voices/);
     expect(h).toContain(`<link rel="canonical" href="${SITE.base}">`);
     expect(h).toContain(`<link rel="alternate" hreflang="en" href="${SITE.base}">`);
@@ -75,7 +75,7 @@ describe('build-site', () => {
   it('gives the Chinese index its own language, canonical and description', () => {
     const h = head('index.zh.html');
     expect(read('index.zh.html')).toMatch(/^<!doctype html>\n<html lang="zh-CN">/);
-    expect(h).toContain('<title>Zotero-TTS</title>');
+    expect(h).toContain('<title>Zotero-OpenReader</title>');
     expect(h).toMatch(/<meta name="description" content="Zotero 10 的文字转语音插件/);
     expect(h).toContain(`<link rel="canonical" href="${SITE.base}index.zh.html">`);
     expect(h).toContain(`<link rel="alternate" hreflang="en" href="${SITE.base}">`);
@@ -84,7 +84,7 @@ describe('build-site', () => {
 
   it('titles a tutorial by its heading, with the plugin named, and describes it by its first paragraph', () => {
     const h = head('tutorials/kokoro-fastapi.html');
-    expect(h).toContain('<title>Kokoro-FastAPI in Docker · Zotero-TTS</title>');
+    expect(h).toContain('<title>Kokoro-FastAPI in Docker · Zotero-OpenReader</title>');
     const description = h.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? '';
     expect(description).toMatch(/^Kokoro-FastAPI is the plugin.s local engine/);
     expect(description.length).toBeLessThanOrEqual(160);

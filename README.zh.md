@@ -1,14 +1,14 @@
-<!-- translated-from: README.md sha256:120ccdacbbe7 -->
-<p align="center"><img src="assets/icon.png" width="80" alt="Zotero-TTS 图标"></p>
-<h1 align="center">Zotero-TTS</h1>
+<!-- translated-from: README.md sha256:14db75c07955 -->
+<p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
+<h1 align="center">Zotero-OpenReader</h1>
 
 <p align="center"><em>Zotero 10 的文字转语音插件：更多语音、按你的颜色逐词与逐句高亮、键盘快捷键。</em></p>
 
 <p align="center">
   <a href="https://www.zotero.org"><img src="https://img.shields.io/badge/Zotero-10-green?style=flat-square&logo=zotero&logoColor=CC2936" alt="Zotero 10"></a>
-  <a href="https://github.com/xujialiu/Zotero-TTS/releases/latest"><img src="https://img.shields.io/github/v/release/xujialiu/Zotero-TTS?style=flat-square&label=Release" alt="最新发行版"></a>
-  <a href="https://github.com/xujialiu/Zotero-TTS/releases"><img src="https://img.shields.io/github/downloads/xujialiu/Zotero-TTS/total?style=flat-square&label=Downloads" alt="下载量"></a>
-  <a href="https://github.com/xujialiu/Zotero-TTS/commits/main"><img src="https://img.shields.io/github/last-commit/xujialiu/Zotero-TTS?style=flat-square&label=Last%20commit" alt="最近一次提交"></a>
+  <a href="https://github.com/xujialiu/Zotero-OpenReader/releases/latest"><img src="https://img.shields.io/github/v/release/xujialiu/Zotero-OpenReader?style=flat-square&label=Release" alt="最新发行版"></a>
+  <a href="https://github.com/xujialiu/Zotero-OpenReader/releases"><img src="https://img.shields.io/github/downloads/xujialiu/Zotero-OpenReader/total?style=flat-square&label=Downloads" alt="下载量"></a>
+  <a href="https://github.com/xujialiu/Zotero-OpenReader/commits/main"><img src="https://img.shields.io/github/last-commit/xujialiu/Zotero-OpenReader?style=flat-square&label=Last%20commit" alt="最近一次提交"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="许可证"></a>
 </p>
 
@@ -16,11 +16,11 @@
 
 <p align="center"><img src="assets/word-highlight.gif" width="720" alt="朗读正在读一段文字：正在读的词是蓝色，它所在的句子是黄色"></p>
 
-<p align="center">如果你喜欢 Zotero-TTS，欢迎到 <a href="https://github.com/xujialiu/Zotero-TTS">GitHub</a> 给它点个 ⭐——让更多人发现它。</p>
+<p align="center">如果你喜欢 Zotero-OpenReader，欢迎到 <a href="https://github.com/xujialiu/Zotero-OpenReader">GitHub</a> 给它点个 ⭐——让更多人发现它。</p>
 
 ## 它增加了什么
 
-Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播放器第一个下拉框里的一个条目，而 Zotero 自己的标准和高级是另外两个，各自都有自己的开关。它按作者自己的阅读习惯来做——[为什么这样做、往哪里去](docs/PHILOSOPHY.zh.md)。
+Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都是播放器第一个下拉框里的一个条目，而 Zotero 自己的标准和高级是另外两个，各自都有自己的开关。它按作者自己的阅读习惯来做——[为什么这样做、往哪里去](docs/PHILOSOPHY.zh.md)。
 
 - 🗣️ **朗读播放器里更多语音**，每个服务商都是一个条目——Fish Audio（免费，最值得先试）、Azure Speech、Cloudflare Workers AI、Speechify、装在你机器上的 [Kokoro-FastAPI](https://github.com/remsky/Kokoro-FastAPI) 或 [Fish Speech](https://github.com/fishaudio/fish-speech) 服务器、OpenAI、Xiaomi MiMo 或任何 OpenAI 兼容服务器——旁边是 Zotero 自己的标准和高级，各自都有一个开关。[→ 服务商](#服务商)
 - 🎛️ **三种布局的播放器**——底部栏、工具栏下方的顶部栏，或悬浮面板。更改布局不会中断朗读。[→ 播放器](#播放器)
@@ -38,9 +38,9 @@ Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播�
 
 ## 安装
 
-1. 到[最新发行版](https://github.com/xujialiu/Zotero-TTS/releases/latest)下载 `zotero-tts.xpi`——Firefox 里右键 → *链接另存为…*
+1. 到[最新发行版](https://github.com/xujialiu/Zotero-OpenReader/releases/latest)下载 `zotero-tts.xpi`——Firefox 里右键 → *链接另存为…*
 2. **工具 → 插件 → ⚙ → Install Plugin From File…**（插件窗口没有中文），然后重启 Zotero。
-3. 到**编辑 → 设置 → Zotero-TTS** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
+3. 到**编辑 → 设置 → Zotero-OpenReader** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
 
 <p align="center"><img src="assets/popup.png" width="640" alt="朗读播放器，第一个下拉框里选中了一个服务商"></p>
 
@@ -133,7 +133,7 @@ Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播�
 
 ### 播放器
 
-- **播放器**在每个文档里都是插件自己的；Zotero 原来的播放器不再出现。点击阅读器中的红色耳机图标，打开播放器并开始朗读；再次点击停止并关闭。播放器无法加载时，会有提示说明，也不会朗读：这时可以在“工具 → 插件”里关闭 Zotero-TTS，先用 Zotero 自己的播放器朗读。
+- **播放器**在每个文档里都是插件自己的；Zotero 原来的播放器不再出现。点击阅读器中的红色耳机图标，打开播放器并开始朗读；再次点击停止并关闭。播放器无法加载时，会有提示说明，也不会朗读：这时可以在“工具 → 插件”里关闭 Zotero-OpenReader，先用 Zotero 自己的播放器朗读。
 - **底部栏、顶部栏、悬浮面板**可在设置中选择，也可从播放器的布局按钮选择。栏盖在文档的顶部或底部边缘上，因此打开、关闭或切换播放器都不会改变页面大小，也不会让页面变模糊；跟随会让正在朗读的句子不被栏挡住，Zotero 的查找框会出现在顶部栏下方。在文档的最开头或最末尾，栏下面那一条会一直被挡住。悬浮面板可以拖动。没有保存过布局时，默认使用顶部栏；已有选择会保留。
 - **语音服务、语言、声音、速度和音量**使用语音浏览器和键盘快捷键里的同一组选择。左侧的心形与设置里的收藏相同。
 - **悬浮控件**在播放/暂停按钮周围提供四个按句或按段跳转按钮。左上角的**选项**或 **Shift+O** 可收起或显示语音服务、语言和声音三行；右上角是**布局**。每次打开都遵循朗读设置中的*打开时展开播放器*。
@@ -146,7 +146,7 @@ Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播�
 - **Zotero 语音的剩余时间**显示在语音按钮的右侧，语音列表里每个 Zotero 语音旁边也有；不到 3 分钟时变红。
 - **Zotero 某一档的时间用完**或达到 Zotero 的每日限额时，这一档会被自动关闭：所有标签页里用它朗读的播放器都会关掉，文档上方会出现一条提醒说明情况——时间用完时附**添加更多时长**链接。添加时长后或第二天，在设置里重新启用即可。如果还有剩余时间、Zotero 只是拒绝了一个较贵的语音，则不会关闭这一档，提醒会建议你换一个更便宜的语音。
 
-全部在**编辑 → 设置 → Zotero-TTS** 里。
+全部在**编辑 → 设置 → Zotero-OpenReader** 里。
 
 ### 高亮
 
@@ -155,7 +155,7 @@ Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播�
 - *句子*和*单词*是两个开关，一开始都是开着的：正在朗读的单词用单词色，它所在的句子用句子色衬在下面。关掉一个，就只留下另一个；最后开着的那个关不掉。
 - 各配一个颜色和一个不透明度——Zotero 自己的语音也一样。默认是黄色句子上的蓝色词，两者都是 70 %；*恢复默认颜色*把这些全部改回来，连开关也在内。
 - 预览按你阅读器的主题绘制。
-- Zotero 自己的**高亮当前**设置（设置 → 常规 → 朗读）跟随这里的选择，装着 Zotero-TTS 时会被置灰；没有段落级别。
+- Zotero 自己的**高亮当前**设置（设置 → 常规 → 朗读）跟随这里的选择，装着 Zotero-OpenReader 时会被置灰；没有段落级别。
 - 没有单词时间的语音无论怎么选都按整句高亮。
 - 单词在听到的那一刻才亮起：戴无线耳机时它会等声音到来，声音卡住时它也停在原处。
 
@@ -286,7 +286,7 @@ Zotero-TTS 为 Zotero 10 增加了语音和播放器：每个服务商都是播�
 - **语音在读，但没有逐词高亮**。把*设置 → 常规 → 朗读 → 高亮当前*设成**单词**，并且用一个会报词级时间戳的语音：Kokoro、Speechify、Fish Audio 或名字里不带 *MAI-Voice-2* 的 Azure 语音（那些按句高亮）。
 - **用名字里带 *Dragon Latest* 的 Azure 语音时，逐词高亮会在大约十秒后跳到本段最后一个词**，并停在那里，直到下一段开始。这是语音本身的问题，不是插件的：Azure 的其他语音——*Dragon HD Flash*、Multilingual、普通的那些——每个词都跟得上。
 - **用 OpenAI 兼容服务器时，读到一半冒出「发生一个未知错误。」** 服务器在某一段上失败了；查它的日志。
-- **Zotero 更新之后插件的语音不见了**。一次更新可能让它们消失，直到插件跟上；Zotero 自己的语音照常。请带上 Zotero 版本号开一个 [issue](https://github.com/xujialiu/Zotero-TTS/issues)。
+- **Zotero 更新之后插件的语音不见了**。一次更新可能让它们消失，直到插件跟上；Zotero 自己的语音照常。请带上 Zotero 版本号开一个 [issue](https://github.com/xujialiu/Zotero-OpenReader/issues)。
 
 </details>
 

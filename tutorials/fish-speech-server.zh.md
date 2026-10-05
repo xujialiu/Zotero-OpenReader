@@ -1,4 +1,4 @@
-<!-- translated-from: fish-speech-server.md sha256:486b84dc99e8 -->
+<!-- translated-from: fish-speech-server.md sha256:14874913acbd -->
 # 自建 Fish Speech 服务器
 
 [English](fish-speech-server.md) · **简体中文**
@@ -43,7 +43,7 @@ curl -X POST http://localhost:8080/v1/references/add \
 
 ## 在 Zotero 里
 
-1. **编辑 → 设置 → Zotero-TTS → Fish Speech**：服务器在本机时，**地址**填 `http://localhost:8080`；在局域网里别的机器上，就把 `localhost` 换成它的名字或 IP 地址。
+1. **编辑 → 设置 → Zotero-OpenReader → Fish Speech**：服务器在本机时，**地址**填 `http://localhost:8080`；在局域网里别的机器上，就把 `localhost` 换成它的名字或 IP 地址。
 2. 服务器是用 `--api-key` 启动的：把 `Authorization: Bearer <密钥>` 填进**额外请求头**。
 3. **测试连接** → *已连接。N 个语音可用。* → **启用**。
 4. 在播放器里，这些语音是**Fish Speech**下面的文件夹名，归在*多语种*下面：服务器不说某个语音讲哪种语言，而这个模型会说 80 种语言。

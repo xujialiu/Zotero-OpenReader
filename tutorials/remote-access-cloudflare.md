@@ -116,7 +116,7 @@ prints Chatterbox's voice list, `{"status":"ok","voices":["Abigail.wav",...]}`.
 
 ## 5. Point the plugin at it
 
-Zotero → Settings → Zotero-TTS → **OpenAI Compatible** section:
+Zotero → Settings → Zotero-OpenReader → **OpenAI Compatible** section:
 
 | Field | Value |
 |---|---|

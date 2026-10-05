@@ -182,7 +182,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
 
   function own(r: Owned, key: 'positionLocked' | 'scrolling', value: boolean) {
     const descriptor = Object.getOwnPropertyDescriptor(r.helper, key);
-    if (descriptor?.configurable === false || descriptor?.get || descriptor?.set) throw new Error(`Zotero-TTS: cannot own EPUB ${key}`);
+    if (descriptor?.configurable === false || descriptor?.get || descriptor?.set) throw new Error(`Zotero-OpenReader: cannot own EPUB ${key}`);
     Object.defineProperty(r.helper, key, { configurable: true, enumerable: true,
       get: exported(() => value, r.helper), set: exported(() => {}, r.helper) });
     r.undo.push(() => {

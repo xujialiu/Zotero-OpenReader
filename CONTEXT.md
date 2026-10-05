@@ -1,6 +1,6 @@
-# Zotero-TTS
+# Zotero-OpenReader
 
-The language of Zotero-TTS, a Zotero 10 plugin that reads documents aloud
+The language of Zotero-OpenReader, a Zotero 10 plugin that reads documents aloud
 with the user's own text-to-speech services. The plugin began on Zotero's
 Read Aloud and is moving off it piece by piece, so this glossary names each
 piece of reading aloud and the things around it. Definitions only: what was

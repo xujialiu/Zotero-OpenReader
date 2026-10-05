@@ -68,7 +68,7 @@
 ## Runs
 
 Issue #144's first pass and corrected rerun are recorded in the
-[verification table](https://github.com/xujialiu/Zotero-TTS/issues/144#issuecomment-5833817377).
+[verification table](https://github.com/xujialiu/Zotero-OpenReader/issues/144#issuecomment-5833817377).
 
 - **2026-09-23, 1.14.4-beta** (`2026-09-23-1.14.4-beta-engine*`, `-02` through `-16`, `-99`; xpi SHA-256 `5cc82f8539be6547d2e8bff3d63144ed21987c90456739ac78edf0bdbdd38634`): items 1-7, 9, 10, 12, 15, 16, 18, 20, 21, 24 (playing variant) PASS; item 13 PASS on the second attempt; item 23(a)/(d) PASS, 23(b)/(c-retry) inconclusive; items 8, 22 NOT TESTABLE; item 17 evidenced only incidentally, not its own case; item 19 not independently reproduced.
 - **2026-09-23, live run 2, 1.14.4-beta2** (`2026-09-23-1.14.4-beta2-engine-*`, scripts `133-17` through `133-32`; xpi SHA-256 `ad433a6b5e1aa1a93ea842d91665fac504fd3da1d340860b5b0e2f7082ff9f69`, byte-identical to the installed extension file): item 17(a)-(i) each PASS (17(g) partially: the mechanism's in-progress behavior and the old voice's isolation are live-observed, the eventual `failed` rests on a cited unit test, not a live 120s wait); item 23(b) and 23(c)-after-the-fix PASS on fixture C; item 11's full 5s/20s/exact split PASS on a real Kokoro voice; item 12 PASS (`Preparing…` toast and `session.buffering` both observed); item 14 PASS for the Engine's own late-fetch handling (the plugin's warm-chain line not caught live); item 9's stand-in PASS; item 24's paused variant PASS. Not reached this run (see the report for the coordinator's own list): none of run 1's items were re-run. Full table in the issue comment the main session files.

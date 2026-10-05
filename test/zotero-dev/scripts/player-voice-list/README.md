@@ -34,4 +34,4 @@
 
 | Run | Items observed | Evidence |
 | --- | --- | --- |
-| 2026-09-14 · 1.12.9-beta · final3 | PDF and EPUB: startup, US/GB actual menus, diagnostics, manual sample, trusted keys in both wrap directions, English/Adrian, singleton and generic fallback PASS; cleanup PASS | [Issue #106 verification table](https://github.com/xujialiu/Zotero-TTS/issues/106#issuecomment-5664976874) |
+| 2026-09-14 · 1.12.9-beta · final3 | PDF and EPUB: startup, US/GB actual menus, diagnostics, manual sample, trusted keys in both wrap directions, English/Adrian, singleton and generic fallback PASS; cleanup PASS | [Issue #106 verification table](https://github.com/xujialiu/Zotero-OpenReader/issues/106#issuecomment-5664976874) |

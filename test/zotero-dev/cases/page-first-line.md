@@ -19,7 +19,7 @@ line at y 706–717), between blocks 15 and 17. The other known losses are
 `G7YLAA9Z` (page 32, under a real running head) and `UAL5Y6BV` (three
 lines: pages 23, 254 and 263). A tab is opened and closed by the run and
 the item's reading position moves; nothing else is touched. The switch is
-`readAloud.restoreSkippedLines` (Settings → Zotero-TTS → Reading → *Read a
+`readAloud.restoreSkippedLines` (Settings → Zotero-OpenReader → Reading → *Read a
 page's first line when Zotero would skip it*), default true; it is read
 when the structure loads, so every flip needs a fresh tab. The pack is
 `.zotero-sdt-cache` beside the attachment; reading it with
@@ -108,7 +108,7 @@ was measured on 1.11.7-beta10, Zotero 10.0.2-beta.9 (2026-09-10).
    `MDAUAFUE`, the only one of that item's three PDFs with a pack: no
    `skipped line restored` line, `restored: []`, `excluded: 23`, 429
    segments — its running heads and DOI banner stay out.
-7. **The pane.** Settings → Zotero-TTS, the Reading group: the row *Read
+7. **The pane.** Settings → Zotero-OpenReader, the Reading group: the row *Read
    a page's first line when Zotero would skip it* between *Pause between
    paragraphs* and *Read a sentence Zotero split in two as one*,
    checked, bound to `readAloud.restoreSkippedLines`; its `?` opens

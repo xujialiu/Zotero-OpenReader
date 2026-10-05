@@ -27,7 +27,7 @@ return (async () => {
       if (win.document.getElementById('ztts-enable-local')) return win;
       await sleep(100);
     }
-    throw new Error('Zotero-TTS settings pane did not initialize');
+    throw new Error('Zotero-OpenReader settings pane did not initialize');
   };
   const enableViaPane = async (doc, id, ms = 30000) => {
     const button = doc.getElementById('ztts-enable-' + id);

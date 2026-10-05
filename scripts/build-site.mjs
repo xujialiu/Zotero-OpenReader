@@ -19,9 +19,9 @@ import { fileURLToPath } from 'node:url';
 import { STYLE, isMain, pandocHtml } from './render-md.mjs';
 
 export const SITE = {
-  name: 'Zotero-TTS',
-  base: 'https://xujialiu.github.io/Zotero-TTS/',
-  repo: 'https://github.com/xujialiu/Zotero-TTS',
+  name: 'Zotero-OpenReader',
+  base: 'https://xujialiu.github.io/Zotero-OpenReader/',
+  repo: 'https://github.com/xujialiu/Zotero-OpenReader',
   branch: 'main',
 };
 

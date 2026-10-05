@@ -1,4 +1,4 @@
-<!-- translated-from: remote-access-cloudflare.md sha256:5873fe4aa83b -->
+<!-- translated-from: remote-access-cloudflare.md sha256:f4ddfebbd6ab -->
 # 用 Cloudflare 在任何地方访问你的 TTS 服务器
 
 [English](remote-access-cloudflare.md) · **简体中文**
@@ -94,7 +94,7 @@ curl -s \
 
 ## 5. 把插件指过去
 
-Zotero → 设置 → Zotero-TTS → **OpenAI Compatible** 那一节：
+Zotero → 设置 → Zotero-OpenReader → **OpenAI Compatible** 那一节：
 
 | 字段 | 填什么 |
 |---|---|

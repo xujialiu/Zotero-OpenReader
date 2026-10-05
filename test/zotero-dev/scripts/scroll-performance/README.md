@@ -31,4 +31,4 @@ Runs:
 
 | Date | Build | Report | Items |
 |---|---|---|---|
-| 2026-09-18 | `1.13.1-beta` | [#125 closing comment](https://github.com/xujialiu/Zotero-TTS/issues/125) | 1, 2, 3, 4, 6 PASS; 5 NOT TESTABLE (no local voices in the profile) |
+| 2026-09-18 | `1.13.1-beta` | [#125 closing comment](https://github.com/xujialiu/Zotero-OpenReader/issues/125) | 1, 2, 3, 4, 6 PASS; 5 NOT TESTABLE (no local voices in the profile) |

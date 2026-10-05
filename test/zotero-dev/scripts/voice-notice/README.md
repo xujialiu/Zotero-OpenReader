@@ -1,6 +1,6 @@
 # Scripts: voice-switch notice lifetime (issue #119)
 
-[Case](../../cases/voice-notice.md) · [Checklist index](../../README.md) · [Runner](../_shared/README.md) · [Verification](https://github.com/xujialiu/Zotero-TTS/issues/119#issuecomment-5708112768)
+[Case](../../cases/voice-notice.md) · [Checklist index](../../README.md) · [Runner](../_shared/README.md) · [Verification](https://github.com/xujialiu/Zotero-OpenReader/issues/119#issuecomment-5708112768)
 
 | Script | What it checks | What it expects | Params/state |
 |---|---|---|---|
@@ -43,4 +43,4 @@
 | 2026-09-17 / 1.12.12-beta5 | Voice notice slow preparation/source start, paused readiness/early fallback, replacement/failure/cancellation, independent toast and tab switch PASS in PDF/EPUB | `2026-09-17-1.12.12-beta5-playback-notice-voice-regression-r1` |
 | 2026-09-17 / 1.12.12-beta5 | Fixture cleanup PASS: items/readers erased, transport/owner and named prefs restored; final host state was `windowState: 3` in this bridge session | `2026-09-17-1.12.12-beta5-playback-notice-voice-cleanup-r1` |
 
-[Beta5 regression result table](https://github.com/xujialiu/Zotero-TTS/issues/120#issuecomment-5710577358).
+[Beta5 regression result table](https://github.com/xujialiu/Zotero-OpenReader/issues/120#issuecomment-5710577358).

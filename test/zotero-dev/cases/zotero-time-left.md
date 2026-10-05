@@ -17,7 +17,7 @@ When Zotero will not read a Zotero voice for its account:
   tab, is closed; the tier's switch goes off; a reminder opens over the
   document of the tab where it happened: `Zotero Premium has no remaining
   time and has been switched off. Add more time, then enable it again in
-  Zotero-TTS settings.` (+ `Reading also stopped in N other tab(s).`),
+  Zotero-OpenReader settings.` (+ `Reading also stopped in N other tab(s).`),
   with an **Add more time** link and a ✕.
 - **Short** — Zotero refused while credits are left: nothing closed or
   switched off; the reminder `Not enough remaining time on Zotero Premium
@@ -26,7 +26,7 @@ When Zotero will not read a Zotero voice for its account:
   this voice.` with Retry.
 - **Daily limit** — the tier that hit it is switched off as for used up;
   the reminder `Zotero Premium has reached today's limit and has been
-  switched off. Enable it again in Zotero-TTS settings tomorrow.`, no link;
+  switched off. Enable it again in Zotero-OpenReader settings tomorrow.`, no link;
   the credits are not read.
 - Every other error keeps the ! with Retry, and nothing is switched off.
 
@@ -90,7 +90,7 @@ figure: reinstall the wrapper per item with the item's answers.
    code: 'quota-exceeded', tier: 'premium', credits: 0, minutes: 0,
    action: 'used-up', closed: 2 }`. Click **Add more time** →
    `Zotero.launchURL` once with `https://www.zotero.org/settings/readaloud`,
-   the reminder stays; click ✕ → it is gone. Settings → Zotero-TTS →
+   the reminder stays; click ✕ → it is gone. Settings → Zotero-OpenReader →
    Premium: its row reads `Enable`, and `Remaining time: 0min` in red with
    **Add more time**.
 5. **Short.** Premium back on (pref), the provider figure back, the

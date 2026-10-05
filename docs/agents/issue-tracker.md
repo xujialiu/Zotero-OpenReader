@@ -1,7 +1,7 @@
 # Issue tracker: GitHub
 
 Issues and specs for this repo live as GitHub issues on
-`xujialiu/Zotero-TTS`. Use the `gh` CLI for all operations.
+`xujialiu/Zotero-OpenReader`. Use the `gh` CLI for all operations.
 
 **`MEMORY/issues.md` binds every operation below and wins where the two
 differ**: no issue is opened without the user's yes, a body or comment is

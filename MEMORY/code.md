@@ -1,4 +1,4 @@
-# Code — Zotero-TTS
+# Code — Zotero-OpenReader
 
 The source layout, the rules for changing it, and the Zotero behavior that
 has already cost a round-trip. Part of the project rule book, whose core is

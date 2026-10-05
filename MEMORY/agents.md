@@ -1,4 +1,4 @@
-# Agents — Zotero-TTS
+# Agents — Zotero-OpenReader
 
 Who does which work, the main session or an agent; how agents are defined;
 and how the main session waits on them. Part of the project rule book,

@@ -70,4 +70,4 @@ Covers items 1.10 and 1.11. Run through [the shared kit runner](../_shared/READM
 
 | Date | Build | Report | Items | Notes |
 | --- | --- | --- | --- | --- |
-| 2026-09-21 | 1.13.2-beta4, Zotero 10.0.3-beta.3+80bc5565e | [#103's closing comment](https://github.com/xujialiu/Zotero-TTS/issues/103) | `00`'s reproduction on 1.13.2-beta3 PASS; 1.10 PASS; 1.11 PASS (diagnostic, control and DOM checks) | First scripts of this kit. `04` revised once for the voice browser's async listing (see Limits) |
+| 2026-09-21 | 1.13.2-beta4, Zotero 10.0.3-beta.3+80bc5565e | [#103's closing comment](https://github.com/xujialiu/Zotero-OpenReader/issues/103) | `00`'s reproduction on 1.13.2-beta3 PASS; 1.10 PASS; 1.11 PASS (diagnostic, control and DOM checks) | First scripts of this kit. `04` revised once for the voice browser's async listing (see Limits) |

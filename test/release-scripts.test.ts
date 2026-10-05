@@ -64,7 +64,7 @@ describe('the version line', () => {
 describe('update.json', () => {
   it('names the asset every installed copy downloads', () => {
     expect(releaseLink('1.10.14')).toBe(
-      'https://github.com/xujialiu/Zotero-TTS/releases/download/v1.10.14/zotero-tts.xpi',
+      'https://github.com/xujialiu/Zotero-OpenReader/releases/download/v1.10.14/zotero-tts.xpi',
     );
   });
 

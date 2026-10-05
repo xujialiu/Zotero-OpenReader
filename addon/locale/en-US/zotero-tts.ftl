@@ -1,4 +1,4 @@
-# Zotero-TTS — every string the settings pane shows and the plugin writes
+# Zotero-OpenReader — every string the settings pane shows and the plugin writes
 # into it. This file is the source of truth; the other locales mirror its
 # ids, attributes and variables (test/l10n.test.ts). Ids carry the ztts-
 # prefix because a document's Fluent messages share one namespace with
@@ -114,8 +114,8 @@ ztts-duration-hm = { $hours }h { $minutes }min
 ztts-duration-dhm = { $days }d { $hours }h { $minutes }min
 ztts-duration-d = { $days }d
 # The reminder over the document when Zotero will not read (issue #140); $tier is Zotero Standard or Zotero Premium
-ztts-reminder-used-up = { $tier } has no remaining time and has been switched off. Add more time, then enable it again in Zotero-TTS settings.
-ztts-reminder-daily-limit = { $tier } has reached today's limit and has been switched off. Enable it again in Zotero-TTS settings tomorrow.
+ztts-reminder-used-up = { $tier } has no remaining time and has been switched off. Add more time, then enable it again in Zotero-OpenReader settings.
+ztts-reminder-daily-limit = { $tier } has reached today's limit and has been switched off. Enable it again in Zotero-OpenReader settings tomorrow.
 ztts-reminder-short = Not enough remaining time on { $tier } for this voice. Choose a cheaper voice, or add more time.
 ztts-reminder-others = { $count ->
     [one] Reading also stopped in 1 other tab.
@@ -389,7 +389,7 @@ ztts-about-email = Email { $email }
 # The line under it, the repository: the link is named, not placed, so the
 # markup's label named github takes the text between the tags wherever a
 # language puts it
-ztts-about-star = If you like Zotero-TTS, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.
+ztts-about-star = If you like Zotero-OpenReader, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.
 
 
 ## What TypeScript writes into the pane (issue #43)
@@ -552,13 +552,13 @@ ztts-highlight-toast-sentence = Highlight: sentence
 # The word toast on a voice without word timing: the switch changed, the screen did not
 ztts-highlight-toast-word-no-timing = Highlight: word (this voice has no word timing, so the sentence stays highlighted)
 # The hint on Zotero's own Highlight current menulist, greyed while the plugin runs (ui/zotero-highlight-menu.ts, issue #114)
-ztts-zotero-highlight-hint = Chosen in Zotero-TTS's settings, under Highlight
+ztts-zotero-highlight-hint = Chosen in Zotero-OpenReader's settings, under Highlight
 
 ## Backup and Sync (ui/backup-rows.ts, ui/webdav-rows.ts)
 
 # The file dialogs' titles
-ztts-picker-backup = Backup Zotero-TTS settings
-ztts-picker-restore = Restore Zotero-TTS settings
+ztts-picker-backup = Backup Zotero-OpenReader settings
+ztts-picker-restore = Restore Zotero-OpenReader settings
 ztts-backup-saved = Saved to { $path }. The file holds every setting, the API keys, gateway headers and WebDAV password included — keep it private.
 ztts-backup-failed = Backup failed: { $detail }
 ztts-restore-confirm = Replace the current settings with the { $count } in { $path }?
@@ -592,9 +592,9 @@ ztts-webdav-machine-file = This computer's backup on the server is { $file }.
 
 ## The reader: the line shown when Read Aloud does not start with the remembered voice (read-aloud/read-aloud-memory.ts, issue #35)
 
-ztts-substitute = Zotero-TTS: { $missing } is not offered here. Reading with { $instead } instead.
-ztts-substitute-none = Zotero-TTS: { $missing } is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice.
-ztts-substitute-paid = Zotero-TTS: { $missing } is not offered here, and no other voice of Zotero-TTS is. Zotero picks the voice; it may use credits.
+ztts-substitute = Zotero-OpenReader: { $missing } is not offered here. Reading with { $instead } instead.
+ztts-substitute-none = Zotero-OpenReader: { $missing } is not offered here, and no other voice of Zotero-OpenReader is. Zotero picks the voice.
+ztts-substitute-paid = Zotero-OpenReader: { $missing } is not offered here, and no other voice of Zotero-OpenReader is. Zotero picks the voice; it may use credits.
 
 ## Scrolling (issue #155: its own section, out of Highlight)
 
@@ -701,14 +701,14 @@ ztts-player-manual = Manual scrolling. Click to go to the reading position and s
 ztts-player-search = Search
 ztts-player-empty = No matches
 ztts-player-loading = Loading voices…
-ztts-player-no-voices = No voices available. Enable a provider in Zotero-TTS settings.
+ztts-player-no-voices = No voices available. Enable a provider in Zotero-OpenReader settings.
 ztts-player-favorite = Favorite
 ztts-player-unfavorite = Remove favorite
 ztts-player-retry = Retry
 ztts-player-buffering = Buffering…
 ztts-player-unavailable = Read Aloud is unavailable in this document.
 # When the player cannot load in a document, Zotero's own player does not stand in (issue #134, ADR 0007)
-ztts-player-failed = The Zotero-TTS player could not load here. To read aloud with Zotero's own player meanwhile, turn Zotero-TTS off under Tools → Plugins.
+ztts-player-failed = The Zotero-OpenReader player could not load here. To read aloud with Zotero's own player meanwhile, turn Zotero-OpenReader off under Tools → Plugins.
 ztts-player-unavailable-choice = This voice or language is no longer available. Choose another one.
 ztts-player-invalid-value = The selected value is not supported.
 ztts-player-playback-error = Playback failed. Check your provider connection and try again.
@@ -735,7 +735,7 @@ ztts-help-key-player-layout =
     .help = Cycles Top bar → Bottom bar → Floating panel while the player is open; all players share the layout.
 
 ztts-document-voice-unavailable = The saved voice ({ $voice }) is unavailable. Choose a voice in the player to continue.
-ztts-default-voice-required = Choose a default voice in Zotero-TTS settings before reading.
+ztts-default-voice-required = Choose a default voice in Zotero-OpenReader settings before reading.
 
 ztts-remaining-time =
     .label = Show estimated remaining reading time

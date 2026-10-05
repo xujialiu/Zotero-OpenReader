@@ -15,7 +15,7 @@ walk of #87) now runs a second sieve after the restore
 (`src/read-aloud/paragraph-parts.ts`, the four tests in its header) and
 writes the part link Zotero refused; Zotero's own chain walk, cut, rects,
 highlights and follow do the rest. The switch is
-`readAloud.joinSplitSentences` (Settings → Zotero-TTS → Reading → *Read a
+`readAloud.joinSplitSentences` (Settings → Zotero-OpenReader → Reading → *Read a
 sentence Zotero split in two as one*), default true, read when the
 structure loads, so every flip needs a fresh tab. The document is the
 owner's manuscript, attachment `2YW7BJTZ` (parent `Y79TCS3K`; `RW6PYBBQ` a
@@ -75,7 +75,7 @@ fix were measured on 1.12.7, the ones after it on 1.12.8-beta and -beta2
    two halves back as separate segments, the count of item 3 back to 19.
    True again, a fresh copy: item 2 again. The #87 restore is untouched
    either way (`enabled: true`, `restored` as before).
-5. **The pane.** Settings → Zotero-TTS, the Reading group: the row *Read a
+5. **The pane.** Settings → Zotero-OpenReader, the Reading group: the row *Read a
    sentence Zotero split in two as one* directly under *Read a page's
    first line when Zotero would skip it*, checked, bound to
    `readAloud.joinSplitSentences`; its `?` opens `#ztts-help-tip` with the
