@@ -20,10 +20,12 @@ Run the baseline first, with its test WebDAV isolation: the test
 configuration in place and every automatic sync and upload suspended
 before the build is installed, so the upgrade runs on the test address.
 Items 6 and 7 point the URL at local addresses on `127.0.0.1` that hold no
-data; item 8 restores a backup file of the profile's own settings. Put
-the test configuration back after each of them and confirm it, and
-restore the original configuration and switches at the end as the
-baseline says.
+data. Put the test configuration back after each of them and confirm it,
+and restore the original configuration and switches at the end as the
+baseline says. Item 8 goes through a native file dialog, so it is a human
+check (`limitations.md` §8) and no bridge run attempts it: unit tests in
+`test/ui/webdav-rows.test.ts` and `test/ui/backup-rows.test.ts` prove the
+switch stays off during the restore's check.
 
 1. **The upgrade turns the folder on, once.** Before the install, the
    profile has `extensions.zotero.zotero-tts.webdav.url` set (the test
@@ -56,10 +58,13 @@ baseline says.
    configuration in place, a poke (opening the pane calls one) runs the
    positions transport against the test folder: `positionSync().transport`
    changes its last trigger/outcome. Press Disable: the line empties, the
-   rows of item 3 grey, and a further poke leaves
-   `positionSync().transport` and `.shared.transport` exactly as they
-   were. Press Enable again: within a few seconds the transport runs with
-   trigger `switch-on`. Leave the switches as the isolation needs them
+   rows of item 3 grey, and a further poke records only a skipped attempt
+   on `positionSync().transport` and `.shared.transport` — `lastOutcome`
+   `skipped`, `lastError` null, `remoteEntries` / `adopted` / `uploaded`
+   unchanged; `syncs`, `lastTrigger` and `lastAt` move, since a poke
+   records the attempt before the gate (measured 2026-10-05). Press Enable
+   again: within a few seconds the transport runs with trigger
+   `switch-on`. Leave the switches as the isolation needs them
    afterwards.
 6. **A failed Enable stays off; an http:// address is warned about.**
    With the folder off, set the URL to `http://127.0.0.1:9/dav/` (nothing
@@ -75,7 +80,8 @@ baseline says.
    http://127.0.0.1:<port>/dav/.` followed by the warning, and
    `webdav.enabled` is `true`. Disable, stop the stub, put the test URL
    back and confirm it.
-8. **A restore re-checks the folder.** Save *Backup settings…* to a file
+8. **A restore re-checks the folder** (human check, never through the
+   bridge). Save *Backup settings…* to a file
    (the profile's own settings, test configuration in place). In a copy,
    set `webdav.password` to a wrong value and `webdav.enabled` to `true`.
    Restore the copy (*Restore settings…*): while the line reads `Checking

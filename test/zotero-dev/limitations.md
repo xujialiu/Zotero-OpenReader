@@ -8,7 +8,11 @@ screen, the complete Run JavaScript code, the expected output.
 
 - *Backup settings…* / *Restore settings…* and *Export/Import reading
   positions…*: the file dialogs, the confirm, the message line, the
-  provider check after a restore (issue #21).
+  provider check after a restore (issue #21) and the WebDAV folder's
+  (issue #175). The bridge cannot drive a native file dialog: on
+  2026-10-05 a stubbed `FilePicker.prototype.show` still opened a real
+  panel at every click, and a probe of `nsIFilePicker` crashed Zotero
+  (MEMORY/testing.md, "Never open a native dialog through the bridge").
 - *Restore settings from server…*: the picker listing every machine's
   file with its date, the confirm, the restore.
 - How a voice sounds; whether the word highlight keeps pace with the
