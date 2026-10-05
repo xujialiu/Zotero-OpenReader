@@ -564,7 +564,7 @@ ztts-backup-failed = Backup failed: { $detail }
 ztts-restore-confirm = Replace the current settings with the { $count } in { $path }?
 ztts-restored = Restored { $count } settings from { $path }.
 ztts-skipped = Skipped { $count }: { $keys }.
-ztts-checking-providers = Checking the providers it turns on…
+ztts-checking-providers = Checking the providers and the WebDAV folder it turns on…
 ztts-providers-uncheckable = The providers could not be checked: { $detail }
 ztts-restore-failed = Restore failed: { $detail }
 ztts-positions-saved = Saved { $count } reading positions to { $path }.
@@ -576,7 +576,7 @@ ztts-webdav-uploading = Uploading…
 ztts-webdav-looking = Looking…
 ztts-webdav-connected = Connected to { $url }.
 # On the restore's line, after the folder a restore turned on failed its check (issue #175)
-ztts-webdav-turned-off = The WebDAV folder did not answer here, so it is off.
+ztts-webdav-turned-off = The WebDAV folder failed its check here, so it is off.
 # After Enable's or Test connection's line, for an http:// folder (issue #174)
 ztts-webdav-plain-http = Warning: http:// is not encrypted, so the password and the settings sent here, API keys included, can be read on the way. Use https:// if the server supports it.
 ztts-upload-failed = Upload failed: { $detail }

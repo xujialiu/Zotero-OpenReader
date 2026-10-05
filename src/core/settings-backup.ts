@@ -138,11 +138,17 @@ export function parseBackup(text: string): ParsedBackup {
   };
 }
 
-/** Writes the parsed settings to the prefs and returns how many. */
+/**
+ * Writes the parsed settings to the prefs and returns how many. The WebDAV
+ * folder's switch is the exception (issue #175): a restore writes it off,
+ * whatever the file says, and the pane's check turns it on once the
+ * restored address has passed (ui/webdav-rows.ts verifyEnabled) — the
+ * sync must not reach that address before.
+ */
 export function applyBackup(prefs: PrefsBackend, parsed: ParsedBackup): number {
   let applied = 0;
   for (const [key, value] of Object.entries(parsed.settings)) {
-    prefs.set(PREF_PREFIX + key, value);
+    prefs.set(PREF_PREFIX + key, key === 'webdav.enabled' ? false : value);
     applied++;
   }
   return applied;

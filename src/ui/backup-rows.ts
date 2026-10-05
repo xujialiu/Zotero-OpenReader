@@ -1,6 +1,6 @@
 import { sentences, t } from '../core/l10n';
 import type { PrefsBackend } from '../core/settings';
-import { applyBackup, BACKUP_FILENAME, createBackup, parseBackup, serializeBackup } from '../core/settings-backup';
+import { applyBackup, BACKUP_FILENAME, createBackup, parseBackup, serializeBackup, type FlatSettings } from '../core/settings-backup';
 import { parsePositions, POSITIONS_FILENAME, serializePositions } from '../read-aloud/position-file';
 import type { PositionEntry } from '../read-aloud/read-aloud-position';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
@@ -56,11 +56,13 @@ export interface BackupRowsDeps extends BackupFileIO, Partial<ReadingGuardDeps> 
   onRestored?(): void;
   /**
    * The connection check a restore ends in (issue #21): every provider the
-   * restored settings turn on is checked, and one that fails goes back off.
+   * restored settings turn on is checked, and one that fails goes back off;
+   * so is the WebDAV folder, which the restore wrote off (issue #175) and
+   * which goes on only once the restored settings' address passes.
    * Returns the sentence to append, or '' when there was nothing to check.
    * Omitted, a restore behaves as it did before there was one.
    */
-  verifyProviders?(): Promise<string>;
+  verifyProviders?(restored: FlatSettings): Promise<string>;
 }
 
 interface ElementLike {
@@ -84,10 +86,10 @@ export const checkingProviders = (): string => t('ztts-checking-providers');
  * settings are on disk and in the prefs either way, so a check that breaks
  * is reported beside the restore, never as a failed restore.
  */
-export async function verifyRestoredProviders(deps: { verifyProviders?(): Promise<string> }): Promise<string> {
+export async function verifyRestoredProviders(deps: { verifyProviders?(restored: FlatSettings): Promise<string> }, restored: FlatSettings): Promise<string> {
   if (!deps.verifyProviders) return '';
   try {
-    return (await deps.verifyProviders()) || '';
+    return (await deps.verifyProviders(restored)) || '';
   } catch (e) {
     return t('ztts-providers-uncheckable', { detail: describe(e) });
   }
@@ -143,7 +145,7 @@ export function initBackupRows(doc: RowsDocument, deps: BackupRowsDeps): void {
         return;
       }
       message(sentences(restored, checkingProviders()));
-      const verdict = await verifyRestoredProviders(deps);
+      const verdict = await verifyRestoredProviders(deps, parsed.settings);
       message(sentences(restored, verdict));
     } catch (e) {
       message(t('ztts-restore-failed', { detail: describe(e) }));

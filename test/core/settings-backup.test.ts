@@ -152,9 +152,6 @@ describe('parseBackup / applyBackup', () => {
   it('turns the WebDAV folder on for a backup from before its switch that holds an address', () => {
     const old = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'webdav.url': 'https://dav.example.com/zotero-tts/', 'webdav.syncPositions': true } }));
     expect(old.settings['webdav.enabled']).toBe(true);
-    const prefs = fakePrefs();
-    applyBackup(prefs, old);
-    expect(loadSettings(prefs).webdav.enabled).toBe(true);
     // A file that says off, or holds no address, is taken as it is
     const off = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'webdav.url': 'https://dav.example.com/zotero-tts/', 'webdav.enabled': false } }));
     expect(off.settings['webdav.enabled']).toBe(false);
@@ -162,6 +159,18 @@ describe('parseBackup / applyBackup', () => {
       expect(parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'webdav.url': url } })).settings).not.toHaveProperty('webdav.enabled');
     }
     expect(parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'azure.region': 'eastus' } })).settings).not.toHaveProperty('webdav.enabled');
+  });
+
+  // Issue #175: nothing may reach a restored address before the pane's check passes
+  it('never switches the WebDAV folder on by itself: the switch is written off, and the check turns it on', () => {
+    const prefs = fakePrefs({ [PREF_PREFIX + 'webdav.enabled']: true });
+    const on = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'webdav.url': 'https://other.example.com/dav/', 'webdav.enabled': true } }));
+    expect(applyBackup(prefs, on)).toBe(2);
+    expect(prefs.store[PREF_PREFIX + 'webdav.enabled']).toBe(false);
+    // A file that does not hold the switch leaves it as it is
+    const prefs2 = fakePrefs({ [PREF_PREFIX + 'webdav.enabled']: true });
+    applyBackup(prefs2, parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'azure.region': 'eastus' } })));
+    expect(prefs2.store[PREF_PREFIX + 'webdav.enabled']).toBe(true);
   });
 
   it('carries the file metadata along when it is there', () => {

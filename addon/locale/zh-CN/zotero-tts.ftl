@@ -500,7 +500,7 @@ ztts-backup-failed = 备份失败：{ $detail }
 ztts-restore-confirm = 用 { $path } 中的 { $count } 项设置替换当前设置？
 ztts-restored = 已从 { $path } 恢复 { $count } 项设置。
 ztts-skipped = 跳过 { $count } 项：{ $keys }。
-ztts-checking-providers = 正在检查它启用的服务商…
+ztts-checking-providers = 正在检查它启用的服务商和 WebDAV 文件夹…
 ztts-providers-uncheckable = 无法检查服务商：{ $detail }
 ztts-restore-failed = 恢复失败：{ $detail }
 ztts-positions-saved = 已把 { $count } 个朗读位置保存到 { $path }。
@@ -512,7 +512,7 @@ ztts-webdav-uploading = 正在上传…
 ztts-webdav-looking = 正在查找…
 ztts-webdav-connected = 已连接到 { $url }。
 # 恢复那一行：恢复后启用的文件夹没通过检查（issue #175）
-ztts-webdav-turned-off = WebDAV 文件夹在这台电脑上连不上，已关闭。
+ztts-webdav-turned-off = WebDAV 文件夹在这台电脑上没通过检查，已关闭。
 # 启用或测试连接那一行之后，http:// 文件夹才有（issue #174）
 ztts-webdav-plain-http = 注意：http:// 不加密，密码和发到这里的设置（含 API 密钥）在传输途中可能被他人看到。服务器支持的话，请改用 https://。
 ztts-upload-failed = 上传失败：{ $detail }

@@ -724,4 +724,4 @@ then) and is in the git history before that day.
 
 ### [2026-10-05](NOTES_2026-10-05.md)
 
-- The WebDAV folder gets a switch, and an http:// address a warning instead of a refusal (issues #172, #173)
+- The WebDAV folder gets a switch, and an http:// address a warning instead of a refusal (issues #172–#175)

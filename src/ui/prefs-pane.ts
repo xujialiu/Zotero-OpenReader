@@ -787,7 +787,8 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // settings turn on but that does not work here goes back off, with its
     // failure beside it (ui/provider-rows.ts, issue #21). The WebDAV
     // folder's switch is checked the same way, at the same time (issue #175)
-    verifyProviders: async () => sentences(...(await Promise.all([providerRows.verifyEnabled(), webdavRows?.verifyEnabled() ?? Promise.resolve('')]))),
+    verifyProviders: async (restored: FlatSettings) =>
+      sentences(...(await Promise.all([providerRows.verifyEnabled(), webdavRows?.verifyEnabled(restored['webdav.enabled'] as boolean | undefined) ?? Promise.resolve('')]))),
   };
   initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps, positions: hooks.positionsIO });
   // The sandbox's own fetch, and the pane window's AbortController, whose

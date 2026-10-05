@@ -217,6 +217,5 @@ _Avoid_: lock, block
 
 **WebDAV folder**:
 A folder on the user's own WebDAV server, through which the sync and the
-server backup reach their other computers and the phone. It is switched
-on and off on each computer, like a provider.
+server backup reach their other computers and the phone.
 _Avoid_: WebDAV connection, server (alone), cloud

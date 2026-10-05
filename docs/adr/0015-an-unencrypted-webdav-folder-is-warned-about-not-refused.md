@@ -63,7 +63,11 @@ already sent the credentials.
   checks in `src/index.ts` and the pane's status lines read through it.
   The pane greys the three switches and the two server-backup buttons
   while the folder is off, and leaves their prefs alone.
-- **Restore re-checks it** as it re-checks providers (issue #21): a
-  restored `webdav.enabled` that fails the check goes back off. A backup
-  written before the switch existed, holding a URL, counts as on
-  (`parseBackup`), the same rule as the upgrade.
+- **A restore never turns it on by itself.** `applyBackup` writes
+  `webdav.enabled` false whatever the file says, and the pane's restore
+  check turns it on once the restored address passes (issue #175), as
+  Enable would; a provider's switch, by contrast, is written and then
+  re-checked (issue #21). Written straight, the switch observers would
+  poke the syncs at an address not yet checked. A backup written before
+  the switch existed, holding a URL, counts as on (`parseBackup`), the
+  same rule as the upgrade.

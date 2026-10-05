@@ -3,7 +3,7 @@ import { flattenSettings } from '../../src/core/settings-backup';
 import { loadSettings } from '../../src/core/settings';
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
-import { BACKUP_FILENAME, BACKUP_FORMAT, createBackup, parseBackup, serializeBackup } from '../../src/core/settings-backup';
+import { BACKUP_FILENAME, BACKUP_FORMAT, createBackup, parseBackup, serializeBackup, type FlatSettings } from '../../src/core/settings-backup';
 import { POSITIONS_FILENAME, serializePositions } from '../../src/read-aloud/position-file';
 import type { PositionEntry } from '../../src/read-aloud/read-aloud-position';
 import { initBackupRows, POSITIONS_IDS, type BackupRowsDeps } from '../../src/ui/backup-rows';
@@ -43,7 +43,7 @@ function setup(
     protectAzure?: boolean;
     /** The reading guard's question (issue #160); with it the reading tabs come with a close each, which takes the tab off `reading`. Absent, the guard only refuses. */
     askToClose?: (message: string) => Promise<boolean>;
-    verify?: () => Promise<string>;
+    verify?: (restored: FlatSettings) => Promise<string>;
     positions?: PositionEntry[];
   } = {},
 ) {
@@ -172,8 +172,11 @@ describe('Restore settings', () => {
   // A restore writes the provider switches straight to the prefs, so it ends
   // in the connection check Enable would have run (issue #21)
   it('checks the providers the restored settings turn on, and appends what it found', async () => {
-    const t = setup({ file, verify: async () => 'Turned off azure: the settings restored for it do not work here.' });
+    const verify = vi.fn(async (_restored: Record<string, unknown>) => 'Turned off azure: the settings restored for it do not work here.');
+    const t = setup({ file, verify });
     await t.el('ztts-restore').fire('command');
+    // The check hears what the file held: the WebDAV folder's switch is among it (issue #175)
+    expect(verify).toHaveBeenCalledWith(parseBackup(file).settings);
     const count = Object.keys(parseBackup(file).settings).length;
     expect(t.message()).toBe(`Restored ${count} settings from C:\\backups\\tts.json. Turned off azure: the settings restored for it do not work here.`);
   });
@@ -184,7 +187,7 @@ describe('Restore settings', () => {
     const restoring = t.el('ztts-restore').fire('command');
     // The reading guard answers on a microtask even with nothing reading (issue #71), then the restore reaches the check
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    expect(t.message()).toContain('Checking the providers it turns on…');
+    expect(t.message()).toContain('Checking the providers and the WebDAV folder it turns on…');
     release('Checked 1 provider: all working.');
     await restoring;
     expect(t.message()).toContain('Checked 1 provider: all working.');

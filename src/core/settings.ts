@@ -559,7 +559,10 @@ export function webdavSwitchOn(webdav: Settings['webdav'], key: WebDAVUseSwitch)
   return webdav.enabled && webdav[key];
 }
 
-/** The folder's switch, for Zotero.Prefs.registerObserver (names relative to extensions.zotero.). */
+/** The folder's switch, by its full pref name. */
+export const WEBDAV_ENABLED_PREF = PREF_PREFIX + 'webdav.enabled';
+
+/** The same pref, for Zotero.Prefs.registerObserver (names relative to extensions.zotero.). */
 export const WEBDAV_FOLDER_OBSERVER = 'zotero-tts.webdav.enabled';
 
 /**
@@ -581,7 +584,7 @@ export function migrateWebDAVFolderSwitch(prefs: PrefsBackend): boolean {
   if (prefs.get(WEBDAV_FOLDER_MIGRATED_PREF) === true) return false;
   const url = prefs.get(PREF_PREFIX + 'webdav.url');
   const inUse = typeof url === 'string' && url.trim() !== '';
-  if (inUse) prefs.set(PREF_PREFIX + 'webdav.enabled', true);
+  if (inUse) prefs.set(WEBDAV_ENABLED_PREF, true);
   prefs.set(WEBDAV_FOLDER_MIGRATED_PREF, true);
   return inUse;
 }

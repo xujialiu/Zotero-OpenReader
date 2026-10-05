@@ -12,8 +12,9 @@ auto-upload do nothing whatever their switches say (`webdavSwitchOn` in
 server copy's two buttons. On an `http://` address Enable and Test
 connection end their line with the warning `ztts-webdav-plain-http`, on a
 failure too. The upgrade turns the folder on, once, where an address is
-set (the marker `webdav.enabledMigrated`). A restore checks a restored
-folder like Enable, and turns one that fails back off. Decision: ADR 0015.
+set (the marker `webdav.enabledMigrated`). A restore writes the folder's
+switch off and turns it on only once the restored address passes Enable's
+check. Decision: ADR 0015.
 
 Run the baseline first, with its test WebDAV isolation: the test
 configuration in place and every automatic sync and upload suspended
@@ -77,15 +78,17 @@ baseline says.
 8. **A restore re-checks the folder.** Save *Backup settings…* to a file
    (the profile's own settings, test configuration in place). In a copy,
    set `webdav.password` to a wrong value and `webdav.enabled` to `true`.
-   Restore the copy (*Restore settings…*): the Backup line ends with `The
-   WebDAV folder did not answer here, so it is off.`, the WebDAV line
-   shows the server's refusal, `webdav.enabled` is `false` and the button
-   reads **Enable**. Restore the untouched file: the folder is checked,
-   passes, stays on, and the WebDAV line says connected. The test
+   Restore the copy (*Restore settings…*): while the line reads `Checking
+   the providers and the WebDAV folder it turns on…`, `webdav.enabled` is
+   `false` and no positions or settings sync starts; then the Backup line
+   ends with `The WebDAV folder failed its check here, so it is off.`, the
+   WebDAV line shows the server's refusal, `webdav.enabled` is `false` and
+   the button reads **Enable**. Restore the untouched file: the folder is
+   checked, passes, goes on, and the WebDAV line says connected. The test
    configuration and the password are then as they were.
 9. **The zh-CN strings** (when the run can switch Zotero's locale, or by
    `diagnostics.l10n()`): the warning reads `注意：http:// 不加密，密码和发到这里的设置（含 API 密钥）在传输途中可能被他人看到。服务器支持的话，请改用 https://。`
-   and the restore's sentence `WebDAV 文件夹在这台电脑上连不上，已关闭。`
+   and the restore's sentence `WebDAV 文件夹在这台电脑上没通过检查，已关闭。`
 
 What only a human can judge: how the Enable button sits beside Test
 connection, and whether the warning reads well where it wraps.

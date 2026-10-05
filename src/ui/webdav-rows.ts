@@ -1,6 +1,6 @@
 import { sentences, t } from '../core/l10n';
-import { loadSettings, PREF_PREFIX, type PrefsBackend } from '../core/settings';
-import { applyBackup, createBackup, machineSettingsFilename, parseBackup, serializeBackup, SETTINGS_FILE_PATTERN } from '../core/settings-backup';
+import { loadSettings, WEBDAV_ENABLED_PREF, type PrefsBackend, type Settings } from '../core/settings';
+import { applyBackup, createBackup, machineSettingsFilename, parseBackup, serializeBackup, SETTINGS_FILE_PATTERN, type FlatSettings } from '../core/settings-backup';
 import { isPlainHttpURL, type WebDAVClient, type WebDAVConfig, type WebDAVFile } from '../core/webdav';
 import { checkingProviders, verifyRestoredProviders } from './backup-rows';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
@@ -76,7 +76,7 @@ export interface WebDAVRowsDeps extends Partial<ReadingGuardDeps> {
   /** Runs after a restore, for rows that must redraw themselves. */
   onRestored?(): void;
   /** The connection check a restore ends in, as the file restore runs it (ui/backup-rows.ts, issue #21). */
-  verifyProviders?(): Promise<string>;
+  verifyProviders?(restored: FlatSettings): Promise<string>;
 }
 
 interface ElementLike {
@@ -109,24 +109,30 @@ export function settingsFileLabel(file: WebDAVFile): string {
   return t('ztts-settings-file-label', { who: id ?? t('ztts-shared-file'), when: file.lastModified ?? t('ztts-date-unknown') });
 }
 
-/** The folder's switch, as the pref says. */
-const ENABLED_PREF = PREF_PREFIX + 'webdav.enabled';
-
 /** The rows that use the folder: greyed while it is off. */
 const USE_ROWS = [WEBDAV_IDS.syncPositions, WEBDAV_IDS.syncSettings, WEBDAV_IDS.autoUpload, WEBDAV_IDS.upload, WEBDAV_IDS.download];
+
+/** Whether two configurations name the same folder with the same credentials. */
+function sameFolder(a: Settings['webdav'], b: Settings['webdav']): boolean {
+  return a.url === b.url && a.username === b.username && a.password === b.password;
+}
 
 export interface WebDAVRows {
   /** After a restore: the switch, the lock and the greyed rows as the prefs say now. */
   refresh(): void;
   /**
-   * The commit point a restore skipped (issue #175, as ui/provider-rows.ts
-   * does for the providers, issue #21): a restore writes `webdav.enabled`
-   * straight to the prefs, so a folder it leaves on is checked as Enable
-   * would check it. One that fails goes back off, its failure on the
-   * WebDAV line; the returned sentence, for the restore's line, says so,
-   * and is empty otherwise.
+   * The commit point of a restore (issue #175, as ui/provider-rows.ts has
+   * for the providers, issue #21). A restore writes the folder's switch off
+   * (core/settings-backup.ts applyBackup), so nothing reaches the restored
+   * address before this: `wanted` is the switch the file held, undefined
+   * when it held none, and then the folder as it was is checked again,
+   * since its address may have changed under it. A folder wanted on goes
+   * on once Enable's check passes; one that fails stays off, its failure
+   * on the WebDAV line, and the returned sentence, for the restore's line,
+   * says so. Empty when nothing failed, and while an Enable or Test
+   * connection is already checking the folder, which is left to it.
    */
-  verifyEnabled(): Promise<string>;
+  verifyEnabled(wanted: boolean | undefined): Promise<string>;
 }
 
 export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVRows {
@@ -140,7 +146,9 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
   // One request at a time: a second click while the first is still talking
   // to the server would only produce a second dialog or a second upload
   let busy = false;
-  const enabled = () => deps.prefs.get(ENABLED_PREF) === true;
+  // A check of the folder running: Enable's, Test connection's or a restore's
+  let checking = false;
+  const enabled = () => deps.prefs.get(WEBDAV_ENABLED_PREF) === true;
 
   /**
    * The switch and everything that follows it: on is "Disable" with the
@@ -175,19 +183,30 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
 
   /**
    * The folder's check as Test connection runs it, on the settings as they
-   * are now; never throws. An http:// address adds the warning (issue
-   * #174, ADR 0015), on a failure too: the request has already gone out.
+   * are now, both buttons held and its outcome on the WebDAV line; never
+   * throws. An http:// address adds the warning (issue #174, ADR 0015), on
+   * a failure too: the request has already gone out. `ok` is a pass of the
+   * folder that is still configured when it ends: an address, username or
+   * password written meanwhile (a restore from a file) was not checked.
    */
-  async function check(): Promise<{ ok: boolean; message: string }> {
+  async function check(progress: string, relabel: boolean): Promise<{ ok: boolean }> {
+    checking = true;
+    hold();
+    if (relabel) doc.getElementById(WEBDAV_IDS.toggle)?.setAttribute('label', t('ztts-switch-checking'));
+    connectionLine(progress);
     const cfg = loadSettings(deps.prefs).webdav;
     const warning = isPlainHttpURL(cfg.url) ? t('ztts-webdav-plain-http') : '';
+    let outcome: { ok: boolean; message: string };
     try {
       const client = deps.createClient(cfg);
       await client.check();
-      return { ok: true, message: sentences(t('ztts-webdav-connected', { url: client.url }), warning) };
+      outcome = { ok: true, message: sentences(t('ztts-webdav-connected', { url: client.url }), warning) };
     } catch (e) {
-      return { ok: false, message: sentences(t('ztts-connection-failed', { detail: describe(e) }), warning) };
+      outcome = { ok: false, message: sentences(t('ztts-connection-failed', { detail: describe(e) }), warning) };
     }
+    connectionLine(outcome.message);
+    checking = false;
+    return { ok: outcome.ok && sameFolder(cfg, loadSettings(deps.prefs).webdav) };
   }
 
   const button = (
@@ -198,7 +217,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
     action: (client: WebDAVClient) => Promise<string>,
   ) => {
     doc.getElementById(id)?.addEventListener('command', async () => {
-      if (busy) return;
+      if (busy || checking) return;
       // The server copy's buttons are greyed while the folder is off, so only a command sent past one lands here
       if (!enabled()) return;
       busy = true;
@@ -211,39 +230,28 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
       } finally {
         busy = false;
         // A restore from the server may have moved the folder's switch: refresh() waited for this
-        paint();
+        if (!checking) paint();
       }
     });
   };
 
   // Test connection probes without committing, the folder off or on
   doc.getElementById(WEBDAV_IDS.test)?.addEventListener('command', async () => {
-    if (busy) return;
-    busy = true;
-    hold();
-    connectionLine(t('ztts-webdav-testing'));
-    connectionLine((await check()).message);
-    busy = false;
+    if (busy || checking) return;
+    await check(t('ztts-webdav-testing'), false);
     paint();
   });
 
   doc.getElementById(WEBDAV_IDS.toggle)?.addEventListener('command', async () => {
-    if (busy) return;
+    if (busy || checking) return;
     if (enabled()) {
-      deps.prefs.set(ENABLED_PREF, false);
+      deps.prefs.set(WEBDAV_ENABLED_PREF, false);
       // The last check's "Connected…" beside an Enable button would read as if it still held
       connectionLine('');
       paint();
       return;
     }
-    busy = true;
-    hold();
-    doc.getElementById(WEBDAV_IDS.toggle)?.setAttribute('label', t('ztts-switch-checking'));
-    connectionLine(t('ztts-switch-checking'));
-    const outcome = await check();
-    connectionLine(outcome.message);
-    if (outcome.ok) deps.prefs.set(ENABLED_PREF, true);
-    busy = false;
+    if ((await check(t('ztts-switch-checking'), true)).ok) deps.prefs.set(WEBDAV_ENABLED_PREF, true);
     paint();
   });
 
@@ -287,7 +295,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
     const restored = sentences(t('ztts-restored', { count: applied, path: `${client.url}${file.name}` }), skipped);
     if (!deps.verifyProviders) return restored;
     backupLine(sentences(restored, checkingProviders()));
-    const verdict = await verifyRestoredProviders(deps);
+    const verdict = await verifyRestoredProviders(deps, parsed.settings);
     return sentences(restored, verdict);
   });
 
@@ -308,19 +316,17 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
   paint();
   return {
     refresh: () => {
-      if (!busy) paint();
+      if (!busy && !checking) paint();
     },
     // Not held back by `busy`: a restore from the server runs this from inside its own button
-    verifyEnabled: async () => {
-      if (!enabled()) return '';
-      hold();
-      doc.getElementById(WEBDAV_IDS.toggle)?.setAttribute('label', t('ztts-switch-checking'));
-      connectionLine(t('ztts-switch-checking'));
-      const outcome = await check();
-      connectionLine(outcome.message);
-      if (!outcome.ok) deps.prefs.set(ENABLED_PREF, false);
+    verifyEnabled: async (wanted) => {
+      if (checking || !(wanted ?? enabled())) return '';
+      // Off while it is checked: the file held no switch, so it was left as it was
+      deps.prefs.set(WEBDAV_ENABLED_PREF, false);
+      const { ok } = await check(t('ztts-switch-checking'), true);
+      if (ok) deps.prefs.set(WEBDAV_ENABLED_PREF, true);
       paint();
-      return outcome.ok ? '' : t('ztts-webdav-turned-off');
+      return ok ? '' : t('ztts-webdav-turned-off');
     },
   };
 }

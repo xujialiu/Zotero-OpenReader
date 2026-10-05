@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
-import { BACKUP_FILENAME, BACKUP_FORMAT, createBackup, machineSettingsFilename, parseBackup, serializeBackup } from '../../src/core/settings-backup';
+import { BACKUP_FILENAME, BACKUP_FORMAT, createBackup, machineSettingsFilename, parseBackup, serializeBackup, type FlatSettings } from '../../src/core/settings-backup';
 import { WebDAVError, type WebDAVClient, type WebDAVConfig, type WebDAVFile } from '../../src/core/webdav';
 import { initWebDAVRows, settingsFileLabel, WEBDAV_IDS, type WebDAVRowsDeps } from '../../src/ui/webdav-rows';
 
@@ -52,7 +52,7 @@ function setup(
     reading?: string[];
     /** The reading guard's question (issue #160); with it the reading tabs come with a close each, which takes the tab off `reading`. Absent, the guard only refuses. */
     askToClose?: (message: string) => Promise<boolean>;
-    verify?: () => Promise<string>;
+    verify?: (restored: FlatSettings) => Promise<string>;
     files?: WebDAVFile[];
     select?: (title: string, options: string[]) => number | null;
   } = {},
@@ -545,20 +545,23 @@ describe('An unencrypted folder', () => {
 // Issue #175: a restore checks the folder as Enable would, beside the providers (issue #21)
 describe('verifyEnabled, after a restore', () => {
   const ENABLED = PREF_PREFIX + 'webdav.enabled';
+  const TURNED_OFF = 'The WebDAV folder failed its check here, so it is off.';
+  /** The state a restore leaves: the switch written off (core/settings-backup.ts applyBackup). */
+  const restored = { prefs: { [ENABLED]: false } };
 
-  it('keeps a restored folder that answers on, and says where it connected', async () => {
-    const t = setup();
-    expect(await t.rows.verifyEnabled()).toBe('');
+  it('turns a restored folder that passes on, and says where it connected', async () => {
+    const t = setup(restored);
+    expect(await t.rows.verifyEnabled(true)).toBe('');
     expect(t.client.check).toHaveBeenCalledOnce();
     expect(t.prefs.store[ENABLED]).toBe(true);
     expect(t.el(WEBDAV_IDS.message).textContent).toBe(`Connected to ${FOLDER}.`);
     expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Disable');
   });
 
-  it('turns a restored folder that fails back off, its failure on its line and a sentence for the restore', async () => {
-    const t = setup();
+  it('leaves a restored folder that fails off, its failure on its line and a sentence for the restore', async () => {
+    const t = setup(restored);
     t.client.check.mockRejectedValueOnce(new WebDAVError('auth', 'The server rejected the username or password (HTTP 401).', 401));
-    expect(await t.rows.verifyEnabled()).toBe('The WebDAV folder did not answer here, so it is off.');
+    expect(await t.rows.verifyEnabled(true)).toBe(TURNED_OFF);
     expect(t.prefs.store[ENABLED]).toBe(false);
     expect(t.el(WEBDAV_IDS.message).textContent).toBe('Connection failed: The server rejected the username or password (HTTP 401).');
     expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Enable');
@@ -566,40 +569,95 @@ describe('verifyEnabled, after a restore', () => {
     expect(t.el(WEBDAV_IDS.upload).disabled).toBe(true);
   });
 
+  it('re-checks a folder that is on when the file held no switch: its address may have changed under it', async () => {
+    const t = setup();
+    t.client.check.mockRejectedValueOnce(new WebDAVError('network', 'Cannot reach the server.'));
+    expect(await t.rows.verifyEnabled(undefined)).toBe(TURNED_OFF);
+    expect(t.prefs.store[ENABLED]).toBe(false);
+  });
+
   it('warns about a restored http:// folder', async () => {
-    const t = setup({ url: 'http://nas.local:5005/dav' });
-    await t.rows.verifyEnabled();
+    const t = setup({ ...restored, url: 'http://nas.local:5005/dav' });
+    await t.rows.verifyEnabled(true);
     expect(t.el(WEBDAV_IDS.message).textContent).toMatch(/^Connected to .*\. Warning: http:\/\/ is not encrypted/);
   });
 
-  it('leaves a folder the restore left off alone', async () => {
-    const t = setup({ prefs: { [ENABLED]: false } });
-    expect(await t.rows.verifyEnabled()).toBe('');
-    expect(t.client.check).not.toHaveBeenCalled();
+  it('checks nothing for a folder the restore leaves off', async () => {
+    for (const wanted of [false, undefined]) {
+      const t = setup(restored);
+      expect(await t.rows.verifyEnabled(wanted)).toBe('');
+      expect(t.client.check).not.toHaveBeenCalled();
+    }
   });
 
-  it('runs inside a restore from the server, and the rows follow the restored switch', async () => {
+  it('a restore from the server keeps the folder off until its check passes, and the rows follow', async () => {
+    const backup = serializeBackup(createBackup(fakePrefs({ [PREF_PREFIX + 'webdav.url']: 'https://dav.example.com/zotero-tts', [ENABLED]: true })));
+    const t = setup({ verify: async () => '' });
+    t.client.download.mockResolvedValueOnce(backup);
+    let pass!: () => void;
+    t.client.check.mockImplementationOnce(() => new Promise<void>((resolve) => (pass = resolve)));
+    // The pane's restore check: the providers' and the folder's together
+    t.deps.verifyProviders = async (settings: FlatSettings) => t.rows.verifyEnabled(settings['webdav.enabled'] as boolean | undefined);
+    const restore = t.el(WEBDAV_IDS.download).fire('command');
+    await vi.waitFor(() => expect(t.client.check).toHaveBeenCalledOnce());
+    // Nothing may use the restored address while it is being checked
+    expect(t.prefs.store[ENABLED]).toBe(false);
+    pass();
+    await restore;
+    expect(t.prefs.store[ENABLED]).toBe(true);
+    expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Disable');
+    expect(t.el(WEBDAV_IDS.download).disabled).toBe(false);
+  });
+
+  it('a restore from the server whose folder fails says so on the restore line, and the rows grey', async () => {
     const backup = serializeBackup(createBackup(fakePrefs({ [PREF_PREFIX + 'webdav.url']: 'https://dav.example.com/zotero-tts', [ENABLED]: true })));
     const t = setup({ verify: async () => '' });
     t.client.download.mockResolvedValueOnce(backup);
     t.client.check.mockRejectedValueOnce(new WebDAVError('network', 'Cannot reach the server.'));
-    // The pane's restore check: the providers' and the folder's together
-    t.deps.verifyProviders = async () => t.rows.verifyEnabled();
+    t.deps.verifyProviders = async (settings: FlatSettings) => t.rows.verifyEnabled(settings['webdav.enabled'] as boolean | undefined);
     await t.el(WEBDAV_IDS.download).fire('command');
     expect(t.prefs.store[ENABLED]).toBe(false);
-    expect(t.el(WEBDAV_IDS.backupMessage).textContent).toContain('The WebDAV folder did not answer here, so it is off.');
+    expect(t.el(WEBDAV_IDS.backupMessage).textContent).toContain(TURNED_OFF);
     expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Enable');
     expect(t.el(WEBDAV_IDS.download).disabled).toBe(true);
   });
 
-  it('a backup from before the switch that holds an address restores the folder as on, then checks it', async () => {
+  it('a backup from before the switch that holds an address is checked, then turned on', async () => {
     const old = JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'webdav.url': 'https://dav.example.com/zotero-tts', 'webdav.syncPositions': true } });
-    const t = setup({ prefs: { [ENABLED]: true } });
+    const t = setup();
     t.client.download.mockResolvedValueOnce(old);
-    t.deps.verifyProviders = async () => t.rows.verifyEnabled();
+    t.deps.verifyProviders = async (settings: FlatSettings) => t.rows.verifyEnabled(settings['webdav.enabled'] as boolean | undefined);
     await t.el(WEBDAV_IDS.download).fire('command');
-    expect(t.prefs.store[ENABLED]).toBe(true);
     expect(t.client.check).toHaveBeenCalledOnce();
+    expect(t.prefs.store[ENABLED]).toBe(true);
+  });
+
+  it('leaves the folder to an Enable already checking it, as a provider mid-check is left (issue #21)', async () => {
+    const t = setup(restored);
+    let pass!: () => void;
+    t.client.check.mockImplementationOnce(() => new Promise<void>((resolve) => (pass = resolve)));
+    const enable = t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(await t.rows.verifyEnabled(true)).toBe('');
+    expect(t.client.check).toHaveBeenCalledOnce();
+    pass();
+    await enable;
+    expect(t.prefs.store[ENABLED]).toBe(true);
+  });
+});
+
+// The commit point: Enable turns on only the folder it checked
+describe('Enable while the folder changes under its check', () => {
+  it('does not turn on an address other than the one that passed', async () => {
+    const t = setup({ prefs: { [PREF_PREFIX + 'webdav.enabled']: false } });
+    let pass!: () => void;
+    t.client.check.mockImplementationOnce(() => new Promise<void>((resolve) => (pass = resolve)));
+    const enable = t.el(WEBDAV_IDS.toggle).fire('command');
+    // A restore from a file, say, writes another address meanwhile
+    t.prefs.set(PREF_PREFIX + 'webdav.url', 'https://elsewhere.example.com/dav');
+    pass();
+    await enable;
+    expect(t.prefs.store[PREF_PREFIX + 'webdav.enabled']).toBe(false);
+    expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Enable');
   });
 });
 

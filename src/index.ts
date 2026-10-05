@@ -141,13 +141,13 @@ let positionTransport: PositionTransport | null = null;
 /** The Positions File's side (docs/spec/SYNC-FORMAT.md, section 6): the Document Ids and the shared items this machine holds, and their transport. */
 let documentPositions: DocumentPositions | null = null;
 let sharedTransport: SharedTransport | null = null;
-/** The syncPositions checkbox's observer token, so flipping it on syncs at once. */
+/** The observer tokens of the syncPositions checkbox and the WebDAV folder's switch, so turning either on syncs at once. */
 let syncSwitchObservers: unknown[] = [];
 /** Keeps this machine's settings file on the server fresh (#41, core/settings-autoupload.ts). */
 let settingsAutoUpload: SettingsAutoUpload | null = null;
 /** Carries the settings both ways over the folder (#68, core/settings-sync-transport.ts); null while stopped. */
 let settingsSyncTransport: SettingsSyncTransport | null = null;
-/** The syncSettings checkbox's observer token, so flipping it on syncs at once. */
+/** The observer tokens of the syncSettings checkbox and the WebDAV folder's switch, so turning either on syncs at once. */
 let settingsSyncSwitchObservers: unknown[] = [];
 /** What the pane registers to hear every completed settings sync (ui/sync-status-rows.ts). */
 const settingsSyncListeners = new Set<(report: SettingsSyncApplied | null) => void>();
