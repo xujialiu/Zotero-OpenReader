@@ -56,8 +56,9 @@ behavior before it is merged, and **researching** — reproducing a bug,
 reading a reader's live state, digging an issue's evidence out of Zotero
 before the issue is written.
 
-- **Test WebDAV first** (2026-09-22): every zotero-dev run, research
-  included, uses `~/.secrets/Zotero-TTS/test_webdav.txt` for the dedicated
+- **Test WebDAV first — zotero-tester only** (scope clarified 2026-10-05):
+  every run by `zotero-tester`, research included, uses
+  `~/.secrets/Zotero-TTS/test_webdav.txt` for the dedicated
   test WebDAV configuration to protect the owner's bookmarks and reading
   positions. On Windows and macOS, resolve `~` to the current user's home
   directory, including when working in a worktree.
@@ -72,9 +73,14 @@ before the issue is written.
   the owner's normal WebDAV. During cleanup, keep sync/backup suspended
   until test-created or downloaded bookmark/position data and pending
   writes are isolated and the original local state and settings restored;
-  only then restore automatic sync/backup. If cleanup cannot be confirmed,
-  leave sync/backup suspended and report what remains. Include isolation
-  and cleanup evidence in the report. Mirrored in `.agents/zotero-tester.md`.
+  only then restore automatic sync/backup. Restore the original WebDAV
+  configuration after every tester run, including failed or interrupted
+  runs; a run is not complete until restoration is confirmed. If cleanup
+  cannot be confirmed, leave sync/backup suspended and report the blocker
+  and recovery still owed. Include isolation and restoration evidence in
+  the report. Main-session bridge operations, including an install-only
+  request, do not require this isolation and leave WebDAV settings alone.
+  Mirrored in `.agents/zotero-tester.md`.
 - **The driving rules are `.agents/zotero-tester.md`** (the bridge's tools,
   provider test authorization, the kit runner, and reports; the per-topic
   driving notes are `.agents/zotero-tester-driving.md`, read on demand).

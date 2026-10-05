@@ -1,4 +1,4 @@
-// Item 7: the voice browser's first column. Opens Settings -> Zotero-OpenReader,
+// Item 7: the voice browser's first column. Opens Settings -> OpenReader,
 // reads #ztts-voices-tiers' children (name, count, selected -- selected is
 // the inline style voice-browser-rows.ts's columnEntry sets, not a class),
 // then diagnostics.defaultVoice() and diagnostics.languageColumn() from the

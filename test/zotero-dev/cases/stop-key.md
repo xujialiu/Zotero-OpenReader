@@ -42,7 +42,7 @@ Item 4.9 of the checklist, under its original number.
      toast's text and opacity unchanged, `_state.primaryViewState`
      identical, no find popup — the return value is decisive here,
      since the reader has no meaning of its own for Shift+S.
-   - **The recorder row.** Edit → Settings → Zotero-OpenReader: **Stop reading
+   - **The recorder row.** Edit → Settings → OpenReader: **Stop reading
      everywhere** is the last row, directly after *Player options*;
      `#ztts-key-stopReading` reads `Shift+S`. Its `?`
      (`ztts-help-key-stop`) opens `ztts-help-tip` at once — `state:

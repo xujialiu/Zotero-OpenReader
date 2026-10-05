@@ -38,8 +38,8 @@ covers — its rules bind that work as much as this file's do:
   `test/`, and before reading Zotero's source or its profile.
 - **Testing** — `MEMORY/testing.md`: before building an xpi to test,
   verifying a change, or driving the running Zotero through the zotero-dev
-  bridge, research included. Its test WebDAV prerequisite applies before
-  every live run, including Zotero-OpenReader and OpenReader Position work.
+  bridge, research included. Its test WebDAV isolation and restoration
+  requirements apply to `zotero-tester` runs, not every bridge operation.
 - **Agents** — `MEMORY/agents.md`: before delegating to an agent or doing
   its work yourself, and before editing an agent definition or workflow.
 - **Git** — `MEMORY/git-workflow.md`: before any commit, merge, push, tag
@@ -87,9 +87,11 @@ Four project documents are reached the same way:
 - **The plugin is called `Zotero-OpenReader`** (settled 2026-10-05,
   issue #167, ADR 0014; supersedes issue #20's display name):
   that hyphen, that capitalization, everywhere a person reads it — the
-  manifest's `name` (which is what Tools → Plugins shows), the settings
-  pane's label, dialog titles, error messages, the README and tutorials,
-  the rule book, NOTES.md, commits and issues. Never `Zotero TTS`, never bare
+  manifest's `name` (which is what Tools → Plugins shows), dialog titles,
+  error messages, the README and tutorials,
+  the rule book, NOTES.md, commits and issues. The settings sidebar is the
+  exception: its label is `OpenReader`, and documented settings paths use
+  `Settings → OpenReader` (issue #167 follow-up). Never `Zotero TTS`, never bare
   `TTS` — `TTS` names the technology, not this plugin. The lowercase
   `zotero-tts` is a different thing, an identifier, and is never "fixed"
   to match: the plugin id `zotero-tts@xujialiu.top`, the

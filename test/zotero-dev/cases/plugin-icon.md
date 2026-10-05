@@ -23,7 +23,7 @@ Item 1.13 of the checklist, under its original number.
     96)` in `favicon.png`. A `null` anywhere means the manifest icons were
     not read — the version string alone does not prove an upgrade took
     when the beta number did not move. The settings sidebar row labeled
-    `Zotero-OpenReader` carries `favicon@0.5x.png` in the same box and at the
+    `OpenReader` carries `favicon@0.5x.png` in the same box and at the
     same x as Zotero's own panes (`cog.svg`, `account.svg`, …; 19.22 px at
     dpr 1.5 and at dpr 1). Tools → Plugins resolves the same map at its
     own ideal size 32 — at dpr 1.5 exactly 48 device px, the 48 px file

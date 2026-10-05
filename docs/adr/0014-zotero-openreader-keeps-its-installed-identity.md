@@ -11,7 +11,10 @@ issue: 167
 The owner expanded issue #167 from a repository rename to a display-name
 rename too: both become `Zotero-OpenReader`. This supersedes issue #20's
 choice of `Zotero-TTS` as the current display name, not its distinction
-between display names and compatibility identifiers.
+between display names and compatibility identifiers. The owner's follow-up
+keeps the settings sidebar label short: `OpenReader`. Documented settings
+paths use that label; the manifest name and dialog titles retain the full
+product name.
 
 Keep the installed identity and storage contracts unchanged: the plugin
 ID `zotero-tts@xujialiu.top`, preference keys, backup format, sync file

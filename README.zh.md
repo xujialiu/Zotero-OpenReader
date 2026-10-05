@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:14db75c07955 -->
+<!-- translated-from: README.md sha256:cdd82b14f8ca -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -40,7 +40,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 
 1. 到[最新发行版](https://github.com/xujialiu/Zotero-OpenReader/releases/latest)下载 `zotero-tts.xpi`——Firefox 里右键 → *链接另存为…*
 2. **工具 → 插件 → ⚙ → Install Plugin From File…**（插件窗口没有中文），然后重启 Zotero。
-3. 到**编辑 → 设置 → Zotero-OpenReader** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
+3. 到**编辑 → 设置 → OpenReader** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
 
 <p align="center"><img src="assets/popup.png" width="640" alt="朗读播放器，第一个下拉框里选中了一个服务商"></p>
 
@@ -146,7 +146,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 - **Zotero 语音的剩余时间**显示在语音按钮的右侧，语音列表里每个 Zotero 语音旁边也有；不到 3 分钟时变红。
 - **Zotero 某一档的时间用完**或达到 Zotero 的每日限额时，这一档会被自动关闭：所有标签页里用它朗读的播放器都会关掉，文档上方会出现一条提醒说明情况——时间用完时附**添加更多时长**链接。添加时长后或第二天，在设置里重新启用即可。如果还有剩余时间、Zotero 只是拒绝了一个较贵的语音，则不会关闭这一档，提醒会建议你换一个更便宜的语音。
 
-全部在**编辑 → 设置 → Zotero-OpenReader** 里。
+全部在**编辑 → 设置 → OpenReader** 里。
 
 ### 高亮
 

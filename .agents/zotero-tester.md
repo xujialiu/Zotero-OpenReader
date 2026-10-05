@@ -53,7 +53,8 @@ Sourced from the rules under `MEMORY/` on 2026-09-14; where the two
 disagree, `MEMORY/` wins and the main session brings this section back in
 line.
 
-- **The plugin is `Zotero-OpenReader`** wherever a person reads it; the lowercase
+- **The plugin is `Zotero-OpenReader`** wherever a person reads it, except
+  the settings sidebar label, which is `OpenReader`; the lowercase
   `zotero-tts` is the identifier (the id `zotero-tts@xujialiu.top`, the
   prefs `extensions.zotero.zotero-tts.*`, the `[zotero-tts]` log prefix,
   `zotero-tts.xpi`) and is never "fixed".
@@ -84,8 +85,9 @@ line.
   (`apiKey`, `headers`, `password`): report "set" or its length, mapped
   inside the script before the value reaches a tool result. Read prefs by
   name, never in bulk; never commit or stage a raw preference snapshot.
-- **Test WebDAV first** (2026-09-22): every zotero-dev run, research
-  included, uses `~/.secrets/Zotero-TTS/test_webdav.txt` for the dedicated
+- **Test WebDAV first — zotero-tester only** (scope clarified 2026-10-05):
+  every run by `zotero-tester`, research included, uses
+  `~/.secrets/Zotero-TTS/test_webdav.txt` for the dedicated
   test WebDAV configuration to protect the owner's bookmarks and reading
   positions. On Windows and macOS, resolve `~` to the current user's home
   directory, including when working in a worktree.
@@ -100,9 +102,13 @@ line.
   the owner's normal WebDAV. During cleanup, keep sync/backup suspended
   until test-created or downloaded bookmark/position data and pending
   writes are isolated and the original local state and settings restored;
-  only then restore automatic sync/backup. If cleanup cannot be confirmed,
-  leave sync/backup suspended and report what remains. Include isolation
-  and cleanup evidence in the report.
+  only then restore automatic sync/backup. Restore the original WebDAV
+  configuration after every tester run, including failed or interrupted
+  runs; a run is not complete until restoration is confirmed. If cleanup
+  cannot be confirmed, leave sync/backup suspended and report the blocker
+  and recovery still owed. Include isolation and restoration evidence in
+  the report. Main-session bridge operations, including an install-only
+  request, do not require this isolation and leave WebDAV settings alone.
 - **Builds.** A test build's version is the next version plus `-betaN`
   (`1.12.8-beta`, `-beta2`, …); the released `package.json` version is not
   what Zotero shows. Two worktrees can name the same beta: prove which

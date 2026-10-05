@@ -4,7 +4,8 @@
 
 The repository and the plugin's visible name become **Zotero-OpenReader**.
 Renaming only the repository was rejected: the plugin should carry the
-same name wherever a reader encounters it.
+same name wherever a reader encounters it. The settings sidebar uses the
+short label **OpenReader**; the plugin list keeps the full name.
 
 This is still the same plugin. Existing users keep their settings,
 backups, reading positions, and automatic updates. The download keeps its

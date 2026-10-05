@@ -123,7 +123,7 @@
         onAccountPane: selectedPane.navigationValue === 'zotero-prefpane-account',
         ms: Date.now() - t1,
       };
-      // Navigate back to the Zotero-OpenReader pane (the brief: selected pane back to Zotero-OpenReader).
+      // Navigate back to the OpenReader pane (the brief: selected pane back to OpenReader).
       await win.Zotero_Preferences.navigateToPane('zotero-tts-pane');
       const t2 = Date.now();
       while (Date.now() - t2 < 8000 && !doc.getElementById('ztts-zotero-section')) await sleep(150);

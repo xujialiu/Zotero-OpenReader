@@ -66,7 +66,7 @@ top-bar default, also run [the player-controls case](player-controls.md).
 
 ## 5. The only player (issue #134, ADR 0007)
 
-1. **No switch.** Settings → Zotero-OpenReader → Player has no *Use plugin
+1. **No switch.** Settings → OpenReader → Player has no *Use plugin
    player* row. `diagnostics.pluginPlayer()` has no `enabled`; each
    reader reports `open` and `failed` (`null`). A profile holding
    `zotero-tts.readAloud.usePluginPlayer` `false` (written before the

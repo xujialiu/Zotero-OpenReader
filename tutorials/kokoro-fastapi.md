@@ -73,7 +73,7 @@ The first run downloads a few GB; later starts take seconds.
 
 ## Check it
 
-In Zotero, *Settings → Zotero-OpenReader → Kokoro-FastAPI*, press **Test
+In Zotero, *Settings → OpenReader → Kokoro-FastAPI*, press **Test
 connection**; it should say `Connected. 68 voices available.` **Enable**
 then switches the provider on. Open Read Aloud, choose **Kokoro** in the
 first dropdown, and pick a voice (`af_bella` and `af_heart` are good English voices;

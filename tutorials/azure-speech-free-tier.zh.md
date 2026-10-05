@@ -1,4 +1,4 @@
-<!-- translated-from: azure-speech-free-tier.md sha256:bcc98e01af34 -->
+<!-- translated-from: azure-speech-free-tier.md sha256:50fb26ef6e9b -->
 # 用 Azure Speech 的免费额度
 
 [English](azure-speech-free-tier.md) · **简体中文**
@@ -44,7 +44,7 @@ Azure AI Speech 就是插件里的 **Azure** 服务商：一百多种语言、�
 
 ## 4. 把插件指过去
 
-Zotero → 设置 → Zotero-OpenReader → **Azure** 那一节：
+Zotero → 设置 → OpenReader → **Azure** 那一节：
 
 | 字段 | 填什么 |
 |---|---|
@@ -58,7 +58,7 @@ Zotero → 设置 → Zotero-OpenReader → **Azure** 那一节：
 
 - **每月 50 万字符**的标准神经网络语音——也就是插件列出的那些 `…Neural` 语音，多语种的也算在内。计数每月 1 日重置。
 - 不包含：HD 语音（名字里带 `…:DragonHD…`）是另一条付费产品线；免费资源上就用普通的神经网络语音。
-- **每分钟 20 个请求**。插件每句发一个请求，并提前预取几句。正常阅读远在限额之下，但连着一串很短的句子（参考文献表、表格）就可能超；Azure 这时回 429，朗读会带着配额提示停下。要是常遇到，在*设置 → Zotero-OpenReader → 朗读*里打开*自定义预取*，把*预取后面的 … 句*降到 3、*同时发送 … 个请求*降到 1，或者再按一次播放。
+- **每分钟 20 个请求**。插件每句发一个请求，并提前预取几句。正常阅读远在限额之下，但连着一串很短的句子（参考文献表、表格）就可能超；Azure 这时回 429，朗读会带着配额提示停下。要是常遇到，在*设置 → OpenReader → 朗读*里打开*自定义预取*，把*预取后面的 … 句*降到 3、*同时发送 … 个请求*降到 1，或者再按一次播放。
 - 当月额度用完后，Azure 会拒绝后续请求，直到下月 1 日；在插件里表现为密钥被拒。想接着读，就把资源的定价层改成**标准 S0**（*资源管理 → 定价层*）：按量付费，神经网络语音大约每一百万字符 15 美元——一篇论文一美分上下。当前价格见[定价页](https://azure.microsoft.com/pricing/details/speech/)。
 - 已经用了多少，在资源的**指标**（Metrics）页面上看（*Synthesized Characters*，按月求和）。只有正文计费：插件给每句话套的标记不计费。
 

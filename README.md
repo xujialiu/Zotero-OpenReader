@@ -43,7 +43,7 @@ is built for the way its author reads —
 
 1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-OpenReader/releases/latest) — in Firefox, right-click → *Save Link As…*
 2. **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart Zotero.
-3. Enable a provider in **Edit → Settings → Zotero-OpenReader** — **Fish Audio** first, if you are not sure ([why](#providers)) — then pick it in the player's first dropdown and one of its voices.
+3. Enable a provider in **Edit → Settings → OpenReader** — **Fish Audio** first, if you are not sure ([why](#providers)) — then pick it in the player's first dropdown and one of its voices.
 
 <p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a provider chosen in its first dropdown"></p>
 
@@ -258,7 +258,7 @@ for every document you have listened to.
   some time is left, nothing is switched off: the reminder suggests a
   cheaper voice.
 
-Everything is under **Edit → Settings → Zotero-OpenReader**.
+Everything is under **Edit → Settings → OpenReader**.
 
 ### Highlight
 

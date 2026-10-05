@@ -90,7 +90,7 @@ figure: reinstall the wrapper per item with the item's answers.
    code: 'quota-exceeded', tier: 'premium', credits: 0, minutes: 0,
    action: 'used-up', closed: 2 }`. Click **Add more time** →
    `Zotero.launchURL` once with `https://www.zotero.org/settings/readaloud`,
-   the reminder stays; click ✕ → it is gone. Settings → Zotero-OpenReader →
+   the reminder stays; click ✕ → it is gone. Settings → OpenReader →
    Premium: its row reads `Enable`, and `Remaining time: 0min` in red with
    **Add more time**.
 5. **Short.** Premium back on (pref), the provider figure back, the

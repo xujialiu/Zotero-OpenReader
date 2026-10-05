@@ -112,7 +112,7 @@ Expected values below are derived from `src/` (`buildTierOptions`,
 
 ### 5. The voice browser's first column
 
-7. Settings → Zotero-OpenReader: `#ztts-voices-tiers` children read `<Name> (N)`
+7. Settings → OpenReader: `#ztts-voices-tiers` children read `<Name> (N)`
    for **every enabled provider** — `(0)` for one that lists nothing,
    e.g. Fish Audio with the key removed for the check — plus
    `Zotero Premium (N)` and `Zotero Standard (N)`, sorted by name (Han by

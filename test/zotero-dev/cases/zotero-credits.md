@@ -37,7 +37,7 @@ owner's profile is signed in; items 5-6 sign out by the same stand-in as
 zotero.org wrote as 1 hour 54 minutes and 9 to 26 minutes); read the
 current ones from item 2's diagnostic, not from here.
 
-1. **The section's shape.** Settings → Zotero-OpenReader, `#ztts-zotero-section`,
+1. **The section's shape.** Settings → OpenReader, `#ztts-zotero-section`,
    in document order: an hbox holding the `h2` `Zotero Read Aloud` (in
    every locale) and its `?` (`ztts-help-zotero`) right after it on the
    heading's line, with no note line under it; then per tier, Standard

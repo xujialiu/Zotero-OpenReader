@@ -31,7 +31,7 @@ results under Runs are not a fresh pass.
   1.12.5-beta4 numbers. `pairs-01`/`-26` share a baseline global
   (`globalThis.__zttsBracketPairsBaseline`); `groups-01`'s output stays
   private, for `groups-17` alone. Settings window: `pairs-08`–`11` and
-  `pairs-17` need it open on the Zotero-OpenReader pane
+  `pairs-17` need it open on the OpenReader pane
   (`zotero_open_preferences` before `pairs-08`); reopen after an
   in-place install. Settings carry between scripts within a sequence
   (`pairs-13`→`14`, `pairs-17`→`18`–`21`, `groups-10`→`14`).
@@ -70,7 +70,7 @@ results under Runs are not a fresh pass.
 | `pairs-05-fixture-readiness.js` | Polls for the fixture's internal reader, manager and remote interface | setup | The fixture row with `internal`, `manager` and `remoteInterface` all `true` |
 | `pairs-06-audio-motion-probe.js` | Opens the fixture's player, traces its state and audio clock, pauses it | setup | Active on the intended plugin voice, then paused; `audioState`, `audioTime` and `position` recorded |
 | `pairs-07-audio-clock.js` | Reads the audio clock twice 500 ms apart, then pauses | setup | `clockMoved: true` lets playback checks run; `suspended` at `0` in both samples makes playback progression NOT TESTABLE; `stopped: true` |
-| `pairs-08-ui-initial.js` | Opens the Zotero-OpenReader pane and reads the checkbox, the pair input and the help | 1, 9 | Checkbox `ztts-strip-angle-brackets` checked with `preference: null`; input `ztts-bracket-pairs` holding `<> []`, disabled; label `Remove enclosing brackets when reading`; help naming outside punctuation, the space-separated list, and stopping and reopening Read Aloud |
+| `pairs-08-ui-initial.js` | Opens the OpenReader pane and reads the checkbox, the pair input and the help | 1, 9 | Checkbox `ztts-strip-angle-brackets` checked with `preference: null`; input `ztts-bracket-pairs` holding `<> []`, disabled; label `Remove enclosing brackets when reading`; help naming outside punctuation, the space-separated list, and stopping and reopening Read Aloud |
 | `pairs-09-ui-validation-dialogs.js` | Unchecks the setting, then tries to enable an empty list, `aa` and `<> <>` answering Cancel, and `<> <>` answering Use defaults | 9 | Unchecked leaves the input enabled; each try opens the notice with `Use defaults` and `Cancel` and its own message (empty list, invalid pair, duplicate pair); Cancel keeps the draft and the switch off; Use defaults writes `<> []`, checks and locks |
 | `pairs-10-ui-entry-errors.js` | Tries `<` and `**` answering Cancel, then enables `<> []` | 9 | Both show the invalid-pair message; Cancel keeps the draft and the switch off; `restored` checked, `<> []`, locked |
 | `pairs-11-external-refresh.js` | Writes the list and the setting from outside the pane | 9 | Every write updates both controls: `() 【】` while locked, off and unlocked, `<> []`, on and locked |

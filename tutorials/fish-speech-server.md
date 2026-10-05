@@ -65,7 +65,7 @@ spaces, `-` and `_` only.
 
 ## In Zotero
 
-1. **Edit → Settings → Zotero-OpenReader → Fish Speech**: **Address** is
+1. **Edit → Settings → OpenReader → Fish Speech**: **Address** is
    `http://localhost:8080` for a server on this
    machine; on another machine of your LAN, its name or IP address in
    place of `localhost`.

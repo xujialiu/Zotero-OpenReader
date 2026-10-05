@@ -33,7 +33,7 @@ word. Time: about five minutes.
 
 ## 2. Put both into the plugin
 
-Zotero → Settings → Zotero-OpenReader → **Cloudflare Workers AI** section:
+Zotero → Settings → OpenReader → **Cloudflare Workers AI** section:
 
 | Field | Value |
 |---|---|
@@ -78,7 +78,7 @@ voices are there:
   about a cent on MeloTTS, a dollar on Aura-1, two on Aura-2.
 - The plugin synthesizes a few sentences ahead of playback, and on Aura a
   sentence you skip past is still paid for. To spend less while jumping
-  around a document, turn on *Custom prefetch* under *Settings → Zotero-OpenReader
+  around a document, turn on *Custom prefetch* under *Settings → OpenReader
   → Reading* and lower *Prefetch … sentences ahead* to 3, the least.
 - The day's usage is on the dashboard's Workers AI page.
 
