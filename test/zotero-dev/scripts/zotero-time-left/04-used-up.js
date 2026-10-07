@@ -320,7 +320,7 @@
     out.reminder = {
       text: box.textContent,
       role: box.getAttribute('role'),
-      textHasUsedUp: box.textContent.indexOf('Zotero Premium has no remaining time and has been switched off. Add more time, then enable it again in Zotero-OpenReader settings.') === 0,
+      textHasUsedUp: box.textContent.indexOf('Zotero Premium has no remaining time and has been switched off. Add more time, then enable it again in OpenReader settings.') === 0,
       textHasOthersLine: box.textContent.includes('Reading also stopped in 1 other tab.'),
       hasLink: !!link,
       hasClose: !!close,

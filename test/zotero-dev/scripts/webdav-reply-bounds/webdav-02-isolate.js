@@ -52,10 +52,6 @@
   if (!out.urlAlreadyTestConfig) Zotero.Prefs.set('zotero-tts.webdav.url', testUrl);
   out.effectiveDestinationMatchesFile = Zotero.Prefs.get('zotero-tts.webdav.url') === testUrl;
 
-  // OpenReader Position is not installed in this profile (plugin list),
-  // so there is no second WebDAV consumer to switch; recorded, not assumed.
-  out.openReaderPositionInstalled = false;
-
   out.isolationConfirmed = out.effectiveDestinationMatchesFile === true;
   return JSON.stringify(out);
 })()

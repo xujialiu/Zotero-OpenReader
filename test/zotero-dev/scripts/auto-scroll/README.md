@@ -16,8 +16,8 @@ own `finally`; 157-90 restores the pass.
 
 - `zotero_ping`, then `155-00` **before installing** — test WebDAV
   destination from `~/.secrets/Zotero-TTS/test_webdav.txt`, suspends the
-  three sync switches, snapshots the kit's prefs with user flags, rejects
-  an installed OpenReader Position, minimizes the host. Install the XPI,
+  three sync switches, snapshots the kit's prefs with user flags,
+  minimizes the host. Install the XPI,
   `zotero_plugin_list` for the `-betaN`, then `155-01` before anything.
 - **Build proof by mechanism**: without a user value
   `readAloud.autoScrollMode` reads `line` on beta4 (`sentence` before);

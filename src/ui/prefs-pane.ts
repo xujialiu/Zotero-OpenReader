@@ -368,7 +368,7 @@ export function readingTabTitle(reader: any): string {
 function confirmClose(win: any, message: string): boolean {
   const ps = Services.prompt;
   const flags = ps.BUTTON_POS_0 * ps.BUTTON_TITLE_IS_STRING + ps.BUTTON_POS_1 * ps.BUTTON_TITLE_CANCEL + ps.BUTTON_POS_1_DEFAULT;
-  return ps.confirmEx(win, 'Zotero-OpenReader', message, flags, t('ztts-close-and-continue'), null, null, null, { value: false }) === 0;
+  return ps.confirmEx(win, 'OpenReader', message, flags, t('ztts-close-and-continue'), null, null, null, { value: false }) === 0;
 }
 
 /**
@@ -555,7 +555,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     affectedTabs: hooks.affectedTabs,
     affectedPlayers: hooks.affectedPlayers,
     readingTabs: () => playerStop.open().map(readingTabTitle),
-    warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'Zotero-OpenReader', text)),
+    warn: (message: string) => showPaneNotice(doc, message, (text) => Services.prompt.alert(win, 'OpenReader', text)),
     askToClose: (message: string) =>
       askPaneQuestion(doc, message, { confirm: t('ztts-close-and-continue'), cancel: t('ztts-cancel') }, (text) => confirmClose(win, text)),
   };
@@ -570,7 +570,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       text => {
         const ps = Services.prompt;
         const flags = ps.BUTTON_POS_0 * ps.BUTTON_TITLE_IS_STRING + ps.BUTTON_POS_1 * ps.BUTTON_TITLE_CANCEL;
-        return ps.confirmEx(win, 'Zotero-OpenReader', text, flags, t('ztts-bracket-use-defaults'), null, null, null, { value: false }) === 0;
+        return ps.confirmEx(win, 'OpenReader', text, flags, t('ztts-bracket-use-defaults'), null, null, null, { value: false }) === 0;
       }),
   });
   // The two checkboxes that edit what the Read Aloud player lists: unbound,
@@ -765,7 +765,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     ...readingGuard,
     pluginVersion,
     now: () => new Date().toISOString(),
-    confirm: (message: string): boolean => Services.prompt.confirm(win, 'Zotero-OpenReader', message),
+    confirm: (message: string): boolean => Services.prompt.confirm(win, 'OpenReader', message),
     // Bound inputs redraw themselves (Zotero observes every bound pref); these rows do not
     onRestored: () => {
       shortcutRows.refresh();
@@ -803,7 +803,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // Services.prompt.select: a plain list dialog, the chosen index in out.value
     select: (title, options) => {
       const out = { value: -1 };
-      const ok = Services.prompt.select(win, 'Zotero-OpenReader', title, options, out);
+      const ok = Services.prompt.select(win, 'OpenReader', title, options, out);
       return ok && out.value >= 0 ? out.value : null;
     },
     onMachineRenamed: () => hooks.settingsUploadSoon?.(),

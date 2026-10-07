@@ -214,7 +214,7 @@ export function parseSharedSettings(text: string): SharedItem[] {
     throw new SharedSettingsError('malformed', 'The shared settings file on the server is not valid JSON.');
   }
   if (!parsed || typeof parsed !== 'object' || parsed.format !== SHARED_SETTINGS_FORMAT) {
-    throw new SharedSettingsError('malformed', 'The file on the server is not a Zotero-OpenReader shared settings file.');
+    throw new SharedSettingsError('malformed', 'The file on the server is not an OpenReader shared settings file.');
   }
   if (typeof parsed.version !== 'number' || !Array.isArray(parsed.items)) {
     throw new SharedSettingsError('malformed', 'The shared settings file on the server has no readable items.');
@@ -222,7 +222,7 @@ export function parseSharedSettings(text: string): SharedItem[] {
   if (parsed.version > SHARED_SETTINGS_VERSION) {
     throw new SharedSettingsError(
       'newer',
-      `The shared settings file on the server is version ${parsed.version}; this build reads up to ${SHARED_SETTINGS_VERSION}. Update Zotero-OpenReader on this computer.`,
+      `The shared settings file on the server is version ${parsed.version}; this build reads up to ${SHARED_SETTINGS_VERSION}. Update OpenReader on this computer.`,
     );
   }
   // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts): the

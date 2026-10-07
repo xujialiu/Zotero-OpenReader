@@ -90,20 +90,6 @@ return (async () => {
   if (!(configText.startsWith('http://') || configText.startsWith('https://'))) throw new Error('test WebDAV config is not an URL');
   const trimSlash = value => { let out = String(value); while (out.endsWith('/')) out = out.slice(0, -1); return out; };
 
-  // OpenReader Position: switch it too where it uses WebDAV; absent means nothing to switch
-  let positionAddons = [];
-  try {
-    const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
-    const addons = await AddonManager.getAllAddons();
-    for (let i = 0; i < addons.length; i++) {
-      const addon = addons[i];
-      const haystack = (String(addon.id || '') + ' ' + String(addon.name || '')).toLowerCase();
-      if (haystack.includes('openreader') || haystack.includes('open reader')) {
-        positionAddons.push({ id: addon.id, name: addon.name, version: addon.version, active: !!addon.isActive });
-      }
-    }
-  } catch (e) { throw new Error('OpenReader Position presence check failed: ' + String(e)); }
-
   // Settle pending writes before anything is suspended or switched
   const d = Zotero.ZoteroTTS?.diagnostics;
   const settledBefore = d ? await waitFor(async () => {
@@ -155,7 +141,6 @@ return (async () => {
   state.fixtures = fixtures;
   state.hostBefore = hostBefore;
   state.readersBefore = readersBefore;
-  state.openReaderPosition = positionAddons.length ? positionAddons : [];
   state.memoryVoiceSafe = typeof memoryVoice === 'string' && memoryVoice.includes('::');
   state.debugStoringBefore = !!Zotero.Debug?.storing;
   if (!state.debugStoringBefore) { try { Zotero.Debug.setStore(true); } catch (e) {} }
@@ -176,7 +161,6 @@ return (async () => {
       destinationMatched, urlChars: String(baseline['webdav.url'].value ?? '').length,
       configChars: configText.length,
     },
-    openReaderPositionPlugin: positionAddons.length ? positionAddons : 'absent',
     fixtures: {
       pdf: { present: fixtures.pdf?.present, itemID: params.pdfItemID, title: fixtures.pdf?.title, openInTab: fixtures.pdf?.openInTab, stateFileExists: fixtures.pdf?.stateFileExists, nativePageIndex: fixtures.pdf?.nativePageIndex, snapshotError: fixtures.pdf?.snapshotError },
       epub: { present: fixtures.epub?.present, itemID: params.epubItemID, title: fixtures.epub?.title, openInTab: fixtures.epub?.openInTab, stateFileExists: fixtures.epub?.stateFileExists, snapshotError: fixtures.epub?.snapshotError },

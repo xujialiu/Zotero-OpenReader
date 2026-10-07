@@ -39,8 +39,8 @@ A brief that names no page means: whatever
      标准 / 高级 for the tiers. A string you cannot find in either stays
      English and goes in the report, never into a guess.
    - Product names, voice ids, pref keys, file names, shortcuts and code
-     blocks stay English; the plugin is `Zotero-OpenReader`, never translated or
-     respelled.
+     blocks stay English; the plugin is `Zotero-OpenReader` (`OpenReader` where a
+     page quotes what Zotero shows), never translated or respelled.
    - **Never hard-wrap.** One paragraph is one line however long, and so
      is one list item or one blockquote: a line break between two CJK
      characters renders as a space in Chrome and Safari. This is the

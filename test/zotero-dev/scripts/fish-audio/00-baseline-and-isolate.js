@@ -56,19 +56,6 @@
   try { configText = (await IOUtils.readUTF8(configPath)).trim(); } catch (_) { throw new Error('test WebDAV config unavailable'); }
   if (!(configText.startsWith('http://') || configText.startsWith('https://'))) throw new Error('test WebDAV config is not an URL');
   const trimSlash = value => { let out = String(value); while (out.endsWith('/')) out = out.slice(0, -1); return out; };
-  let positionAddons = [];
-  try {
-    const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
-    const addons = await AddonManager.getAllAddons();
-    for (let i = 0; i < addons.length; i++) {
-      const addon = addons[i];
-      const haystack = (String(addon.id || '') + ' ' + String(addon.name || '')).toLowerCase();
-      if (haystack.includes('openreader') || haystack.includes('open reader') || haystack.includes('position')) {
-        positionAddons.push({ id: addon.id, name: addon.name, version: addon.version, active: !!addon.isActive });
-      }
-    }
-  } catch (e) { throw new Error('OpenReader Position presence check failed: ' + String(e)); }
-  if (positionAddons.length) throw new Error(`OpenReader Position is installed; refusing isolated run: ${JSON.stringify(positionAddons)}`);
   const pluginDiagnostics = Zotero.ZoteroTTS?.diagnostics;
   const beforeTransportsSettled = pluginDiagnostics ? await waitFor(async () => {
     try {
@@ -110,7 +97,6 @@
   Zotero.__fishVerify = {
     ...(existing || {}), baseline, extraBaseline, baselineDocumentVoices: { records: documentRecords },
     configPath, configLength: configText.length, hostBefore, readersBefore,
-    openReaderPositionPlugin: positionAddons.length ? positionAddons : false,
     isolated: destinationMatched, beforeTransportsSettled, startedAt: Date.now(), debugBefore: !!Zotero.Debug.storing,
   };
   const safePref = name => {
@@ -122,7 +108,6 @@
   return JSON.stringify({
     status: 'PASS', phase: 'preinstall-safe WebDAV isolation',
     webdav: { configAvailable: true, destinationMatched, switchesSuspended: true, configLength: configText.length },
-    openReaderPositionPlugin: positionAddons.length ? positionAddons : false,
     pluginDiagnosticsAvailable: !!pluginDiagnostics,
     beforeTransportsSettled,
     baseline: Object.fromEntries(names.map(name => [name, safePref(name)])),

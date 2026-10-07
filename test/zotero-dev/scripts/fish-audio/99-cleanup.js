@@ -82,8 +82,7 @@
   // Reader close can queue a bookmark write even while WebDAV is off. Wait
   // for the local store and both transports to settle, then compare the
   // database/shared counts with the isolated baseline before restoring any
-  // automatic switch. This also proves an absent OpenReader Position add-on
-  // was not silently used as a second transport.
+  // automatic switch.
   let positionAfter = null;
   let positionSyncAfter = null;
   let settingsSyncAfter = null;
@@ -226,7 +225,7 @@
   const cleanupOK = errors.length === 0 && fixtureGone && fixtureReaderGone && positionClean && nativeMatches && syncRestored && syncMatches && restored.webdav.destinationMatched && restored.settingsClosed;
   const result = {
     status: cleanupOK ? 'PASS' : 'FAIL', errors, fixtureID, fixtureGone, fixtureReaderGone, localClean, positionClean,
-    positionCounts, pendingWrites, openReaderPositionPlugin: session.openReaderPositionPlugin || false,
+    positionCounts, pendingWrites,
     syncRestored, syncMatches, restored,
   };
   delete Zotero.__fishVerify;

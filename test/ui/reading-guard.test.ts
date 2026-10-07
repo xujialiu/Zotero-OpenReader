@@ -204,7 +204,7 @@ describe('showPaneNotice', () => {
     const [style, title, body, buttons] = dialog.children;
     expect(style.tag).toBe('style');
     expect(style.textContent).toContain('#ztts-notice::backdrop');
-    expect(title.textContent).toBe('Zotero-OpenReader');
+    expect(title.textContent).toBe('OpenReader');
     expect(body.children[0].textContent).toBe('⚠️');
     expect(body.children[1].children[0].textContent).toBe('This change affects the reading in a tab:');
     expect(body.children[1].children[0].attrs.get('style')).toContain('font-weight: 600');
@@ -269,7 +269,7 @@ describe('askPaneQuestion', () => {
     expect(dialog.modal).toBe(true);
     expect(dialog.attrs.get('id')).toBe('ztts-notice');
     const [, title, body, buttons] = dialog.children;
-    expect(title.textContent).toBe('Zotero-OpenReader');
+    expect(title.textContent).toBe('OpenReader');
     expect(body.children[1].children[0].textContent).toBe('This change affects the reading in a tab:');
     expect(body.children[1].children[1].textContent).toBe('  • Paper\n\nClose it?');
     expect(buttons.children.map((b) => b.textContent)).toEqual(['Close and continue', 'Cancel']);

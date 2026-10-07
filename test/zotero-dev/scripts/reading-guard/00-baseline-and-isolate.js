@@ -1,6 +1,6 @@
 // Reading guard runs, baseline and isolation (2026-09-30, run r45, before the xpi install).
 // Verifies the test WebDAV destination from ~/.secrets/Zotero-TTS/test_webdav.txt for
-// Zotero-TTS (OpenReader Position when present), suspends sync/backup and settles
+// Zotero-TTS, suspends sync/backup and settles
 // pending writes, snapshots the named prefs this case may touch (raw copy kept in
 // state for 90-teardown), records any owner player (closed, never reopened), mutes
 // readAloud.volume, turns the debug store on, and minimizes the host.
@@ -69,22 +69,6 @@ return (async () => {
   }) : null;
   if (settled !== true) throw new Error('WebDAV transports did not settle before isolation');
 
-  // OpenReader Position: when installed it must move to the test destination too;
-  // absent means nothing to switch. Presence is recorded either way.
-  let positionAddons = [];
-  try {
-    const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
-    const addons = await AddonManager.getAllAddons();
-    for (let i = 0; i < addons.length; i++) {
-      const addon = addons[i];
-      const haystack = (String(addon.id || '') + ' ' + String(addon.name || '')).toLowerCase();
-      if (haystack.includes('openreader') || haystack.includes('open reader')) {
-        positionAddons.push({ id: addon.id, name: addon.name, version: addon.version, active: !!addon.isActive });
-      }
-    }
-  } catch (e) { throw new Error('OpenReader Position presence check failed: ' + String(e)); }
-  if (positionAddons.length) throw new Error('OpenReader Position is installed; its WebDAV destination cannot be confirmed here - run stopped: ' + JSON.stringify(positionAddons));
-
   for (const name of ['webdav.autoUploadSettings', 'webdav.syncPositions', 'webdav.syncSettings']) {
     p.setBoolPref(prefix + name, false);
   }
@@ -140,7 +124,6 @@ return (async () => {
   return JSON.stringify({
     status: 'PASS', phase: 'pre-install isolation and baseline',
     webdav: state.testWebdav,
-    openReaderPosition: positionAddons.length ? positionAddons : 'absent',
     transportsSettled: true,
     syncSuspended: ['webdav.autoUploadSettings', 'webdav.syncPositions', 'webdav.syncSettings'].map(n => ({ n, v: p.getBoolPref(prefix + n) })),
     positionRowsBefore: positionRows,

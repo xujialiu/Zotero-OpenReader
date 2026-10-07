@@ -91,7 +91,7 @@ current ones from item 2's diagnostic, not from here.
    richlistbox `navigateToPane` sets (`preferences.js` 125-130)
    (Zotero's own navigation; the owner's API key is still stored, so the
    Account pane does not start a sign-in: `_handlePendingAction` asks
-   `getAPIKey()`, not `hasCredentials`). Navigate back to the Zotero-OpenReader
+   `getAPIKey()`, not `hasCredentials`). Navigate back to the OpenReader
    pane.
 6. **Signed in again.** Assign the kept `hasCredentials` back and fire
    the notification again → both Log in links hidden, both credits rows
@@ -134,7 +134,7 @@ first and off again at the end),
 `Zotero.Sync.Data.Local.hasCredentials` and
 `Zotero.Sync.Runner.getAPIClient` (each kept and assigned back), two
 `api-key` notifications, the settings window's selected pane (back to
-Zotero-OpenReader). Nothing is written to Zotero's account; `tts/credits` and
+OpenReader). Nothing is written to Zotero's account; `tts/credits` and
 `tts/voices` spend nothing.
 
 Only a human can judge: how the section reads beside the other sections

@@ -4,12 +4,13 @@
 
 Items 1.2 and 1.4 of the checklist, under their original numbers.
 
-For builds containing issue #167, current product text uses
-`Zotero-OpenReader` and the About link targets
-`https://github.com/xujialiu/Zotero-OpenReader`. The dated observations
-below retain their original text and measurements; those pixel widths
-are not expected values for the longer new name. Check current text
-against the shipped locale and verify that it is not clipped.
+For builds containing issue #176, product text names the plugin
+`OpenReader` (issue #167's builds wrote `Zotero-OpenReader`), and the
+About link targets `https://github.com/xujialiu/Zotero-OpenReader`. The
+dated observations below retain their original text and measurements;
+those pixel widths are not expected values for the current name. Check
+current text against the shipped locale and verify that it is not
+clipped.
 
 ### 1.2
 

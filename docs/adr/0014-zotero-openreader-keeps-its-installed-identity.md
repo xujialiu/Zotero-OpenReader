@@ -8,6 +8,10 @@ issue: 167
 
 *Product decision: [0014](../design/0014-zotero-openreader-keeps-its-installed-identity.md).*
 
+*The name inside Zotero is superseded by
+[0016](0016-the-plugin-is-openreader-inside-zotero.md): there the plugin is
+`OpenReader`, the manifest name and dialog titles included.*
+
 The owner expanded issue #167 from a repository rename to a display-name
 rename too: both become `Zotero-OpenReader`. This supersedes issue #20's
 choice of `Zotero-TTS` as the current display name, not its distinction

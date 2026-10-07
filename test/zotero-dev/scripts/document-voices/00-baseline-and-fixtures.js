@@ -101,7 +101,7 @@
     state.fixtures = fixtures;
     return JSON.stringify({
       status: 'PASS', build: Zotero.ZoteroTTS?.version || null, volume: pref(prefix + 'readAloud.volume'),
-      webdavIsolated: session.webdavMatched, openReaderPositionPlugin: false,
+      webdavIsolated: session.webdavMatched,
       settings: { rows: rowsBefore.length, voiceA, retiredSharedVoiceSwitch: !doc.querySelector('[preference="extensions.zotero.zotero-tts.readAloud.sameForAllDocuments"]') },
       fixtures: Object.fromEntries(Object.entries(fixtures).map(([k, v]) => [k, { itemID: v.itemID, key: v.key, kind: v.kind }])),
       debugStoring: !!Zotero.Debug.storing, settingsClosed: !Services.wm.getMostRecentWindow('zotero:pref'), windowState: Zotero.getMainWindow?.()?.windowState ?? null,

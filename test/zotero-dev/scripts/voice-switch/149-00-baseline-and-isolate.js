@@ -54,20 +54,6 @@
   try { configText = (await IOUtils.readUTF8(configPath)).trim(); } catch (_) { throw new Error('test WebDAV config unavailable'); }
   if (!(configText.startsWith('http://') || configText.startsWith('https://'))) throw new Error('test WebDAV config is not an URL');
 
-  let positionAddons = [];
-  try {
-    const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
-    const addons = await AddonManager.getAllAddons();
-    for (let i = 0; i < addons.length; i++) {
-      const addon = addons[i];
-      const haystack = (String(addon.id || '') + ' ' + String(addon.name || '')).toLowerCase();
-      if (haystack.includes('openreader') || haystack.includes('open reader') || haystack.includes('position')) {
-        positionAddons.push({ id: addon.id, name: addon.name, version: addon.version, active: !!addon.isActive });
-      }
-    }
-  } catch (e) { throw new Error('OpenReader Position presence check failed: ' + String(e)); }
-  if (positionAddons.length) throw new Error(`OpenReader Position is installed; refusing isolated run: ${JSON.stringify(positionAddons)}`);
-
   const diagnostics = Zotero.ZoteroTTS?.diagnostics;
   const beforeTransportsSettled = diagnostics ? await waitFor(async () => {
     const position = JSON.parse(await diagnostics.position());
@@ -114,7 +100,7 @@
   const existing = Zotero.__ztts149;
   Zotero.__ztts149 = {
     ...(existing || {}), baseline, extra, documentRecords, configLength: configText.length,
-    hostBefore, readersBefore, positionAddons: positionAddons.length ? positionAddons : false,
+    hostBefore, readersBefore,
     destinationMatched, beforeTransportsSettled, debugBefore: !!Zotero.Debug.storing,
     startedAt: Date.now(), configPath,
   };
@@ -128,7 +114,6 @@
   return JSON.stringify({
     status: 'PASS', phase: 'preinstall-safe WebDAV isolation',
     webdav: { configAvailable: true, destinationMatched, switchesSuspended: true, configLength: configText.length },
-    openReaderPositionPlugin: positionAddons.length ? positionAddons : false,
     beforeTransportsSettled, baseline: Object.fromEntries(Object.entries(baseline).map(([k, v]) => [k, safe(k, v)])),
     documentRecordKeys: Object.keys(documentRecords), readersBefore,
     hostMinimized: !!host && host.windowState === host.STATE_MINIMIZED,

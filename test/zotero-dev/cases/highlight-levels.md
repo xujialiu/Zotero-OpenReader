@@ -141,8 +141,8 @@ corrects them.
    counts nothing.
 8. **Zotero's menulist is greyed.** Open Edit → Settings on its General
    pane: `#read-aloud-highlight-granularity-menulist` has `disabled="true"`
-   and `tooltiptext` `Chosen in Zotero-OpenReader's settings, under Highlight`
-   (zh-CN `在 Zotero-OpenReader 设置的“高亮”一节里选择`), its `value` the pinned
+   and `tooltiptext` `Chosen in OpenReader's settings, under Highlight`
+   (zh-CN `在 OpenReader 设置的“高亮”一节里选择`), its `value` the pinned
    level; `menu.windows` holds `{ found: true, disabled: true }`. A window
    opened on the OpenReader pane first reads `{ found: false, disabled:
    false }` until General is shown, then `true` (the MutationObserver

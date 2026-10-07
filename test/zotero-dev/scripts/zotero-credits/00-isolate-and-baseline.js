@@ -6,7 +6,7 @@
 // touch, transports settled, the three plugin WebDAV switches suspended and
 // webdav.url moved to the dedicated test configuration
 // (~/.secrets/Zotero-TTS/test_webdav.txt, contents never reported),
-// OpenReader Position refused if installed, host minimized, readers/settings
+// host minimized, readers/settings
 // window/position rows/error ring/locale recorded, debug store armed.
 // State: Zotero.__zttsCredits159 (the run's own global, cleanup restores it).
 // This run starts no playback, so readAloud.volume is snapshotted but NOT
@@ -67,22 +67,15 @@
     try { configText = (await IOUtils.readUTF8(configPath)).trim(); } catch (_) { throw new Error('test WebDAV config unavailable'); }
     if (!(configText.startsWith('http://') || configText.startsWith('https://'))) throw new Error('test WebDAV config is not an URL');
 
-    // --- OpenReader Position must not be installed. ---
+    // --- The plugin's own add-on record. ---
     const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
     const addons = await AddonManager.getAllAddons();
-    const positionAddons = [];
     let ttsBefore = null;
     for (const addon of addons) {
-      const haystack = (String(addon.id || '') + ' ' + String(addon.name || '')).toLowerCase();
-      if (haystack.includes('openreader') || haystack.includes('open reader') || haystack.includes('position')) {
-        positionAddons.push({ id: addon.id, name: addon.name, version: addon.version });
-      }
       if (addon.id === 'zotero-tts@xujialiu.top') {
         ttsBefore = { version: addon.version, active: !!addon.isActive };
       }
     }
-    if (positionAddons.length) throw new Error('OpenReader Position is installed; refusing the run');
-    out.openReaderPosition = false;
     S.ttsBefore = ttsBefore;
     out.ttsBefore = ttsBefore;
 

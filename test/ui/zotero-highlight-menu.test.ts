@@ -18,7 +18,7 @@ function fakeMenu(initial: Record<string, string> = {}) {
 
 type Menu = ReturnType<typeof fakeMenu>;
 
-function setup(hint = 'Chosen in Zotero-OpenReader') {
+function setup(hint = 'Chosen in OpenReader') {
   let offer: ((doc: MenuDocumentLike, onUnload: (fn: () => void) => void) => void) | null = null;
   const stopWatching = vi.fn();
   const observers: Array<{ doc: unknown; changed: () => void; disconnect: ReturnType<typeof vi.fn> }> = [];
@@ -74,7 +74,7 @@ describe("Zotero's Highlight current menulist, greyed and hinted (issue #114)", 
     s.menu.start();
     const w = s.open(true);
     expect(w.menu().attrs.get('disabled')).toBe('true');
-    expect(w.menu().attrs.get('tooltiptext')).toBe('Chosen in Zotero-OpenReader');
+    expect(w.menu().attrs.get('tooltiptext')).toBe('Chosen in OpenReader');
     expect(s.deps.observe).not.toHaveBeenCalled();
     expect(s.menu.inspect()).toEqual({ started: true, windows: [{ found: true, disabled: true }] });
   });
@@ -87,7 +87,7 @@ describe("Zotero's Highlight current menulist, greyed and hinted (issue #114)", 
     expect(s.menu.inspect().windows).toEqual([{ found: false, disabled: false }]);
     w.loadGeneral();
     expect(w.menu().attrs.get('disabled')).toBe('true');
-    expect(w.menu().attrs.get('tooltiptext')).toBe('Chosen in Zotero-OpenReader');
+    expect(w.menu().attrs.get('tooltiptext')).toBe('Chosen in OpenReader');
     expect(w.observersOf()[0].disconnect).toHaveBeenCalledTimes(1);
     expect(s.menu.inspect().windows).toEqual([{ found: true, disabled: true }]);
     // A later mutation changes nothing and touches the element once

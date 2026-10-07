@@ -60,14 +60,12 @@ before the issue is written.
   folder's switch is issue #173). Every functional test driven through
   the zotero-dev bridge — by `zotero-tester`, research included, or by
   the main session — first sorts itself by whether it is about WebDAV:
-  the WebDAV folder, the sync, the server backup, or OpenReader
-  Position's use of WebDAV.
+  the WebDAV folder, the sync or the server backup.
   - *Not about WebDAV:* after `zotero_ping`, before installing a build or
     driving checks, snapshot the folder's switch privately (its value and
     whether it had a user value), settle pending requests, and switch the
     WebDAV folder off (`webdav.enabled` false; on a build without the
-    switch, the three sync and server-backup switches instead), and
-    OpenReader Position's WebDAV use where it has a switch. Confirm
+    switch, the three sync and server-backup switches instead). Confirm
     `"folder": false` in `diagnostics.positionSync()` — again after every
     install, since an upgrade may turn the folder on. The owner's WebDAV
     settings are not otherwise touched and the test configuration is not
@@ -80,12 +78,12 @@ before the issue is written.
     After `zotero_ping`, before installing a build or driving checks,
     snapshot the affected settings privately, suspend automatic
     sync/backup and settle pending requests, then switch
-    Zotero-OpenReader and OpenReader Position to the test configuration
-    wherever they use WebDAV. Confirm the effective destinations match
-    the file before proceeding; report only the match result, never its
-    contents or credentials. If the file is unavailable or isolation
-    cannot be confirmed, stop the live run and report the blocker; never
-    fall back to the owner's normal WebDAV. During cleanup, keep
+    Zotero-OpenReader to the test configuration. Confirm the effective
+    destination matches the file before proceeding; report only the
+    match result, never its contents or credentials. If the file is
+    unavailable or isolation cannot be confirmed, stop the live run and
+    report the blocker; never fall back to the owner's normal WebDAV.
+    During cleanup, keep
     sync/backup suspended until test-created or downloaded
     bookmark/position data and pending writes are isolated and the
     original local state and settings restored; only then restore

@@ -93,7 +93,7 @@ describe('parseBackup / applyBackup', () => {
   it('rejects text that is not a backup', () => {
     expect(() => parseBackup('nope')).toThrow(BackupError);
     expect(() => parseBackup('nope')).toThrow(/not JSON/);
-    expect(() => parseBackup('{}')).toThrow(/not a Zotero-OpenReader settings backup/);
+    expect(() => parseBackup('{}')).toThrow(/not an OpenReader settings backup/);
     expect(() => parseBackup('null')).toThrow(BackupError);
     expect(() => parseBackup(JSON.stringify({ format: 'other', settings: {} }))).toThrow(BackupError);
   });

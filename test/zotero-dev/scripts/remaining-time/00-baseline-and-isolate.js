@@ -69,22 +69,6 @@
   if (!/^https?:\/\//i.test(configText)) throw new Error('test WebDAV config is not an URL');
   const trimSlash = value => { let out = String(value); while (out.endsWith('/')) out = out.slice(0, -1); return out; };
 
-  // Fail closed if the companion Position add-on is installed: its destination
-  // cannot be switched safely without its own documented preference contract.
-  const positionAddons = [];
-  try {
-    const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
-    const addons = await AddonManager.getAllAddons();
-    for (let i = 0; i < addons.length; i++) {
-      const addon = addons[i];
-      const haystack = (String(addon.id || '') + ' ' + String(addon.name || '')).toLowerCase();
-      if (haystack.includes('openreader') || haystack.includes('open reader') || haystack.includes('position')) {
-        positionAddons.push({ id: addon.id, name: addon.name, version: addon.version, active: !!addon.isActive });
-      }
-    }
-  } catch (error) { throw new Error('OpenReader Position presence check failed: ' + String(error)); }
-  if (positionAddons.length) throw new Error('OpenReader Position is installed; refusing isolated run');
-
   // Wait for any prior transport activity to settle before changing its destination.
   const diagnostics = Zotero.ZoteroTTS?.diagnostics;
   const transportsSettled = diagnostics ? await waitFor(async () => {
@@ -133,7 +117,7 @@
   await sleep(700);
   if (host && host.windowState !== 2) throw new Error('Zotero host did not minimize for baseline');
   if (!baseline.debugStoring) try { Zotero.Debug.setStore(true); } catch (_) {}
-  state.isolation = { configPath, configLength: configText.length, destinationMatched, transportsSettled, positionAddons, hostBefore, readersBefore, startedAt: Date.now() };
+  state.isolation = { configPath, configLength: configText.length, destinationMatched, transportsSettled, hostBefore, readersBefore, startedAt: Date.now() };
   state.errorsBefore = (Zotero.getErrors?.() || []).map(String);
   const summary = {};
   for (const name of names) {
@@ -144,5 +128,5 @@
     summary[name] = secret ? { type: rec.type, user: rec.user, length: String(rec.value || '').length } : { type: rec.type, user: rec.user, value: rec.value };
   }
   summary['reader.readAloudVoices'] = { type: baseline.native.type, user: baseline.native.user, length: String(baseline.native.value || '').length };
-  return JSON.stringify({ step: 'baseline-and-isolate', destinationMatched, transportsSettled, openReaderPosition: false, hostMinimized: host?.windowState === 2, readersBefore, preferenceSummary: summary }, null, 1);
+  return JSON.stringify({ step: 'baseline-and-isolate', destinationMatched, transportsSettled, hostMinimized: host?.windowState === 2, readersBefore, preferenceSummary: summary }, null, 1);
 })()

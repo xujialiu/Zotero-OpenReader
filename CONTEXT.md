@@ -219,3 +219,16 @@ _Avoid_: lock, block
 A folder on the user's own WebDAV server, through which the sync and the
 server backup reach their other computers and the phone.
 _Avoid_: WebDAV connection, server (alone), cloud
+
+### The plugin and the app
+
+**Zotero-OpenReader**:
+This plugin. Inside Zotero, its name is shown as OpenReader.
+_Avoid_: Zotero TTS, TTS (the technology), OpenReader (outside Zotero, where
+it names the app)
+
+**OpenReader**:
+The reading app for phones and tablets that shares positions with the
+plugin through the WebDAV folder. Inside Zotero, where OpenReader names the
+plugin, it is the OpenReader app on your phone.
+_Avoid_: OpenReader alone (inside Zotero)

@@ -53,7 +53,7 @@ export function createLiveVoiceList(deps: LiveVoiceListDeps) {
       stage._resolveVoice = exported(() => {}, stage);
       stage._stateChanged = exported(() => {}, stage);
       await withTimeout(Promise.resolve(Reflect.apply(entry.original, stage, [remote])), 45_000,
-        () => new Error('Zotero-OpenReader: voice list refresh timed out'));
+        () => new Error('OpenReader: voice list refresh timed out'));
       if (disposed || revision !== entry.revision || deps.isDead?.(m) || !isPlayerOpen(entry.reader)) return;
       const list = stage._allVoices;
       // Once for the walk, never per voice (issue #125)

@@ -13,7 +13,7 @@ text is shared between variants), passed per run via
 
 | Script | Checks | Expected | Params/state |
 | --- | --- | --- | --- |
-| `163-00-baseline-and-isolate.js` | Private baseline and dedicated test-WebDAV isolation before install | Destination matches; transports idle; no OpenReader Position; host minimized; position rows recorded | private `__ztts163` |
+| `163-00-baseline-and-isolate.js` | Private baseline and dedicated test-WebDAV isolation before install | Destination matches; transports idle; host minimized; position rows recorded | private `__ztts163` |
 | `163-01-mute-import-open-seed.js` | Mute, prefetch 8, import the run fixture, open player paused on a free local pair, favorites-only | Engine session paused on a `local::af_` voice; cycle list [af_alloy, af_bella]; 27 segments | `params.fixture163`; erases the previous attempt's fixture first |
 | `163-02-identity-and-audio-probe.js` | Item 1 identity + audio device probe | `mechanism engine-handoff-v2`; previous `Shift+,`, next `Shift+.`; `controlsAttached` true per reader; startup has the Engine + voice switching, failed []; audio running, playbackTime advances | — |
 | `163-03-reading-on-waits.js` | Item 14 reading-on: pick B held 20 s while A reads on | `pending` B, `oldRequests` 0; `store.requests` flat; at the first dry sentence `stage waiting`, `waitedAt`, `lookups` up, Preparing…; commit `last {kind sentence, index waitedAt, offset 0}`, notice `selected`, `oldRequests` 0, zero A fetches after the pick | fresh fixture per attempt (the cache warms both voices) |

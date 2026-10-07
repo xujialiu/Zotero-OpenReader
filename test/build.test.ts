@@ -26,7 +26,7 @@ describe('build', () => {
     const entry = new AdmZip(xpi).getEntry('manifest.json');
     const manifest = JSON.parse(entry!.getData().toString('utf8'));
     expect(manifest.applications.zotero.id).toBe('zotero-tts@xujialiu.top');
-    expect(manifest.name).toBe('Zotero-OpenReader');
+    expect(manifest.name).toBe('OpenReader');
     expect(manifest.applications.zotero.update_url).toBe(
       'https://raw.githubusercontent.com/xujialiu/Zotero-OpenReader/main/update.json',
     );

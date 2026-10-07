@@ -2,6 +2,9 @@
 
 *Engineering decision: [0014](../adr/0014-zotero-openreader-keeps-its-installed-identity.md).*
 
+*Inside Zotero the plugin is now called OpenReader everywhere, the plugin
+list included: [0016](0016-the-plugin-is-openreader-inside-zotero.md).*
+
 The repository and the plugin's visible name become **Zotero-OpenReader**.
 Renaming only the repository was rejected: the plugin should carry the
 same name wherever a reader encounters it. The settings sidebar uses the

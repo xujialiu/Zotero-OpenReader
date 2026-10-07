@@ -63,17 +63,12 @@
   try { configText = (await IOUtils.readUTF8(configPath)).trim(); } catch (_) { throw new Error('test WebDAV config unavailable'); }
   if (!(configText.startsWith('http://') || configText.startsWith('https://'))) throw new Error('test WebDAV config is not an URL');
 
-  let positionAddons = [];
   let ttsAddon = null;
   try {
     const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
     const addons = await AddonManager.getAllAddons();
     for (let i = 0; i < addons.length; i++) {
       const addon = addons[i];
-      const haystack = (String(addon.id || '') + ' ' + String(addon.name || '')).toLowerCase();
-      if (haystack.includes('openreader') || haystack.includes('open reader') || haystack.includes('position')) {
-        positionAddons.push({ id: addon.id, name: addon.name, version: addon.version, active: !!addon.isActive });
-      }
       if (addon.id === 'zotero-tts@xujialiu.top') {
         let path = null;
         try { path = addon.installPath ? addon.installPath.path : null; } catch (_) {}
@@ -81,7 +76,6 @@
       }
     }
   } catch (e) { throw new Error('addon presence check failed: ' + String(e)); }
-  if (positionAddons.length) throw new Error(`OpenReader Position is installed; refusing isolated run: ${JSON.stringify(positionAddons)}`);
 
   const diagnostics = Zotero.ZoteroTTS?.diagnostics;
   const beforeTransportsSettled = diagnostics ? await waitFor(async () => {
@@ -143,7 +137,7 @@
   const existing = Zotero.__ztts166;
   Zotero.__ztts166 = {
     ...(existing || {}), baseline, extra, documentRecords, configLength: configText.length,
-    hostBefore, readersBefore, positionAddons: positionAddons.length ? positionAddons : false,
+    hostBefore, readersBefore,
     ttsAddonBefore: ttsAddon, settingsWindowOpen,
     destinationMatched, beforeTransportsSettled, debugBefore,
     positionRowsBefore: positionBefore?.database?.rows ?? null,
@@ -161,7 +155,6 @@
     status: 'PASS', phase: 'preinstall-safe WebDAV isolation',
     zoteroVersion: Zotero.version,
     webdav: { configAvailable: true, destinationMatched, switchesSuspended: true, configLength: configText.length },
-    openReaderPositionPlugin: positionAddons.length ? positionAddons : false,
     ttsAddonBefore: ttsAddon ? { version: ttsAddon.version, active: ttsAddon.active, installPath: ttsAddon.installPath } : null,
     beforeTransportsSettled,
     positionRowsBefore: positionBefore?.database?.rows ?? null,

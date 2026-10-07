@@ -4,7 +4,7 @@
 
 | Script | What it checks | What it expects | Params read |
 | --- | --- | --- | --- |
-| `00-baseline-and-isolate.js` | Test-WebDAV isolation, transport settle, named preference baseline, owner/player record, mute, minimize | Destination matches `~/.secrets/Zotero-TTS/test_webdav.txt`; transports settled; OpenReader Position absent; switches suspended; volume muted | none |
+| `00-baseline-and-isolate.js` | Test-WebDAV isolation, transport settle, named preference baseline, owner/player record, mute, minimize | Destination matches `~/.secrets/Zotero-TTS/test_webdav.txt`; transports settled; switches suspended; volume muted | none |
 | `01-startup-and-identity.js` | Installed-build proof and startup | xpi SHA-256 byte-identical to the build xpi; `ztts-close-and-continue` greppable in the installed bundle; startup all-ok | none |
 | `02-fixtures-kokoro-system.js` | Kokoro + System enable through the pane; two paused fixtures (X on `local::`, Y on `system::`, Y's tab background) | Both connects OK with no notice; both players paused on listed voices | `fixturesDir` |
 | `03-continuity-handoff-discovery.js` | Live list continuity, prepared handoff, failed discovery with bounded transport stub | Controller/voice/catalog identity and running clock survive allowed refresh; handoff protects both voices; omitted voices retained | state from prior scripts |

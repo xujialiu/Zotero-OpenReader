@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:c23dd848899f -->
+<!-- translated-from: README.md sha256:3d54957de78c -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -39,7 +39,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 ## 安装
 
 1. 到[最新发行版](https://github.com/xujialiu/Zotero-OpenReader/releases/latest)下载 `zotero-tts.xpi`——Firefox 里右键 → *链接另存为…*
-2. **工具 → 插件 → ⚙ → Install Plugin From File…**（插件窗口没有中文），然后重启 Zotero。
+2. **工具 → 插件 → ⚙ → Install Plugin From File…**（插件窗口没有中文），然后重启 Zotero。插件在 Zotero 里显示为 **OpenReader**。
 3. 到**编辑 → 设置 → OpenReader** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
 
 <p align="center"><img src="assets/popup.png" width="640" alt="朗读播放器，第一个下拉框里选中了一个服务商"></p>
@@ -133,7 +133,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 
 ### 播放器
 
-- **播放器**在每个文档里都是插件自己的；Zotero 原来的播放器不再出现。点击阅读器中的红色耳机图标，打开播放器并开始朗读；再次点击停止并关闭。播放器无法加载时，会有提示说明，也不会朗读：这时可以在“工具 → 插件”里关闭 Zotero-OpenReader，先用 Zotero 自己的播放器朗读。
+- **播放器**在每个文档里都是插件自己的；Zotero 原来的播放器不再出现。点击阅读器中的红色耳机图标，打开播放器并开始朗读；再次点击停止并关闭。播放器无法加载时，会有提示说明，也不会朗读：这时可以在“工具 → 插件”里关闭 OpenReader，先用 Zotero 自己的播放器朗读。
 - **底部栏、顶部栏、悬浮面板**可在设置中选择，也可从播放器的布局按钮选择。栏盖在文档的顶部或底部边缘上，因此打开、关闭或切换播放器都不会改变页面大小，也不会让页面变模糊；跟随会让正在朗读的句子不被栏挡住，Zotero 的查找框会出现在顶部栏下方。在文档的最开头或最末尾，栏下面那一条会一直被挡住。悬浮面板可以拖动。没有保存过布局时，默认使用顶部栏；已有选择会保留。
 - **语音服务、语言、声音、速度和音量**使用语音浏览器和键盘快捷键里的同一组选择。左侧的心形与设置里的收藏相同。
 - **悬浮控件**在播放/暂停按钮周围提供四个按句或按段跳转按钮。左上角的**选项**或 **Shift+O** 可收起或显示语音服务、语言和声音三行；右上角是**布局**。每次打开都遵循朗读设置中的*打开时展开播放器*。

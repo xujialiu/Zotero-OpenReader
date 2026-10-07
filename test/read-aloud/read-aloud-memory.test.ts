@@ -392,16 +392,16 @@ describe('pickSubstitute', () => {
 describe('substitutionMessage', () => {
   it('names the voice that is not offered and the one reading instead', () => {
     expect(substitutionMessage('am_puck', 'Ava Multilingual', false)).toBe(
-      'Zotero-OpenReader: am_puck is not offered here. Reading with Ava Multilingual instead.',
+      'OpenReader: am_puck is not offered here. Reading with Ava Multilingual instead.',
     );
   });
 
   it('says when no plugin voice is offered either, and warns of credits when a paid voice covers the language', () => {
     expect(substitutionMessage('am_puck', null, true)).toBe(
-      'Zotero-OpenReader: am_puck is not offered here, and no other voice of Zotero-OpenReader is. Zotero picks the voice; it may use credits.',
+      'OpenReader: am_puck is not offered here, and no other voice of OpenReader is. Zotero picks the voice; it may use credits.',
     );
     expect(substitutionMessage('am_puck', null, false)).toBe(
-      'Zotero-OpenReader: am_puck is not offered here, and no other voice of Zotero-OpenReader is. Zotero picks the voice.',
+      'OpenReader: am_puck is not offered here, and no other voice of OpenReader is. Zotero picks the voice.',
     );
   });
 });

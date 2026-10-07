@@ -42,7 +42,7 @@ is built for the way its author reads —
 ## Install
 
 1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-OpenReader/releases/latest) — in Firefox, right-click → *Save Link As…*
-2. **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart Zotero.
+2. **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart Zotero. Inside Zotero the plugin is named **OpenReader**.
 3. Enable a provider in **Edit → Settings → OpenReader** — **Fish Audio** first, if you are not sure ([why](#providers)) — then pick it in the player's first dropdown and one of its voices.
 
 <p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a provider chosen in its first dropdown"></p>
@@ -203,7 +203,7 @@ for every document you have listened to.
   player no longer appears. Click the red headphones icon in the reader to
   open it and start reading; click again to stop and close it. Where the
   player cannot load, a message says so and nothing is read: turn
-  Zotero-OpenReader off under Tools → Plugins to read with Zotero's own player
+  OpenReader off under Tools → Plugins to read with Zotero's own player
   meanwhile.
 - **Bottom bar, Top bar, Floating panel** are available in Settings and
   from the player's layout button. A bar lies over the top or bottom edge

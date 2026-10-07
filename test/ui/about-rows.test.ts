@@ -119,7 +119,7 @@ describe('addon/', () => {
   });
 
   it('asks for the star in one sentence, GitHub the link', () => {
-    expect(englishValue('ztts-about-star')).toBe('If you like Zotero-OpenReader, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.');
+    expect(englishValue('ztts-about-star')).toBe('If you like OpenReader, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.');
   });
 
   // Fluent fills the label named github and drops a name the markup lacks:

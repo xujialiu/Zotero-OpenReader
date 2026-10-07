@@ -17,7 +17,7 @@ When Zotero will not read a Zotero voice for its account:
   tab, is closed; the tier's switch goes off; a reminder opens over the
   document of the tab where it happened: `Zotero Premium has no remaining
   time and has been switched off. Add more time, then enable it again in
-  Zotero-OpenReader settings.` (+ `Reading also stopped in N other tab(s).`),
+  OpenReader settings.` (+ `Reading also stopped in N other tab(s).`),
   with an **Add more time** link and a ✕.
 - **Short** — Zotero refused while credits are left: nothing closed or
   switched off; the reminder `Not enough remaining time on Zotero Premium
@@ -26,7 +26,7 @@ When Zotero will not read a Zotero voice for its account:
   this voice.` with Retry.
 - **Daily limit** — the tier that hit it is switched off as for used up;
   the reminder `Zotero Premium has reached today's limit and has been
-  switched off. Enable it again in Zotero-OpenReader settings tomorrow.`, no link;
+  switched off. Enable it again in OpenReader settings tomorrow.`, no link;
   the credits are not read.
 - Every other error keeps the ! with Retry, and nothing is switched off.
 

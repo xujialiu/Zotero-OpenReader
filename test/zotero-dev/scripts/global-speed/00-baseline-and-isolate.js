@@ -54,20 +54,6 @@ return (async () => {
   if (!(configText.startsWith('http://') || configText.startsWith('https://'))) throw new Error('test WebDAV config is not an URL');
   const trimSlash = value => { let out = String(value); while (out.endsWith('/')) out = out.slice(0, -1); return out; };
 
-  // OpenReader Position: record presence; absent here means nothing to switch
-  let positionAddons = [];
-  try {
-    const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
-    const addons = await AddonManager.getAllAddons();
-    for (let i = 0; i < addons.length; i++) {
-      const addon = addons[i];
-      const haystack = (String(addon.id || '') + ' ' + String(addon.name || '')).toLowerCase();
-      if (haystack.includes('openreader') || haystack.includes('open reader')) {
-        positionAddons.push({ id: addon.id, name: addon.name, version: addon.version, active: !!addon.isActive });
-      }
-    }
-  } catch (e) { throw new Error('OpenReader Position presence check failed: ' + String(e)); }
-
   const d = Zotero.ZoteroTTS?.diagnostics;
   const settled = d ? await waitFor(async () => {
     try {
@@ -123,7 +109,6 @@ return (async () => {
   state.hostBefore = hostBefore;
   state.readersBefore = readersBefore;
   state.errorsBefore = errorsBefore;
-  state.openReaderPosition = positionAddons;
   state.memoryVoiceSafe = typeof memoryVoice === 'string' && memoryVoice.includes('::');
   state.debugStoringBefore = !!Zotero.Debug?.storing;
   if (!state.debugStoringBefore) { try { Zotero.Debug.setStore(true); } catch (e) {} }
@@ -147,7 +132,6 @@ return (async () => {
       syncStateUser: baseline['webdav.syncState'].hasUser,
       syncStateChars: String(baseline['webdav.syncState'].value ?? '').length,
     },
-    openReaderPositionPlugin: positionAddons.length ? positionAddons : 'absent',
     readersBefore, settingsWindowOpen: !!prefWin,
     errorsBeforeCount: errorsBefore.length,
     debugStoringBefore: state.debugStoringBefore,

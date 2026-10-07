@@ -49,7 +49,6 @@
       settingsSync: { pendingChange: settings.transport?.pendingChange, running: settings.transport?.running, lastError: settings.transport?.lastError },
       settingsUpload: { pending: upload.autoUpload?.pending, lastError: upload.autoUpload?.lastError },
     },
-    openReaderPositionPlugin: session.openReaderPositionPlugin || false,
     webdavDestinationMatched: true,
   }, null, 1);
 })();
