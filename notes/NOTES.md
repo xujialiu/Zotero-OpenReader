@@ -727,3 +727,7 @@ then) and is in the git history before that day.
 - The WebDAV folder gets a switch, and an http:// address a warning instead of a refusal (issues #172–#175)
 - A native file dialog cannot be driven through the bridge, and probing one crashed Zotero (issue #175)
 - Verified live on 1.16.7-beta: the folder's switch, its gate and the warning (issues #172–#175)
+
+### [2026-10-08](NOTES_2026-10-08.md)
+
+- README screenshots out of the running Zotero on macOS (issues #78, #141)

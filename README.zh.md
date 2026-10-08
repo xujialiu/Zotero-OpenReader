@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:3d54957de78c -->
+<!-- translated-from: README.md sha256:47e4fe6e56a8 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -42,7 +42,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 2. **工具 → 插件 → ⚙ → Install Plugin From File…**（插件窗口没有中文），然后重启 Zotero。插件在 Zotero 里显示为 **OpenReader**。
 3. 到**编辑 → 设置 → OpenReader** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
 
-<p align="center"><img src="assets/popup.png" width="640" alt="朗读播放器，第一个下拉框里选中了一个服务商"></p>
+<p align="center"><img src="assets/player.png" width="720" alt="顶部栏的播放器，正在用 Fish Audio 的语音朗读：正在读的词是蓝色，它所在的句子是黄色"></p>
 
 ## 服务商
 
@@ -161,7 +161,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 
 ### 键盘快捷键
 
-<p align="center"><img src="assets/settings-shortcuts.png" width="440" alt="键盘快捷键那一组"></p>
+<p align="center"><img src="assets/settings-shortcuts.png" width="420" alt="键盘快捷键那一组"></p>
 
 **`Shift+Space` 是你唯一需要记的键**——不管当时是什么情形，都是这一个键：
 

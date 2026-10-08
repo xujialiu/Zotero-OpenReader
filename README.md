@@ -45,7 +45,7 @@ is built for the way its author reads —
 2. **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart Zotero. Inside Zotero the plugin is named **OpenReader**.
 3. Enable a provider in **Edit → Settings → OpenReader** — **Fish Audio** first, if you are not sure ([why](#providers)) — then pick it in the player's first dropdown and one of its voices.
 
-<p align="center"><img src="assets/popup.png" width="640" alt="The Read Aloud player with a provider chosen in its first dropdown"></p>
+<p align="center"><img src="assets/player.png" width="720" alt="The player as a top bar, reading with a Fish Audio voice: the word being read in blue, its sentence in yellow"></p>
 
 ## Providers
 
@@ -281,7 +281,7 @@ Everything is under **Edit → Settings → OpenReader**.
 
 ### Keyboard shortcuts
 
-<p align="center"><img src="assets/settings-shortcuts.png" width="440" alt="The Keyboard shortcuts group"></p>
+<p align="center"><img src="assets/settings-shortcuts.png" width="420" alt="The Keyboard shortcuts group"></p>
 
 **`Shift+Space` is the only key you need** — one key, whatever the reader is
 doing:

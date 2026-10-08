@@ -113,7 +113,7 @@ describe('build-site', () => {
   it('copies the images in and points the pages at the copies', () => {
     expect(read('index.html')).toContain('src="assets/word-highlight.gif"');
     expect(existsSync(join(out, 'assets', 'word-highlight.gif'))).toBe(true);
-    expect(existsSync(join(out, 'assets', 'popup.png'))).toBe(true);
+    expect(existsSync(join(out, 'assets', 'player.png'))).toBe(true);
   });
 
   it('sends every other local file to GitHub', () => {
