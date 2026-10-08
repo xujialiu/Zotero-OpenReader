@@ -12,9 +12,13 @@ player.
 
 ## The key
 
-1. Sign up at [fish.audio](https://fish.audio) and open the dashboard's
-   **API** section.
-2. **API Keys** → create one, name it, copy it.
+1. Sign up at [fish.audio](https://fish.audio), click **Open App**, and
+   choose **Developer** at the top of the left sidebar.
+2. **API Keys** → **Create API Key** (or go straight to
+   [fish.audio/app/api-keys](https://fish.audio/app/api-keys/)): name it,
+   leave **Expiration** on **Never** — reading stops the day a key
+   expires — and click **Create**. Copy the key right away: the list
+   shows it masked afterwards.
 3. In Zotero, **Edit → Settings → OpenReader → Fish Audio**: paste it
    into **API key**, click **Test connection**, then **Enable**.
 
@@ -26,11 +30,13 @@ The block's **Use only the free model** switch is on when you start.
   balance on the account. Its terms, in Fish Audio's words: no cap on the
   amount of text, no guarantee of speed, and the text you send may be
   kept to improve their models. It was announced as a limited-time offer
-  and has been extended more than once; it may end.
+  and has been extended more than once — as of October 2026, through
+  November 30, 2026; it may end.
 - *Off* — the paid S2.1 Pro: the same model, $15 per million bytes of
   text, about 180,000 English words; a Chinese character is three bytes.
-  It is billed to the **API credit** of your account (dashboard →
-  **Billing**), which is separate from the website's own credits. With
+  It is billed to your **API credit**, the **Balance** under
+  **Developer → API Billing**, filled with **Top Up**. It is separate from
+  the website's own plan and credits under **Creative → Billing**. With
   no API credit, **Test connection** says *Insufficient API credit* and
   nothing plays until you top up or switch the free model back on.
 
@@ -44,13 +50,17 @@ start off. The three source switches work independently.
   automatically. Community voices are added only when you enter their
   Model IDs yourself.
 - **Your voices.** Voices created by your Fish Audio account are listed
-  without pasting their IDs.
+  without pasting their IDs: those on the **My Voices** tab of the
+  website's **My Voices** page. A voice you only bookmarked or liked is
+  not; add it by its Model ID.
 - **Manual voices.** Offers the voices entered in **Voices (Model IDs)**. Turning
   this switch off hides them without erasing the saved IDs.
 - **Voices (Model IDs).** Fish Audio calls each voice's identifier its
   Model ID. Click **Model IDs** in the field label to open the
-  [Fish Audio discovery page](https://fish.audio/app/discovery/). Choose
-  a voice, copy its Model ID, and paste it here. Separate several with commas or spaces.
+  [Fish Audio discovery page](https://fish.audio/app/discovery/). Open a
+  voice's page, click **⋯** → **Copy Model Id**, and paste it here; the
+  ID is also the last part of that page's address,
+  `fish.audio/app/m/<id>`. Separate several with commas or spaces.
   The **?** beside the field points to that page. Existing pasted voice
   links still work. To edit the field, **Disable** the cloud block first,
   then **Enable** it again.
