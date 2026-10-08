@@ -111,9 +111,13 @@ Putting something in the wrong one is how it stops being read.
   global-vs-世纪互联 Azure split). Settings and player wording is quoted from
   the plugin's own `addon/locale/zh-CN/zotero-tts.ftl` and from Zotero's zh-CN
   files in `omni.ja` — 朗读, 语音模式, 本地 / 标准 / 高级 — never freshly
-  translated; product names, voice ids, pref keys, file names and code blocks
-  stay English. **A Chinese page is never hard-wrapped**: a line break between
-  two CJK characters renders as a space in Chrome and Safari (measured
+  translated. A third-party site's buttons and menus are quoted the same
+  way, from the site's own Chinese interface where it has one, read in the
+  browser — Fish Audio's 开发者 → API 密钥 → 创建 API 密钥, not a fresh
+  rendering of the English (settled 2026-10-09); a site with no Chinese
+  interface keeps its English labels. Product names, voice ids, pref keys,
+  file names and code blocks stay English. **A Chinese page is never
+  hard-wrapped**: a line break between two CJK characters renders as a space in Chrome and Safari (measured
   2026-09-04: 164.45px wrapped, exactly the width with an explicit space,
   against 160px on one line), so one paragraph is one line, however long —
   the opposite of the English files. For the same reason a space next to

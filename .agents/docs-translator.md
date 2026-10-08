@@ -36,8 +36,11 @@ A brief that names no page means: whatever
    - Settings and player wording is quoted, never translated afresh: the
      plugin's strings from `addon/locale/zh-CN/zotero-tts.ftl`, Zotero's
      from its own zh-CN locale — 朗读 for Read Aloud, 语音模式, 本地 /
-     标准 / 高级 for the tiers. A string you cannot find in either stays
-     English and goes in the report, never into a guess.
+     标准 / 高级 for the tiers. A third-party site's labels (a tutorial's
+     dashboard steps) come from that site's own Chinese interface, read in
+     the browser; a site without one keeps its English labels. A string you
+     cannot find in any of these stays English and goes in the report,
+     never into a guess.
    - Product names, voice ids, pref keys, file names, shortcuts and code
      blocks stay English; the plugin is `Zotero-OpenReader` (`OpenReader` where a
      page quotes what Zotero shows), never translated or respelled.
