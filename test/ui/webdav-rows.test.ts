@@ -127,7 +127,7 @@ describe('Upload settings now', () => {
       url: 'https://dav.example.com/zotero-tts',
       username: 'ann',
       password: 'pw',
-      syncPositions: false,
+      syncPositions: true,
       autoUploadSettings: false,
       syncSettings: false,
     });
@@ -152,7 +152,7 @@ describe('Upload settings now', () => {
       url: 'https://other.example.com/dav',
       username: 'ann',
       password: 'new',
-      syncPositions: false,
+      syncPositions: true,
       autoUploadSettings: false,
       syncSettings: false,
     });

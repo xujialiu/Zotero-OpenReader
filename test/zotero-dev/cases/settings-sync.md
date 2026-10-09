@@ -72,9 +72,9 @@ numbers.
     the same keys, every `by` the machine id, `apiKey`/`apiToken`/`headers`
     as `<N chars>`, and `settingsFiles()` lists
     `zotero-tts-shared-settings.json`. The exclusions are proved by
-    non-default values that stay out: `webdav.syncPositions` and
-    `webdav.autoUploadSettings` are both true against a default of false
-    and neither is stamped; `system.enabled` never. A second sync with
+    non-default values that stay out: `webdav.syncPositions` false against
+    a default of true and `webdav.autoUploadSettings` true against a
+    default of false, and neither is stamped; `system.enabled` never. A second sync with
     nothing new: `uploaded false`, `pushed 0`. The pane's status line
     (`#ztts-sync-settings-status`) reads `Settings synced <time>; nothing new for
     this computer.`

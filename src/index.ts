@@ -16,7 +16,7 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t, type L10nArgs } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
+import { autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, migrateSyncPositionsDefault, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
 import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, legacyPrefSet, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
@@ -2607,6 +2607,14 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
         'WebDAV folder switch',
         () => {
           if (migrateWebDAVFolderSwitch(prefs)) Zotero.debug('[zotero-tts] the WebDAV folder is on: its address was already set');
+        },
+      ],
+      // Also before the sync starts: a folder set up with the positions
+      // sync off keeps it off under the new default
+      [
+        'Reading positions sync default',
+        () => {
+          if (migrateSyncPositionsDefault(prefs)) Zotero.debug('[zotero-tts] the reading positions sync stays off: it was off with the folder set up');
         },
       ],
       // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts):

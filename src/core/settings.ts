@@ -263,7 +263,7 @@ export const DEFAULTS: Settings = {
   system: { enabled: false },
   'zotero-standard': { enabled: true },
   'zotero-premium': { enabled: true },
-  webdav: { enabled: false, url: '', username: '', password: '', syncPositions: false, autoUploadSettings: false, syncSettings: false },
+  webdav: { enabled: false, url: '', username: '', password: '', syncPositions: true, autoUploadSettings: false, syncSettings: false },
   cacheAudio: true,
   shortcuts: {
     speedReset: 'Shift+Z',
@@ -587,6 +587,34 @@ export function migrateWebDAVFolderSwitch(prefs: PrefsBackend): boolean {
   if (inUse) prefs.set(WEBDAV_ENABLED_PREF, true);
   prefs.set(WEBDAV_FOLDER_MIGRATED_PREF, true);
   return inUse;
+}
+
+/**
+ * The marker for the reading positions switch's new default: undeclared,
+ * outside DEFAULTS like WEBDAV_FOLDER_MIGRATED_PREF, so neither the backup
+ * nor the sync carries it.
+ */
+export const SYNC_POSITIONS_MIGRATED_PREF = PREF_PREFIX + 'webdav.syncPositionsMigrated';
+
+/**
+ * The reading positions switch is on by default, so a WebDAV folder syncs
+ * positions as soon as it is on; builds before had it off. Gecko held an
+ * Off under that default as no user value, which the new default would
+ * read as on: a profile that already has a folder address and no user
+ * value for the switch gets Off written, once, so an existing choice
+ * stays. One without an address takes the new default. Returns whether
+ * Off was written.
+ */
+export function migrateSyncPositionsDefault(prefs: PrefsBackend): boolean {
+  if (prefs.get(SYNC_POSITIONS_MIGRATED_PREF) === true) return false;
+  const key = PREF_PREFIX + 'webdav.syncPositions';
+  const url = prefs.get(PREF_PREFIX + 'webdav.url');
+  const inUse = typeof url === 'string' && url.trim() !== '';
+  const chosen = prefs.has ? prefs.has(key) : prefs.get(key) !== undefined;
+  const keepOff = inUse && !chosen;
+  if (keepOff) prefs.set(key, false);
+  prefs.set(SYNC_POSITIONS_MIGRATED_PREF, true);
+  return keepOff;
 }
 
 /** The only place that touches the Zotero global; deliberately isolated here so the rest of the code depends only on PrefsBackend. */

@@ -6,11 +6,13 @@ import {
   loadSettings,
   MAX_PAUSE_MS,
   migrateLegacyProviderPref,
+  migrateSyncPositionsDefault,
   migrateWebDAVFolderSwitch,
   PREF_PREFIX,
   prefetchOf,
   PROVIDER_IDS,
   saveSettings,
+  SYNC_POSITIONS_MIGRATED_PREF,
   WEBDAV_FOLDER_MIGRATED_PREF,
   webdavSwitchOn,
   type PrefsBackend,
@@ -283,6 +285,59 @@ describe('the WebDAV folder switch', () => {
       delete prefs.store[key('webdav.enabled')];
       expect(migrateWebDAVFolderSwitch(prefs)).toBe(false);
       expect(loadSettings(prefs).webdav.enabled).toBe(false);
+    });
+  });
+});
+
+// Reading positions sync as soon as the WebDAV folder is on
+describe('the reading positions switch', () => {
+  const key = (name: string) => PREF_PREFIX + name;
+  const SWITCH = key('webdav.syncPositions');
+
+  it('is on by default, so the folder syncs positions once it is on', () => {
+    expect(DEFAULTS.webdav.syncPositions).toBe(true);
+    expect(loadSettings(fakePrefs()).webdav.syncPositions).toBe(true);
+    expect(webdavSwitchOn(loadSettings(fakePrefs({ [key('webdav.enabled')]: true })).webdav, 'syncPositions')).toBe(true);
+  });
+
+  describe('the upgrade', () => {
+    it('keeps it off where a folder was set up with it off, which Gecko held as no user value', () => {
+      const prefs = fakePrefs({ [key('webdav.url')]: 'https://dav.example.com/zotero-tts/', [key('webdav.enabled')]: true });
+      expect(migrateSyncPositionsDefault(prefs)).toBe(true);
+      expect(prefs.store[SWITCH]).toBe(false);
+      expect(loadSettings(prefs).webdav.syncPositions).toBe(false);
+      expect(prefs.store[SYNC_POSITIONS_MIGRATED_PREF]).toBe(true);
+    });
+
+    it('leaves a switch that was turned on', () => {
+      const prefs = fakePrefs({ [key('webdav.url')]: 'https://dav.example.com/zotero-tts/', [SWITCH]: true });
+      expect(migrateSyncPositionsDefault(prefs)).toBe(false);
+      expect(loadSettings(prefs).webdav.syncPositions).toBe(true);
+    });
+
+    it('gives a profile without a folder address the new default', () => {
+      for (const url of [undefined, '', '   ']) {
+        const prefs = fakePrefs(url === undefined ? {} : { [key('webdav.url')]: url });
+        expect(migrateSyncPositionsDefault(prefs)).toBe(false);
+        expect(SWITCH in prefs.store).toBe(false);
+        expect(loadSettings(prefs).webdav.syncPositions).toBe(true);
+        expect(prefs.store[SYNC_POSITIONS_MIGRATED_PREF]).toBe(true);
+      }
+    });
+
+    it('asks Gecko whether the switch holds a user value when it can', () => {
+      const prefs = { ...fakePrefs({ [key('webdav.url')]: 'http://nas.local/dav/', [SWITCH]: true }), has: (k: string) => k !== SWITCH };
+      expect(migrateSyncPositionsDefault(prefs)).toBe(true);
+      expect(prefs.store[SWITCH]).toBe(false);
+    });
+
+    it('runs once: turning it on later stays on, though Gecko then holds no user value', () => {
+      const prefs = fakePrefs({ [key('webdav.url')]: 'http://nas.local/dav/' });
+      expect(migrateSyncPositionsDefault(prefs)).toBe(true);
+      // Turning it on writes the default back, which Gecko keeps as no user value at all
+      delete prefs.store[SWITCH];
+      expect(migrateSyncPositionsDefault(prefs)).toBe(false);
+      expect(loadSettings(prefs).webdav.syncPositions).toBe(true);
     });
   });
 });

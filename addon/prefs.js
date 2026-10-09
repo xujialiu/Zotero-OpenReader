@@ -44,7 +44,7 @@ pref('extensions.zotero.zotero-tts.webdav.enabled', false);
 pref('extensions.zotero.zotero-tts.webdav.url', '');
 pref('extensions.zotero.zotero-tts.webdav.username', '');
 pref('extensions.zotero.zotero-tts.webdav.password', '');
-pref('extensions.zotero.zotero-tts.webdav.syncPositions', false);
+pref('extensions.zotero.zotero-tts.webdav.syncPositions', true);
 pref('extensions.zotero.zotero-tts.webdav.autoUploadSettings', false);
 pref('extensions.zotero.zotero-tts.webdav.syncSettings', false);
 pref('extensions.zotero.zotero-tts.cacheAudio', true);

@@ -562,6 +562,7 @@ password.
   computer, press `Shift+Space` on another, and reading goes on from that
   sentence. Every computer sharing the folder and the same library stays in
   step, and turning it on loses no bookmark, whichever computer it came from.
+  On by default.
 - *Sync settings between computers:* a change on one computer reaches the
   others within seconds, and theirs reach it, with nothing to restore. Off
   by default.
