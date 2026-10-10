@@ -12,6 +12,11 @@ import { englishBundle } from './setup';
  * A walk a new step adds is only seen by a test of the whole startup.
  */
 
+// Whichever test starts the plugin first also pays for loading the whole
+// bundle: 1.3 s with this file alone, 6.4 s inside the full suite
+// (2026-10-10), past the default 5 s.
+vi.setConfig({ testTimeout: 30_000 });
+
 const DEAD = new WeakSet<object>();
 
 /** A wrapper into a nuked compartment: every touch throws, as Gecko's does. */
