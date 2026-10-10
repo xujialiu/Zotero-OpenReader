@@ -168,6 +168,17 @@ interface Reply {
   abort: () => void;
 }
 
+/** The chunks of a reply laid end to end in one array of `size` bytes. */
+function joinBytes(parts: Uint8Array[], size: number): Uint8Array {
+  const whole = new Uint8Array(size);
+  let offset = 0;
+  for (const part of parts) {
+    whole.set(part, offset);
+    offset += part.length;
+  }
+  return whole;
+}
+
 export function createWebDAVClient(cfg: WebDAVConfig, deps: WebDAVDeps): WebDAVClient {
   const url = normalizeWebDAVURL(cfg.url);
   const timeoutMs = deps.timeoutMs ?? WEBDAV_TIMEOUT_MS;
@@ -225,7 +236,9 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: WebDAVDeps): WebDAVC
    * arriving, however slowly, still finishes. A failure aborts the request,
    * which closes the connection rather than leaving it open behind the
    * rejection, and cancels the stream, the one release left when no
-   * controller could be made.
+   * controller could be made. The bytes are kept as they come and turned
+   * into text once, at the end, so a character split between two chunks
+   * needs no care.
    */
   async function readText({ response, abort }: Reply): Promise<string> {
     const stalled = () => new WebDAVError('network', `The reply from ${url} stalled: nothing arrived for ${Math.round(timeoutMs / 1000)} s.`);
@@ -238,16 +251,16 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: WebDAVDeps): WebDAVC
       throw tooLarge();
     }
     const reader = body.getReader();
-    const decoder = new TextDecoder();
-    let text = '';
-    let total = 0;
+    const nextChunk = () => withTimeout(reader.read(), timeoutMs, stalled);
+    const parts: Uint8Array[] = [];
+    let size = 0;
     try {
-      for (;;) {
-        const { done, value } = await withTimeout(reader.read(), timeoutMs, stalled);
-        if (done) return text + decoder.decode();
-        total += value.byteLength;
-        if (total > WEBDAV_MAX_REPLY_BYTES) throw tooLarge();
-        text += decoder.decode(value, { stream: true });
+      let chunk = await nextChunk();
+      while (!chunk.done) {
+        size += chunk.value.length;
+        if (size > WEBDAV_MAX_REPLY_BYTES) throw tooLarge();
+        parts.push(chunk.value);
+        chunk = await nextChunk();
       }
     } catch (e) {
       abort();
@@ -255,6 +268,7 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: WebDAVDeps): WebDAVC
       if (e instanceof WebDAVError) throw e;
       throw new WebDAVError('network', `The reply from ${url} broke off: ${e instanceof Error ? e.message : String(e)}`);
     }
+    return new TextDecoder().decode(joinBytes(parts, size));
   }
 
   return {
