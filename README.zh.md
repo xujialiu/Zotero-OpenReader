@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:acb653c05c7e -->
+<!-- translated-from: README.md sha256:9741568a6609 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -38,7 +38,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 
 ## 安装
 
-1. 到[最新发行版](https://github.com/xujialiu/Zotero-OpenReader/releases/latest)下载 `zotero-tts.xpi`——Firefox 里右键 → *链接另存为…*
+1. 到[最新发行版](https://github.com/xujialiu/Zotero-OpenReader/releases/latest)下载 `.xpi` 文件——Firefox 里右键 → *链接另存为…*
 2. **工具 → 插件 → ⚙ → Install Plugin From File…**（插件窗口没有中文），然后重启 Zotero。插件在 Zotero 里显示为 **OpenReader**。
 3. 到**编辑 → 设置 → OpenReader** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
 
@@ -261,7 +261,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 <details>
 <summary><b>WebDAV 地址示例</b></summary>
 
-地址填的是一个文件夹，第一次上传时创建。Nextcloud：`https://cloud.example.com/remote.php/dav/files/<user>/zotero-tts/`；坚果云：`https://dav.jianguoyun.com/dav/zotero-tts/`，配一个应用密码。
+地址填的是一个文件夹，第一次上传时创建。Nextcloud：`https://cloud.example.com/remote.php/dav/files/<user>/zotero-openreader/`；坚果云：`https://dav.jianguoyun.com/dav/zotero-openreader/`，配一个应用密码。
 
 </details>
 
@@ -301,7 +301,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 
 ```
 npm install
-npm test          # vitest，同时构建 build/zotero-tts.xpi
+npm test          # vitest，同时构建 build/Zotero-OpenReader.xpi
 npm run typecheck
 npm run build
 ```

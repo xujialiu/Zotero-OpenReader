@@ -5,6 +5,9 @@
 *Inside Zotero the plugin is now called OpenReader everywhere, the plugin
 list included: [0016](0016-the-plugin-is-openreader-inside-zotero.md).*
 
+*The download now carries the plugin's name:
+[0017](0017-the-download-carries-the-plugins-name.md).*
+
 The repository and the plugin's visible name become **Zotero-OpenReader**.
 Renaming only the repository was rejected: the plugin should carry the
 same name wherever a reader encounters it. The settings sidebar uses the

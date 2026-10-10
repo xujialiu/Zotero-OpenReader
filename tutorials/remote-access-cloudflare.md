@@ -74,7 +74,7 @@ every request.
 
 Zero Trust → **Access controls → Service credentials → Create service token**:
 
-- Name: `zotero-tts`
+- Name: `zotero-openreader`
 - Duration: *Non-expiring*, or one year if you prefer rotating it.
 
 The page shows the **Client ID** and the **Client Secret** once. Save both now;
@@ -92,7 +92,7 @@ Self-hosted** (the 2026 dashboard calls it *Self-hosted and private*):
   - Name: `service-token-only`
   - **Action: Service Auth** — not *Allow*. *Allow* expects a person to log
     in through a browser; *Service Auth* accepts a token in request headers.
-  - Include → selector **Service Token** → choose `zotero-tts`.
+  - Include → selector **Service Token** → choose `zotero-openreader`.
 - Leave the advanced settings (CORS, cookies, browser rendering) alone.
 - Save.
 

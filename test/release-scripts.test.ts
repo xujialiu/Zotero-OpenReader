@@ -64,17 +64,23 @@ describe('the version line', () => {
 describe('update.json', () => {
   it('names the asset every installed copy downloads', () => {
     expect(releaseLink('1.10.14')).toBe(
-      'https://github.com/xujialiu/Zotero-OpenReader/releases/download/v1.10.14/zotero-tts.xpi',
+      'https://github.com/xujialiu/Zotero-OpenReader/releases/download/v1.10.14/Zotero-OpenReader.xpi',
     );
   });
 
   it('is pointed at a release with nothing else touched', () => {
-    const before = read('update.json');
+    // The live file may name a release published as zotero-tts.xpi, before
+    // the asset took the plugin's name (#177): the round trip starts from it
+    // pointed at a release, and the rest is compared with the live file.
+    const live = read('update.json');
+    const before = pointUpdateJson(live, '1.0.0');
     const after = pointUpdateJson(before, '9.9.9');
     const entry = JSON.parse(after).addons[PLUGIN_ID].updates[0];
     expect(entry.version).toBe('9.9.9');
     expect(entry.update_link).toBe(releaseLink('9.9.9'));
-    expect(pointUpdateJson(after, JSON.parse(before).addons[PLUGIN_ID].updates[0].version)).toBe(before);
+    expect(pointUpdateJson(after, '1.0.0')).toBe(before);
+    const rest = (text: string) => text.replace(/"version": "[^"]*"/, '').replace(/"update_link": "[^"]*"/, '');
+    expect(rest(after)).toBe(rest(live));
   });
 
   it('refuses a file with more than one entry, or none', () => {

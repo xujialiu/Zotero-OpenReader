@@ -65,8 +65,8 @@ run('npm test -- --reporter=dot');
 run('npm run typecheck');
 run('npm run build');
 
-const xpi = join(root, 'build', 'zotero-tts.xpi');
-if (!existsSync(xpi)) fail('build/zotero-tts.xpi is missing after the build');
+const xpi = join(root, 'build', 'Zotero-OpenReader.xpi');
+if (!existsSync(xpi)) fail('build/Zotero-OpenReader.xpi is missing after the build');
 const entry = new AdmZip(xpi).getEntry('manifest.json');
 const shipped = entry && JSON.parse(entry.getData().toString('utf8')).version;
 if (shipped !== version) fail(`the xpi's manifest says ${shipped}, not ${version}`);
@@ -74,6 +74,6 @@ if (shipped !== version) fail(`the xpi's manifest says ${shipped}, not ${version
 console.log(`\nrelease-prepare: ${version} is ready. Changed:\n${git('status --porcelain')}`);
 console.log(
   `Next: commit package.json, package-lock.json and addon/manifest.json as "chore: release ${version}", ` +
-    `tag v${version}, push both, gh release create v${version} build/zotero-tts.xpi, ` +
+    `tag v${version}, push both, gh release create v${version} build/Zotero-OpenReader.xpi, ` +
     `then node scripts/release-point.mjs ${version}.`,
 );

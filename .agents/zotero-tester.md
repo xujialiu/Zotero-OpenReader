@@ -57,8 +57,8 @@ line.
   settings sidebar, its dialogs, the Player, its notices and errors — and
   `Zotero-OpenReader` in the repository and your reports; the lowercase
   `zotero-tts` is the identifier (the id `zotero-tts@xujialiu.top`, the
-  prefs `extensions.zotero.zotero-tts.*`, the `[zotero-tts]` log prefix,
-  `zotero-tts.xpi`) and is never "fixed".
+  prefs `extensions.zotero.zotero-tts.*`, the `[zotero-tts]` log prefix)
+  and is never "fixed". The build is `build/Zotero-OpenReader.xpi`.
 - **The bridge is the only route** to the running Zotero. `zotero_ping`
   failing means Zotero needs a restart, which only the user can do: stop
   and report "bridge down". Never hand a check to the user yourself; the

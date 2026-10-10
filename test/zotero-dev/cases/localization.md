@@ -137,19 +137,19 @@ clipped.
     (110 on 2026-09-06: 100 at 1.11.0, plus the volume setting's nine
     and the star line's one). The Build star line retranslates with the
     pane, no reopen needed (1.11.1):
-    `如果你喜欢 Zotero-TTS，欢迎到 GitHub 给它点个 ⭐——让更多人发现它。` (76 ms on
+    `如果你喜欢 OpenReader，欢迎到 GitHub 给它点个 ⭐——让更多人发现它。` (76 ms on
     2026-09-06 macOS, 43 ms back), the star followed by `——` (U+2014
     U+2014), the sentence 435.3 px on one line. Fluent replaces the named child with a
     clone, and the clone is upgraded again —
     `classList.contains('zotero-text-link')` true, `role` `link`, `href`
     and the text `GitHub` unchanged, still one line — and the stubbed
-    click reports the same `https://github.com/xujialiu/Zotero-TTS`; the
+    click reports the same `https://github.com/xujialiu/Zotero-OpenReader`; the
     product name, `GitHub` and the URL stay English. The group's heading
     follows Zotero (`关于`) and the star line retranslates with the pane,
     while `#ztts-about-build` and `#ztts-about-author` stay English until
     the pane is reopened, like the other lines TypeScript paints; reopened,
     they read `版本 <build> · 日期 <date> · 时间 <hh:mm:ss UTC±n>` over `作者 Xujia
-    Liu · 邮箱 xujialiuphd@gmail.com` — the email, `Zotero-TTS`, `GitHub`
+    Liu · 邮箱 xujialiuphd@gmail.com` — the email, `OpenReader`, `GitHub`
     and the URL English, the two rows 277.12 and 251.55 px wide, 3.00 px
     apart (Windows, 2026-09-10).
     Then the pref back verbatim (an empty snapshot means `requestedLocales = []`)

@@ -1,4 +1,4 @@
-<!-- translated-from: azure-speech-free-tier.md sha256:50fb26ef6e9b -->
+<!-- translated-from: azure-speech-free-tier.md sha256:db2f46241d11 -->
 # 用 Azure Speech 的免费额度
 
 [English](azure-speech-free-tier.md) · **简体中文**
@@ -26,9 +26,9 @@ Azure AI Speech 就是插件里的 **Azure** 服务商：一百多种语言、�
    | 字段 | 填什么 |
    |---|---|
    | 订阅 | 注册时创建的那个（*免费试用* / *Azure subscription 1*） |
-   | 资源组 | **新建**，名字随意（`zotero-tts`） |
+   | 资源组 | **新建**，名字随意（`zotero-openreader`） |
    | 区域 | 离你近的一个——见下 |
-   | 名称 | 任何不重名的（`zotero-tts-speech`） |
+   | 名称 | 任何不重名的（`zotero-openreader-speech`） |
    | 定价层 | **免费 F0** |
 
    每个订阅在每个区域只能有一个免费语音资源；如果 *Free F0* 是灰的，说明你在那里已经有一个，或者曾经有过：删掉的资源会在软删除状态里滞留一段时间，仍然占名额。换一个区域，或者去清除它（Azure AI services → 管理已删除的资源）。

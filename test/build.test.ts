@@ -8,7 +8,7 @@ import { buildDateString } from '../scripts/build-date.mjs';
 import { acceptsPlugin } from './zotero-version';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const xpi = join(root, 'build', 'zotero-tts.xpi');
+const xpi = join(root, 'build', 'Zotero-OpenReader.xpi');
 
 describe('build', () => {
   it('produces an xpi containing the manifest, bootstrap and bundle', () => {

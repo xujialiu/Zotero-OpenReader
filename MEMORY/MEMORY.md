@@ -100,13 +100,17 @@ Four project documents are reached the same way:
   `TTS` — `TTS` names the technology, not this plugin. The lowercase
   `zotero-tts` is a different thing, an identifier, and is never "fixed"
   to match: the plugin id `zotero-tts@xujialiu.top`, the
-  `extensions.zotero.zotero-tts.*` prefs, `zotero-tts.xpi` and the bundle,
-  the `[zotero-tts]` log prefix, the `zotero-tts-pane` id, the
-  `zotero-tts-settings` backup format, `package.json`'s npm name. Renaming
-  any of those throws away every user's settings or breaks the update
-  flow, so a sweep for the display name leaves them alone. The name in the
-  plugin store at zotero-chinese.com is scraped from a release's
-  `manifest.json` and needs no submission of its own. Keep the old
+  `extensions.zotero.zotero-tts.*` prefs, the bundle, the `[zotero-tts]`
+  log prefix, the `zotero-tts-pane` id, the `zotero-tts-settings` backup
+  format, `package.json`'s npm name. Renaming any of those throws away
+  every user's settings or breaks the update flow, so a sweep for the
+  display name leaves them alone. The release download is not one of them
+  (settled 2026-10-09, issue #177, ADR 0017): from the release after
+  1.16.8 it is `Zotero-OpenReader.xpi`, and the published releases keep
+  `zotero-tts.xpi`. The name in the plugin store at zotero-chinese.com is
+  scraped from a release's `manifest.json` and needs no submission of its
+  own; its repository address comes from the plugin's entry under
+  `addons/` in `syt2/zotero-addons-scraper`. Keep the old
   `xujialiu/Zotero-TTS` repository name unused forever: existing installed
   copies depend on its redirect for updates. Historical records, fixture
   content, local paths, and the test-secret directory retain their old names.
@@ -152,7 +156,7 @@ Four project documents are reached the same way:
 ```
 npm test              # vitest, ~340 tests, includes test/build.test.ts which runs the build
 npm run typecheck     # tsc --noEmit
-npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/zotero-tts.xpi
+npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/Zotero-OpenReader.xpi
 npm run docs          # pandoc → .docs/*.html, the Markdown rendered for the browser
 npm run site          # the public docs site → site/, what .github/workflows/pages.yml deploys
 npm run docs:pin      # record which English revision each .zh.md follows

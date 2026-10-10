@@ -53,7 +53,7 @@ if (flag === '--verify') {
   fail(`unknown flag ${flag}`);
 } else {
   const status = await head(link);
-  if (status !== 200) fail(`${link} answered ${status}; run gh release create v${version} build/zotero-tts.xpi first`);
+  if (status !== 200) fail(`${link} answered ${status}; run gh release create v${version} build/Zotero-OpenReader.xpi first`);
   const updatePath = join(root, 'update.json');
   const text = readFileSync(updatePath, 'utf8');
   const before = JSON.parse(text).addons[PLUGIN_ID].updates[0].version;

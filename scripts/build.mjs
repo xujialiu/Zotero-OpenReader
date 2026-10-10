@@ -32,6 +32,6 @@ mkdirSync(buildDir, { recursive: true });
 const zip = new AdmZip();
 // Package the contents of addon/, not the addon/ directory itself — the xpi root must be manifest.json directly
 zip.addLocalFolder(addonDir);
-zip.writeZip(join(buildDir, 'zotero-tts.xpi'));
+zip.writeZip(join(buildDir, 'Zotero-OpenReader.xpi'));
 
-console.log('built build/zotero-tts.xpi');
+console.log('built build/Zotero-OpenReader.xpi');

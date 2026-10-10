@@ -8,6 +8,9 @@ issue: 176
 
 *Product decision: [0016](../design/0016-the-plugin-is-openreader-inside-zotero.md).*
 
+*Its keeping of `zotero-tts.xpi` is superseded by
+[0017](0017-the-download-carries-the-plugins-name.md).*
+
 Every string the plugin shows inside Zotero names it `OpenReader`: the
 manifest's `name` (Tools → Plugins, and the zotero-chinese.com store,
 which takes it from a release's manifest), the settings sidebar label

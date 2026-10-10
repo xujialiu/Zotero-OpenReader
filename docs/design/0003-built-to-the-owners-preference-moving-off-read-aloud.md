@@ -3,11 +3,11 @@
 *The engineering half of this decision is
 [ADR 0003](../adr/0003-built-to-the-owners-preference-moving-off-read-aloud.md).*
 
-Zotero-TTS used to describe itself as an add-on to Zotero's own reading-aloud
-feature, one that should shrink as Zotero caught up. That is no longer what it
-is. It is its author's own tool for listening to papers and novels every day,
-and it is steadily replacing the parts of Zotero's feature that do not suit
-that author. The rules it is measured against are in
+Zotero-OpenReader used to describe itself as an add-on to Zotero's own
+reading-aloud feature, one that should shrink as Zotero caught up. That is no
+longer what it is. It is its author's own tool for listening to papers and
+novels every day, and it is steadily replacing the parts of Zotero's feature
+that do not suit that author. The rules it is measured against are in
 [the plugin's philosophy](../PHILOSOPHY.md); this file records why the direction
 changed, and where it stops.
 

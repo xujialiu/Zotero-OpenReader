@@ -44,9 +44,9 @@ tier below is permanent and independent of it.
    | Field | Value |
    |---|---|
    | Subscription | the one the sign-up created (*Free Trial* / *Azure subscription 1*) |
-   | Resource group | **Create new**, any name (`zotero-tts`) |
+   | Resource group | **Create new**, any name (`zotero-openreader`) |
    | Region | one near you — see below |
-   | Name | anything unique (`zotero-tts-speech`) |
+   | Name | anything unique (`zotero-openreader-speech`) |
    | Pricing tier | **Free F0** |
 
    Only one Free Speech resource is allowed per subscription and region; if

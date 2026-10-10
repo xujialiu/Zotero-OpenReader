@@ -44,7 +44,7 @@ turned it off:
 - **The plugin's player cannot appear.** If a Zotero update, or a fault of
   the plugin's own, keeps the player from loading in a document, Zotero's
   player does not step in. Reading does not start, and a message says the
-  player could not load and that turning Zotero-TTS off under Tools →
+  player could not load and that turning OpenReader off under Tools →
   Plugins gives you Zotero's own Read Aloud back in the meantime.
 - **The plugin updates while you read.** The reading stops at its sentence,
   as design 0005 decided. The player closes and stays closed, and Zotero's

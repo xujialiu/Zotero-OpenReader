@@ -66,7 +66,7 @@ clipped.
    Under them the star line (1.11.1):
    `description[data-l10n-id="ztts-about-star"]`, in the same groupbox as
    `#ztts-about-author` and after it, `textContent` with whitespace
-   collapsed exactly `If you like Zotero-TTS, give it a ⭐ on GitHub — it
+   collapsed exactly `If you like OpenReader, give it a ⭐ on GitHub — it
    helps others find it.`. The clause after the link is a text node of
    its own (`" — it helps others find it."`, the dash U+2014), and the
    three parts sit on one line: the sentence measures 413.78 px inside
@@ -76,7 +76,7 @@ clipped.
    was upgraded is what the row proves: `getAttribute('is')`
    `zotero-text-link`, `classList.contains('zotero-text-link')` true,
    `constructor.name` `ZoteroTextLink`, `role` `link`, `href`
-   `https://github.com/xujialiu/Zotero-TTS`, text `GitHub` (Fluent's
+   `https://github.com/xujialiu/Zotero-OpenReader`, text `GitHub` (Fluent's
    overlay fills the child named `github` and leaves the markup's `href`),
    `typeof link.open === 'function'`. Computed: `text-decoration-line:
    underline`, `cursor: pointer`, `color` Zotero's `LinkText` — the
@@ -95,7 +95,7 @@ clipped.
    emoji on macOS — and it does not grow the line: `clientHeight` stays
    17. **The click, with
    `Zotero.launchURL` stubbed inside a try/finally so no browser opens**:
-   `link.click()` → `seen` is `https://github.com/xujialiu/Zotero-TTS`,
+   `link.click()` → `seen` is `https://github.com/xujialiu/Zotero-OpenReader`,
    `restored` true, `doc.defaultView.Zotero === Zotero` true
    (`elements/textLink.js:7-11` dispatches to `open()`, `:73-77` calls
    `Zotero.launchURL(uri.spec)` and `preventDefault`s, so the `win.open`

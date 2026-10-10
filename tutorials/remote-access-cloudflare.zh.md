@@ -1,4 +1,4 @@
-<!-- translated-from: remote-access-cloudflare.md sha256:d06a56414b71 -->
+<!-- translated-from: remote-access-cloudflare.md sha256:42b8db4aa087 -->
 # 用 Cloudflare 在任何地方访问你的 TTS 服务器
 
 [English](remote-access-cloudflare.md) · **简体中文**
@@ -57,7 +57,7 @@ DNS 记录 Cloudflare 会替你建。到这一步，`https://tts-windows.example
 
 Zero Trust → **Access controls → Service credentials → Create service token**：
 
-- 名字：`zotero-tts`
+- 名字：`zotero-openreader`
 - 有效期：*Non-expiring*（永不过期），想定期轮换的话选一年。
 
 页面只显示一次 **Client ID** 和 **Client Secret**。两个都当场存好；密钥不会再显示第二次（丢了只能另建一个）。
@@ -71,7 +71,7 @@ Zero Trust → **Access controls → Applications → Add an application → Sel
 - Policy → *Create a policy*：
   - 名字：`service-token-only`
   - **Action 选 Service Auth**——不是 *Allow*。*Allow* 等的是人在浏览器里登录；*Service Auth* 收的是请求头里的令牌。
-  - Include → 选择器选 **Service Token** → 选 `zotero-tts`。
+  - Include → 选择器选 **Service Token** → 选 `zotero-openreader`。
 - 高级设置（CORS、cookie、浏览器渲染）都别动。
 - 保存。
 

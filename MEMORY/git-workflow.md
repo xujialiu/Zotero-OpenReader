@@ -69,8 +69,9 @@ each step's output in the report:
    above; then `git push origin main` (or the `<branch>:main` form) and
    `git push origin vX.Y.Z`. A `main` that does not fast-forward is not
    yours: stop and report.
-5. `gh release create vX.Y.Z build/zotero-tts.xpi --title vX.Y.Z --notes "<the brief's notes>"`
-   — the asset must be named `zotero-tts.xpi`, which `build/` gives.
+5. `gh release create vX.Y.Z build/Zotero-OpenReader.xpi --title vX.Y.Z --notes "<the brief's notes>"`
+   — the asset must be named `Zotero-OpenReader.xpi`, which `build/` gives
+   and `update.json` names (ADR 0017).
    When the brief has no notes, the subjects of
    `git log <previous tag>..vX.Y.Z --oneline` are the notes.
 6. `node scripts/release-point.mjs X.Y.Z` — it checks the asset answers

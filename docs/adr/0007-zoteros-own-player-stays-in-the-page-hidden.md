@@ -92,7 +92,7 @@ No fallback to Zotero's own player. The hiding rule is the first thing
 player hidden. A reader whose Player failed — `attach` threw, or its frame
 did not finish loading within 100 × 50 ms — is marked, and a reading opened
 there by any entry point is closed at once with a message: the player could
-not load, and turning Zotero-TTS off under Tools → Plugins brings Zotero's
+not load, and turning OpenReader off under Tools → Plugins brings Zotero's
 own Read Aloud back.
 
 Before this, a frame that never loaded left an empty transparent frame, and

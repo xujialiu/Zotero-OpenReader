@@ -38,7 +38,7 @@ required evidence.
   restart) and `diagnostics.startup()` all `ok`. Build identity for
   1.16.5-beta2 and later: the installed bundle contains both
   `stalled: nothing arrived for` and `function webdavDeps()` (grep the xpi in
-  the profile's `extensions/`, or compare SHA-256 with `build/zotero-tts.xpi`).
+  the profile's `extensions/`, or compare SHA-256 with `build/Zotero-OpenReader.xpi`).
 - webdav-01 + webdav-02 run before anything else; the three automatic syncs
   stay off for the whole case, and the URL pref is the only state the items
   touch (a detour to `http://127.0.0.1:<port>/…` only, restored in each

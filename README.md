@@ -41,7 +41,7 @@ is built for the way its author reads —
 
 ## Install
 
-1. Download `zotero-tts.xpi` from the [latest release](https://github.com/xujialiu/Zotero-OpenReader/releases/latest) — in Firefox, right-click → *Save Link As…*
+1. Download the `.xpi` file from the [latest release](https://github.com/xujialiu/Zotero-OpenReader/releases/latest) — in Firefox, right-click → *Save Link As…*
 2. **Tools → Plugins → ⚙ → Install Plugin From File…**, then restart Zotero. Inside Zotero the plugin is named **OpenReader**.
 3. Enable a provider in **Edit → Settings → OpenReader** — **Fish Audio** first, if you are not sure ([why](#providers)) — then pick it in the player's first dropdown and one of its voices.
 
@@ -550,8 +550,8 @@ backup below.
 <summary><b>WebDAV URL examples</b></summary>
 
 The URL is a folder, created on the first upload. Nextcloud:
-`https://cloud.example.com/remote.php/dav/files/<user>/zotero-tts/`;
-Jianguoyun: `https://dav.jianguoyun.com/dav/zotero-tts/` with an app
+`https://cloud.example.com/remote.php/dav/files/<user>/zotero-openreader/`;
+Jianguoyun: `https://dav.jianguoyun.com/dav/zotero-openreader/` with an app
 password.
 
 </details>
@@ -626,7 +626,7 @@ password.
 
 ```
 npm install
-npm test          # vitest, also builds build/zotero-tts.xpi
+npm test          # vitest, also builds build/Zotero-OpenReader.xpi
 npm run typecheck
 npm run build
 ```
