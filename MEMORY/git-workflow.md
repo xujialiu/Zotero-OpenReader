@@ -34,6 +34,28 @@ before following this workflow.
 - Windows: the Bash tool is Git Bash (`$HOME/Works/...` paths); heredocs
   fail — commit messages go through `-m`, one `-m` per paragraph.
 
+## Outside contributions — the terms come first
+
+Part of the plugin is copied into OpenReader, which ships on the App Store,
+and AGPL-3.0 alone does not allow that for code the owner does not own
+(settled 2026-10-10, issue #178, ADR 0018). So every line that enters the
+repository is the owner's own, or given under the terms in `CONTRIBUTING.md`.
+
+- **A pull request someone else opened**: merge it only when its author has
+  ticked the "Contribution terms" box in its description; the description's
+  edit history shows who ticked it. While the box is empty, ask for the tick
+  in a comment and leave the pull request open.
+- **Lines from a pull request without the tick**, and code pasted into an
+  issue from outside, stay out of every commit, the owner's included. Fix the
+  problem they point at in new code, written from the problem rather than
+  from their diff (#169 once took seven lines of #168's; ADR 0018).
+- **Code marked "Submitted on behalf of a third party"**: put it to the owner
+  with its source and license before merging.
+- **Code that goes from here into OpenReader** holds nothing from Zotero or
+  anyone else. `git log --format='%an' -- <path>` cannot show that: the
+  Zotero copies of ADR 0006, which carry the Corporation for Digital
+  Scholarship's notice, were committed by the owner.
+
 ## Releasing
 
 Installed copies auto-update through the manifest's `update_url`, which

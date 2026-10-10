@@ -43,7 +43,8 @@ covers — its rules bind that work as much as this file's do:
 - **Agents** — `MEMORY/agents.md`: before delegating to an agent or doing
   its work yourself, and before editing an agent definition or workflow.
 - **Git** — `MEMORY/git-workflow.md`: before any commit, merge, push, tag
-  or release.
+  or release, before merging a pull request someone else opened, and
+  before copying code into the repository or out of it into OpenReader.
 
 Four project documents are reached the same way:
 

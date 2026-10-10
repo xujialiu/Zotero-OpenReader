@@ -644,6 +644,10 @@ every incident so far.
 
 [AGPL-3.0](LICENSE), the same license as Zotero itself. Not affiliated with Zotero.
 
+Contributions are accepted on the terms in [CONTRIBUTING.md](CONTRIBUTING.md),
+which also let the author ship them in his
+[OpenReader app](https://github.com/xujialiu/OpenReader) for phones and tablets.
+
 ## Buy me a coffee
 
 <a href="https://buymeacoffee.com/xujialiu"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="60" alt="Buy me a coffee"></a>

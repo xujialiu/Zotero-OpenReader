@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:9741568a6609 -->
+<!-- translated-from: README.md sha256:c1125ef8ab69 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -315,6 +315,8 @@ npm run build
 ## 许可证
 
 [AGPL-3.0](LICENSE)，与 Zotero 本身相同的许可证。与 Zotero 官方无隶属关系。
+
+贡献按 [CONTRIBUTING.md](CONTRIBUTING.md)（英文）中的条款接受，这些条款也允许作者把贡献用在他的手机和平板应用 [OpenReader](https://github.com/xujialiu/OpenReader) 里。
 
 ## 请我喝杯咖啡
 
