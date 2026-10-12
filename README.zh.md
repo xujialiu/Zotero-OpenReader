@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:c1125ef8ab69 -->
+<!-- translated-from: README.md sha256:14d1af5b62a1 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -34,6 +34,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 - 📌 **所有文档、所有标签页同一个语音和速度**——不再像 Zotero 那样按语言各记一个。[→ 朗读](#朗读)
 - ⏱️ **停顿由你定**——每个语音句与句之间等多久、段落开头再多等多久；读得越快，停顿越短。[→ 朗读](#朗读)
 - 💾 **备份与同步**——设置和朗读位置可以存成文件，也可以走你自己的 WebDAV 文件夹，设置和书签跟着你在几台电脑之间走。[→ 备份与同步](#备份与同步)
+- 🔄 **与 [OpenReader](https://github.com/xujialiu/OpenReader) 同步**——通过你自己的 WebDAV 文件夹，朗读位置在电脑上的 Zotero 和 iPhone 上的 OpenReader App 之间来回走。[→ 备份与同步](#备份与同步)
 - 🖥️ **Windows 和 macOS 的语音，改由插件来读**——就是朗读本来就列出的那些，但有了试听、收藏、缓存，Windows 上还有逐词高亮。[→ 服务商](#服务商)
 
 ## 安装
@@ -268,6 +269,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 **同步**——自动跟着你在电脑之间走的东西，双向的。
 
 - *在电脑之间同步朗读位置：*在一台电脑上停下，到另一台按 `Shift+Space`，从那一句接着读；共用这个文件夹、又持有同一个文库的电脑都对得上，打开它不会弄丢任何一台电脑上的书签。默认打开。
+- *iPhone 上的 OpenReader App：*App 设到同一个 WebDAV 文件夹后，只要*在电脑之间同步朗读位置*开着，[OpenReader](https://github.com/xujialiu/OpenReader) 就和这里共享同样的朗读位置，双向的。
 - *在电脑之间同步设置：*这里的改动几秒后就到其他电脑，那边的改动也会到这里，不用手动恢复。默认关闭。
 - *各台电脑自己保留的：*本机或局域网地址的语音服务器、*系统语音*的开关，以及这个 WebDAV 文件夹本身，包括它是否启用。
 - *两台电脑改动同一项设置：*以较晚的改动为准。

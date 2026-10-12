@@ -37,6 +37,7 @@ is built for the way its author reads —
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
 - 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your settings and bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)
+- 🔄 **Sync with [OpenReader](https://github.com/xujialiu/OpenReader)** — your reading position moves between Zotero on your computer and the OpenReader app on your iPhone, through your own WebDAV folder. [→ Backup and sync](#backup-and-sync)
 - 🖥️ **Windows and macOS voices, spoken by the plugin** — the ones Read Aloud already lists, but with samples, favorites, the cache and, on Windows, word-by-word highlighting. [→ Providers](#providers)
 
 ## Install
@@ -563,6 +564,10 @@ password.
   sentence. Every computer sharing the folder and the same library stays in
   step, and turning it on loses no bookmark, whichever computer it came from.
   On by default.
+- *The OpenReader app on your iPhone:* with the app set to the same WebDAV
+  folder, [OpenReader](https://github.com/xujialiu/OpenReader) shares the
+  same reading positions, both ways, while *Sync reading positions between
+  computers* is on.
 - *Sync settings between computers:* a change on one computer reaches the
   others within seconds, and theirs reach it, with nothing to restore. Off
   by default.
