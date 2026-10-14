@@ -731,3 +731,7 @@ then) and is in the git history before that day.
 ### [2026-10-08](NOTES_2026-10-08.md)
 
 - README screenshots out of the running Zotero on macOS (issues #78, #141)
+
+### [2026-10-14](NOTES_2026-10-14.md)
+
+- A provider that cannot list reached the Player as a voice that is gone (issue #179)

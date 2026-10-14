@@ -37,7 +37,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 
 ## Voices
 
-- [Independent document voices, global default, backup and sync (issue #146)](cases/document-voices.md)
+- [Independent document voices, global default, backup and sync, an unreachable provider (issues #146, #179)](cases/document-voices.md)
 - [The voice browser: the listing, the default voice and speed](cases/voice-browser.md) — 1.9, 2.1, 2.2, 2.7
 - [Favorite voices](cases/favorites.md) — 2.3–2.5, 2.8
 - [Voice samples in the browser](cases/voice-samples.md) — 2.6

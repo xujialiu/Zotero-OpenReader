@@ -5,8 +5,13 @@ import type { PrefsBackend } from '../../src/core/settings';
 import { setDefaultSpeed } from '../../src/read-aloud/default-speed';
 import { createReadAloudMemorySync, READ_ALOUD_VOICES_OBSERVER, type ReadAloudMemoryDeps } from '../../src/read-aloud/memory-sync';
 import { READ_ALOUD_MEMORY_PREF, readMemory, SPEED_PERCENT_PREF, writeMemory, type ReadAloudMemory } from '../../src/read-aloud/read-aloud-memory';
-import { decodeVoiceId, pluginVoiceTier } from '../../src/read-aloud/voice-catalog';
+import { decodeVoiceId, encodeVoiceId, listVoicesResponse, pluginVoiceTier } from '../../src/read-aloud/voice-catalog';
 import { createDocumentVoices, readDefaultVoice, writeDefaultVoice } from '../../src/core/document-voices';
+import { SynthesisError } from '../../src/core/providers/errors';
+import { createFishProvider, FishVoiceCache } from '../../src/core/providers/fish';
+import type { ProviderId, TTSProvider } from '../../src/core/providers/types';
+import { collectCatalog } from '../../src/read-aloud/catalog';
+import { createRemoteInterface } from '../../src/read-aloud/remote-interface';
 
 const ISABELLA = 'openai-official::bf_v0isabella';
 const AOEDE = 'local::af_aoede';
@@ -1895,5 +1900,115 @@ describe('explicit generic and regional language picks', () => {
     const { tab } = setup();
     tab.manager.setLanguage('en', { region: 'US', persist: false });
     expect(tab.manager.selectedVoiceID).toBe(generic.id);
+  });
+});
+
+// Issue #179: a document voice whose provider could not list its voices at
+// this open was announced as gone ("Choose a voice in the player"), and
+// following that advice overwrites the document's voice (ADR 0009). The
+// announcement now names the provider and what keeps the voice: the reason
+// travels from the catalog through getVoices into the sync.
+describe('a document voice whose provider cannot be reached (issue #179)', () => {
+  const KEY = 'user/ABCDEFGH';
+  const FISH_ID = 'a'.repeat(32);
+  const FISH_SAVED = encodeVoiceId('fish', `en/${FISH_ID}`);
+  const COMPAT_SAVED = encodeVoiceId('compatible', 'alloy');
+  const UNREACHABLE = /^Cannot reach (Fish Audio|OpenAI Compatible)\. This document keeps its voice/;
+  /** What Gecko's fetch throws offline. */
+  const offline = async () => { throw new TypeError('NetworkError when attempting to fetch resource.'); };
+  const narrator = { _id: FISH_ID, title: 'Narrator', languages: ['en'], state: 'trained', visibility: 'public', author: { _id: 'someone' } };
+  const online = async () => new Response(JSON.stringify({ total: 1, items: [narrator] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  const fish = (fetchImpl: unknown, cache = new FishVoiceCache()) =>
+    createFishProvider({ apiKey: 'sk-fish-test', freeOnly: true, voices: '' }, { fetch: fetchImpl as typeof fetch, wait: async () => {}, cache });
+  const failing = (id: ProviderId, error: unknown) =>
+    ({ id, capabilities: { wordTimestamps: false }, listVoices: async () => { throw error; }, synthesize: vi.fn() }) as unknown as TTSProvider;
+
+  /**
+   * The chain the Player runs: the popup's getVoices (catalog, remote
+   * interface, reconcile), Zotero's loadVoices on the list it got, then
+   * play — activate and the controller it creates.
+   */
+  async function openAndPlay(saved: string, providerId: ProviderId, provider: TTSProvider) {
+    const z = fakeZotero(voices);
+    createDocumentVoices(z.deps.prefs).choose(KEY, { id: saved, lang: 'en' });
+    const r = fakeReader('en', z, { voices: [] });
+    const create = vi.fn();
+    r.proto._createController = create;
+    r.proto.activate = () => { r.manager.active = true; r.manager._createController(); };
+    r.proto._destroyController = vi.fn();
+    r.proto.pause = () => {};
+    const announce = vi.fn<(reader: unknown, message: string) => void>();
+    const sync = createReadAloudMemorySync({ ...z.deps, documentKey: () => KEY, announce });
+    z.readers.push(r.reader);
+    sync.attach(r.reader);
+    const iface = createRemoteInterface({
+      listCatalog: () => collectCatalog([providerId], () => provider),
+      getProvider: () => provider,
+      cacheVersion: () => 'v1',
+      onVoicesRequested: () => sync.opening(r.reader),
+      onVoicesListed: (listed) => sync.reconcile(r.reader, listed, false),
+    });
+    const result = (await iface.getVoices()) as { voices: unknown };
+    const atOpen = announce.mock.calls.map((call) => call[1]);
+    // Read before play: the resync at activation plans against the manager's list, and an empty one clears it
+    const substitution = sync.substitution(r.reader);
+    r.loadVoices(listVoicesResponse(result.voices).map((v) => describeVoice({ id: v.id, language: v.language, label: v.label })));
+    r.manager.activate();
+    const atPlay = announce.mock.calls.slice(atOpen.length).map((call) => call[1]);
+    return { atOpen, atPlay, created: create.mock.calls.length, saved: createDocumentVoices(z.deps.prefs).get(KEY)?.voice.id, substitution };
+  }
+
+  it('Fish Audio offline, never listed this session: names Fish Audio at open and at play, keeps the voice, plays nothing else', async () => {
+    const out = await openAndPlay(FISH_SAVED, 'fish', fish(offline));
+    expect(out.atOpen).toEqual([expect.stringMatching(UNREACHABLE)]);
+    expect(out.atOpen[0]).toContain('Fish Audio');
+    expect(out.atPlay).toEqual(out.atOpen);
+    expect(out.atOpen.join(' ')).not.toMatch(/Choose a voice in the player|fish::/);
+    expect(out.created).toBe(0);
+    expect(out.saved).toBe(FISH_SAVED);
+    expect(out.substitution).toEqual({ missing: FISH_SAVED, instead: null, cause: 'unreachable' });
+  });
+
+  it('a provider whose listing throws offline: names it', async () => {
+    const out = await openAndPlay(COMPAT_SAVED, 'compatible', failing('compatible', new SynthesisError('network', 'fetch failed')));
+    expect(out.atOpen).toEqual([expect.stringMatching(UNREACHABLE)]);
+    expect(out.atOpen[0]).toContain('OpenAI Compatible');
+    expect(out.atPlay).toEqual(out.atOpen);
+  });
+
+  it('a provider that refuses the key at listing: points at the key, not at another voice', async () => {
+    const out = await openAndPlay(COMPAT_SAVED, 'compatible', failing('compatible', new SynthesisError('auth', 'HTTP 401')));
+    expect(out.atOpen).toEqual([expect.stringMatching(/^OpenAI Compatible needs a valid API key\. This document keeps its voice/)]);
+    expect(out.substitution?.cause).toBe('key');
+    expect(out.saved).toBe(COMPAT_SAVED);
+  });
+
+  it('Fish Audio listed this session, then offline: the voice is still offered and nothing is announced', async () => {
+    const cache = new FishVoiceCache();
+    await fish(online, cache).listVoices();
+    const out = await openAndPlay(FISH_SAVED, 'fish', fish(offline, cache));
+    expect(out.atOpen).toEqual([]);
+    expect(out.atPlay).toEqual([]);
+    expect(out.created).toBe(1);
+  });
+
+  it('a voice its provider no longer lists is still announced as unavailable, by its label once known', async () => {
+    const z = fakeZotero(voices);
+    createDocumentVoices(z.deps.prefs).choose(KEY, { id: AOEDE, lang: 'en' });
+    const r = fakeReader('en', z, { voices: [] });
+    r.proto._createController = vi.fn();
+    r.proto.activate = () => { r.manager.active = true; };
+    const announce = vi.fn<(reader: unknown, message: string) => void>();
+    const sync = createReadAloudMemorySync({ ...z.deps, documentKey: () => KEY, announce });
+    sync.attach(r.reader);
+    // Listed, but trimmed out of what the popup offers (favorites): named from the untrimmed list
+    const aoede = { id: AOEDE, language: 'en-US', tier: 'local', label: 'Aoede' };
+    sync.reconcile(r.reader, { offered: [], published: [aoede], unlisted: [{ provider: 'compatible', reason: 'unreachable' }] });
+    expect(sync.substitution(r.reader)).toEqual({ missing: AOEDE, instead: null });
+    r.manager.activate();
+    expect(announce.mock.calls.map((call) => call[1])).toEqual([
+      'The saved voice (Aoede) is unavailable. Choose a voice in the player to continue.',
+      'The saved voice (Aoede) is unavailable. Choose a voice in the player to continue.',
+    ]);
   });
 });

@@ -668,6 +668,8 @@ ztts-help-key-player-layout =
     .help = 播放器打开时，循环切换顶部栏 → 底部栏 → 悬浮面板；所有播放器共用此布局。
 
 ztts-document-voice-unavailable = 保存的声音（{ $voice }）不可用，请在播放器中选择声音后继续。
+ztts-document-voice-unreachable = 无法连接 { $provider }。本文档仍保留它的声音：恢复连接后重新打开播放器，或选择另一个声音来替换它。
+ztts-document-voice-key = { $provider } 需要有效的 API 密钥。本文档仍保留它的声音：请在 OpenReader 设置中检查密钥，或选择另一个声音来替换它。
 ztts-default-voice-required = 请先在 OpenReader 设置中选择默认声音。
 
 ztts-remaining-time =

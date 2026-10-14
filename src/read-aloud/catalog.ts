@@ -12,7 +12,43 @@ import { ZOTERO_TIERS } from './zotero-voices';
  * the player's first dropdown and the voice browser's first column show;
  * the voices' labels are their own.
  */
-export type CatalogEntry = { provider: ProviderId; name?: string; voices: VoiceInfo[]; notices?: VoiceListNotice[] };
+export type CatalogEntry = { provider: ProviderId; name?: string; voices: VoiceInfo[]; notices?: VoiceListNotice[]; failure?: ListingFailure };
+
+/**
+ * Why a provider's entry is empty (issue #179): its listing failed or ran
+ * past its bound. `key` when it refused the key or has none, `unreachable`
+ * for everything else — a network or server failure, a local server that
+ * is not running, the bound. The Player says which, instead of taking a
+ * document voice it cannot find for one that is gone.
+ */
+export type ListingFailure = { reason: 'key' | 'unreachable'; detail: string };
+
+/** A provider whose voices this listing could not get, and why (issue #179). */
+export type UnlistedProvider = { provider: ProviderId; reason: ListingFailure['reason'] };
+
+/**
+ * The providers of a catalog whose voices could not be listed: every entry
+ * with a failure, and every entry with a `stale` notice as unreachable —
+ * Fish Audio's, whose lists could not be fetched (fish.ts listVoices): it
+ * does not fail then, it answers with what it still has, and with nothing
+ * fetched this session that is its Default alone. A voice of such a
+ * provider that the list lacks is one this listing could not see, not one
+ * that is gone.
+ */
+export function unlistedProviders(entries: readonly Pick<CatalogEntry, 'provider' | 'notices' | 'failure'>[]): UnlistedProvider[] {
+  const out: UnlistedProvider[] = [];
+  for (const entry of entries) {
+    if (entry.failure) out.push({ provider: entry.provider, reason: entry.failure.reason });
+    else if (entry.notices?.some((notice) => notice.kind === 'stale')) out.push({ provider: entry.provider, reason: 'unreachable' });
+  }
+  return out;
+}
+
+function listingFailure(error: unknown): ListingFailure {
+  const reason = error instanceof SynthesisError && (error.kind === 'auth' || error.kind === 'no-key') ? 'key' : 'unreachable';
+  const message = (error as { message?: unknown } | undefined)?.message;
+  return { reason, detail: String(message ?? error) };
+}
 
 /**
  * How long one provider may take to list its voices before it is skipped
@@ -46,11 +82,13 @@ export type CatalogBound = {
  * List the voices of every enabled provider, in the given order. Providers
  * are independent: one that cannot list (no key, server down, unknown
  * engine) must not hide the others, so each is awaited on its own and a
- * failure is logged with the provider's name and skipped. Each is bounded
- * on its own too (issue #55): one that neither answers nor fails within
- * the bound is skipped the same way, its request aborted. A provider that
- * hung used to hold the whole listing past the caller's cap, which then
- * dropped every provider's voices, the ones that had answered included.
+ * failure is logged with the provider's name and kept as an entry with no
+ * voices and the failure (issue #179) — what every consumer already makes
+ * of a provider that lists none. Each is bounded on its own too (issue
+ * #55): one that neither answers nor fails within the bound is kept the
+ * same way, its request aborted. A provider that hung used to hold the
+ * whole listing past the caller's cap, which then dropped every provider's
+ * voices, the ones that had answered included.
  */
 export async function collectCatalog(
   ids: readonly ProviderId[],
@@ -78,8 +116,9 @@ export async function collectCatalog(
     if (result.status === 'fulfilled') {
       out.push(result.value);
     } else {
-      const reason = result.reason as { message?: unknown } | undefined;
-      log?.(new Error(`${ids[i]}: listing voices failed: ${String(reason?.message ?? reason)}`, { cause: result.reason }));
+      const failure = listingFailure(result.reason);
+      log?.(new Error(`${ids[i]}: listing voices failed: ${failure.detail}`, { cause: result.reason }));
+      out.push({ provider: ids[i], voices: [], failure });
     }
   });
   return out;

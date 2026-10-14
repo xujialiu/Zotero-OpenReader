@@ -395,7 +395,9 @@ provider (or Zotero's Standard / Premium), language, voice.
 - A click on the default row clears the default. Choose one before reading
   a document that has no saved voice. If a saved voice becomes unavailable,
   choose another voice in that document's player; no replacement starts
-  automatically.
+  automatically. When the voice's provider cannot be reached or refuses
+  the key, the player says so instead, and the document keeps its voice
+  for when the provider is back.
 - The **Speed** slider plays the samples at that speed, and releasing it
   makes that the speed Read Aloud starts with — at once in a document that
   is playing. Changing the speed costs nothing and leaves the pitch alone.

@@ -1,4 +1,4 @@
-# Independent document voices (issue #146)
+# Independent document voices (issues #146, #179)
 
 [Scripts](../scripts/document-voices/README.md)
 
@@ -51,6 +51,26 @@ bundle includes this diagnostic, not just its version string.
     paused/playing handoffs and speech still work. No new plugin errors.
     Restore all local records and settings, isolate test remote artifacts
     and pending writes, and only then restore original sync/backup.
+
+11. **Unreachable provider (issue #179).** Snapshot the Kokoro section
+    (or Fish Speech's, whichever the profile has a reachable server for),
+    then give a fixture a manual record naming a voice that server lists
+    while it answers. Point the section's address at a closed port
+    (`http://127.0.0.1:9`) and open the fixture's player. The toast reads
+    `Cannot reach Kokoro. This document keeps its voice: …` (the
+    provider's entry name), never `Choose a voice in the player`; right
+    after the open, `readAloudMemory()`'s reader has `substitution`
+    `{ missing: <the voice>, instead: null, cause: 'unreachable' }`. No
+    controller and no fallback synthesis; `documentVoices()` still holds
+    the record, `manual: true`. Play shows the same message and still
+    starts nothing. Restore the address and reopen the player: the saved
+    voice is selected and plays. A voice that is really gone (item 5)
+    still gets the `unavailable` prompt and no `cause`. The refused-key
+    message (`cause: 'key'`) and Fish Audio offline before its first
+    listing are covered by unit tests only
+    (`test/read-aloud/memory-sync.test.ts`): neither can be produced
+    without a wrong key in the owner's settings or a machine taken
+    offline.
 
 Clock ties, malformed imports and migration-once rules are also covered by
 unit tests. Perceptual voice quality is human-only; the live run verifies

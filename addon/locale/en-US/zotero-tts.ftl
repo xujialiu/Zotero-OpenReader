@@ -739,6 +739,9 @@ ztts-help-key-player-layout =
     .help = Cycles Top bar → Bottom bar → Floating panel while the player is open; all players share the layout.
 
 ztts-document-voice-unavailable = The saved voice ({ $voice }) is unavailable. Choose a voice in the player to continue.
+# A document voice whose provider could not list its voices when the player opened (issue #179); $provider is its entry in the player
+ztts-document-voice-unreachable = Cannot reach { $provider }. This document keeps its voice: reopen the player once it is back, or choose another voice to replace it.
+ztts-document-voice-key = { $provider } needs a valid API key. This document keeps its voice: check the key in OpenReader settings, or choose another voice to replace it.
 ztts-default-voice-required = Choose a default voice in OpenReader settings before reading.
 
 ztts-remaining-time =

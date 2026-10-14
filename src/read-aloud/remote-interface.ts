@@ -2,8 +2,9 @@ import { prepareSpeechText, restoreSpeechOffsets } from '../core/speech-text';
 import { fishLanguageHint } from '../core/fish-language-hint';
 import { SynthesisError, toZoteroError } from '../core/providers/errors';
 import { silentWav } from '../core/silence';
-import type { ProviderId, SynthesisResult, Timestamp, TTSProvider, VoiceInfo } from '../core/providers/types';
+import type { ProviderId, SynthesisResult, Timestamp, TTSProvider } from '../core/providers/types';
 import { withTimeout } from '../core/timeout';
+import { unlistedProviders, type CatalogEntry, type UnlistedProvider } from './catalog';
 import { countVoicesResponse, filterCatalogToFavorites, filterVoicesResponseToFavorites } from './favorites';
 import { isInvisibleSegment } from './invisible-text';
 import { buildVoicesResponse, decodeVoiceId, listVoicesResponse, withoutTiers, type ListedVoice } from './voice-catalog';
@@ -54,8 +55,8 @@ export interface NativeRemoteInterface {
   resetCredits(): Promise<any>;
 }
 
-/** What `listCatalog` hands over: the plugin's voices, per provider (read-aloud/catalog.ts). */
-export type PluginCatalog = { provider: ProviderId; name?: string; voices: VoiceInfo[] }[];
+/** What `listCatalog` hands over: the plugin's voices, per provider, and why a provider has none (read-aloud/catalog.ts). */
+export type PluginCatalog = CatalogEntry[];
 
 export type RemoteInterfaceDeps = {
   listCatalog(): Promise<PluginCatalog>;
@@ -139,9 +140,11 @@ export type RemoteInterfaceDeps = {
    * be planned against that very list (read-aloud/memory-sync.ts reconcile,
    * issue #35) is planned here. A throw is logged; the list is returned all
    * the same. Not called for a reader that is gone by the time the list has
-   * settled (`isReaderLive`).
+   * settled (`isReaderLive`). `unlisted` names the plugin's providers whose
+   * voices this listing could not get, and why (issue #179): a voice of
+   * theirs the list lacks is not one that is gone.
    */
-  onVoicesListed?(voices: { offered: ListedVoice[]; published: ListedVoice[] }): void;
+  onVoicesListed?(voices: { offered: ListedVoice[]; published: ListedVoice[]; unlisted: UnlistedProvider[] }): void;
   /**
    * Whether the reader this interface serves is still open, asked once an
    * answer has settled. A tab closed while its voice list is on its way
@@ -469,7 +472,11 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       if (gone && deps.onVoicesListed) deps.debug?.('voice list not planned: its reader is gone');
       if (deps.onVoicesListed && !gone) {
         try {
-          deps.onVoicesListed({ offered: listVoicesResponse(voices), published: listVoicesResponse(merge(allTheirs, fullCatalog)) });
+          deps.onVoicesListed({
+            offered: listVoicesResponse(voices),
+            published: listVoicesResponse(merge(allTheirs, fullCatalog)),
+            unlisted: unlistedProviders(fullCatalog),
+          });
         } catch (e) {
           log(e);
         }

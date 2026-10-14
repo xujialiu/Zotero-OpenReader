@@ -22,7 +22,8 @@ import {
 } from './read-aloud-memory';
 import { createProtoPatches } from './proto-patches';
 import { ownerOf } from './system-voices';
-import { isZoteroTier, pluginVoiceTier, type ListedVoice } from './voice-catalog';
+import type { UnlistedProvider } from './catalog';
+import { decodeVoiceId, isZoteroTier, pluginVoiceTier, providerTierLabel, type ListedVoice } from './voice-catalog';
 
 /**
  * Restores a document's independent voice before Zotero resolves its native
@@ -161,6 +162,8 @@ export interface ListedVoices {
   offered: readonly ListedVoice[];
   /** The same before the trim: how a voice the favorites left out is named. */
   published: readonly ListedVoice[];
+  /** The plugin's providers whose voices this listing could not get, and why (issue #179); absent, none. */
+  unlisted?: readonly UnlistedProvider[];
 }
 
 export interface Substitution {
@@ -168,6 +171,8 @@ export interface Substitution {
   missing: string;
   /** The plugin voice put in its place for this open; null when the list offered none and the choice was left to Zotero. */
   instead: string | null;
+  /** Why a document voice is missing, when its provider could not list its voices at this open (issue #179); absent when the list simply lacks it. */
+  cause?: UnlistedProvider['reason'];
 }
 
 /** The re-syncs a reader's manager got after Zotero moved its language (issue #59). */
@@ -361,6 +366,8 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   const readerOf = new WeakMap<object, unknown>();
   /** The untrimmed list the last reconcile carried, per internal reader: how a voice the favorites trimmed out is named. */
   const published = new WeakMap<object, readonly ListedVoice[]>();
+  /** The providers the last reconcile's listing could not get voices from, per internal reader (issue #179). */
+  const unlisted = new WeakMap<object, readonly UnlistedProvider[]>();
   /** What the current popup open has announced, per internal reader (`missing>instead`), so the syncs within one open say it once. */
   const announced = new WeakMap<object, string>();
   const substitutions = new WeakMap<object, Substitution>();
@@ -370,6 +377,25 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
 
   const labelOf = (internal: object, id: string, listed: readonly ListedVoice[]): string =>
     published.get(internal)?.find((voice) => voice.id === id)?.label ?? listed.find((voice) => voice.id === id)?.label ?? id;
+
+  /**
+   * What the reader is told about a document voice the list lacks, and why
+   * it lacks it. When its provider could not list its voices at this open
+   * (issue #179), the provider is named and the voice is not called gone:
+   * the advice to choose another voice would overwrite the document's
+   * (ADR 0009) for a failure that passes. Otherwise the voice is gone from
+   * the list, and the reader is asked to choose one.
+   */
+  function missingVoice(internal: object | undefined, id: string, listed: readonly ListedVoice[]): { message: string; cause?: UnlistedProvider['reason'] } {
+    const provider = decodeVoiceId(id)?.provider;
+    const why = provider && internal ? unlisted.get(internal)?.find((entry) => entry.provider === provider) : undefined;
+    if (provider && why) {
+      const name = providerTierLabel(provider, { localEngine: deps.localEngine?.() });
+      const message = why.reason === 'key' ? t('ztts-document-voice-key', { provider: name }) : t('ztts-document-voice-unreachable', { provider: name });
+      return { message, cause: why.reason };
+    }
+    return { message: t('ztts-document-voice-unavailable', { voice: internal ? labelOf(internal, id, listed) : id }) };
+  }
 
   /**
    * The tier Zotero files a listed voice under (issue #110): a plugin
@@ -430,8 +456,9 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       if (found) {
         tier = tierOf(found);
       } else if (deps.documentKey) {
-        substitution = { missing: remembered.id, instead: null };
-        announcement = t('ztts-document-voice-unavailable', { voice: labelOf(internal, remembered.id, listed) });
+        const missing = missingVoice(internal, remembered.id, listed);
+        substitution = { missing: remembered.id, instead: null, ...(missing.cause ? { cause: missing.cause } : {}) };
+        announcement = missing.message;
       } else if (docLang) {
         // Not offered: one of the plugin's voices the list does offer takes its place for this open, and the user is told
         const pick = pickSubstitute(listed, deps.favorites?.() ?? [], docLang);
@@ -487,7 +514,9 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     if (announced.get(internal) === key) return;
     announced.set(internal, key);
     deps.debug?.(
-      `read-aloud memory: ${substitution.missing} is not offered by this reader's list; ` +
+      `read-aloud memory: ${substitution.missing} is not offered by this reader's list` +
+        (substitution.cause ? ` (its provider: ${substitution.cause})` : '') +
+        '; ' +
         (substitution.instead ? `starting ${substitution.instead} instead` : "no plugin voice is either, so Zotero's own choice stands"),
     );
     const reader = owners.get(internal);
@@ -631,6 +660,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     try {
       attach(reader);
       published.set(internal, voices.published);
+      unlisted.set(internal, voices.unlisted ?? []);
       if (preserveCurrent) return;
       const result = apply(internal, voices.offered);
       if (result.changed && result.lane !== null) stage(reader, internal, result.lane);
@@ -895,8 +925,9 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
               target._destroyController?.();
               target.pause?.();
             }
+            // Said again at play, into the same toast as the open's (index.ts announce)
             deps.announce?.(reader, choice
-              ? t('ztts-document-voice-unavailable', { voice: choice.id })
+              ? missingVoice(reader?._internalReader, choice.id, listedVoicesOf(manager) ?? []).message
               : t('ztts-default-voice-required'));
             return;
           }

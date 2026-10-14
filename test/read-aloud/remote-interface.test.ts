@@ -133,7 +133,32 @@ describe('getVoices', () => {
         { id: alloy, language: 'en-US', tier: 'local', label: 'Alloy' },
         { id: echo, language: 'en-US', tier: 'local', label: 'Echo' },
       ],
+      unlisted: [],
     });
+  });
+
+  // Issue #179: a document voice of a provider that could not list is not one that is gone
+  it('names the providers whose voices could not be listed, the favorites trim notwithstanding', async () => {
+    const onVoicesListed = vi.fn();
+    const echo = encodeVoiceId('openai-official', 'echo');
+    await createRemoteInterface({
+      ...deps(),
+      listCatalog: async () => [
+        { provider: 'openai-official' as const, voices: [{ id: 'echo', label: 'Echo', locale: 'en-US' }] },
+        { provider: 'compatible' as const, voices: [], failure: { reason: 'unreachable' as const, detail: 'fetch failed' } },
+        { provider: 'azure' as const, voices: [], failure: { reason: 'key' as const, detail: 'HTTP 401' } },
+        // Fish Audio with no list fetched this session answers with Default and a stale notice (fish.ts listVoices)
+        { provider: 'fish' as const, voices: [{ id: 'mul/default', label: 'Default', locale: 'mul' }], notices: [{ kind: 'stale' as const, detail: 'cannot reach api.fish.audio' }] },
+        { provider: 'speechify' as const, voices: [], notices: [{ kind: 'limited' as const }] },
+      ],
+      getFavoriteVoices: () => [echo],
+      onVoicesListed,
+    }).getVoices();
+    expect(onVoicesListed.mock.calls[0][0].unlisted).toEqual([
+      { provider: 'compatible', reason: 'unreachable' },
+      { provider: 'azure', reason: 'key' },
+      { provider: 'fish', reason: 'unreachable' },
+    ]);
   });
 
   it('logs a hook that throws and returns the list all the same', async () => {
