@@ -36,6 +36,7 @@ Limits:
 - First player attempt was backgrounded and hit the documented autoplay/audio-output block; the focused rerun passed. A paused shortcut left a pending handoff until the revised playing check; the final trusted shortcut passed.
 - The unavailable voice path first tried a stale active session; the fresh-session rerun passed with the available Aarav choice. Backup restore was rerun with sync switches isolated so remote records could not overwrite the restored snapshot.
 - If remote cleanup or fixture/artifact cleanup fails, `10` leaves all three automatic WebDAV switches off and reports `ownerTogglesRestored:false`; it restores those switches only after cleanup succeeds.
+- Item 11 (issue #179) has no script yet. A draft failed at its own fresh-fixture validation open in all four 2026-10-14 runs (a–d), so item 11 was driven by hand on a settled fixture and the draft was left out of the kit. The cause of the failure is unexplained: a manual record planted before a fresh reader's first activation, with the manager verified inactive, lost that activation to Zotero's own remembered voice, with no announcement. The same plant on a reader whose player had already been opened once was honored. A script for 11 starts from a fixture whose reader has settled. Snapshot the local section's `enabled` / `baseURL` before flipping the address.
 
 The final portability and cleanup-failure guards were reviewed and syntax-checked after the live run; they have not received another live pass.
 
@@ -44,3 +45,4 @@ Runs:
 | Run | Build | Result |
 | --- | --- | --- |
 | 2026-09-26 | 1.15.2-beta2 (`30d5770`), XPI `065f7cd8…`, bundle `2c7d6758…` | PASS. Baseline + items 1–10 completed; real WebDAV isolated and restored (HTTP 204), 3 fixture items erased, startup failed `[]`, final host minimized. [Field-by-field verification table](https://github.com/xujialiu/Zotero-OpenReader/issues/146#issuecomment-5843709158). |
+| 2026-10-14 | 1.16.10-beta2 (`eacbad4`), XPI/bundle `8b084856…` | Item 11 PASS, driven by hand on a settled fixture after a draft script's fresh-fixture validation opens failed (runs a–d; the finding is in Limits); items 5 and 10-regression PASS in the same run. Kokoro (`https://h200-kokoro.xujialiu.top`) the reachable section. WebDAV folder switch off for the run and restored. [Field-by-field verification table](https://github.com/xujialiu/Zotero-OpenReader/issues/179#issuecomment-6160968260); refused-key and Fish-Audio-offline wording are unit-only (`test/read-aloud/memory-sync.test.ts`). No kit script for 11 yet (Limits). |
