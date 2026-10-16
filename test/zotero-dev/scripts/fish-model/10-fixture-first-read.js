@@ -1,10 +1,13 @@
-// The reading checks' setup (items 1c.3 second half and 1c.4): fixture-a.pdf imported as a standalone
-// attachment and opened in a tab (the main window is restored for the page to initialize), the Read
-// Aloud popup opened on the remembered Fish voice (already listed: no memory write; Zotero's own tiers
-// are off, so nothing metered can answer), the first sentences read with the free model at volume 0,
-// the audio probed, then the popup closed again (the tab stays for the next scripts). Each synthesis
-// line `fish: N word timestamps for M chars (note)` and every request to fish.audio (method + path) is
-// listed. params: fixturesDir. state: reads snap; writes fixture, firstRead.
+// The reading checks' setup (item 1c.4 and the short re-check's read): fixture-a.pdf imported as a
+// standalone attachment and opened in a tab (the main window is restored for the page to initialize), the
+// Read Aloud popup opened on the remembered Fish voice (already listed: no memory write; Zotero's own tiers
+// are off, so nothing metered can answer), the first sentences read with the free model at volume 0, the
+// audio probed, then the popup closed again (the tab stays for the next scripts) and the host minimized
+// again, unless params.keepHostRestored (a script after this one that needs the foreground). Each synthesis
+// line `fish: N word timestamps for M chars (note)` and every request to fish.audio (method + path, the
+// response status, and for a POST the `model` header only, never Authorization) is listed: the audio
+// requests must all be answered 200 and carry s2.1-pro-free.
+// params: fixturesDir, keepHostRestored. state: reads snap; writes fixture, firstRead.
 (async () => {
   const state = Zotero.ZoteroTTSRun.state, params = Zotero.ZoteroTTSRun.params || {};
   const p = Services.prefs, prefix = 'extensions.zotero.zotero-tts.';
@@ -24,10 +27,32 @@
     return body ? body.split('\n\n') : [];
   };
   const watchHttp = () => {
-    const seen = [];
-    const observer = { observe(subject) { try { const ch = subject.QueryInterface(Ci.nsIHttpChannel); if (/(^|\.)fish\.audio$/.test(ch.URI.host)) seen.push({ at: Date.now(), method: ch.requestMethod, path: ch.URI.filePath }); } catch (_) {} } };
-    Services.obs.addObserver(observer, 'http-on-modify-request');
-    return { stop() { try { Services.obs.removeObserver(observer, 'http-on-modify-request'); } catch (_) {} return seen; } };
+    const seen = [], byChannel = new Map(), topics = ['http-on-modify-request', 'http-on-examine-response'];
+    const observer = {
+      observe(subject, topic) {
+        try {
+          const ch = subject.QueryInterface(Ci.nsIHttpChannel);
+          if (!/(^|\.)fish\.audio$/.test(ch.URI.host)) return;
+          if (topic === 'http-on-modify-request') {
+            const rec = { at: Date.now(), method: ch.requestMethod, path: ch.URI.filePath, model: null, status: null };
+            if (rec.method === 'POST') { try { rec.model = ch.getRequestHeader('model'); } catch (_) {} }
+            seen.push(rec); byChannel.set(ch.channelId, rec);
+          } else {
+            const rec = byChannel.get(ch.channelId);
+            if (rec) rec.status = ch.responseStatus;
+          }
+        } catch (_) {}
+      },
+    };
+    for (const t of topics) Services.obs.addObserver(observer, t);
+    return {
+      async stop() {
+        const end = Date.now() + 4000;
+        while (Date.now() < end && seen.some(r => r.status === null)) await sleep(100);
+        for (const t of topics) { try { Services.obs.removeObserver(observer, t); } catch (_) {} }
+        return seen;
+      },
+    };
   };
   const fishLine = /fish: (\d+) word timestamps? for (\d+) chars(?: \(([^)]*)\))?( \(cached\))?/;
   const parse = l => { const m = fishLine.exec(l); return m ? { words: Number(m[1]), chars: Number(m[2]), note: m[3] ?? null, cached: !!m[4], prefetch: /prefetch: fish:/.test(l) } : null; };
@@ -86,9 +111,13 @@
   let open = null;
   for (let i = 0; i < (player.readers || []).length; i++) if (player.readers[i]?.open) open = player.readers[i];
   const lines = (await entries()).slice(before).filter(l => l.includes('fish:')).map(l => ({ ...(parse(l) || { raw: l.slice(0, 160) }) }));
-  const requests = watch.stop();
+  // The `fish:` filter also catches `…voice fish::…` lines of the engine: only the parsed ones are synthesis lines
+  const synth = lines.filter(l => l.words !== undefined);
+  const requests = await watch.stop();
   const byRoute = {};
   for (const r of requests) { const k = r.method + ' ' + r.path; byRoute[k] = (byRoute[k] || 0) + 1; }
+  const tts = requests.filter(r => r.method === 'POST' && /\/v1\/tts/.test(r.path)), ttsStatuses = {}, ttsModels = {};
+  for (const r of tts) { ttsStatuses[r.status] = (ttsStatuses[r.status] || 0) + 1; ttsModels[r.model] = (ttsModels[r.model] || 0) + 1; }
   const manager = { active: !!m.active, paused: !!m.paused, voice: voice.slice(0, 18) + '…', tier: String(m.selectedTier || '') };
 
   // --- Close the popup again; the tab stays ---
@@ -99,10 +128,17 @@
     manager, playerState: open ? { opened: open.state?.opened, active: open.state?.active, playing: open.state?.playing, provider: open.state?.provider, error: open.state?.error ?? null } : null,
     samples: samples.length > 6 ? [...samples.slice(0, 3), { elided: samples.length - 5 }, ...samples.slice(-2)] : samples,
     audio: { first: samples[0]?.audio, last: samples[samples.length - 1]?.audio, clockMoved: (samples[samples.length - 1]?.playbackTime ?? 0) > (samples[0]?.playbackTime ?? 0), positionMoved: samples[samples.length - 1]?.position !== samples[0]?.position },
-    fishLines: lines.slice(0, 12), fishLineCount: lines.length,
-    requests: { total: requests.length, byRoute }, closedAfterRead: !!closed,
+    fishLines: lines.slice(0, 12), fishLineCount: lines.length, synthesisLines: synth.length,
+    requests: { total: requests.length, byRoute, tts: { count: tts.length, statuses: ttsStatuses, models: ttsModels } }, closedAfterRead: !!closed,
   };
-  if (!lines.length) out.status = 'FAIL: no synthesis line';
+  if (!synth.length) out.status = 'FAIL: no synthesis line';
+  else if (!synth.every(l => typeof l.note === 'string' && l.note.includes('s2.1-pro-free'))) out.status = 'FAIL: a synthesis line does not name s2.1-pro-free';
+  else if (!tts.length) out.status = 'CHECK: no audio request (served from the cache): the statuses were not observed';
+  else if (tts.some(r => r.status !== 200)) out.status = 'FAIL: an audio request was not answered 200';
+  else if (tts.some(r => r.model !== 's2.1-pro-free')) out.status = 'FAIL: an audio request carried another model header';
+  // The foreground step is over: minimize again (the cleanup puts the tab and bounds back)
+  if (!params.keepHostRestored && host.windowState !== host.STATE_MINIMIZED) { host.minimize(); await sleep(500); }
+  out.hostMinimizedAfter = host.windowState === host.STATE_MINIMIZED;
   state.firstRead = out;
   return JSON.stringify(out, null, 1);
 })()

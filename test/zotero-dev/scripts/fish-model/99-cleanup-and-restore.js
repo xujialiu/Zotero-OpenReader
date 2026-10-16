@@ -8,8 +8,9 @@
 // adds one LOCAL tombstone that never leaves the machine, and cannot be taken back through the bridge);
 // the folder switch restored last, and ONLY if the fixture, the prefs and the position store are clean,
 // its transports waited for; the on-disk snapshot compared once more with the prefs; the debug store read for dead objects and plugin errors, then restored; the console's
-// plugin errors since the run began sorted into the two planned refusals (the 402 of 1c.4, the
-// model-gone of 1c.3) and anything else; the selected tab and the host's bounds put back, and the
+// plugin errors since the run began sorted into the one planned refusal (the 402 of 1c.4: 08's paid case
+// and 11; the short re-check of 2026-10-16 plans none) and anything else (the model-gone refusal of 1c.3
+// left with #181's check); the selected tab and the host's bounds put back, and the
 // host minimized (the owner's standing exception). The owner's closed player is never reopened.
 // params: none. state: reads snap, docs, positionBefore, errorsBefore, debugBefore, host, fixture, runStart.
 (async () => {
@@ -148,7 +149,7 @@
     const plugin = lines.filter(l => l.includes('[zotero-tts]'));
     const dead = lines.filter(l => /dead object/i.test(l));
     const levelOne = lines.filter(l => /^\(1\)/.test(l));
-    const family = l => /refused the request \(402\)/.test(l) ? 'planned 402 (1c.4)' : /no longer lists the model s9-not-a-model/.test(l) ? 'planned model-gone (1c.3)' : 'other';
+    const family = l => /refused the request \(402\)/.test(l) ? 'planned 402 (1c.4)' : 'other';
     const fams = {};
     for (const l of levelOne) { const f = family(l); fams[f] = (fams[f] || 0) + 1; }
     const others = levelOne.filter(l => family(l) === 'other').map(l => l.slice(0, 220)).slice(0, 8);
@@ -162,7 +163,7 @@
       if (e.timeStamp < state.runStart) continue;
       rows.push({ t: e.timeStamp, source: String(e.sourceName || '').split('/').pop().slice(0, 40), msg: String(e.errorMessage || e.message || '').slice(0, 170) });
     }
-    const fam = r => /refused the request \(402\)/.test(r.msg) ? 'planned 402 (1c.4)' : /no longer lists the model s9-not-a-model/.test(r.msg) ? 'planned model-gone (1c.3)' : /uncaught exception: undefined/.test(r.msg) ? 'noise: uncaught exception: undefined' : /Missing resource in locale/.test(r.msg) ? 'noise: missing locale resource' : /selectionRanges/.test(r.msg) ? 'noise: selectionRanges' : /NS_ERROR_FILE_UNRECOGNIZED_PATH/.test(r.msg) ? 'noise: UNRECOGNIZED_PATH' : 'other';
+    const fam = r => /refused the request \(402\)/.test(r.msg) ? 'planned 402 (1c.4)' : /uncaught exception: undefined/.test(r.msg) ? 'noise: uncaught exception: undefined' : /Missing resource in locale/.test(r.msg) ? 'noise: missing locale resource' : /selectionRanges/.test(r.msg) ? 'noise: selectionRanges' : /NS_ERROR_FILE_UNRECOGNIZED_PATH/.test(r.msg) ? 'noise: UNRECOGNIZED_PATH' : 'other';
     const fams = {};
     for (const r of rows) { const f = fam(r); fams[f] = (fams[f] || 0) + 1; }
     const others = rows.filter(r => fam(r) === 'other').slice(0, 10);

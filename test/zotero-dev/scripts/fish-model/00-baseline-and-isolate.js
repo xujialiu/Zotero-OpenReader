@@ -1,10 +1,12 @@
-// Baseline and isolation, BEFORE the xpi install, on the release 1.16.10 (issues #181, #182).
+// Baseline and isolation, BEFORE the xpi install, on the build the profile must run (issues #181, #182):
+// params.expectedVersion, default 1.16.10 (the release the full upgrade pass starts from); the short
+// re-check of 2026-10-16 passed 1.16.11-beta (the branch's previous beta). Any other version throws.
 // Not a WebDAV test: the folder's switch (webdav.enabled) is snapshotted and switched off after
 // the position store and every transport have settled; "folder": false is confirmed in the three
 // diagnostics that report it. The named prefs are snapshotted (raw copy in state and in a private,
 // gitignored .tmp file; the API key is only measured, never held), the debug store turned on, the
 // volume muted, the readers and position counts recorded, the host minimized.
-// params: root. state: writes snap, docs, host, positionBefore, errorsBefore, debugBefore, readersBefore.
+// params: root, expectedVersion. state: writes snap, docs, host, positionBefore, errorsBefore, debugBefore, readersBefore.
 (async () => {
   const run = Zotero.ZoteroTTSRun, state = run.state, params = run.params || {};
   const p = Services.prefs;
@@ -29,7 +31,8 @@
   const d = Zotero.ZoteroTTS?.diagnostics;
   if (!d) throw new Error('plugin diagnostics missing');
   const startup = JSON.parse(d.startup());
-  if (startup.version !== '1.16.10') throw new Error('the profile does not run the 1.16.10 release: ' + startup.version);
+  const expectedVersion = params.expectedVersion || '1.16.10';
+  if (startup.version !== expectedVersion) throw new Error('the profile does not run ' + expectedVersion + ': ' + startup.version);
 
   // --- Snapshot (private). Strings that may hold more than ids are reported by length only. ---
   const mine = [
