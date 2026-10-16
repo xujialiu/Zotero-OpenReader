@@ -43,7 +43,7 @@ function fishCache(fetchImpl: typeof fetch): FishVoiceCache {
   return cache;
 }
 
-/** Fish's model list through the cache the provider reads it from (issue #182): the pane's Model dropdown and the guard of #181 share one request. */
+/** Fish's model list for the pane's Model dropdown (issue #182), kept in the provider's session cache. */
 export function fishModelList(fetchImpl: typeof fetch): Promise<FishModelList> {
   return loadFishModelList({ fetch: fetchImpl, cache: fishCache(fetchImpl) });
 }

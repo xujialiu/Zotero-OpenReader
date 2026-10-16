@@ -62,9 +62,6 @@ ztts-fish-model-free = { $model } — free
 ztts-fish-model-bytes = { $model } — ${ $price } per million bytes
 ztts-fish-model-chars = { $model } — ${ $price } per million characters
 ztts-fish-model-paid = { $model } — paid
-# An entry OpenReader will not read with (issue #181); $label is the entry as above
-ztts-fish-model-not-free = { $label } (not confirmed free)
-ztts-fish-model-gone = { $label } (not available)
 ztts-heading-fish-sources =
     .value = Voice sources
 ztts-fish-include-official =
@@ -723,8 +720,6 @@ ztts-player-unavailable-choice = This voice or language is no longer available. 
 ztts-player-invalid-value = The selected value is not supported.
 ztts-player-playback-error = Playback failed. Check your provider connection and try again.
 ztts-player-quota-error = The provider has reached its limit or has insufficient credits.
-ztts-player-fish-not-free = OpenReader could not confirm that Fish Audio's free model is still free, and stopped rather than pay for it. Choose another model under Settings → OpenReader → Fish Audio.
-ztts-player-fish-model-gone = Fish Audio no longer offers the chosen model, or OpenReader could not confirm that it does. Choose another model under Settings → OpenReader → Fish Audio.
 # A Zotero voice's two account errors, as the player's ! says them (issue #140); $tier is Zotero Standard or Zotero Premium
 ztts-player-zotero-short = Not enough remaining time on { $tier } for this voice.
 ztts-player-daily-limit = { $tier } has reached today's limit.

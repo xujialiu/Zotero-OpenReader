@@ -30,7 +30,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [1a. Fish Audio: the cloud voices](cases/fish-audio.md) — 1a.1–1a.8, 1a.14
 - [1a. Fish Speech: a server of the owner's own](cases/fish-speech.md) — 1a.9–1a.13
 - [1b. Fish Audio voice sources (issue #91)](cases/fish-voice-sources.md)
-- [1c. Fish Audio: the model and its guard (issues #181, #182)](cases/fish-model.md)
+- [1c. Fish Audio: the model (issue #182)](cases/fish-model.md)
 - [1c. Fish settings refinement (issue #91, beta5)](cases/fish-settings-refinement.md)
 - [Fish English voices under their regions (issue #91, beta5)](cases/fish-english-regions.md)
 - [3h. Fish cloud short-text language hints (issue #98)](cases/fish-language-hints.md)

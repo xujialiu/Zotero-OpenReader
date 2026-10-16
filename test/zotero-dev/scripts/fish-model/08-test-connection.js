@@ -1,20 +1,17 @@
-// Test connection on the Fish Audio section, provider OFF, one real two-letter probe per run, three
+// Test connection on the Fish Audio section, provider OFF, one real two-letter probe per run, two
 // cases by params.testCase (never in a loop):
 //   free-nothing-pasted  1a.2: key set, model s2.1-pro-free, fish.voices emptied (restored by the cleanup):
 //                        `Testing…` at once, then `Connected. N voices available. Synthesis works.`, one POST to the
 //                        tts route, no [zotero-tts] debug line from the probe.
 //   paid-model-402       1a.4: the dropdown's pick of s2.1-pro writes fish.model; the line names `Fish Audio s2.1-pro`
 //                        and the 402 (API credit 0: nothing can be charged); one POST; the free model is picked again.
-//   unknown-model        1c.3 (first half): fish.model = s9-not-a-model by pref; the dropdown's last entry reads
-//                        `s9-not-a-model (not available)` and is selected; the line is `Connected, but synthesis failed:
-//                        Fish Audio no longer lists the model s9-not-a-model` and NO POST left (a 402 would mean one did);
-//                        the free model is put back by pref.
+// (A third case, unknown-model, checked #181's refusal; it left with that check on 2026-10-16.)
 // Every request to fish.audio is listed by method and path only (http-on-modify-request; no header, no query).
 // params: testCase. state: reads snap; writes tests[testCase].
 (async () => {
   const state = Zotero.ZoteroTTSRun.state, params = Zotero.ZoteroTTSRun.params || {};
   const testCase = params.testCase;
-  if (!['free-nothing-pasted', 'paid-model-402', 'unknown-model'].includes(testCase)) throw new Error('params.testCase must be free-nothing-pasted, paid-model-402 or unknown-model');
+  if (!['free-nothing-pasted', 'paid-model-402'].includes(testCase)) throw new Error('params.testCase must be free-nothing-pasted or paid-model-402');
   const p = Services.prefs, prefix = 'extensions.zotero.zotero-tts.';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const win = Services.wm.getMostRecentWindow('zotero:pref'), doc = win?.document;
@@ -47,15 +44,10 @@
   if (testCase === 'free-nothing-pasted') {
     p.setStringPref(prefix + 'fish.voices', '');
     out.prepared = { voicesLength: String(Zotero.Prefs.get('zotero-tts.fish.voices') || '').length, model: model() };
-  } else if (testCase === 'paid-model-402') {
+  } else {
     out.pickFound = pick('s2.1-pro');
     await sleep(250);
     out.prepared = { model: model(), prefHasUser: p.prefHasUserValue(modelKey), shown: menu.label };
-  } else {
-    Zotero.Prefs.set('zotero-tts.fish.model', 's9-not-a-model');
-    await sleep(300);
-    const l = labels();
-    out.prepared = { model: model(), entries: l, last: l[l.length - 1], value: menu.value, shown: menu.label };
   }
 
   // --- The click and what follows, to the end of the check ---
@@ -96,11 +88,6 @@
     await sleep(250);
     out.after = { model: model(), prefHasUser: p.prefHasUserValue(modelKey) };
     ok = final.startsWith('Connected, but synthesis failed: Fish Audio s2.1-pro: Fish Audio refused the request (402) — Insufficient API credit. API credit is managed independently from platform credit') && ttsPosts === 1 && model() === 's2.1-pro-free';
-  } else {
-    Zotero.Prefs.set('zotero-tts.fish.model', 's2.1-pro-free');
-    await sleep(300);
-    out.after = { model: model(), prefHasUser: p.prefHasUserValue(modelKey), shown: menu.label };
-    ok = final === 'Connected, but synthesis failed: Fish Audio no longer lists the model s9-not-a-model' && ttsPosts === 0 && out.prepared.last === 's9-not-a-model (not available)' && out.prepared.value === 's9-not-a-model' && model() === 's2.1-pro-free';
   }
   out.status = ok ? 'PASS' : 'FAIL';
   (state.tests ||= {})[testCase] = out;

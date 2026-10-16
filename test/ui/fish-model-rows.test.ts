@@ -5,14 +5,12 @@ import { FISH_MODEL_MENU_ID, FISH_MODEL_OBSERVER, FISH_MODEL_PREF, fishModelOpti
 
 /** The message id with its arguments, so a label says what it was built from. */
 const t = (id: string, args?: Record<string, string>) => (args ? `${id}(${Object.entries(args).map(([k, v]) => `${k}=${v}`).join(',')})` : id);
-const BEFORE = Date.parse('2026-10-16T12:00:00Z');
-const AFTER = Date.parse('2026-12-01T00:00:00Z');
 const read = (entries: Record<string, boolean>): FishModelList => ({ ok: true, models: new Map(Object.entries(entries).map(([id, free]) => [id, { free }])) });
 const TODAY = read({ 's2.1-pro': false, 's2.1-pro-free': true, 's2-pro': false, s1: false });
 
 describe('the Model dropdown\'s entries (issue #182)', () => {
   it('lists the known models with their prices, then those only Fish\'s list carries, as free or paid without a number', () => {
-    expect(fishModelOptions('s2.1-pro-free', TODAY, BEFORE, t)).toEqual([
+    expect(fishModelOptions('s2.1-pro-free', TODAY, t)).toEqual([
       { id: 's2.1-pro-free', label: 'ztts-fish-model-free(model=s2.1-pro-free)' },
       { id: 's2.1-pro', label: 'ztts-fish-model-bytes(model=s2.1-pro,price=15)' },
       { id: 'drama-3', label: 'ztts-fish-model-chars(model=drama-3,price=50)' },
@@ -21,17 +19,9 @@ describe('the Model dropdown\'s entries (issue #182)', () => {
     ]);
   });
 
-  it('marks nothing while the list is on its way, and keeps a chosen model neither list offers', () => {
-    const options = fishModelOptions('s9', null, AFTER, t);
-    expect(options.map((o) => o.id)).toEqual(['s2.1-pro-free', 's2.1-pro', 'drama-3', 's2-pro', 's9']);
-    expect(options[0].label).toBe('ztts-fish-model-free(model=s2.1-pro-free)');
-    expect(fishModelOptions('s9', TODAY, BEFORE, t).at(-1)).toEqual({ id: 's9', label: 'ztts-fish-model-gone(label=s9)' });
-  });
-
-  it('marks the free model the reading would refuse (issue #181)', () => {
-    expect(fishModelOptions('s2.1-pro-free', read({ 's2.1-pro-free': false }), BEFORE, t)[0].label).toBe('ztts-fish-model-not-free(label=ztts-fish-model-free(model=s2.1-pro-free))');
-    expect(fishModelOptions('s2.1-pro-free', { ok: false, reason: 'HTTP 503' }, AFTER, t)[0].label).toContain('ztts-fish-model-not-free');
-    expect(fishModelOptions('s2.1-pro-free', { ok: false, reason: 'HTTP 503' }, BEFORE, t)[0].label).toBe('ztts-fish-model-free(model=s2.1-pro-free)');
+  it('lists the known models alone while the list is on its way or unread, and keeps a chosen model neither offers by its id', () => {
+    expect(fishModelOptions('s9', null, t).map((o) => o.id)).toEqual(['s2.1-pro-free', 's2.1-pro', 'drama-3', 's2-pro', 's9']);
+    expect(fishModelOptions('s9', { ok: false, reason: 'HTTP 503' }, t).at(-1)).toEqual({ id: 's9', label: 's9' });
   });
 });
 
@@ -56,7 +46,6 @@ function setup(options: { enabled?: boolean; stored?: string; list?: FishModelLi
     t,
     loadList,
     fishEnabled: () => options.enabled ?? false,
-    now: () => BEFORE,
     watch: (name, fn) => {
       watchers.set(name, fn);
       return () => watchers.delete(name);

@@ -50,12 +50,12 @@ the website's own plan and credits under **Creative → Billing**. With no
 API credit, **Test connection** says *Insufficient API credit* and
 nothing plays until you top up or choose the free model again.
 
-**When a model stops.** The plugin reads only with the model you chose.
-When Fish Audio takes it off its list or retires it on a date it has
-announced, or the free model stops being free — or, once its announced
-date has passed, the plugin cannot confirm that it still is — reading
-stops with a message saying so, rather than Fish Audio answering with a
-paid model. The dropdown marks such a model; choose another.
+**When a model stops.** Fish Audio answers a model it no longer offers
+with the paid S2.1 Pro, billed to your API credit, and says nothing; the
+plugin cannot tell either. So when the free model's free access ends, or
+Fish Audio retires the model you chose, check the dropdown — or keep no
+API credit while you read with the free model: then reading stops with
+*Insufficient API credit* instead.
 
 ## Voices
 

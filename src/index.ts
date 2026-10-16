@@ -314,8 +314,6 @@ function playerMessage(key: string, args?: L10nArgs): string {
     'ztts-player-invalid-value': t('ztts-player-invalid-value'),
     'ztts-player-playback-error': t('ztts-player-playback-error'),
     'ztts-player-quota-error': t('ztts-player-quota-error'),
-    'ztts-player-fish-not-free': t('ztts-player-fish-not-free'),
-    'ztts-player-fish-model-gone': t('ztts-player-fish-model-gone'),
     'ztts-player-favorite-guard': t('ztts-player-favorite-guard'),
   };
   // A Zotero voice's account errors (issue #140) name its tier

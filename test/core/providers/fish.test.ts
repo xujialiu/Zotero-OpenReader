@@ -16,7 +16,6 @@ import {
   createFishProvider,
   FishVoiceCache,
   decodeFishVoice,
-  fishModelVerdict,
   fishReason,
   fishVoice,
   fishVoiceIds,
@@ -27,7 +26,6 @@ import {
   parseEventStream,
   type FishConfig,
   type FishDeps,
-  type FishModelList,
 } from '../../../src/core/providers/fish';
 
 const cfg: FishConfig = { apiKey: 'sk-fish-test', model: DEFAULT_FISH_MODEL, voices: '' };
@@ -43,15 +41,10 @@ const listedModel = (id: string, prompt: string, modality = 'text->speech') => (
 const LISTED = [listedModel('s2.1-pro', '0.000015'), listedModel('s2.1-pro-free', '0'), listedModel('s2-pro', '0.000015'), listedModel('s1', '0.000015'), listedModel('transcribe-1', '0.0001', 'audio->text')];
 const listing = (data: unknown[] = LISTED) => Response.json({ data, links: { next: null }, total_count: data.length });
 
-/**
- * Every wait is skipped in the tests; `waits` keeps what was asked for.
- * Fish's model list (issue #181) answers from `list` and never reaches
- * `fetchImpl`, so the calls a test counts are its own.
- */
+/** Every wait is skipped in the tests; `waits` keeps what was asked for. */
 let waits: number[] = [];
-function provider(fetchImpl: unknown, over: Partial<FishConfig> = {}, deps: Partial<FishDeps> = {}, list: () => Response | Promise<Response> = () => listing()) {
-  const routed = (async (url: string, init?: RequestInit) => (url === FISH_MODEL_LIST_URL ? list() : (fetchImpl as typeof fetch)(url, init))) as typeof fetch;
-  return createFishProvider({ ...cfg, ...over }, { fetch: routed, wait: async (ms) => void waits.push(ms), ...deps });
+function provider(fetchImpl: unknown, over: Partial<FishConfig> = {}, deps: Partial<FishDeps> = {}) {
+  return createFishProvider({ ...cfg, ...over }, { fetch: fetchImpl as typeof fetch, wait: async (ms) => void waits.push(ms), ...deps });
 }
 
 const controller = new AbortController();
@@ -836,17 +829,10 @@ describe('the checks', () => {
   });
 });
 
-describe('the model (issues #181, #182)', () => {
-  const at = (iso: string) => Date.parse(iso);
-  const BEFORE = at('2026-10-16T12:00:00Z');
-  const LAST_FREE_DAY = at('2026-11-30T23:59:59Z');
-  const AFTER = at('2026-12-01T00:00:00Z');
-  const read = (entries: Record<string, boolean>): FishModelList => ({ ok: true, models: new Map(Object.entries(entries).map(([id, free]) => [id, { free }])) });
-  const unread: FishModelList = { ok: false, reason: 'HTTP 503' };
-
+describe('the model (issue #182)', () => {
   it('knows the four models Fish serves that are not retiring, the free one first, drama-3 at its regular price', () => {
     expect(FISH_MODELS.map((m) => m.id)).toEqual(['s2.1-pro-free', 's2.1-pro', 'drama-3', 's2-pro']);
-    expect(FISH_MODELS[0]).toEqual({ id: DEFAULT_FISH_MODEL, price: { free: true }, freeThrough: '2026-11-30' });
+    expect(FISH_MODELS[0]).toEqual({ id: DEFAULT_FISH_MODEL, price: { free: true } });
     expect(FISH_MODELS.find((m) => m.id === 'drama-3')?.price).toEqual({ free: false, usdPerMillion: 50, unit: 'character' });
     expect(PAID_FISH_MODEL).toBe('s2.1-pro');
   });
@@ -862,83 +848,41 @@ describe('the model (issues #181, #182)', () => {
     expect(() => parseFishModelList({ error: 'nope' })).toThrow();
   });
 
-  it('reads a paid model it knows without the list, and refuses one past its retirement', () => {
-    expect(fishModelVerdict('s2.1-pro', unread, AFTER)).toEqual({ ok: true });
-    expect(fishModelVerdict('drama-3', read({}), AFTER)).toEqual({ ok: true });
-    const known = [{ id: 'old-1', price: { free: false as const, usdPerMillion: 15, unit: 'byte' as const }, retiresOn: '2026-12-31' }];
-    expect(fishModelVerdict('old-1', unread, at('2026-12-30T23:59:59Z'), known)).toEqual({ ok: true });
-    expect(fishModelVerdict('old-1', read({ 'old-1': false }), at('2026-12-31T00:00:00Z'), known)).toEqual({ ok: false, kind: 'model-gone', reason: 'Fish Audio retired the model old-1 on 2026-12-31' });
-  });
-
-  it('reads the free model while Fish lists it at no price, and refuses it at a price or off the list, whatever the date', () => {
-    expect(fishModelVerdict(DEFAULT_FISH_MODEL, read({ [DEFAULT_FISH_MODEL]: true }), AFTER)).toEqual({ ok: true });
-    expect(fishModelVerdict(DEFAULT_FISH_MODEL, read({ [DEFAULT_FISH_MODEL]: false }), BEFORE)).toMatchObject({ ok: false, kind: 'model-not-free' });
-    expect(fishModelVerdict(DEFAULT_FISH_MODEL, read({ 's2.1-pro': false }), BEFORE)).toMatchObject({ ok: false, kind: 'model-gone', reason: `Fish Audio no longer lists the model ${DEFAULT_FISH_MODEL}` });
-  });
-
-  it('reads the free model through its announced last day when the list cannot be read, and refuses it after', () => {
-    expect(fishModelVerdict(DEFAULT_FISH_MODEL, unread, BEFORE)).toEqual({ ok: true });
-    expect(fishModelVerdict(DEFAULT_FISH_MODEL, unread, LAST_FREE_DAY)).toEqual({ ok: true });
-    expect(fishModelVerdict(DEFAULT_FISH_MODEL, unread, AFTER)).toEqual({
-      ok: false,
-      kind: 'model-not-free',
-      reason: `free access to ${DEFAULT_FISH_MODEL} was announced through 2026-11-30, and Fish Audio's model list could not be read to confirm ${DEFAULT_FISH_MODEL} is still free (HTTP 503)`,
-    });
-  });
-
-  it('reads a model only Fish\'s list knew while the list carries it', () => {
-    expect(fishModelVerdict('s1', read({ s1: false }), BEFORE)).toEqual({ ok: true });
-    expect(fishModelVerdict('s1', read({}), BEFORE)).toMatchObject({ ok: false, kind: 'model-gone' });
-    expect(fishModelVerdict('s1', unread, BEFORE)).toMatchObject({ ok: false, kind: 'model-gone', reason: expect.stringContaining('HTTP 503') });
-  });
-
-  it('asks Fish\'s list once for many sentences, without the key, and again after it has stood its time', async () => {
-    const lists = vi.fn(() => listing());
-    let now = BEFORE;
-    const fetchImpl = vi.fn(async () => stream(event(MP3_A, [['Hi', 0, 0.3]])));
-    const p = provider(fetchImpl, {}, { cache: new FishVoiceCache(), now: () => now }, lists);
-    await Promise.all([p.synthesize('Hi', NARRATOR), p.synthesize('Hi', NARRATOR), p.synthesize('Hi', NARRATOR)]);
-    expect(lists).toHaveBeenCalledTimes(1);
-    expect(fetchImpl).toHaveBeenCalledTimes(3);
-    now += FISH_MODEL_LIST_TTL_MS;
-    await p.synthesize('Hi', NARRATOR);
-    expect(lists).toHaveBeenCalledTimes(2);
-  });
-
-  it('asks nothing of Fish\'s list for a paid model it knows', async () => {
-    const lists = vi.fn(() => listing());
-    await provider(vi.fn(async () => stream(event(MP3_A, [['Hi', 0, 0.3]]))), { model: 'drama-3' }, {}, lists).synthesize('Hi', NARRATOR);
-    expect(lists).not.toHaveBeenCalled();
-  });
-
-  it('sends no request for a free model Fish lists at a price, and says why', async () => {
-    const fetchImpl = vi.fn();
-    const priced = () => listing([listedModel(DEFAULT_FISH_MODEL, '0.000015')]);
-    await expect(provider(fetchImpl, {}, {}, priced).synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'model-not-free', retriable: false });
-    await expect(provider(fetchImpl, {}, {}, priced).checkSynthesis!(`mul/${DEFAULT_VOICE}`)).rejects.toMatchObject({ kind: 'model-not-free' });
-    expect(fetchImpl).not.toHaveBeenCalled();
-  });
-
-  it('keeps reading the free model while the list is down before its last day, and holds a failed read a while', async () => {
-    const lists = vi.fn(async (): Promise<Response> => {
-      throw new TypeError('NetworkError when attempting to fetch resource.');
-    });
-    let now = BEFORE;
-    const fetchImpl = vi.fn(async () => stream(event(MP3_A, [['Hi', 0, 0.3]])));
-    const p = provider(fetchImpl, {}, { cache: new FishVoiceCache(), now: () => now }, lists);
-    await p.synthesize('Hi', NARRATOR);
-    await p.synthesize('Hi', NARRATOR);
-    expect(lists).toHaveBeenCalledTimes(1);
-    now = AFTER + FISH_MODEL_LIST_RETRY_MS;
-    await expect(p.synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'model-not-free', message: expect.stringContaining('NetworkError') });
-    expect(lists).toHaveBeenCalledTimes(2);
+  it('asks Fish\'s list without the key, once for many callers, and again after it has stood its time', async () => {
+    const fetchImpl = vi.fn(async () => listing());
+    const cache = new FishVoiceCache();
+    let now = 0;
+    const load = () => loadFishModelList({ fetch: fetchImpl as unknown as typeof fetch, cache, now: () => now });
+    const [first] = await Promise.all([load(), load(), load()]);
+    expect(first).toMatchObject({ ok: true });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0]).toEqual([FISH_MODEL_LIST_URL]);
+    now += FISH_MODEL_LIST_TTL_MS - 1;
+    await load();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    now += 1;
+    await load();
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
-  it('bounds the list\'s read, and gives its reason rather than throwing', async () => {
+  it('holds a failed read a while, and gives its reason rather than throwing', async () => {
+    const fetchImpl = vi.fn(async (): Promise<Response> => {
+      throw new TypeError('NetworkError when attempting to fetch resource.');
+    });
     const cache = new FishVoiceCache();
+    let now = 0;
+    const load = () => loadFishModelList({ fetch: fetchImpl as unknown as typeof fetch, cache, now: () => now });
+    expect(await load()).toEqual({ ok: false, reason: 'NetworkError when attempting to fetch resource.' });
+    await load();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    now += FISH_MODEL_LIST_RETRY_MS;
+    await load();
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('bounds the list\'s read', async () => {
     const hung = (() => new Promise<Response>(() => {})) as unknown as typeof fetch;
-    expect(await loadFishModelList({ fetch: hung, cache, timeoutMs: 10 })).toEqual({ ok: false, reason: 'no reply within 0.01 s' });
+    expect(await loadFishModelList({ fetch: hung, cache: new FishVoiceCache(), timeoutMs: 10 })).toEqual({ ok: false, reason: 'no reply within 0.01 s' });
     const notJSON = (async () => new Response('<html>')) as unknown as typeof fetch;
     expect(await loadFishModelList({ fetch: notJSON, cache: new FishVoiceCache() })).toMatchObject({ ok: false });
   });

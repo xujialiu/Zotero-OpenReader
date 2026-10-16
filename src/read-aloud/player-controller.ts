@@ -85,9 +85,6 @@ export function createPlayerController(deps: PlayerControllerDeps) {
     const name = labels[tier] ?? tier;
     if (m.error === 'daily-limit-exceeded') return deps.message('ztts-player-daily-limit', { tier: name });
     if (m.error === 'quota-exceeded' && (tier === 'standard' || tier === 'premium')) return deps.message('ztts-player-zotero-short', { tier: name });
-    // Fish Audio's model refused before any request (issue #181)
-    if (m.error === 'model-not-free') return deps.message('ztts-player-fish-not-free');
-    if (m.error === 'model-gone') return deps.message('ztts-player-fish-model-gone');
     return deps.message(m.error === 'quota-exceeded' ? 'ztts-player-quota-error' : 'ztts-player-playback-error');
   }
   function snapshot(reader: any): PlayerSnapshot {

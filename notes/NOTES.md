@@ -739,3 +739,4 @@ then) and is in the git history before that day.
 ### [2026-10-16](NOTES_2026-10-16.md)
 
 - Fish Audio's models, and what its replies cannot say (issues #181, #182)
+- The check before Fish Audio requests is withdrawn (issue #181)

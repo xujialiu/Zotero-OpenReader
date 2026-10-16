@@ -1,14 +1,15 @@
 [Checklist index](../README.md) · [Scripts](../scripts/fish-model/README.md)
 
-## 1c. Fish Audio: the model and its guard (issues #181, #182)
+## 1c. Fish Audio: the model (issue #182)
 
 Touches `zotero-tts.fish.*` (`enabled`, `model`, the retired `freeOnly`),
 the settings window, a backup file in the scratch directory and one
 fixture tab. Run with the owner's key, whose account has API credit 0
 (2026-10-16): the free model answers, a paid one answers 402, so nothing
-here can spend. That is also the safety net of 1c.3: if the guard let an
-unknown model through, Fish would answer it as the paid `s2.1-pro`, and
-on this account that is a 402, not a charge. The key is never printed.
+here can spend. Fish answers a model it does not know as the paid
+`s2.1-pro`, and the plugin no longer checks for it (#181's check was
+withdrawn on 2026-10-16): never send one from an account with API
+credit. The key is never printed.
 Save every pref named above first and restore it at the end.
 
 ### 1c.1
@@ -38,18 +39,12 @@ Save every pref named above first and restore it at the end.
 
 ### 1c.3
 
-3. **A model Fish does not offer is never asked for.** Fish Audio off;
-   set `fish.model` to `s9-not-a-model` by pref. The dropdown's last entry
-   reads `s9-not-a-model (not available)` and is selected. Test connection
-   → `Connected, but synthesis failed: Fish Audio no longer lists the
-   model s9-not-a-model` — not a 402, which would mean the request went
-   out. Then put back `s2.1-pro-free`, Enable, start reading
-   `fixture-a.pdf` on a Fish Audio voice, and set `fish.model` to
-   `s9-not-a-model` by pref while it reads: from the next sentence that
-   is not yet prepared, the Player shows `Fish Audio no longer offers the
-   chosen model, or OpenReader could not confirm that it does. Choose
-   another model under Settings → OpenReader → Fish Audio.`, and no
-   `fish: … word timestamps … (s9-not-a-model)` line appears.
+3. **A chosen model neither list offers.** Fish Audio off; set
+   `fish.model` to `s9-not-a-model` by pref. The dropdown's last entry
+   reads `s9-not-a-model`, with no price, and is selected. Put back
+   `s2.1-pro-free`. (Until 2026-10-16 this item checked #181's refusal of
+   such a model before any request; that check was withdrawn. Do not run
+   Test connection on it: Fish would answer it as the paid `s2.1-pro`.)
 
 ### 1c.4
 

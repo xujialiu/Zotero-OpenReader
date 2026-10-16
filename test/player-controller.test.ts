@@ -186,14 +186,6 @@ describe('a Zotero voice’s time left and its account errors (issue #140)', () 
     expect(f.message).toHaveBeenCalledWith('ztts-player-daily-limit', { tier: 'Zotero Premium' });
   });
 
-  it('says a Fish Audio model was refused before any request, and why (issue #181)', () => {
-    const f = fixture();
-    f.manager.error = 'model-not-free' as never;
-    expect(f.controller.snapshot(f.reader).error).toBe('ztts-player-fish-not-free');
-    f.manager.error = 'model-gone' as never;
-    expect(f.controller.snapshot(f.reader).error).toBe('ztts-player-fish-model-gone');
-  });
-
   it('keeps a plugin provider’s limit, and every other error, as they were', () => {
     const f = fixture();
     f.manager.error = 'quota-exceeded' as never;

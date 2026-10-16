@@ -7,10 +7,6 @@ export type SynthesisErrorKind =
   | 'rate-limit'
   | 'quota'
   | 'decode-failed'
-  /** Fish Audio's free model is no longer free, or that could not be confirmed (issue #181): nothing was asked for. */
-  | 'model-not-free'
-  /** Fish Audio no longer offers the chosen model, or that could not be confirmed (issue #181): nothing was asked for. */
-  | 'model-gone'
   | 'unknown';
 
 const RETRIABLE: ReadonlySet<SynthesisErrorKind> = new Set([
@@ -37,13 +33,9 @@ export class SynthesisError extends Error {
  * by the caller — some information loss here is unavoidable, because
  * the native UI's vocabulary is only this large.
  */
-export function toZoteroError(e: unknown): 'network' | 'quota-exceeded' | 'model-not-free' | 'model-gone' | 'unknown' {
+export function toZoteroError(e: unknown): 'network' | 'quota-exceeded' | 'unknown' {
   if (!(e instanceof SynthesisError)) return 'unknown';
   switch (e.kind) {
-    // The plugin's own Player words these (issue #181); Zotero has no such strings
-    case 'model-not-free':
-    case 'model-gone':
-      return e.kind;
     case 'network':
     case 'local-server-down':
       return 'network';
