@@ -14,7 +14,7 @@
     'readAloud.sentenceDelayEnabled', 'readAloud.sentenceDelayMs',
     'readAloud.paragraphDelayEnabled', 'readAloud.paragraphDelayMs',
     'prefetch', 'prefetchEnabled', 'cacheAudio',
-    'fish.enabled', 'fish.freeOnly', 'azure.enabled', 'speechify.enabled',
+    'fish.enabled', 'fish.model', 'azure.enabled', 'speechify.enabled',
     'local.enabled', 'local.baseURL', 'system.enabled',
     'zotero-standard.enabled', 'zotero-premium.enabled',
     'highlight.word', 'highlight.sentence',

@@ -8,7 +8,7 @@ return (() => {
       azure: { enabled: get('azure.enabled'), region: get('azure.region'), voice: get('azure.voice'), apiKey: secret('azure.apiKey') },
       cloudflare: { enabled: get('cloudflare.enabled'), accountId: secret('cloudflare.accountId'), apiToken: secret('cloudflare.apiToken') },
       speechify: { enabled: get('speechify.enabled'), apiKey: secret('speechify.apiKey') },
-      fish: { enabled: get('fish.enabled'), freeOnly: get('fish.freeOnly'), voices: secret('fish.voices'), includeOfficial: get('fish.includeOfficial'), includeOwn: get('fish.includeOwn'), includeManual: get('fish.includeManual'), apiKey: secret('fish.apiKey') },
+      fish: { enabled: get('fish.enabled'), model: get('fish.model'), voices: secret('fish.voices'), includeOfficial: get('fish.includeOfficial'), includeOwn: get('fish.includeOwn'), includeManual: get('fish.includeManual'), apiKey: secret('fish.apiKey') },
       fishspeech: { enabled: get('fishspeech.enabled'), baseURL: get('fishspeech.baseURL'), headers: secret('fishspeech.headers') },
       local: { enabled: get('local.enabled'), engine: get('local.engine'), baseURL: get('local.baseURL'), voice: get('local.voice'), headers: secret('local.headers') },
       system: { enabled: get('system.enabled') },

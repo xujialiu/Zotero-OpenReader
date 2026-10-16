@@ -2,7 +2,7 @@ import type { Settings } from '../settings';
 import { createAzureProvider } from './azure';
 import { createCloudflareProvider } from './cloudflare';
 import { createSpeechifyProvider } from './speechify';
-import { createFishProvider, FishVoiceCache, type FishVoiceCacheStats } from './fish';
+import { createFishProvider, FishVoiceCache, loadFishModelList, type FishModelList, type FishVoiceCacheStats } from './fish';
 import { createFishSpeechProvider } from './fishspeech';
 import { SynthesisError } from './errors';
 import { getLocalEngine } from './local/registry';
@@ -41,6 +41,11 @@ function fishCache(fetchImpl: typeof fetch): FishVoiceCache {
     fishCaches.set(key, cache);
   }
   return cache;
+}
+
+/** Fish's model list through the cache the provider reads it from (issue #182): the pane's Model dropdown and the guard of #181 share one request. */
+export function fishModelList(fetchImpl: typeof fetch): Promise<FishModelList> {
+  return loadFishModelList({ fetch: fetchImpl, cache: fishCache(fetchImpl) });
 }
 
 /** Non-secret counters for the Fish voice-list diagnostic. No account or voice identifier leaves the cache. */

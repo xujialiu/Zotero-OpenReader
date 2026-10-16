@@ -2,7 +2,7 @@
 
 ## 1a. Fish Audio: the cloud voices (issue #89, 1.11.8)
 
-Touches `zotero-tts.fish.*` (`enabled`, `apiKey`, `freeOnly`, `voices`),
+Touches `zotero-tts.fish.*` (`enabled`, `apiKey`, `model`, `voices`),
 the settings window, and a fixture tab. The account used for the first
 pass (2026-09-10) is a free one with API credit 0: the free model
 (`s2.1-pro-free`) answers, every paid model answers 402. One Test
@@ -21,10 +21,13 @@ Items 1a.1–1a.9 and 1a.14 of the checklist, under their original numbers.
    `Local`, before it), the groupbox `ztts-provider-fish`: its `h2` reads
    `Fish Audio (fish.audio)`, the host a `label[is="zotero-text-link"]`
    with `href` `https://fish.audio`; a password input on
-   `fish.apiKey`, a checkbox `Use only the free model` on `fish.freeOnly`
-   checked by default, a text input on `fish.voices` whose placeholder is
-   `ids or links from fish.audio`, three `?` (`ztts-help-fish`,
-   `ztts-help-fish-free-only`, `ztts-help-fish-voices`), `ztts-enable-fish`
+   `fish.apiKey`, the `Model` dropdown `menulist#ztts-fish-model` on
+   `fish.model` showing `s2.1-pro-free — free` by default (issue #182; it
+   replaced the checkbox `Use only the free model` on `fish.freeOnly`; its
+   entries are [1c](fish-model.md)), a text input on `fish.voices` whose
+   placeholder is `ids or links from fish.audio`, three `?`
+   (`ztts-help-fish`, `ztts-help-fish-model`, `ztts-help-fish-voices`),
+   `ztts-enable-fish`
    / `ztts-test-fish` / `ztts-test-result-fish`. The server block
    `ztts-provider-fishspeech`: a text input on `fishspeech.baseURL` showing
    `http://localhost:8080`, a **password** input on `fishspeech.headers`
@@ -32,13 +35,13 @@ Items 1a.1–1a.9 and 1a.14 of the checklist, under their original numbers.
    (`ztts-help-fish-speech` and the shared `ztts-help-extra-headers`),
    `ztts-enable-fishspeech` / `ztts-test-fishspeech` /
    `ztts-test-result-fishspeech`. `diagnostics.l10n()` → `blank: []`,
-   `questionless: []`. By eye: the field rows put their `?` in one column
-   while the checkbox row's follows its label, as the checkbox rows of the
-   Read Aloud sections do.
+   `questionless: []`. By eye: the field rows, the Model row among them,
+   put their `?` in one column.
 
 ### 1a.2
 
-2. **Test connection with nothing pasted.** Key set, `freeOnly` true,
+2. **Test connection with nothing pasted.** Key set, `model`
+   `s2.1-pro-free`,
    `voices` empty, provider off. Click `ztts-test-fish`: `Testing…` within
    2 ms, then `Connected. N voices available. Synthesis works.` The
    count includes enabled official, own, and manual sources; Default is
@@ -64,21 +67,22 @@ Items 1a.1–1a.9 and 1a.14 of the checklist, under their original numbers.
 
 ### 1a.4
 
-4. **The paid model with no credit.** Uncheck `Use only the free model`
-   (the click writes the pref: true → false). Test connection →
+4. **The paid model with no credit.** Choose `s2.1-pro — $15 per million
+   bytes` in the Model dropdown (the pick writes `fish.model`). Test
+   connection →
    `Connected, but synthesis failed: Fish Audio s2.1-pro: Fish Audio
    refused the request (402) — Insufficient API credit. API credit is
    managed independently from platform credit…` — the model named in it
-   (`s2.1-pro`, not `-free`) is what proves the switch reached the
-   request. Check the box again before going on.
+   (`s2.1-pro`, not `-free`) is what proves the choice reached the
+   request. Choose `s2.1-pro-free` again before going on.
 
 ### 1a.5
 
 5. **Enable is a commit point.** Click `ztts-enable-fish`: button and
    line read `Checking…` within ~120 ms, then at ~1.6 s the label is
    `Disable`, `fish.enabled` is true, the line holds the connection
-   message, and all three cloud fields — the checkbox included — are
-   `disabled`.
+   message, and all three cloud fields — the Model dropdown included —
+   are `disabled`.
 
 ### 1a.6
 

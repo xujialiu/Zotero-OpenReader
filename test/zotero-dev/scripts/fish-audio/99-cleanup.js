@@ -182,7 +182,7 @@
     await sleep(700);
   } catch (e) { errors.push('host restore: ' + String(e)); }
   const restored = {
-    fish: Object.fromEntries(['enabled','freeOnly','voices','includeOfficial','includeOwn','includeManual'].map(name => {
+    fish: Object.fromEntries(['enabled','model','voices','includeOfficial','includeOwn','includeManual'].map(name => {
       const key = prefix + 'fish.' + name;
       const type = p.getPrefType(key);
       let value = null;

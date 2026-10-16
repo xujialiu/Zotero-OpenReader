@@ -5,7 +5,7 @@
 Run after the baseline with a working Fish Audio API key. Preserve the
 key in Zotero only, never in a tool argument or file. Save and restore
 `fish.enabled`, `fish.voices`, `fish.includeOfficial`, `fish.includeOwn`,
-`fish.includeManual`, `fish.freeOnly`, remembered/default voices, and any
+`fish.includeManual`, `fish.model`, remembered/default voices, and any
 sync switches suspended for the run. Use one fixture and leave the owner's
 reading sessions alone. Source switches and the Model IDs field are the
 final scope; the earlier draft's community search is not shipped.

@@ -15,7 +15,7 @@
     'webdav.url', 'webdav.username', 'webdav.password', 'webdav.machineId', 'webdav.syncState',
     'webdav.autoUploadSettings', 'webdav.syncPositions', 'webdav.syncSettings',
     'readAloud.volume', 'readAloud.memory', 'reader.readAloudVoices',
-    'fish.enabled', 'fish.apiKey', 'fish.freeOnly', 'fish.voices',
+    'fish.enabled', 'fish.apiKey', 'fish.model', 'fish.voices',
     'fish.includeOfficial', 'fish.includeOwn', 'fish.includeManual',
   ];
   const read = name => {

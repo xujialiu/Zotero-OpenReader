@@ -1,7 +1,7 @@
 import { compareDocumentVoices, isDocumentVoiceKey, parseDocumentVoice } from './document-voices';
 import { convertLegacyItems } from './openai-split';
-import { DEFAULTS, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from './settings';
-import { coerceSetting, flattenSettings, type FlatSettings, type SettingValue } from './settings-backup';
+import { DEFAULTS, fishModelOfFreeOnly, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from './settings';
+import { coerceSetting, FISH_FREE_ONLY_KEY, flattenSettings, type FlatSettings, type SettingValue } from './settings-backup';
 
 /**
  * Two-way settings sync over the user's WebDAV folder (#68): the pure half.
@@ -227,7 +227,22 @@ export function parseSharedSettings(text: string): SharedItem[] {
   }
   // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts): the
   // items of a copy from before the split, read as the three sections'
-  return convertLegacyItems(parsed.items.map(asItem).filter((item): item is SharedItem => item !== null));
+  return convertFishFreeOnlyItems(convertLegacyItems(parsed.items.map(asItem).filter((item): item is SharedItem => item !== null)));
+}
+
+/**
+ * An older computer's Fish Audio switch (issue #182), read as the model it
+ * stood for: the later of that and a `fish.model` item wins. The switch's
+ * own item stays in the file for the older computers.
+ */
+export function convertFishFreeOnlyItems(items: readonly SharedItem[]): SharedItem[] {
+  const legacy = items.find((item) => item.key === FISH_FREE_ONLY_KEY);
+  const freeOnly = legacy ? coerceSetting(legacy.value, true) : undefined;
+  if (!legacy || typeof freeOnly !== 'boolean') return [...items];
+  const current = items.find((item) => item.key === 'fish.model');
+  if (current && current.ts >= legacy.ts) return [...items];
+  const derived: SharedItem = { key: 'fish.model', value: fishModelOfFreeOnly(freeOnly), ts: legacy.ts, by: legacy.by };
+  return [...items.filter((item) => item.key !== 'fish.model'), derived];
 }
 
 // ---- This machine's record ----------------------------------------------------

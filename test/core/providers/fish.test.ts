@@ -2,8 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   DEFAULT_VOICE,
   FISH_API,
-  MODEL_FREE,
-  MODEL_PAID,
+  DEFAULT_FISH_MODEL,
+  FISH_MODEL_LIST_RETRY_MS,
+  FISH_MODEL_LIST_TTL_MS,
+  FISH_MODEL_LIST_URL,
+  FISH_MODELS,
+  PAID_FISH_MODEL,
   MP3_BITRATE,
   OFFICIAL_AUTHOR_ID,
   PAGE_SIZE,
@@ -12,22 +16,42 @@ import {
   createFishProvider,
   FishVoiceCache,
   decodeFishVoice,
+  fishModelVerdict,
   fishReason,
   fishVoice,
   fishVoiceIds,
+  loadFishModelList,
   localeOfLanguages,
   mergeEvents,
+  parseFishModelList,
   parseEventStream,
   type FishConfig,
   type FishDeps,
+  type FishModelList,
 } from '../../../src/core/providers/fish';
 
-const cfg: FishConfig = { apiKey: 'sk-fish-test', freeOnly: true, voices: '' };
+const cfg: FishConfig = { apiKey: 'sk-fish-test', model: DEFAULT_FISH_MODEL, voices: '' };
 
-/** Every wait is skipped in the tests; `waits` keeps what was asked for. */
+/** An entry of Fish's compat model list, as it answered on 2026-10-16. */
+const listedModel = (id: string, prompt: string, modality = 'text->speech') => ({
+  id: `fish-audio/${id}`,
+  object: 'model',
+  owned_by: 'fish-audio',
+  architecture: { modality },
+  pricing: { prompt, completion: '0' },
+});
+const LISTED = [listedModel('s2.1-pro', '0.000015'), listedModel('s2.1-pro-free', '0'), listedModel('s2-pro', '0.000015'), listedModel('s1', '0.000015'), listedModel('transcribe-1', '0.0001', 'audio->text')];
+const listing = (data: unknown[] = LISTED) => Response.json({ data, links: { next: null }, total_count: data.length });
+
+/**
+ * Every wait is skipped in the tests; `waits` keeps what was asked for.
+ * Fish's model list (issue #181) answers from `list` and never reaches
+ * `fetchImpl`, so the calls a test counts are its own.
+ */
 let waits: number[] = [];
-function provider(fetchImpl: unknown, over: Partial<FishConfig> = {}, deps: Partial<FishDeps> = {}) {
-  return createFishProvider({ ...cfg, ...over }, { fetch: fetchImpl as typeof fetch, wait: async (ms) => void waits.push(ms), ...deps });
+function provider(fetchImpl: unknown, over: Partial<FishConfig> = {}, deps: Partial<FishDeps> = {}, list: () => Response | Promise<Response> = () => listing()) {
+  const routed = (async (url: string, init?: RequestInit) => (url === FISH_MODEL_LIST_URL ? list() : (fetchImpl as typeof fetch)(url, init))) as typeof fetch;
+  return createFishProvider({ ...cfg, ...over }, { fetch: routed, wait: async (ms) => void waits.push(ms), ...deps });
 }
 
 const controller = new AbortController();
@@ -685,7 +709,7 @@ describe('synthesize', () => {
     const { url, init, body } = call(fetchImpl);
     expect(url).toBe(`${FISH_API}/v1/tts/stream/with-timestamp`);
     expect(init.method).toBe('POST');
-    expect(init.headers).toEqual({ Authorization: 'Bearer sk-fish-test', 'Content-Type': 'application/json', model: MODEL_FREE });
+    expect(init.headers).toEqual({ Authorization: 'Bearer sk-fish-test', 'Content-Type': 'application/json', model: DEFAULT_FISH_MODEL });
     expect(init.signal).toBe(controller.signal);
     expect(body).toEqual({ text: 'Hello, world!', reference_id: ID_A, format: 'mp3', mp3_bitrate: MP3_BITRATE, latency: 'normal' });
     expect(result.audio.type).toBe('audio/mpeg');
@@ -694,13 +718,13 @@ describe('synthesize', () => {
       { start: 0, end: 0.4, charStart: 0, charEnd: 5 },
       { start: 0.4, end: 0.86, charStart: 7, charEnd: 12 },
     ]);
-    expect(result.note).toBe(MODEL_FREE);
+    expect(result.note).toBe(DEFAULT_FISH_MODEL);
   });
 
-  it('names the paid model in the header when the switch is off, and sends no reference for the default voice', async () => {
+  it('names the chosen model in the header, and sends no reference for the default voice', async () => {
     const fetchImpl = vi.fn(async () => stream(event(MP3_A, [['Hi', 0, 0.3]])));
-    await provider(fetchImpl, { freeOnly: false }).synthesize('Hi', DEFAULT);
-    expect(call(fetchImpl).init.headers.model).toBe(MODEL_PAID);
+    await provider(fetchImpl, { model: 'drama-3' }).synthesize('Hi', DEFAULT);
+    expect(call(fetchImpl).init.headers.model).toBe('drama-3');
     expect(call(fetchImpl).body).toEqual({ text: 'Hi', format: 'mp3', mp3_bitrate: MP3_BITRATE, latency: 'normal' });
   });
 
@@ -711,14 +735,14 @@ describe('synthesize', () => {
       { start: 0, end: 0.5, charStart: 0, charEnd: 3 },
       { start: 0.6, end: 0.9, charStart: 4, charEnd: 7 },
     ]);
-    expect(result.note).toBe(`${MODEL_FREE}, 2 chunks`);
+    expect(result.note).toBe(`${DEFAULT_FISH_MODEL}, 2 chunks`);
   });
 
   it('falls back to the sentence with a note when no event carried an alignment', async () => {
     const fetchImpl = vi.fn(async () => stream(event(MP3_A, null), event(MP3_B, null)));
     const result = await provider(fetchImpl).synthesize('Hello', NARRATOR);
     expect(result.timestamps).toBeUndefined();
-    expect(result.note).toBe(`${MODEL_FREE}: no word timings in the stream`);
+    expect(result.note).toBe(`${DEFAULT_FISH_MODEL}: no word timings in the stream`);
     expect([...new Uint8Array(await result.audio.arrayBuffer())]).toEqual([...MP3_A, ...MP3_B]);
   });
 
@@ -756,8 +780,8 @@ describe('synthesize', () => {
   it('reports 401 as the key, 402 as the credit, and a 400 with the server\'s reason', async () => {
     await expect(provider(vi.fn(async () => refusal(401, 'Invalid Token'))).synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'auth', message: expect.stringContaining('Invalid Token') });
     const credit = 'Insufficient API credit. API credit is managed independently from platform credit.';
-    await expect(provider(vi.fn(async () => refusal(402, credit, { 'x-fish-error-code': 'insufficient_balance' })), { freeOnly: false }).synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'quota', message: expect.stringContaining('Insufficient API credit') });
-    await expect(provider(vi.fn(async () => refusal(400, 'Reference not found'))).synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'unknown', message: `Fish Audio ${MODEL_FREE}: HTTP 400 — Reference not found` });
+    await expect(provider(vi.fn(async () => refusal(402, credit, { 'x-fish-error-code': 'insufficient_balance' })), { model: PAID_FISH_MODEL }).synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'quota', message: expect.stringContaining('Insufficient API credit') });
+    await expect(provider(vi.fn(async () => refusal(400, 'Reference not found'))).synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'unknown', message: `Fish Audio ${DEFAULT_FISH_MODEL}: HTTP 400 — Reference not found` });
   });
 
   it('reads the gateway\'s balance header as the credit whatever the status', async () => {
@@ -778,7 +802,7 @@ describe('synthesize', () => {
     const result = await provider(fetchImpl).synthesize('Hi', NARRATOR);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     expect(waits).toEqual([RETRY_DELAY_MS]);
-    expect(result.note).toBe(`${MODEL_FREE} after a retry of HTTP 502`);
+    expect(result.note).toBe(`${DEFAULT_FISH_MODEL} after a retry of HTTP 502`);
     await expect(provider(vi.fn(async () => new Response('down', { status: 503 }))).synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'unknown', message: expect.stringContaining('503') });
   });
 
@@ -809,5 +833,113 @@ describe('the checks', () => {
     const p = provider(vi.fn());
     expect(p.id).toBe('fish');
     expect(p.capabilities.wordTimestamps).toBe(true);
+  });
+});
+
+describe('the model (issues #181, #182)', () => {
+  const at = (iso: string) => Date.parse(iso);
+  const BEFORE = at('2026-10-16T12:00:00Z');
+  const LAST_FREE_DAY = at('2026-11-30T23:59:59Z');
+  const AFTER = at('2026-12-01T00:00:00Z');
+  const read = (entries: Record<string, boolean>): FishModelList => ({ ok: true, models: new Map(Object.entries(entries).map(([id, free]) => [id, { free }])) });
+  const unread: FishModelList = { ok: false, reason: 'HTTP 503' };
+
+  it('knows the four models Fish serves that are not retiring, the free one first, drama-3 at its regular price', () => {
+    expect(FISH_MODELS.map((m) => m.id)).toEqual(['s2.1-pro-free', 's2.1-pro', 'drama-3', 's2-pro']);
+    expect(FISH_MODELS[0]).toEqual({ id: DEFAULT_FISH_MODEL, price: { free: true }, freeThrough: '2026-11-30' });
+    expect(FISH_MODELS.find((m) => m.id === 'drama-3')?.price).toEqual({ free: false, usdPerMillion: 50, unit: 'character' });
+    expect(PAID_FISH_MODEL).toBe('s2.1-pro');
+  });
+
+  it('reads the text-to-speech entries of Fish\'s list by the id the model header takes, free or not', () => {
+    const models = parseFishModelList({ data: LISTED });
+    expect([...models.keys()]).toEqual(['s2.1-pro', 's2.1-pro-free', 's2-pro', 's1']);
+    expect(models.get('s2.1-pro-free')).toEqual({ free: true });
+    expect(models.get('s2.1-pro')).toEqual({ free: false });
+    // No price at all is not free
+    expect(parseFishModelList({ data: [{ id: 'fish-audio/x-1', architecture: { modality: 'text->speech' } }] }).get('x-1')).toEqual({ free: false });
+    expect(parseFishModelList({ data: [{ id: 'other/x', architecture: { modality: 'text->speech' }, pricing: { prompt: '0' } }] }).size).toBe(0);
+    expect(() => parseFishModelList({ error: 'nope' })).toThrow();
+  });
+
+  it('reads a paid model it knows without the list, and refuses one past its retirement', () => {
+    expect(fishModelVerdict('s2.1-pro', unread, AFTER)).toEqual({ ok: true });
+    expect(fishModelVerdict('drama-3', read({}), AFTER)).toEqual({ ok: true });
+    const known = [{ id: 'old-1', price: { free: false as const, usdPerMillion: 15, unit: 'byte' as const }, retiresOn: '2026-12-31' }];
+    expect(fishModelVerdict('old-1', unread, at('2026-12-30T23:59:59Z'), known)).toEqual({ ok: true });
+    expect(fishModelVerdict('old-1', read({ 'old-1': false }), at('2026-12-31T00:00:00Z'), known)).toEqual({ ok: false, kind: 'model-gone', reason: 'Fish Audio retired the model old-1 on 2026-12-31' });
+  });
+
+  it('reads the free model while Fish lists it at no price, and refuses it at a price or off the list, whatever the date', () => {
+    expect(fishModelVerdict(DEFAULT_FISH_MODEL, read({ [DEFAULT_FISH_MODEL]: true }), AFTER)).toEqual({ ok: true });
+    expect(fishModelVerdict(DEFAULT_FISH_MODEL, read({ [DEFAULT_FISH_MODEL]: false }), BEFORE)).toMatchObject({ ok: false, kind: 'model-not-free' });
+    expect(fishModelVerdict(DEFAULT_FISH_MODEL, read({ 's2.1-pro': false }), BEFORE)).toMatchObject({ ok: false, kind: 'model-gone', reason: `Fish Audio no longer lists the model ${DEFAULT_FISH_MODEL}` });
+  });
+
+  it('reads the free model through its announced last day when the list cannot be read, and refuses it after', () => {
+    expect(fishModelVerdict(DEFAULT_FISH_MODEL, unread, BEFORE)).toEqual({ ok: true });
+    expect(fishModelVerdict(DEFAULT_FISH_MODEL, unread, LAST_FREE_DAY)).toEqual({ ok: true });
+    expect(fishModelVerdict(DEFAULT_FISH_MODEL, unread, AFTER)).toEqual({
+      ok: false,
+      kind: 'model-not-free',
+      reason: `free access to ${DEFAULT_FISH_MODEL} was announced through 2026-11-30, and Fish Audio's model list could not be read to confirm ${DEFAULT_FISH_MODEL} is still free (HTTP 503)`,
+    });
+  });
+
+  it('reads a model only Fish\'s list knew while the list carries it', () => {
+    expect(fishModelVerdict('s1', read({ s1: false }), BEFORE)).toEqual({ ok: true });
+    expect(fishModelVerdict('s1', read({}), BEFORE)).toMatchObject({ ok: false, kind: 'model-gone' });
+    expect(fishModelVerdict('s1', unread, BEFORE)).toMatchObject({ ok: false, kind: 'model-gone', reason: expect.stringContaining('HTTP 503') });
+  });
+
+  it('asks Fish\'s list once for many sentences, without the key, and again after it has stood its time', async () => {
+    const lists = vi.fn(() => listing());
+    let now = BEFORE;
+    const fetchImpl = vi.fn(async () => stream(event(MP3_A, [['Hi', 0, 0.3]])));
+    const p = provider(fetchImpl, {}, { cache: new FishVoiceCache(), now: () => now }, lists);
+    await Promise.all([p.synthesize('Hi', NARRATOR), p.synthesize('Hi', NARRATOR), p.synthesize('Hi', NARRATOR)]);
+    expect(lists).toHaveBeenCalledTimes(1);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    now += FISH_MODEL_LIST_TTL_MS;
+    await p.synthesize('Hi', NARRATOR);
+    expect(lists).toHaveBeenCalledTimes(2);
+  });
+
+  it('asks nothing of Fish\'s list for a paid model it knows', async () => {
+    const lists = vi.fn(() => listing());
+    await provider(vi.fn(async () => stream(event(MP3_A, [['Hi', 0, 0.3]]))), { model: 'drama-3' }, {}, lists).synthesize('Hi', NARRATOR);
+    expect(lists).not.toHaveBeenCalled();
+  });
+
+  it('sends no request for a free model Fish lists at a price, and says why', async () => {
+    const fetchImpl = vi.fn();
+    const priced = () => listing([listedModel(DEFAULT_FISH_MODEL, '0.000015')]);
+    await expect(provider(fetchImpl, {}, {}, priced).synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'model-not-free', retriable: false });
+    await expect(provider(fetchImpl, {}, {}, priced).checkSynthesis!(`mul/${DEFAULT_VOICE}`)).rejects.toMatchObject({ kind: 'model-not-free' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('keeps reading the free model while the list is down before its last day, and holds a failed read a while', async () => {
+    const lists = vi.fn(async (): Promise<Response> => {
+      throw new TypeError('NetworkError when attempting to fetch resource.');
+    });
+    let now = BEFORE;
+    const fetchImpl = vi.fn(async () => stream(event(MP3_A, [['Hi', 0, 0.3]])));
+    const p = provider(fetchImpl, {}, { cache: new FishVoiceCache(), now: () => now }, lists);
+    await p.synthesize('Hi', NARRATOR);
+    await p.synthesize('Hi', NARRATOR);
+    expect(lists).toHaveBeenCalledTimes(1);
+    now = AFTER + FISH_MODEL_LIST_RETRY_MS;
+    await expect(p.synthesize('Hi', NARRATOR)).rejects.toMatchObject({ kind: 'model-not-free', message: expect.stringContaining('NetworkError') });
+    expect(lists).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it('bounds the list\'s read, and gives its reason rather than throwing', async () => {
+    const cache = new FishVoiceCache();
+    const hung = (() => new Promise<Response>(() => {})) as unknown as typeof fetch;
+    expect(await loadFishModelList({ fetch: hung, cache, timeoutMs: 10 })).toEqual({ ok: false, reason: 'no reply within 0.01 s' });
+    const notJSON = (async () => new Response('<html>')) as unknown as typeof fetch;
+    expect(await loadFishModelList({ fetch: notJSON, cache: new FishVoiceCache() })).toMatchObject({ ok: false });
   });
 });

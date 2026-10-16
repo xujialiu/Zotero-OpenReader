@@ -31,6 +31,12 @@ describe('toZoteroError', () => {
     expect(toZoteroError(new SynthesisError('rate-limit'))).toBe('quota-exceeded');
   });
 
+  it('passes the Fish Audio model refusals through for the Player to word (issue #181)', () => {
+    expect(toZoteroError(new SynthesisError('model-not-free'))).toBe('model-not-free');
+    expect(toZoteroError(new SynthesisError('model-gone'))).toBe('model-gone');
+    expect(new SynthesisError('model-gone').retriable).toBe(false);
+  });
+
   it('maps anything else to unknown', () => {
     expect(toZoteroError(new SynthesisError('no-key'))).toBe('unknown');
     expect(toZoteroError(new Error('boom'))).toBe('unknown');

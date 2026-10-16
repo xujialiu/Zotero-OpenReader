@@ -10,7 +10,7 @@
     'cacheAudio',
     'prefetchEnabled',
     'fish.enabled',
-    'fish.freeOnly',
+    'fish.model',
     'fish.voices',
     'fish.includeOfficial',
     'fish.includeOwn',

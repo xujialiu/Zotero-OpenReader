@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:3de51aab3a51 -->
+<!-- translated-from: README.md sha256:b3952af026e1 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -49,7 +49,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 
 **先从 Fish Audio 开始。**下面这些里，它是最值得先试的一个：
 
-- **免费。**它的免费模型想读多少读多少，不花钱，账户上也不用留余额。
+- **免费。**它的免费模型想读多少读多少，不花钱，账户上也不用留余额，只要 Fish Audio 还让它免费：已公布免费到 2026 年 11 月 30 日。
 - **拿密钥不用信用卡。**到 [fish.audio](https://fish.audio) 注册、创建密钥、粘贴进来就行——不用信用卡，也不用填账单信息。
 - **83 种语言**，而且是逐词高亮。
 - **语音是这里面最好听的**——Fish Audio 官方的、它的用户发布的，还有你自己用录音克隆的。
@@ -61,7 +61,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 | **Azure Speech** | 语音资源的密钥和区域 · [教程](tutorials/azure-speech-free-tier.zh.md) | 免费额度：每月 50 万字符 | 逐词；名字里带 *MAI-Voice-2* 的语音逐句 |
 | **Cloudflare Workers AI** | 账户 ID 和 API 令牌 · [教程](tutorials/cloudflare-workers-ai.zh.md) | 每天 10,000 个免费 Neurons：Aura 语音够读几页，MeloTTS 够读几个小时 | 逐句 |
 | **Speechify** | 一个 platform.speechify.ai 的 API 密钥 · 36 种语言，没有普通话 | 免费：每月 50,000 字符，约十几页；之后每月 10 美元 100 万字符 | 逐词 |
-| **Fish Audio** | 一个 fish.audio 的 API 密钥 · 官方语音、你自己克隆的语音，以及 Model ID，每种来源都有独立开关 · [教程](tutorials/fish-audio.zh.md) | 免费模型不花钱、不限量、不保证速度；付费模型每百万字节文本 15 美元，一个汉字算三个字节 | 逐词 |
+| **Fish Audio** | 一个 fish.audio 的 API 密钥 · 可选模型 · 官方语音、你自己克隆的语音，以及 Model ID，每种来源都有独立开关 · [教程](tutorials/fish-audio.zh.md) | 免费模型不花钱、不限量、不保证速度，免费到 Fish Audio 公布的日期为止；付费模型每百万字节文本 15 美元起，一个汉字算三个字节 | 逐词 |
 | **Kokoro-FastAPI** | 一台跑在本机或局域网里的服务器 · [教程](tutorials/kokoro-fastapi.zh.md) | 免费；CPU 也能跑，有 GPU 更快 | 逐词 |
 | **Fish Speech** | 一台跑在 24 GB 显卡上的 [fish-speech](https://github.com/fishaudio/fish-speech) 服务器，语音由你自己的录音克隆而来 · [教程](tutorials/fish-speech-server.zh.md) | 免费 | 逐句 |
 | **OpenAI** | 一个 platform.openai.com 的 API 密钥 | 按字符计费 | 逐句 |

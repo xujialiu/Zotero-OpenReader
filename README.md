@@ -53,7 +53,8 @@ is built for the way its author reads —
 **Start with Fish Audio.** Of everything below, it is the one to try first:
 
 - **Free.** Its free model reads as much as you like, with nothing to pay
-  and no balance to keep on the account.
+  and no balance to keep on the account, for as long as Fish Audio keeps
+  it free: announced through November 30, 2026.
 - **A key without a credit card.** Sign up at
   [fish.audio](https://fish.audio), create the key, paste it in — no card,
   no billing details.
@@ -68,7 +69,7 @@ is built for the way its author reads —
 | **Azure Speech** | Speech resource key + region · [tutorial](tutorials/azure-speech-free-tier.md) | Free tier: 500,000 characters a month | word; sentence for the voices named *MAI-Voice-2* |
 | **Cloudflare Workers AI** | Account ID + API token · [tutorial](tutorials/cloudflare-workers-ai.md) | 10,000 free Neurons a day: a few pages with an Aura voice, hours with MeloTTS | sentence |
 | **Speechify** | An API key from platform.speechify.ai · 36 languages, no Mandarin | Free: 50,000 characters a month, about fifteen pages; then $10 a month for a million | word |
-| **Fish Audio** | An API key from fish.audio · official voices, your own clones, and Model IDs, with a switch for each source · [tutorial](tutorials/fish-audio.md) | Free with its free model: no cap, no guarantee; the paid one $15 per million bytes of text, three per Chinese character | word |
+| **Fish Audio** | An API key from fish.audio · a choice of model · official voices, your own clones, and Model IDs, with a switch for each source · [tutorial](tutorials/fish-audio.md) | Free with its free model: no cap, no guarantee, until the date Fish Audio announced; the paid models from $15 per million bytes of text, three per Chinese character | word |
 | **Kokoro-FastAPI** | A server on your machine or LAN · [tutorial](tutorials/kokoro-fastapi.md) | Free; CPU works, a GPU is faster | word |
 | **Fish Speech** | A [fish-speech](https://github.com/fishaudio/fish-speech) server on a 24 GB GPU, with voices cloned from your own recordings · [tutorial](tutorials/fish-speech-server.md) | Free | sentence |
 | **OpenAI** | An API key from platform.openai.com | Billed per character | sentence |

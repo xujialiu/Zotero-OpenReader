@@ -7,7 +7,7 @@
   set('readAloud.stripAngleBrackets', true);
   set('readAloud.bracketPairs', '<> []');
   set('fish.enabled', true);
-  set('fish.freeOnly', true);
+  set('fish.model', true);
   set('prefetchEnabled', false);
   if (!Zotero.Debug.storing) Zotero.Debug.setStore(true);
   const read = suffix => ({
@@ -36,7 +36,7 @@
     stripAngleBrackets: read('readAloud.stripAngleBrackets'),
     bracketPairs: read('readAloud.bracketPairs'),
     fishEnabled: read('fish.enabled'),
-    fishFreeOnly: read('fish.freeOnly'),
+    fishFreeOnly: read('fish.model'),
     prefetchEnabled: read('prefetchEnabled'),
     debugStoring: !!Zotero.Debug.storing,
     file,

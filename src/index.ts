@@ -16,7 +16,7 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t, type L10nArgs } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateLegacyProviderPref, migrateSyncPositionsDefault, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
+import { autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateFishFreeOnly, migrateLegacyProviderPref, migrateSyncPositionsDefault, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
 import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, legacyPrefSet, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
@@ -314,6 +314,8 @@ function playerMessage(key: string, args?: L10nArgs): string {
     'ztts-player-invalid-value': t('ztts-player-invalid-value'),
     'ztts-player-playback-error': t('ztts-player-playback-error'),
     'ztts-player-quota-error': t('ztts-player-quota-error'),
+    'ztts-player-fish-not-free': t('ztts-player-fish-not-free'),
+    'ztts-player-fish-model-gone': t('ztts-player-fish-model-gone'),
     'ztts-player-favorite-guard': t('ztts-player-favorite-guard'),
   };
   // A Zotero voice's account errors (issue #140) name its tier
@@ -326,7 +328,7 @@ function playerMessage(key: string, args?: L10nArgs): string {
 /** The cache key includes a config fingerprint, so old audio automatically invalidates after a provider's configuration changes. */
 function cacheVersion(): string {
   const s = loadSettings(prefs);
-  return [pluginVersion, s['openai-official'].model, s.mimo.model, s.compatible.baseURL, s.compatible.model, s.azure.region, s.local.engine, s.local.baseURL].join('|');
+  return [pluginVersion, s['openai-official'].model, s.mimo.model, s.compatible.baseURL, s.compatible.model, s.azure.region, s.fish.model, s.local.engine, s.local.baseURL].join('|');
 }
 
 /**
@@ -2615,6 +2617,14 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
         'Reading positions sync default',
         () => {
           if (migrateSyncPositionsDefault(prefs)) Zotero.debug('[zotero-tts] the reading positions sync stays off: it was off with the folder set up');
+        },
+      ],
+      // Before the settings pane and the sync: the free switch's Off reads
+      // on as the paid model (issue #182)
+      [
+        'Fish Audio model',
+        () => {
+          if (migrateFishFreeOnly(prefs)) Zotero.debug('[zotero-tts] Fish Audio reads with s2.1-pro: the free-model switch was off');
         },
       ],
       // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts):

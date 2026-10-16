@@ -1,3 +1,4 @@
+import { DEFAULT_FISH_MODEL, PAID_FISH_MODEL } from './providers/fish';
 import type { ProviderId } from './providers/types';
 import type { ShortcutAction } from './shortcut-actions';
 import { VOLUME_DEFAULT, VOLUME_MAX, VOLUME_MIN } from './read-aloud-volume';
@@ -74,11 +75,12 @@ export interface Settings {
   speechify: { enabled: boolean; apiKey: string };
   /**
    * Fish Audio's cloud API (core/providers/fish.ts, issue #89): one key;
-   * `freeOnly` sends every request to the free model, off to the paid one;
+   * `model` is the model every request names (issue #182, which replaced
+   * the `freeOnly` switch: migrateFishFreeOnly);
    * Each voice source is independent; disabling manual voices retains
    * the pasted ids and links in `voices`.
    */
-  fish: { enabled: boolean; apiKey: string; freeOnly: boolean; voices: string; includeOfficial: boolean; includeOwn: boolean; includeManual: boolean };
+  fish: { enabled: boolean; apiKey: string; model: string; voices: string; includeOfficial: boolean; includeOwn: boolean; includeManual: boolean };
   /** A Fish Speech server of the user's own (core/providers/fishspeech.ts, issue #89); `headers` as compatible.headers. */
   fishspeech: { enabled: boolean; baseURL: string; headers: string };
   /** `headers`: extra request headers for a gateway in front of the server, same format as compatible.headers. */
@@ -257,7 +259,7 @@ export const DEFAULTS: Settings = {
   azure: { enabled: false, apiKey: '', region: 'eastasia', voice: 'zh-CN-XiaoxiaoNeural' },
   cloudflare: { enabled: false, accountId: '', apiToken: '' },
   speechify: { enabled: false, apiKey: '' },
-  fish: { enabled: false, apiKey: '', freeOnly: true, voices: '', includeOfficial: true, includeOwn: false, includeManual: false },
+  fish: { enabled: false, apiKey: '', model: DEFAULT_FISH_MODEL, voices: '', includeOfficial: true, includeOwn: false, includeManual: false },
   fishspeech: { enabled: false, baseURL: 'http://localhost:8080', headers: '' },
   local: { enabled: false, engine: 'kokoro', baseURL: 'http://localhost:8880', voice: 'af_bella', headers: '' },
   system: { enabled: false },
@@ -396,7 +398,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
     fish: {
       enabled: bool(prefs, 'fish.enabled', DEFAULTS.fish.enabled),
       apiKey: str(prefs, 'fish.apiKey', DEFAULTS.fish.apiKey),
-      freeOnly: bool(prefs, 'fish.freeOnly', DEFAULTS.fish.freeOnly),
+      model: str(prefs, 'fish.model', DEFAULTS.fish.model),
       voices: str(prefs, 'fish.voices', DEFAULTS.fish.voices),
       includeOfficial: bool(prefs, 'fish.includeOfficial', DEFAULTS.fish.includeOfficial),
       includeOwn: bool(prefs, 'fish.includeOwn', DEFAULTS.fish.includeOwn),
@@ -544,6 +546,35 @@ export function migrateLegacyProviderPref(prefs: PrefsBackend): boolean {
   if (prefs.clear) prefs.clear(legacyKey);
   else prefs.set(legacyKey, '');
   return true;
+}
+
+/** The Fish Audio switch issue #182 replaced, by its full pref name. */
+export const FISH_FREE_ONLY_PREF = PREF_PREFIX + 'fish.freeOnly';
+
+/** The model the free switch stood for: On the free one, Off the paid one (issue #182). */
+export function fishModelOfFreeOnly(freeOnly: boolean): string {
+  return freeOnly ? DEFAULT_FISH_MODEL : PAID_FISH_MODEL;
+}
+
+/**
+ * Builds before issue #182 chose the Fish Audio model with a switch, on by
+ * default. Its Off becomes the paid model, unless a model was already
+ * chosen, and the switch's pref is cleared so this runs once. Only a user
+ * value counts: Gecko keeps the old default registered after an in-place
+ * upgrade (issue #113), and an On equal to that default was never stored.
+ * Returns whether the paid model was written.
+ */
+export function migrateFishFreeOnly(prefs: PrefsBackend): boolean {
+  const held = prefs.has ? prefs.has(FISH_FREE_ONLY_PREF) : prefs.get(FISH_FREE_ONLY_PREF) !== undefined;
+  if (!held) return false;
+  const freeOnly = prefs.get(FISH_FREE_ONLY_PREF);
+  const modelKey = PREF_PREFIX + 'fish.model';
+  const chosen = prefs.has ? prefs.has(modelKey) : prefs.get(modelKey) !== undefined;
+  const paid = freeOnly === false && !chosen;
+  if (paid) prefs.set(modelKey, fishModelOfFreeOnly(false));
+  if (prefs.clear) prefs.clear(FISH_FREE_ONLY_PREF);
+  else prefs.set(FISH_FREE_ONLY_PREF, undefined);
+  return paid;
 }
 
 /** The WebDAV folder's switches that use it: the sync both ways and the server backup. */

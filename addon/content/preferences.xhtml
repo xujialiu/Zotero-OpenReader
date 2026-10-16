@@ -84,10 +84,11 @@
     </hbox>
   </groupbox>
 
-  <!-- Fish Audio (issues #89, #112): the cloud API behind one key, with a
-       switch that keeps every request on the free model and independent
-       sources for official voices, your voices and Model IDs. The heading
-       names the site as a link, like every section with one. -->
+  <!-- Fish Audio (issues #89, #112, #182): the cloud API behind one key,
+       the model every voice reads with (filled by ui/fish-model-rows.ts)
+       and independent sources for official voices, your voices and Model
+       IDs. The heading names the site as a link, like every section with
+       one. -->
   <groupbox id="ztts-provider-fish">
     <label><html:h2>Fish Audio (<label is="zotero-text-link" href="https://fish.audio">fish.audio</label>)</html:h2></label>
     <hbox align="center">
@@ -96,8 +97,9 @@
       <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
-      <checkbox data-l10n-id="ztts-fish-free-only" preference="extensions.zotero.zotero-tts.fish.freeOnly"/>
-      <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-free-only" data-l10n-attrs="help"/>
+      <label data-l10n-id="ztts-field-model" class="ztts-field-label"/>
+      <menulist id="ztts-fish-model"><menupopup/></menulist>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-fish-model" data-l10n-attrs="help"/>
     </hbox>
     <hbox align="center">
       <description class="ztts-field-label ztts-fish-voices-label" data-l10n-id="ztts-field-fish-voices">

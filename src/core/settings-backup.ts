@@ -1,6 +1,9 @@
 import { documentVoiceSettings, isDocumentVoiceKey, parseDocumentVoice } from './document-voices';
 import { convertLegacySettings } from './openai-split';
-import { DEFAULTS, loadSettings, PREF_PREFIX, type PrefsBackend, type Settings } from './settings';
+import { DEFAULTS, fishModelOfFreeOnly, loadSettings, PREF_PREFIX, type PrefsBackend, type Settings } from './settings';
+
+/** The Fish Audio switch issue #182 replaced, as a backup or the sync names it. */
+export const FISH_FREE_ONLY_KEY = 'fish.freeOnly';
 
 /**
  * The settings as one JSON file, for moving them to another machine or
@@ -123,6 +126,14 @@ export function parseBackup(text: string): ParsedBackup {
     const value = like === undefined ? undefined : coerceSetting(raw, like);
     if (value === undefined) ignored.push(key);
     else settings[key] = value;
+  }
+  // A file from before issue #182 chose the Fish Audio model with the free
+  // switch: read as the model it stood for, unless the file names one
+  const freeOnly = coerceSetting(backup.settings[FISH_FREE_ONLY_KEY], true);
+  if (typeof freeOnly === 'boolean') {
+    if (!('fish.model' in settings)) settings['fish.model'] = fishModelOfFreeOnly(freeOnly);
+    const at = ignored.indexOf(FISH_FREE_ONLY_KEY);
+    if (at >= 0) ignored.splice(at, 1);
   }
   // A file from before the WebDAV folder's switch (issue #172) used the
   // folder whenever it held an address: the upgrade's rule, and the

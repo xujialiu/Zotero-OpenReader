@@ -13,8 +13,8 @@ import {
 } from './types';
 
 /**
- * Fish Audio's cloud API (issue #89): S2.1 Pro over the route that returns
- * word timings, behind one key. Measured against the live API on
+ * Fish Audio's cloud API (issue #89): the model the user chose (issue
+ * #182) over the route that returns word timings, behind one key. Measured against the live API on
  * 2026-09-10 (notes/NOTES_2026-09-10.md):
  * - a voice is a model of the official library, an account's own model, or a
  *   model id the user supplied; the three sources are independently optional,
@@ -34,8 +34,8 @@ import {
  */
 export type FishConfig = {
   apiKey: string;
-  /** Every request goes to the free model; off, to the paid one. */
-  freeOnly: boolean;
+  /** The `model` header of every request (issue #182); empty means DEFAULT_FISH_MODEL. */
+  model: string;
   /** What the user pasted: ids or links, any separators. */
   voices: string;
   /** Include the Fish Official account's voices; omitted means enabled for compatibility. */
@@ -56,12 +56,11 @@ export type FishDeps = {
   timeoutMs?: number;
   /** Obtain a controller from the chrome window for one shared listing load; absent in the plugin sandbox. */
   newAbortController?: () => AbortController | null;
+  /** The clock the model's dates are read against (issue #181); `Date.now` when absent. */
+  now?: () => number;
 };
 
 export const FISH_API = 'https://api.fish.audio';
-/** The same model either way: the free one wants no API credit, the paid one bills per UTF-8 byte (docs, 2026-09-10). */
-export const MODEL_FREE = 's2.1-pro-free';
-export const MODEL_PAID = 's2.1-pro';
 /** Half the bytes of the 128 kbps default, at the same latency (measured 2026-09-10). */
 export const MP3_BITRATE = 64;
 /** The most the list route gives per page (422 above it). */
@@ -105,6 +104,8 @@ export type FishVoiceCacheStats = {
 
 /** Session-only Fish voice data. It deliberately contains no API keys outside map keys held in memory. */
 export class FishVoiceCache {
+  /** Fish's model list (issue #181): keyless, so one for every account; never counted in the stats, which are the voices'. */
+  readonly models: { value?: FishModelList; expires: number; inFlight?: Promise<FishModelList> } = { expires: 0 };
   readonly official = new Map<string, CacheSlot<FishListSnapshot>>();
   readonly own = new Map<string, CacheSlot<FishListSnapshot>>();
   readonly pasted = new Map<string, Map<string, VoiceInfo>>();
@@ -133,6 +134,140 @@ export class FishVoiceCache {
 /** Every 32-hex id in what was pasted — ids, links such as `https://fish.audio/m/<id>/`, any separators — once each, lowercased. */
 export function fishVoiceIds(text: string): string[] {
   return [...new Set((text.match(MODEL_ID) ?? []).map((id) => id.toLowerCase()))];
+}
+
+/**
+ * A model the plugin knows (issue #182): what the `model` header takes,
+ * its price, and the dates Fish has announced for it.
+ */
+export type FishModelInfo = {
+  id: string;
+  /** Free, or the regular price in US dollars per million of `unit`. */
+  price: { free: true } | { free: false; usdPerMillion: number; unit: 'byte' | 'character' };
+  /** The free model's last free day, as Fish announced it (UTC). */
+  freeThrough?: string;
+  /** The first day Fish no longer serves the model as itself (UTC): it then answers, and bills, as s2.1-pro. */
+  retiresOn?: string;
+};
+
+/**
+ * The models the plugin knows, in the dropdown's order (2026-10-16:
+ * docs.fish.audio's price page, the drama-3 launch post, the free-API
+ * post): drama-3 at its regular price, not its launch offer; `s1` left
+ * out, deprecated and retiring on 2026-12-31. A model Fish announces a
+ * retirement for gets its `retiresOn` here (issue #181).
+ */
+export const FISH_MODELS: readonly FishModelInfo[] = [
+  { id: 's2.1-pro-free', price: { free: true }, freeThrough: '2026-11-30' },
+  { id: 's2.1-pro', price: { free: false, usdPerMillion: 15, unit: 'byte' } },
+  { id: 'drama-3', price: { free: false, usdPerMillion: 50, unit: 'character' } },
+  { id: 's2-pro', price: { free: false, usdPerMillion: 15, unit: 'byte' } },
+];
+/** The model a new profile reads with, and what the free switch's On became. */
+export const DEFAULT_FISH_MODEL = 's2.1-pro-free';
+/** What the free switch's Off became (issue #182). */
+export const PAID_FISH_MODEL = 's2.1-pro';
+
+export function knownFishModel(id: string): FishModelInfo | undefined {
+  return FISH_MODELS.find((model) => model.id === id);
+}
+
+/** Fish's own model list, keyless: the OpenAI-compatible catalog, the one route that lists the models rather than the voices. */
+export const FISH_MODEL_LIST_URL = `${FISH_API}/compat/v1/models`;
+export const FISH_MODEL_LIST_TIMEOUT_MS = 5000;
+/** How long a list that was read stands before it is asked for again. */
+export const FISH_MODEL_LIST_TTL_MS = 30 * 60_000;
+/** How long a failed read stands, so a list route that is down does not hold up every sentence. */
+export const FISH_MODEL_LIST_RETRY_MS = 5 * 60_000;
+
+/** Fish's list as read: each text-to-speech model by its `model` header id, with whether it is listed free; or why it could not be read. */
+export type FishModelList = { ok: true; models: ReadonlyMap<string, { free: boolean }> } | { ok: false; reason: string };
+
+/**
+ * The text-to-speech entries of the compat catalog (measured 2026-10-16):
+ * `{ data: [{ id: "fish-audio/s2.1-pro", architecture: { modality:
+ * "text->speech" }, pricing: { prompt: "0.000015" } }] }`, beside a
+ * transcription model as `audio->text`. The id without its prefix is what
+ * the `model` header takes (the five agree with openapi.json's enum). The
+ * price says free or not and no more: it carries no unit, and drama-3
+ * bills by the character where the others bill by the byte. Throws on a
+ * reply of another shape.
+ */
+export function parseFishModelList(json: unknown): Map<string, { free: boolean }> {
+  const data = (json as { data?: unknown } | null)?.data;
+  if (!Array.isArray(data)) throw new Error('the reply is not a model list');
+  const models = new Map<string, { free: boolean }>();
+  for (const entry of data as Array<{ id?: unknown; architecture?: { modality?: unknown }; pricing?: { prompt?: unknown } } | null>) {
+    const id = /^fish-audio\/([a-z0-9][a-z0-9.-]*)$/i.exec(str(entry?.id));
+    if (!id || !str(entry?.architecture?.modality).endsWith('->speech')) continue;
+    const price = entry?.pricing?.prompt;
+    models.set(id[1], { free: (typeof price === 'string' ? price.trim() !== '' && Number(price) === 0 : price === 0) });
+  }
+  return models;
+}
+
+/**
+ * Fish's list, read at most once per FISH_MODEL_LIST_TTL_MS and shared
+ * through the cache by the pane and every synthesis; a failed read stands
+ * FISH_MODEL_LIST_RETRY_MS. Never throws: a failure is the list's reason.
+ */
+export async function loadFishModelList(deps: { fetch: typeof fetch; cache: FishVoiceCache; now?: () => number; timeoutMs?: number }): Promise<FishModelList> {
+  const now = deps.now ?? Date.now;
+  const slot = deps.cache.models;
+  if (slot.value && now() < slot.expires) return slot.value;
+  if (slot.inFlight) return slot.inFlight;
+  const timeoutMs = deps.timeoutMs ?? FISH_MODEL_LIST_TIMEOUT_MS;
+  const read = async (): Promise<FishModelList> => {
+    const response = await deps.fetch(FISH_MODEL_LIST_URL);
+    if (!response.ok) return { ok: false, reason: `HTTP ${response.status}` };
+    return { ok: true, models: parseFishModelList(await response.json()) };
+  };
+  const pending = withTimeout(read(), timeoutMs, () => new Error(`no reply within ${timeoutMs / 1000} s`)).catch(
+    (e: unknown): FishModelList => ({ ok: false, reason: e instanceof Error ? e.message : String(e) }),
+  );
+  slot.inFlight = pending;
+  const list = await pending;
+  slot.inFlight = undefined;
+  slot.value = list;
+  slot.expires = now() + (list.ok ? FISH_MODEL_LIST_TTL_MS : FISH_MODEL_LIST_RETRY_MS);
+  return list;
+}
+
+export type FishModelVerdict = { ok: true } | { ok: false; kind: 'model-not-free' | 'model-gone'; reason: string };
+
+const DAY_MS = 86_400_000;
+const dayStart = (day: string): number => Date.parse(`${day}T00:00:00Z`);
+
+/**
+ * Whether a model may be asked for (issue #181). Fish answers a model it
+ * no longer recognizes with the paid s2.1-pro, and nothing in its reply
+ * says which model answered, so this is decided before the request:
+ * - a model past its `retiresOn` is gone;
+ * - another paid model the plugin knows is read: its price is the one the
+ *   dropdown showed;
+ * - the free model is read while Fish's list carries it at no price, and
+ *   while the list cannot be read only through `freeThrough`, Fish's own
+ *   promise; a list that carries it at a price, or not at all, refuses it
+ *   at any date;
+ * - a model only Fish's list knew is read while that list carries it.
+ */
+export function fishModelVerdict(model: string, list: FishModelList, now: number, known: readonly FishModelInfo[] = FISH_MODELS): FishModelVerdict {
+  const gone = (reason: string): FishModelVerdict => ({ ok: false, kind: 'model-gone', reason });
+  const info = known.find((m) => m.id === model);
+  if (info?.retiresOn && now >= dayStart(info.retiresOn)) return gone(`Fish Audio retired the model ${model} on ${info.retiresOn}`);
+  if (info && !info.price.free) return { ok: true };
+  const listed = list.ok ? list.models.get(model) : undefined;
+  if (!info) {
+    if (!list.ok) return gone(`Fish Audio's model list could not be read to confirm it still offers ${model} (${list.reason})`);
+    return listed ? { ok: true } : gone(`Fish Audio no longer lists the model ${model}`);
+  }
+  if (list.ok) {
+    if (!listed) return gone(`Fish Audio no longer lists the model ${model}`);
+    return listed.free ? { ok: true } : { ok: false, kind: 'model-not-free', reason: `Fish Audio lists the model ${model} at a price: it is no longer free` };
+  }
+  if (info.freeThrough && now < dayStart(info.freeThrough) + DAY_MS) return { ok: true };
+  const promise = info.freeThrough ? `free access to ${model} was announced through ${info.freeThrough}, and ` : '';
+  return { ok: false, kind: 'model-not-free', reason: `${promise}Fish Audio's model list could not be read to confirm ${model} is still free (${list.reason})` };
 }
 
 const LANGUAGE = /^[a-z]{2,3}$/i;
@@ -396,7 +531,8 @@ function retryAfterMs(response: Response): number {
 
 export function createFishProvider(cfg: FishConfig, deps: FishDeps): TTSProvider {
   const apiKey = () => cfg.apiKey.trim();
-  const model = () => (cfg.freeOnly ? MODEL_FREE : MODEL_PAID);
+  const model = () => cfg.model.trim() || DEFAULT_FISH_MODEL;
+  const now = deps.now ?? Date.now;
   const pause = deps.wait ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const headers = (extra: Record<string, string> = {}, key = apiKey()): Record<string, string> => ({ Authorization: `Bearer ${key}`, ...extra });
 
@@ -670,12 +806,26 @@ export function createFishProvider(cfg: FishConfig, deps: FishDeps): TTSProvider
     return fishVoice(await readJSON<FishModel>(response, what)) ?? { id: `${MULTILINGUAL}/${id}`, label: id, locale: MULTILINGUAL };
   }
 
+  /**
+   * Issue #181: a model Fish no longer offers, or a free one that is no
+   * longer free, is refused before a request — Fish would answer it with
+   * the paid s2.1-pro and never say so. A paid model the plugin knows
+   * needs no list.
+   */
+  async function ensureModel(id: string): Promise<void> {
+    const info = knownFishModel(id);
+    const list: FishModelList = info && !info.price.free ? { ok: false, reason: 'not read' } : await loadFishModelList({ fetch: deps.fetch, cache, now });
+    const verdict = fishModelVerdict(id, list, now());
+    if (!verdict.ok) throw new SynthesisError(verdict.kind, verdict.reason);
+  }
+
   async function speak(text: string, voice: string, signal?: AbortSignal, languageHint = ''): Promise<SynthesisResult> {
     requireKey();
     const decoded = decodeFishVoice(voice);
     if (!decoded) throw new SynthesisError('unknown', `Unknown Fish Audio voice: ${voice}`);
     // Nothing to say: no request, and the empty audio plays as a pause
     if (!isSpeakable(text)) return { audio: new Blob([], { type: 'audio/mpeg' }), note: 'no speakable text' };
+    await ensureModel(model());
     const what = `Fish Audio ${model()}`;
     // Only the request carries the cue. Align the reply to the original text below.
     const body = { text: languageHint + text, format: 'mp3', mp3_bitrate: MP3_BITRATE, latency: 'normal', ...(decoded.id === DEFAULT_VOICE ? {} : { reference_id: decoded.id }) };
@@ -892,7 +1042,7 @@ export function createFishProvider(cfg: FishConfig, deps: FishDeps): TTSProvider
       const response = await request('/model?self=true&page_size=1', { headers: headers() }, what);
       if (!response.ok) throw refusal(response, await response.text().catch(() => ''), what);
     },
-    /** Two letters on the voice, discarded: proves the model answers — and, with the free switch off, that the credit is there. */
+    /** Two letters on the voice, discarded: proves the model may be asked for and answers — and, on a paid one, that the credit is there. */
     async checkSynthesis(voice: string): Promise<void> {
       await speak('Hi', voice);
     },

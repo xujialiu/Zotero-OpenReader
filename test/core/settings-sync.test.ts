@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSharedSettings as parseShared, serializeSharedSettings as serializeShared } from '../../src/core/settings-sync';
+import { convertFishFreeOnlyItems, parseSharedSettings as parseShared, serializeSharedSettings as serializeShared } from '../../src/core/settings-sync';
 import { DEFAULTS, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { flattenSettings, SETTINGS_FILE_PATTERN } from '../../src/core/settings-backup';
 import {
@@ -331,5 +331,25 @@ describe('mergeSharedSettings', () => {
     const plan = mergeSharedSettings({ values: values({ 'openai-official.enabled': true }), stamps: {}, machine }, parsed);
     expect(plan.adopt.map((i) => i.key).sort()).toEqual(['mimo.apiKey', 'mimo.enabled', 'openai-official.apiKey', 'openai-official.enabled']);
     expect(plan.items.map((i) => i.key)).toContain('openai.presetValues');
+  });
+});
+
+describe('an older computer\'s Fish Audio switch (issue #182)', () => {
+  const item = (key: string, value: string | boolean, ts: number) => ({ key, value, ts, by: 'old' });
+
+  it('reads as the model it stood for, and stays in the file for the older computers', () => {
+    expect(convertFishFreeOnlyItems([item('fish.freeOnly', false, 5)])).toEqual([item('fish.freeOnly', false, 5), item('fish.model', 's2.1-pro', 5)]);
+    expect(convertFishFreeOnlyItems([item('fish.freeOnly', true, 5)])).toContainEqual(item('fish.model', 's2.1-pro-free', 5));
+  });
+
+  it('gives way to a later model, and replaces an earlier one', () => {
+    const later = [item('fish.freeOnly', false, 5), item('fish.model', 'drama-3', 9)];
+    expect(convertFishFreeOnlyItems(later)).toEqual(later);
+    expect(convertFishFreeOnlyItems([item('fish.model', 'drama-3', 3), item('fish.freeOnly', false, 5)])).toEqual([item('fish.freeOnly', false, 5), item('fish.model', 's2.1-pro', 5)]);
+  });
+
+  it('is read from the shared file', () => {
+    const text = JSON.stringify({ format: SHARED_SETTINGS_FORMAT, version: 1, items: [item('fish.freeOnly', false, 5)] });
+    expect(parseShared(text)).toContainEqual(item('fish.model', 's2.1-pro', 5));
   });
 });

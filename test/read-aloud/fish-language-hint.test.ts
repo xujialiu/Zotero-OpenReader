@@ -13,7 +13,7 @@ function setup() {
     return new Response('data: ' + JSON.stringify({ audio_base64: btoa(String.fromCharCode(...audio)),
       chunk_seq: 0, alignment: { segments: [{ text: '100', start: 0, end: 0.7 }, { text: 'exp', start: 0.7, end: 1.1 }] } }) + '\n\n');
   });
-  const provider = createFishProvider({ apiKey: 'test-only', freeOnly: true, voices: '' }, { fetch: fetch as typeof globalThis.fetch });
+  const provider = createFishProvider({ apiKey: 'test-only', model: 's2.1-pro', voices: '' }, { fetch: fetch as typeof globalThis.fetch });
   const cache = createMemoryCache({ maxBytes: 1024 * 1024 });
   const debug = vi.fn();
   const deps = { listCatalog: async () => [], getProvider: () => provider, cacheVersion: () => 'test',

@@ -4,7 +4,7 @@
 
 [Fish Audio](https://fish.audio) is a voice-cloning service: every voice on
 it was made from a short recording — by its users, or by you — and its
-current model, S2.1 Pro, speaks 83 languages. The plugin's **Fish Audio**
+models speak 83 languages. The plugin's **Fish Audio**
 section reaches it with one API key, and Read Aloud highlights word by
 word with these voices, as it does with Azure's and Kokoro's. This page:
 the key, what is free and what costs, and how a voice gets into the
@@ -22,23 +22,40 @@ player.
 3. In Zotero, **Edit → Settings → OpenReader → Fish Audio**: paste it
    into **API key**, click **Test connection**, then **Enable**.
 
-## Free or paid
+## The model
 
-The block's **Use only the free model** switch is on when you start.
+The block's **Model** dropdown chooses the model every Fish Audio voice
+reads with. It starts on the free one, and each entry says what it costs.
+To change it, click **Disable**, choose, then **Enable**, which tries the
+new model.
 
-- *On* — every sentence is spoken by the free S2.1 Pro. It needs no
-  balance on the account. Its terms, in Fish Audio's words: no cap on the
-  amount of text, no guarantee of speed, and the text you send may be
-  kept to improve their models. It was announced as a limited-time offer
-  and has been extended more than once — as of October 2026, through
-  November 30, 2026; it may end.
-- *Off* — the paid S2.1 Pro: the same model, $15 per million bytes of
-  text, about 180,000 English words; a Chinese character is three bytes.
-  It is billed to your **API credit**, the **Balance** under
-  **Developer → API Billing**, filled with **Top Up**. It is separate from
-  the website's own plan and credits under **Creative → Billing**. With
-  no API credit, **Test connection** says *Insufficient API credit* and
-  nothing plays until you top up or switch the free model back on.
+- **s2.1-pro-free** — free, and it needs no balance on the account. Its
+  terms, in Fish Audio's words: no cap on the amount of text, no
+  guarantee of speed, and the text you send may be kept to improve their
+  models. It was announced as a limited-time offer and has been extended
+  more than once — as of October 2026, through November 30, 2026; it may
+  end.
+- **s2.1-pro** — the same model, paid: $15 per million bytes of text,
+  about 180,000 English words; a Chinese character is three bytes.
+- **drama-3** — Fish Audio's newest model, from October 2026, which gets
+  names and technical terms right more often: $50 per million
+  characters, at a launch price of $10 until November 12, 2026.
+- **s2-pro** — the model before S2.1 Pro, $15 per million bytes.
+- **Any other model** Fish Audio's own list carries comes after these,
+  marked free or paid.
+
+The paid models are billed to your **API credit**, the **Balance** under
+**Developer → API Billing**, filled with **Top Up**. It is separate from
+the website's own plan and credits under **Creative → Billing**. With no
+API credit, **Test connection** says *Insufficient API credit* and
+nothing plays until you top up or choose the free model again.
+
+**When a model stops.** The plugin reads only with the model you chose.
+When Fish Audio takes it off its list or retires it on a date it has
+announced, or the free model stops being free — or, once its announced
+date has passed, the plugin cannot confirm that it still is — reading
+stops with a message saying so, rather than Fish Audio answering with a
+paid model. The dropdown marks such a model; choose another.
 
 ## Voices
 

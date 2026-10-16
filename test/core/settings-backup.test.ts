@@ -148,6 +148,15 @@ describe('parseBackup / applyBackup', () => {
     expect(prefs.store[PREF_PREFIX + 'azure.region']).toBe('eastus');
   });
 
+  // Issue #182: a file from before the Model dropdown holds the free switch
+  it('reads an older file\'s free switch as the model it stood for, and does not call it ignored', () => {
+    const file = (settings: Record<string, unknown>) => parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings }));
+    expect(file({ 'fish.freeOnly': false })).toMatchObject({ settings: { 'fish.model': 's2.1-pro' }, ignored: [] });
+    expect(file({ 'fish.freeOnly': 'true' })).toMatchObject({ settings: { 'fish.model': 's2.1-pro-free' }, ignored: [] });
+    expect(file({ 'fish.freeOnly': false, 'fish.model': 'drama-3' }).settings['fish.model']).toBe('drama-3');
+    expect(file({ 'azure.region': 'eastus' }).settings).not.toHaveProperty('fish.model');
+  });
+
   // Issue #172: the same rule as the upgrade, and the restore then checks it like Enable
   it('turns the WebDAV folder on for a backup from before its switch that holds an address', () => {
     const old = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings: { 'webdav.url': 'https://dav.example.com/zotero-tts/', 'webdav.syncPositions': true } }));

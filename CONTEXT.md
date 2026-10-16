@@ -162,6 +162,12 @@ server of the user's own, or the operating system. Each has a section in
 the settings and, while it has voices, an entry in the player.
 _Avoid_: vendor, engine, backend, tier
 
+**Model**:
+What a provider turns text into speech with. One provider can offer
+several, each at its own price, and every voice is spoken by one of them.
+Fish Audio calls a voice a model; here it is a voice.
+_Avoid_: engine (the plugin's own), speech engine, voice model
+
 **Entry**:
 One item of the player's first dropdown: a provider that has voices, or
 one of Zotero's own two.

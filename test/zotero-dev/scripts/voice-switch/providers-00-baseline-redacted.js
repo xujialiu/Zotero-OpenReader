@@ -5,7 +5,7 @@ return (async () => {
     'azure.enabled', 'azure.apiKey', 'azure.region', 'azure.voice',
     'cloudflare.enabled', 'cloudflare.accountId', 'cloudflare.apiToken',
     'speechify.enabled', 'speechify.apiKey',
-    'fish.enabled', 'fish.apiKey', 'fish.freeOnly', 'fish.voices', 'fish.includeOfficial', 'fish.includeOwn', 'fish.includeManual',
+    'fish.enabled', 'fish.apiKey', 'fish.model', 'fish.voices', 'fish.includeOfficial', 'fish.includeOwn', 'fish.includeManual',
     'fishspeech.enabled', 'fishspeech.baseURL', 'fishspeech.headers',
     'local.enabled', 'local.engine', 'local.baseURL', 'local.voice', 'local.headers',
     'system.enabled', 'readAloud.volume', 'readAloud.sameForAllDocuments', 'readAloud.memory',

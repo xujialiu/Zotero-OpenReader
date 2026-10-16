@@ -24,7 +24,7 @@ pref('extensions.zotero.zotero-tts.speechify.enabled', false);
 pref('extensions.zotero.zotero-tts.speechify.apiKey', '');
 pref('extensions.zotero.zotero-tts.fish.enabled', false);
 pref('extensions.zotero.zotero-tts.fish.apiKey', '');
-pref('extensions.zotero.zotero-tts.fish.freeOnly', true);
+pref('extensions.zotero.zotero-tts.fish.model', 's2.1-pro-free');
 pref('extensions.zotero.zotero-tts.fish.voices', '');
 pref('extensions.zotero.zotero-tts.fish.includeOfficial', true);
 pref('extensions.zotero.zotero-tts.fish.includeOwn', false);

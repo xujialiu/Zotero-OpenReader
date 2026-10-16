@@ -108,7 +108,7 @@
     out.fishSpeechEnabledPref = Zotero.Prefs.get('zotero-tts.fishspeech.enabled');
     out.fishElements = {
       apiKeyPresent: !!fishSection.querySelector('input[type="password"]'),
-      freeOnlyPresent: !!fishSection.querySelector('checkbox[data-l10n-id="ztts-fish-free-only"]'),
+      modelMenuPresent: !!doc.getElementById('ztts-fish-model'),
       modelIdsPresent: !!doc.getElementById('ztts-fish-model-ids'),
       sourcesPresent: !!doc.getElementById('ztts-fish-sources'),
       includeOfficialPresent: !!doc.getElementById('ztts-fish-include-official'),

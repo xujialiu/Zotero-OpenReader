@@ -20,7 +20,7 @@
     'readAloud.volume', 'readAloud.memory', 'readAloud.sameForAllDocuments', 'readAloud.globalSpeed',
     'readAloud.favoriteVoices', 'readAloud.favoritesOnly', 'readAloud.defaultVoice',
     'prefetch', 'prefetchEnabled',
-    'fish.enabled', 'fish.apiKey', 'fish.freeOnly', 'fish.voices',
+    'fish.enabled', 'fish.apiKey', 'fish.model', 'fish.voices',
     'local.enabled', 'local.engine', 'local.baseURL', 'local.username', 'local.password',
     'local.apiKey', 'local.includeOwn', 'local.includeOfficial',
   ];

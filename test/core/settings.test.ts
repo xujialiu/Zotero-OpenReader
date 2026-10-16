@@ -8,6 +8,8 @@ import {
   migrateLegacyProviderPref,
   migrateSyncPositionsDefault,
   migrateWebDAVFolderSwitch,
+  migrateFishFreeOnly,
+  FISH_FREE_ONLY_PREF,
   PREF_PREFIX,
   prefetchOf,
   PROVIDER_IDS,
@@ -501,5 +503,39 @@ describe('prefetchOf', () => {
 
   it('is the defaults while it is off, whatever numbers are kept', () => {
     expect(prefetchOf(readAloud(false))).toEqual({ sentences: 5, requests: 2 });
+  });
+});
+
+describe('migrateFishFreeOnly (issue #182)', () => {
+  const MODEL = PREF_PREFIX + 'fish.model';
+
+  it('reads the free switch\'s Off on as the paid model, once, and clears the switch', () => {
+    const prefs = fakePrefs({ [FISH_FREE_ONLY_PREF]: false });
+    expect(migrateFishFreeOnly(prefs)).toBe(true);
+    expect(loadSettings(prefs).fish.model).toBe('s2.1-pro');
+    expect(prefs.store).not.toHaveProperty(FISH_FREE_ONLY_PREF);
+    expect(migrateFishFreeOnly(prefs)).toBe(false);
+  });
+
+  it('leaves an On, and a new profile, on the free model', () => {
+    const on = fakePrefs({ [FISH_FREE_ONLY_PREF]: true });
+    expect(migrateFishFreeOnly(on)).toBe(false);
+    expect(on.store).not.toHaveProperty(FISH_FREE_ONLY_PREF);
+    expect(loadSettings(on).fish.model).toBe('s2.1-pro-free');
+    expect(migrateFishFreeOnly(fakePrefs())).toBe(false);
+    expect(loadSettings(fakePrefs()).fish.model).toBe('s2.1-pro-free');
+  });
+
+  it('keeps a model already chosen', () => {
+    const prefs = fakePrefs({ [FISH_FREE_ONLY_PREF]: false, [MODEL]: 'drama-3' });
+    expect(migrateFishFreeOnly(prefs)).toBe(false);
+    expect(prefs.store[MODEL]).toBe('drama-3');
+    expect(prefs.store).not.toHaveProperty(FISH_FREE_ONLY_PREF);
+  });
+
+  it('takes no default Gecko kept registered after the update for a user value', () => {
+    const prefs = { ...fakePrefs(), get: (k: string) => (k === FISH_FREE_ONLY_PREF ? false : undefined), has: () => false };
+    expect(migrateFishFreeOnly(prefs)).toBe(false);
+    expect(prefs.clear).not.toHaveBeenCalled();
   });
 });

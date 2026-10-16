@@ -1919,7 +1919,7 @@ describe('a document voice whose provider cannot be reached (issue #179)', () =>
   const narrator = { _id: FISH_ID, title: 'Narrator', languages: ['en'], state: 'trained', visibility: 'public', author: { _id: 'someone' } };
   const online = async () => new Response(JSON.stringify({ total: 1, items: [narrator] }), { status: 200, headers: { 'content-type': 'application/json' } });
   const fish = (fetchImpl: unknown, cache = new FishVoiceCache()) =>
-    createFishProvider({ apiKey: 'sk-fish-test', freeOnly: true, voices: '' }, { fetch: fetchImpl as typeof fetch, wait: async () => {}, cache });
+    createFishProvider({ apiKey: 'sk-fish-test', model: 's2.1-pro', voices: '' }, { fetch: fetchImpl as typeof fetch, wait: async () => {}, cache });
   const failing = (id: ProviderId, error: unknown) =>
     ({ id, capabilities: { wordTimestamps: false }, listVoices: async () => { throw error; }, synthesize: vi.fn() }) as unknown as TTSProvider;
 

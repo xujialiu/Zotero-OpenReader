@@ -18,7 +18,7 @@ return (async () => {
   const names = [
     'local.enabled', 'local.baseURL', 'local.engine', 'local.voice', 'local.headers',
     'system.enabled',
-    'fish.enabled', 'fish.freeOnly', 'fish.voices',
+    'fish.enabled', 'fish.model', 'fish.voices',
     'azure.enabled', 'speechify.enabled', 'cloudflare.enabled', 'fishspeech.enabled',
     'compatible.enabled', 'compatible.baseURL', 'mimo.enabled', 'openai-official.enabled',
     'zotero-standard.enabled', 'zotero-premium.enabled',

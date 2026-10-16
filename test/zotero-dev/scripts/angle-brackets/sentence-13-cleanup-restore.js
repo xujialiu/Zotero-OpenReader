@@ -44,7 +44,7 @@
     } catch (e) { cleanup.errors.push('restore ' + suffix + ': ' + String(e)); }
   };
   // Restore temporary values before re-enabling automatic sync/backup. Memory is last.
-  for (const suffix of ['readAloud.volume', 'readAloud.stripAngleBrackets', 'readAloud.bracketPairs', 'cacheAudio', 'prefetchEnabled', 'fish.enabled', 'fish.freeOnly', 'webdav.syncSettings']) restore(suffix);
+  for (const suffix of ['readAloud.volume', 'readAloud.stripAngleBrackets', 'readAloud.bracketPairs', 'cacheAudio', 'prefetchEnabled', 'fish.enabled', 'fish.model', 'webdav.syncSettings']) restore(suffix);
   restore('webdav.syncPositions');
   restore('webdav.autoUploadSettings');
   if (baseline) {
@@ -75,7 +75,7 @@
     };
   };
   const finalPrefs = {};
-  for (const suffix of ['readAloud.volume', 'readAloud.stripAngleBrackets', 'readAloud.bracketPairs', 'cacheAudio', 'prefetchEnabled', 'fish.enabled', 'fish.freeOnly', 'webdav.syncPositions', 'webdav.autoUploadSettings', 'webdav.syncSettings', 'readAloud.memory']) finalPrefs[suffix] = read(suffix);
+  for (const suffix of ['readAloud.volume', 'readAloud.stripAngleBrackets', 'readAloud.bracketPairs', 'cacheAudio', 'prefetchEnabled', 'fish.enabled', 'fish.model', 'webdav.syncPositions', 'webdav.autoUploadSettings', 'webdav.syncSettings', 'readAloud.memory']) finalPrefs[suffix] = read(suffix);
   let position = null;
   try { position = JSON.parse(await Zotero.ZoteroTTS.diagnostics.position()); } catch (e) { position = { error: String(e) }; }
   const readers = [];

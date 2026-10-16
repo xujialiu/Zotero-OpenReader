@@ -53,12 +53,18 @@ ztts-help-speechify =
     .help = The key is on the API keys page at platform.speechify.ai; words are highlighted, and there is no Mandarin, only Cantonese. Free for 50,000 characters a month, about fifteen pages, then $10 a month for a million.
 ztts-help-fish =
     .value = ?
-    .help = The key is on the Developers page of your fish.audio account; every voice highlights words. The free model keeps your text and promises no speed; the paid one bills by the byte of text, three per Chinese character.
-ztts-fish-free-only =
-    .label = Use only the free model
-ztts-help-fish-free-only =
+    .help = The key is on the Developers page of your fish.audio account; every voice highlights words.
+ztts-help-fish-model =
     .value = ?
-    .help = On: the free S2.1 Pro, no API credit needed, but no speed guarantee, and Fish Audio may keep your text. Off: $15 per million bytes, from your API credit, which is separate from the website's.
+    .help = Every Fish Audio voice reads with this model. The free one keeps your text, promises no speed and is free only until the date Fish Audio has announced; the others bill your API credit, which is separate from the website's, three bytes to a Chinese character.
+# The Model dropdown's entries (issue #182): $model is Fish Audio's id for it, $price US dollars
+ztts-fish-model-free = { $model } — free
+ztts-fish-model-bytes = { $model } — ${ $price } per million bytes
+ztts-fish-model-chars = { $model } — ${ $price } per million characters
+ztts-fish-model-paid = { $model } — paid
+# An entry OpenReader will not read with (issue #181); $label is the entry as above
+ztts-fish-model-not-free = { $label } (not confirmed free)
+ztts-fish-model-gone = { $label } (not available)
 ztts-heading-fish-sources =
     .value = Voice sources
 ztts-fish-include-official =
@@ -717,6 +723,8 @@ ztts-player-unavailable-choice = This voice or language is no longer available. 
 ztts-player-invalid-value = The selected value is not supported.
 ztts-player-playback-error = Playback failed. Check your provider connection and try again.
 ztts-player-quota-error = The provider has reached its limit or has insufficient credits.
+ztts-player-fish-not-free = OpenReader could not confirm that Fish Audio's free model is still free, and stopped rather than pay for it. Choose another model under Settings → OpenReader → Fish Audio.
+ztts-player-fish-model-gone = Fish Audio no longer offers the chosen model, or OpenReader could not confirm that it does. Choose another model under Settings → OpenReader → Fish Audio.
 # A Zotero voice's two account errors, as the player's ! says them (issue #140); $tier is Zotero Standard or Zotero Premium
 ztts-player-zotero-short = Not enough remaining time on { $tier } for this voice.
 ztts-player-daily-limit = { $tier } has reached today's limit.

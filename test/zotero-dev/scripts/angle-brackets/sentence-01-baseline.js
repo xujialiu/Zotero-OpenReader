@@ -10,7 +10,7 @@
     'cacheAudio',
     'prefetchEnabled',
     'fish.enabled',
-    'fish.freeOnly',
+    'fish.model',
     'readAloud.memory',
   ];
   const prefs = {};

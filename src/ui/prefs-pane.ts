@@ -4,7 +4,7 @@ import type { FlatSettings } from '../core/settings-backup';
 import { initBracketRows } from './bracket-rows';
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
-import { createProvider, type ProviderDeps } from '../core/providers/factory';
+import { createProvider, fishModelList, type ProviderDeps } from '../core/providers/factory';
 import { createZoteroPrefs, hiddenZoteroTiers, isZoteroSwitch, loadSettings, PREF_PREFIX, type PrefsBackend, type SwitchId, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, zoteroSwitchTier } from '../core/settings';
 import { machineId, renameMachineId } from '../core/machine-id';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
@@ -40,6 +40,7 @@ import { renderSectionHeading, type HeadingDoc } from './section-heading';
 import { checkZoteroTier } from './zotero-tier-check';
 import { initZoteroCreditRows } from './zotero-credit-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
+import { initFishModelRows } from './fish-model-rows';
 import { initFishVoiceSources } from './fish-voice-sources';
 import { initVoiceListSwitches } from './voice-list-switches';
 import { GLOBAL_SPEED_OBSERVER } from '../read-aloud/default-speed';
@@ -671,11 +672,24 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       return () => Zotero.Prefs.unregisterObserver(token);
     },
   });
+  // The Model dropdown (issue #182): the known models at once, Fish's own list when it arrives
+  const fishModelRows = initFishModelRows(doc, {
+    prefs,
+    t,
+    loadList: () => fishModelList(providerDeps().fetch),
+    fishEnabled: () => loadSettings(prefs).fish.enabled,
+    watch: (name, onChange) => {
+      const token = Zotero.Prefs.registerObserver(name, onChange);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+  });
+  void fishModelRows.load();
   // The observers must not outlive the pane: the window closing is their end
   win?.addEventListener(
     'unload',
     () => {
       followChoice.dispose();
+      fishModelRows.dispose();
       fishVoiceSources.dispose();
       voiceBrowserRows.dispose();
       prefetchRows.dispose();
@@ -779,6 +793,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       // first), and the voices are listed again
       providerRows.refresh();
       fishVoiceSources.refresh();
+      fishModelRows.refresh();
       void voiceBrowserRows.load();
       webdavRows?.refresh();
     },
