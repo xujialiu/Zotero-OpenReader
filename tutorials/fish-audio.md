@@ -25,7 +25,9 @@ player.
 ## The model
 
 The block's **Model** dropdown chooses the model every Fish Audio voice
-reads with. It starts on the free one, and each entry says what it costs.
+reads with. It starts on the free one, and each entry says whether it is
+free; what a paid one costs is on Fish Audio's
+[pricing page](https://docs.fish.audio/developer-guide/models-pricing/pricing-and-rate-limits).
 To change it, click **Disable**, choose, then **Enable**, which tries the
 new model.
 
@@ -35,12 +37,10 @@ new model.
   models. It was announced as a limited-time offer and has been extended
   more than once — as of October 2026, through November 30, 2026; it may
   end.
-- **s2.1-pro** — the same model, paid: $15 per million bytes of text,
-  about 180,000 English words; a Chinese character is three bytes.
+- **s2.1-pro** — the same model, paid.
 - **drama-3** — Fish Audio's newest model, from October 2026, which gets
-  names and technical terms right more often: $50 per million
-  characters, at a launch price of $10 until November 12, 2026.
-- **s2-pro** — the model before S2.1 Pro, $15 per million bytes.
+  names and technical terms right more often; paid.
+- **s2-pro** — the model before S2.1 Pro; paid.
 - **Any other model** Fish Audio's own list carries comes after these,
   marked free or paid.
 

@@ -134,26 +134,21 @@ export function fishVoiceIds(text: string): string[] {
   return [...new Set((text.match(MODEL_ID) ?? []).map((id) => id.toLowerCase()))];
 }
 
-/** A model the plugin knows (issue #182): what the `model` header takes, and its price. */
-export type FishModelInfo = {
-  id: string;
-  /** Free, or the regular price in US dollars per million of `unit`. */
-  price: { free: true } | { free: false; usdPerMillion: number; unit: 'byte' | 'character' };
-};
+/** A model the plugin knows (issue #182): what the `model` header takes, and whether it is free. The price is the user's to look up. */
+export type FishModelInfo = { id: string; free: boolean };
 
 /**
  * The models the plugin knows, in the dropdown's order (2026-10-16:
- * docs.fish.audio's price page, the drama-3 launch post): drama-3 at its
- * regular price, not its launch offer; `s1` left out, deprecated and
- * retiring on 2026-12-31. Fish answers a model it no longer recognizes
+ * docs.fish.audio's price page, the drama-3 launch post); `s1` left out,
+ * deprecated and retiring on 2026-12-31. Fish answers a model it no longer recognizes
  * with the paid s2.1-pro; the plugin does not check for it (issue #181,
  * withdrawn by the owner on 2026-10-16).
  */
 export const FISH_MODELS: readonly FishModelInfo[] = [
-  { id: 's2.1-pro-free', price: { free: true } },
-  { id: 's2.1-pro', price: { free: false, usdPerMillion: 15, unit: 'byte' } },
-  { id: 'drama-3', price: { free: false, usdPerMillion: 50, unit: 'character' } },
-  { id: 's2-pro', price: { free: false, usdPerMillion: 15, unit: 'byte' } },
+  { id: 's2.1-pro-free', free: true },
+  { id: 's2.1-pro', free: false },
+  { id: 'drama-3', free: false },
+  { id: 's2-pro', free: false },
 ];
 /** The model a new profile reads with, and what the free switch's On became. */
 export const DEFAULT_FISH_MODEL = 's2.1-pro-free';
@@ -176,10 +171,8 @@ export type FishModelList = { ok: true; models: ReadonlyMap<string, { free: bool
  * `{ data: [{ id: "fish-audio/s2.1-pro", architecture: { modality:
  * "text->speech" }, pricing: { prompt: "0.000015" } }] }`, beside a
  * transcription model as `audio->text`. The id without its prefix is what
- * the `model` header takes (the five agree with openapi.json's enum). The
- * price says free or not and no more: it carries no unit, and drama-3
- * bills by the character where the others bill by the byte. Throws on a
- * reply of another shape.
+ * the `model` header takes (the five agree with openapi.json's enum); the
+ * price is read only as free or not. Throws on a reply of another shape.
  */
 export function parseFishModelList(json: unknown): Map<string, { free: boolean }> {
   const data = (json as { data?: unknown } | null)?.data;

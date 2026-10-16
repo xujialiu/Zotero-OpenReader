@@ -67,9 +67,8 @@ Items 1a.1–1a.9 and 1a.14 of the checklist, under their original numbers.
 
 ### 1a.4
 
-4. **The paid model with no credit.** Choose `s2.1-pro — $15 per million
-   bytes` in the Model dropdown (the pick writes `fish.model`). Test
-   connection →
+4. **The paid model with no credit.** Choose `s2.1-pro — paid` in the
+   Model dropdown (the pick writes `fish.model`). Test connection →
    `Connected, but synthesis failed: Fish Audio s2.1-pro: Fish Audio
    refused the request (402) — Insufficient API credit. API credit is
    managed independently from platform credit…` — the model named in it

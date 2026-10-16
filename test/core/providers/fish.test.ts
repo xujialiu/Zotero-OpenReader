@@ -830,10 +830,13 @@ describe('the checks', () => {
 });
 
 describe('the model (issue #182)', () => {
-  it('knows the four models Fish serves that are not retiring, the free one first, drama-3 at its regular price', () => {
-    expect(FISH_MODELS.map((m) => m.id)).toEqual(['s2.1-pro-free', 's2.1-pro', 'drama-3', 's2-pro']);
-    expect(FISH_MODELS[0]).toEqual({ id: DEFAULT_FISH_MODEL, price: { free: true } });
-    expect(FISH_MODELS.find((m) => m.id === 'drama-3')?.price).toEqual({ free: false, usdPerMillion: 50, unit: 'character' });
+  it('knows the four models Fish serves that are not retiring, the free one first', () => {
+    expect(FISH_MODELS).toEqual([
+      { id: DEFAULT_FISH_MODEL, free: true },
+      { id: 's2.1-pro', free: false },
+      { id: 'drama-3', free: false },
+      { id: 's2-pro', free: false },
+    ]);
     expect(PAID_FISH_MODEL).toBe('s2.1-pro');
   });
 

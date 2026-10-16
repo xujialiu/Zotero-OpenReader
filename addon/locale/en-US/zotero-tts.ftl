@@ -56,11 +56,9 @@ ztts-help-fish =
     .help = The key is on the Developers page of your fish.audio account; every voice highlights words.
 ztts-help-fish-model =
     .value = ?
-    .help = Every Fish Audio voice reads with this model. The free one keeps your text, promises no speed and is free only until the date Fish Audio has announced; the others bill your API credit, which is separate from the website's, three bytes to a Chinese character.
-# The Model dropdown's entries (issue #182): $model is Fish Audio's id for it, $price US dollars
+    .help = Every Fish Audio voice reads with this model. The free one keeps your text, promises no speed and is free only until the date Fish Audio has announced; the others bill your API credit, which is separate from the website's.
+# The Model dropdown's entries (issue #182): $model is Fish Audio's id for it
 ztts-fish-model-free = { $model } — free
-ztts-fish-model-bytes = { $model } — ${ $price } per million bytes
-ztts-fish-model-chars = { $model } — ${ $price } per million characters
 ztts-fish-model-paid = { $model } — paid
 ztts-heading-fish-sources =
     .value = Voice sources

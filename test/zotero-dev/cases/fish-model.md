@@ -17,10 +17,11 @@ Save every pref named above first and restore it at the end.
 1. **The entries.** Fish Audio off. Open the settings window: the Model
    dropdown `menulist#ztts-fish-model` lists, once Fish's own list has
    arrived (a keyless `GET https://api.fish.audio/compat/v1/models`, about
-   a second), `s2.1-pro-free — free`, `s2.1-pro — $15 per million bytes`,
-   `drama-3 — $50 per million characters`, `s2-pro — $15 per million
-   bytes`, then `s1 — paid` while Fish still lists it; in a zh-CN Zotero,
-   `s2.1-pro-free（免费）`, `s2.1-pro（每百万字节 $15）` and so on. The
+   a second), `s2.1-pro-free — free`, `s2.1-pro — paid`, `drama-3 —
+   paid`, `s2-pro — paid`, then `s1 — paid` while Fish still lists it —
+   free or paid, never a price (the owner, 2026-10-16: the user looks the
+   price up); in a zh-CN Zotero, `s2.1-pro-free（免费）`,
+   `s2.1-pro（付费）` and so on. The
    selected entry is `fish.model`. A pick writes the pref; Enable then
    locks the dropdown with the other fields, and a pick is impossible
    until Disable.

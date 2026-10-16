@@ -4,7 +4,7 @@ import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 /**
  * The Fish Audio section's Model dropdown (issue #182): the models the
  * plugin knows, then any text-to-speech model only Fish's own list
- * carries, each with what it costs. Unbound, since its entries arrive
+ * carries, each marked free or paid. Unbound, since its entries arrive
  * after the pane is drawn: it writes the pref itself.
  */
 export const FISH_MODEL_MENU_ID = 'ztts-fish-model';
@@ -16,15 +16,11 @@ type Translate = (id: string, args?: Record<string, string>) => string;
 
 export type FishModelOption = { id: string; label: string };
 
-function priceLabel(id: string, info: FishModelInfo | undefined, listed: { free: boolean } | undefined, t: Translate): string {
-  if (info) {
-    if (info.price.free) return t('ztts-fish-model-free', { model: id });
-    const price = String(info.price.usdPerMillion);
-    return info.price.unit === 'byte' ? t('ztts-fish-model-bytes', { model: id, price }) : t('ztts-fish-model-chars', { model: id, price });
-  }
-  // Fish's list gives a price without its unit: say free or paid, no number
-  if (listed) return listed.free ? t('ztts-fish-model-free', { model: id }) : t('ztts-fish-model-paid', { model: id });
-  return id;
+/** Free or paid, never a price: the user looks that up on Fish Audio. A model neither list knows is its id alone. */
+function costLabel(id: string, info: FishModelInfo | undefined, listed: { free: boolean } | undefined, t: Translate): string {
+  const free = info?.free ?? listed?.free;
+  if (free === undefined) return id;
+  return free ? t('ztts-fish-model-free', { model: id }) : t('ztts-fish-model-paid', { model: id });
 }
 
 /**
@@ -36,7 +32,7 @@ export function fishModelOptions(selected: string, list: FishModelList | null, t
   const ids = FISH_MODELS.map((model) => model.id);
   if (list?.ok) for (const id of list.models.keys()) if (!ids.includes(id)) ids.push(id);
   if (selected && !ids.includes(selected)) ids.push(selected);
-  return ids.map((id) => ({ id, label: priceLabel(id, FISH_MODELS.find((model) => model.id === id), list?.ok ? list.models.get(id) : undefined, t) }));
+  return ids.map((id) => ({ id, label: costLabel(id, FISH_MODELS.find((model) => model.id === id), list?.ok ? list.models.get(id) : undefined, t) }));
 }
 
 export interface FishModelRowsDeps {

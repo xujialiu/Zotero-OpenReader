@@ -9,12 +9,12 @@ const read = (entries: Record<string, boolean>): FishModelList => ({ ok: true, m
 const TODAY = read({ 's2.1-pro': false, 's2.1-pro-free': true, 's2-pro': false, s1: false });
 
 describe('the Model dropdown\'s entries (issue #182)', () => {
-  it('lists the known models with their prices, then those only Fish\'s list carries, as free or paid without a number', () => {
+  it('lists the known models, then those only Fish\'s list carries, each as free or paid, never with a price', () => {
     expect(fishModelOptions('s2.1-pro-free', TODAY, t)).toEqual([
       { id: 's2.1-pro-free', label: 'ztts-fish-model-free(model=s2.1-pro-free)' },
-      { id: 's2.1-pro', label: 'ztts-fish-model-bytes(model=s2.1-pro,price=15)' },
-      { id: 'drama-3', label: 'ztts-fish-model-chars(model=drama-3,price=50)' },
-      { id: 's2-pro', label: 'ztts-fish-model-bytes(model=s2-pro,price=15)' },
+      { id: 's2.1-pro', label: 'ztts-fish-model-paid(model=s2.1-pro)' },
+      { id: 'drama-3', label: 'ztts-fish-model-paid(model=drama-3)' },
+      { id: 's2-pro', label: 'ztts-fish-model-paid(model=s2-pro)' },
       { id: 's1', label: 'ztts-fish-model-paid(model=s1)' },
     ]);
   });
