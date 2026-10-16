@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/fish-model/README.md)
 
 ## 1c. Fish Audio: the model and its guard (issues #181, #182)
 
@@ -29,8 +29,9 @@ Save every pref named above first and restore it at the end.
 2. **The upgrade.** With the previous release installed, set
    `extensions.zotero.zotero-tts.fish.freeOnly` to `false` and clear
    `fish.model`; install the build. `fish.model` reads `s2.1-pro`,
-   `Zotero.Prefs.prefHasUserValue('zotero-tts.fish.freeOnly', true)` is
-   false, and the debug store holds `[zotero-tts] Fish Audio reads with
+   `Zotero.Prefs.prefHasUserValue('zotero-tts.fish.freeOnly')` is false
+   (the relative name alone: with `true` Zotero takes the name as the full
+   one, and the answer is always false), and the debug store holds `[zotero-tts] Fish Audio reads with
    s2.1-pro: the free-model switch was off`. Repeat with `freeOnly`
    cleared (On, the default): `fish.model` stays unset and the dropdown
    shows `s2.1-pro-free — free`.

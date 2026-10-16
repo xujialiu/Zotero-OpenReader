@@ -17,20 +17,20 @@ Items 1a.1–1a.9 and 1a.14 of the checklist, under their original numbers.
 ### 1a.1
 
 1. **The section.** Between Cloudflare Workers AI and Fish Speech (issue
-   #112; one `Fish Audio` groupbox over two `h3` sub-blocks, `Cloud` and
-   `Local`, before it), the groupbox `ztts-provider-fish`: its `h2` reads
+   #112), the groupbox `ztts-provider-fish`: its `h2` reads
    `Fish Audio (fish.audio)`, the host a `label[is="zotero-text-link"]`
    with `href` `https://fish.audio`; a password input on
    `fish.apiKey`, the `Model` dropdown `menulist#ztts-fish-model` on
    `fish.model` showing `s2.1-pro-free — free` by default (issue #182; it
    replaced the checkbox `Use only the free model` on `fish.freeOnly`; its
-   entries are [1c](fish-model.md)), a text input on `fish.voices` whose
-   placeholder is `ids or links from fish.audio`, three `?`
-   (`ztts-help-fish`, `ztts-help-fish-model`, `ztts-help-fish-voices`),
+   entries are [1c](fish-model.md)), a text input `ztts-fish-model-ids` on
+   `fish.voices` whose placeholder is `IDs from Fish Audio`, three `?`
+   (`ztts-help-fish`, `ztts-help-fish-model`, `ztts-help-fish-model-ids`),
    `ztts-enable-fish`
    / `ztts-test-fish` / `ztts-test-result-fish`. The server block
    `ztts-provider-fishspeech`: a text input on `fishspeech.baseURL` showing
-   `http://localhost:8080`, a **password** input on `fishspeech.headers`
+   the profile's address (`http://localhost:8080` when it holds none), a
+   **password** input on `fishspeech.headers`
    with placeholder `Name: value; Name: value`, two `?`
    (`ztts-help-fish-speech` and the shared `ztts-help-extra-headers`),
    `ztts-enable-fishspeech` / `ztts-test-fishspeech` /
@@ -79,7 +79,8 @@ Items 1a.1–1a.9 and 1a.14 of the checklist, under their original numbers.
 ### 1a.5
 
 5. **Enable is a commit point.** Click `ztts-enable-fish`: button and
-   line read `Checking…` within ~120 ms, then at ~1.6 s the label is
+   line read `Checking…` within ~120 ms, then within a few seconds (3.06 s
+   on 2026-10-16, listing 350 voices in five requests) the label is
    `Disable`, `fish.enabled` is true, the line holds the connection
    message, and all three cloud fields — the Model dropdown included —
    are `disabled`.
