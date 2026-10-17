@@ -20,6 +20,9 @@ line) with every automatic sync/upload suspended, per the tester workflow.
 | `05c-gate-reenable.js` | Item 5, close: Enable again (25 ms poll catches `Checking…`), the transport runs with trigger `switch-on`; restores the positions sync to suspended | trigger `switch-on`, outcome `ok`; switches suspended after | — |
 | `06-plain-http-refused.js` | Item 6: folder off, URL at `http://127.0.0.1:9/dav/`: Test connection and Enable both end in `Connection failed: …` + the exact warning; the switch stays false; the test URL returns and is confirmed | warning exact per `ztts-webdav-plain-http` | — |
 | `07-plain-http-pass.js` | Item 7: a local stub on `127.0.0.1:<port>` answering PROPFIND with 207 + empty multistatus: Enable connects and adds the warning, the switch goes true; then Disable and the test URL back | `Connected to http://127.0.0.1:<port>/dav/. ` + warning | `stubPort` |
+| `08-test-connection-creates-nothing.js` | Item 10 (#186): folder off, URL at the test folder plus a fresh subfolder `zotero-openreader-186-<slug>/`; a PROPFIND Depth 0 with the test credentials (read from the prefs inside the auth header, never printed; `successCodes: false`) answers 404; Test connection; the same PROPFIND again; the test URL back | `Connection failed: The folder <url> does not exist yet. Enable creates it.`; switch stays false; PROPFIND 404 before and after | — |
+| `09-enable-creates-folder.js` | Item 11 (#186): same URL, Enable at a 25 ms poll (`Checking…`); PROPFIND Depth 0 on the subfolder and Depth 1 on the test folder; cleanup: Disable, DELETE the subfolder, PROPFIND again, test URL back | `Connected to <subfolder>.` no warning; switch true, button Disable; 207; the listing holds the subfolder; DELETE 204; 404 after | — |
+| `10-missing-parent-refused.js` | Item 12 (#186): URL at `missing-186-<slug>/child/`, both 404 first; Enable; the parent's PROPFIND after; test URL back | `Connection failed: The folder <url> cannot be created: the folder above it does not exist. Check the address.`; switch false; parent still 404 (a non-409 MKCOL answer shows `Creating the folder … failed: HTTP <status>.` instead) | — |
 
 Item 9 (the zh-CN strings) was checked by the installed xpi's Fluent source
 (`locale/zh-CN/zotero-tts.ftl` inside `build/zotero-tts.xpi`), not by a script.
@@ -47,6 +50,12 @@ Item 8 (the restore check) is NOT TESTABLE live — see limits.
   (`Zotero.Prefs.get('extensions.zotero.zotero-tts.…', true)`). A relative
   name with the second argument true reads/writes a stray GLOBAL key and
   silently misses — that was the 2026-10-05 run's first failure.
+- `Zotero.HTTP.request` throws on any non-2xx unless `successCodes: false`
+  (2026-10-17: script 08's first PROPFIND died on the 404 it expected).
+- **Prepared revision, not yet run:** script 00's `namedBefore` masks
+  `username` as well as the password-class keys — the 2026-10-17 run's
+  result carried the username in the clear (a phone number) because only
+  `password|apiKey|apiToken|accountId|headers` were masked.
 
 ## Limits
 
@@ -81,3 +90,4 @@ Item 8 (the restore check) is NOT TESTABLE live — see limits.
 | Run | Build | What it verified | Result |
 | --- | --- | --- | --- |
 | 2026-10-05 | 1.16.7-beta (`feat/webdav-folder-switch` @ 910f8d3, xpi sha256 `9effdef6…`), Zotero 10.0.6-beta.1, from 1.16.6 | Items 1–7 and 9 of cases/webdav-folder-switch.md (the table went to the main session); item 8 NOT TESTABLE (limits above); 00/01 revised after the run (full-name pref access) — 00b is the remediation that actually ran | 1–7 PASS, 8 NOT TESTABLE, 9 PASS |
+| 2026-10-17 | 1.16.12-beta (`fix/webdav-folder` @ 0b6f4d1, xpi sha256 `4ce0983f…`), Zotero 11.0-beta.1, from 1.16.11-beta3 | Item 4 (regression) and the new items 10, 11, 12 (#186): Test connection created nothing (404 × 2, exact line), Enable created the folder (Checking… → Connected, 207, listed, DELETE 204 → 404), a missing parent refused (exact line, parent still 404). Scripts 08–10 first ran here | 4, 10, 11, 12 PASS |

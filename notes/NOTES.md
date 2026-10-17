@@ -750,3 +750,4 @@ then) and is in the git history before that day.
 - A stopped build kept arming retries from a run still in flight (issue #220)
 - A change made during a slow backup upload waited for the next change (issue #204)
 - The shutdown's final pushes held it for one bound per file (issue #219)
+- Verified live on 1.16.12-beta: the WebDAV folder fixes, and timers that never fire after a re-enable (issues #186, #204, #219, #220)

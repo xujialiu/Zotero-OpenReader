@@ -14,7 +14,7 @@
   const get = (k) => Zotero.Prefs.get(full(k), true);
   const has = (k) => Zotero.Prefs.prefHasUserValue(full(k), true);
   const set = (k, v) => Zotero.Prefs.set(full(k), v, true);
-  const secret = (k) => /password|apiKey|apiToken|accountId|headers/i.test(k);
+  const secret = (k) => /password|username|apiKey|apiToken|accountId|headers/i.test(k);
   const mask = (k, v) => (secret(k) ? `<${String(v ?? '').length} chars>` : v);
   try {
     // 1. The test URL from the secrets file (value never returns).
