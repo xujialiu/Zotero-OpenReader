@@ -80,17 +80,21 @@ bundle includes this diagnostic, not just its version string.
     player: `documentVoices()`'s reader has `selected: null`,
     `active: false`, `saved` the Kokoro voice. In the player's voice
     dropdown pick a voice of another enabled provider that is **not the
-    first voice of the merged list** (before the fix the pick landed
-    there, so the first one passes either way); System voices are local
-    and free where the profile has them. Right after the pick:
-    `selected` is the picked voice, `active: true`, `saved` is the picked
-    voice with `manual: true`, and Zotero's `reader.readAloudVoices` entry
-    for the language names it. Plant again and pick an Entry in the
-    provider dropdown that is not the first of the plugin's: `selected`
-    is a voice of that Entry and `saved` names it. Before the fix both
-    ended on the plugin's alphabetically first voice. An Entry pick with
-    Zotero Standard listed (it ended on a Zotero voice) and a language
-    pick are unit-only (`test/read-aloud/document-voice-pick.test.ts`):
+    first voice of its own region** (language-region, e.g. en-US) in the
+    manager's list. Before the fix Zotero fell back to the first voice of
+    the pick's region (`_findFallbackVoice` step 3: the entry keeps the
+    pick's region), so a pick that is the first of its region passes
+    either way; the 2026-10-17 run picked Aman, the first en-IN voice, and
+    proved nothing. Name, before the pick, the voice the bug would land
+    on. System voices are local and free where the profile has them.
+    Right after the pick: `selected` is the picked voice, `active: true`,
+    `saved` is the picked voice with `manual: true`, and Zotero's
+    `reader.readAloudVoices` entry for the language names it. Plant again
+    and pick that provider's Entry in the provider dropdown: it resolves
+    to the voice it remembers, the one just picked, so `selected` and
+    `saved` name that voice again, not the first of its region. An Entry
+    pick with Zotero Standard listed (it ended on a Zotero voice) and a
+    language pick are unit-only (`test/read-aloud/document-voice-pick.test.ts`):
     live, a regression would spend credits.
 
 Clock ties, malformed imports and migration-once rules are also covered by
