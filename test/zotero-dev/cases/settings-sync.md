@@ -22,8 +22,8 @@ changes apply immediately (#121,
 [synced settings during reading](settings-sync-while-reading.md)). Item 3.19 covers
 the positions line beside the settings one.
 
-Items 3.19, 6.11–6.15, 6.17–6.19, 6.22 and 6.25 of the checklist, under
-their original numbers.
+Items 3.19, 6.11–6.15, 6.17–6.19, 6.22, 6.25 and 6.26 of the checklist,
+under their original numbers.
 
 ### 3.19
 
@@ -177,4 +177,13 @@ their original numbers.
     `pushed 1`, the pref stays 80 and `sharedSettings()` shows
     `readAloud.volume: 80` at the crafted ts + 1, by this machine. Restore
     the volume and remove the crafted item.
+
+### 6.26
+
+26. **`sharedSettings()` shows the old preset memory as a length**
+    (issue #203, 1.16.12-beta2). Craft an `openai.presetValues` item, `by:
+    "tester"`, whose value is a JSON object holding a made-up `apiKey`
+    (`"fake-openai-key-do-not-print"`), and an `openai.apiKey` item with the
+    same made-up key: `sharedSettings()` lists both as `<N chars>`, and its
+    output does not contain the made-up key. Remove the crafted items.
 

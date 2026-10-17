@@ -395,3 +395,36 @@ describe('the shutdown with a WebDAV folder that stops answering (issue #219)', 
     expect(heldFor).toBeLessThanOrEqual(SYNC_SHUTDOWN_TIMEOUT_MS + 1000);
   });
 });
+
+// Issue #203: diagnostics.sharedSettings() shows a secret only as a length;
+// a file a copy from before #113 wrote keeps that section's preset memory,
+// whose remembered servers carry their keys and headers
+describe('diagnostics.sharedSettings() on a file an older copy wrote (issue #203)', () => {
+  const FOLDER = 'https://dav.test/folder/';
+  const KEY = 'fake-openai-key-do-not-print';
+  const realFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it('shows the old preset memory as a length, like the keys in it', async () => {
+    const file = {
+      format: 'zotero-tts-shared-settings',
+      version: 1,
+      items: [
+        { key: 'openai.apiKey', value: KEY, ts: 1000, by: 'old-mac' },
+        { key: 'openai.presetValues', value: JSON.stringify({ openai: { apiKey: KEY, model: 'tts-1', headers: 'Authorization: Bearer x' } }), ts: 1000, by: 'old-mac' },
+        { key: 'readAloud.volume', value: 120, ts: 1000, by: 'old-mac' },
+      ],
+    };
+    globalThis.fetch = (async () => new Response(JSON.stringify(file), { status: 200 })) as never;
+    const { diagnostics } = await start([], { prefs: { 'extensions.zotero.zotero-tts.webdav.url': FOLDER } });
+    const shown = await diagnostics.sharedSettings();
+    expect(shown).not.toContain(KEY);
+    const items = JSON.parse(shown).items as { key: string; value: unknown }[];
+    expect(items.find((i) => i.key === 'openai.presetValues')?.value).toMatch(/^<\d+ chars>$/);
+    expect(items.find((i) => i.key === 'openai.apiKey')?.value).toBe(`<${KEY.length} chars>`);
+    // The control: a value that is no secret is shown as it is
+    expect(items.find((i) => i.key === 'readAloud.volume')?.value).toBe(120);
+  });
+});

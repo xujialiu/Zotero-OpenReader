@@ -3637,8 +3637,11 @@ const diagnostics = {
     try {
       const client = createWebDAVClient(loadSettings(prefs).webdav, webdavDeps());
       const items = parseSharedSettings(await client.download(SHARED_SETTINGS_FILENAME));
-      // The account id is an identifier, not a credential, but it is a 32-hex string the pre-push key scan would flag in a transcript
-      const secret = /apiKey|apiToken|accountId|password|headers/i;
+      // The account id is an identifier, not a credential, but it is a 32-hex string the pre-push key scan would flag in a transcript.
+      // `presetValues` is the old OpenAI section's server memory, keys and
+      // headers inside: no setting since #113, but a file a copy before it
+      // wrote keeps the item for the copies still on that version (issue #203)
+      const secret = /apiKey|apiToken|accountId|password|headers|presetValues/i;
       return JSON.stringify(
         {
           url: client.url,
