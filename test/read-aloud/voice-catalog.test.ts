@@ -9,6 +9,7 @@ import {
   pluginVoiceTier,
   providerTierLabel,
   PUBLISHED_TIER,
+  switchLabel,
   tierForProvider,
   UNKNOWN_ENGINE_TIER,
   zoteroTierLabel,
@@ -111,6 +112,23 @@ describe('zoteroTierLabel', () => {
     expect(zoteroTierLabel('standard')).toBe('Zotero Standard');
     expect(zoteroTierLabel('premium')).toBe('Zotero Premium');
     expect(zoteroTierLabel('fish')).toBe('fish');
+  });
+});
+
+// Issue #193: the settings-sync line and the restore report name a switch
+// as the Player names its entry, never by the switch's id
+describe('switchLabel', () => {
+  it('names every switch as the Player names its entry', () => {
+    expect(['openai-official', 'mimo', 'compatible', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'system', 'zotero-standard', 'zotero-premium'].map((id) => switchLabel(id))).toEqual([
+      'OpenAI', 'Xiaomi MiMo', 'OpenAI Compatible', 'Azure', 'Cloudflare', 'Speechify', 'Fish Audio', 'Fish Speech', 'System', 'Zotero Standard', 'Zotero Premium',
+    ]);
+  });
+
+  it('names the local switch after its engine, and hands an id it does not know back', () => {
+    expect(switchLabel('local', { localEngine: 'Kokoro' })).toBe('Kokoro');
+    expect(switchLabel('local')).toBe('Local');
+    // A held record another version wrote, under a section this one does not have
+    expect(switchLabel('openai')).toBe('openai');
   });
 });
 

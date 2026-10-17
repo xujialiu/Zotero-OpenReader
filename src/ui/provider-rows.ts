@@ -1,5 +1,7 @@
 import { t } from '../core/l10n';
-import { PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../core/settings';
+import { loadSettings, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../core/settings';
+import { providerNaming } from '../read-aloud/catalog';
+import { switchLabel } from '../read-aloud/voice-catalog';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 import { isSecretField, setSecretLocked } from './secret-rows';
 
@@ -240,7 +242,9 @@ export function initProviderRows(
     if (!turnedOff.length) return t('ztts-providers-checked', { count: wanted.length });
     // The switches moved, so the voice browser lists again — once, after all of them
     deps.onVoicesChanged();
-    const named = SWITCH_IDS.filter((id) => turnedOff.includes(id)).join(', ');
+    // As the Player names them (issue #193): the ids are shown nowhere else
+    const naming = providerNaming(loadSettings(deps.prefs));
+    const named = SWITCH_IDS.filter((id) => turnedOff.includes(id)).map((id) => switchLabel(id, naming)).join(', ');
     return t('ztts-providers-turned-off', { named, count: turnedOff.length });
   }
 

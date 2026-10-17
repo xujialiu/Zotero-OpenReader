@@ -757,3 +757,4 @@ then) and is in the git history before that day.
 
 - A provider enabled by hand stayed "held off" by the settings sync (issue #192)
 - A settings change right after an adoption from a faster clock was reverted (issue #205)
+- The sync line and the restore report named providers by switch id (issue #193)

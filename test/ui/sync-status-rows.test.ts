@@ -72,8 +72,24 @@ describe('settingsStatusText', () => {
   it('adds what waits for the reading to stop and which providers are held off here', () => {
     const text = settingsStatusText(stats({ lastOutcome: 'deferred', deferred: 2, held: { azure: 'Connection failed: 401' } }), true, at);
     expect(text).toBe(
-      sentences(t('ztts-sync-status-none', { time: 'T1000' }), t('ztts-sync-status-deferred', { count: 2 }), t('ztts-sync-status-held', { provider: 'azure', reason: 'Connection failed: 401' })),
+      sentences(t('ztts-sync-status-none', { time: 'T1000' }), t('ztts-sync-status-deferred', { count: 2 }), t('ztts-sync-status-held', { provider: 'Azure', reason: 'Connection failed: 401' })),
     );
+  });
+
+  // Issue #193: the switch ids are shown nowhere else in the interface
+  it('names a held provider as the Player does, not by its switch id', () => {
+    const held = { 'openai-official': 'Connection failed: 401', compatible: 'Cannot reach', local: 'Cannot reach', 'zotero-premium': 'No time left' };
+    const text = settingsStatusText(stats({ held }), true, at, { localEngine: 'Kokoro' });
+    expect(text).toBe(
+      sentences(
+        t('ztts-sync-status-none', { time: 'T1000' }),
+        t('ztts-sync-status-held', { provider: 'OpenAI', reason: 'Connection failed: 401' }),
+        t('ztts-sync-status-held', { provider: 'OpenAI Compatible', reason: 'Cannot reach' }),
+        t('ztts-sync-status-held', { provider: 'Kokoro', reason: 'Cannot reach' }),
+        t('ztts-sync-status-held', { provider: 'Zotero Premium', reason: 'No time left' }),
+      ),
+    );
+    expect(text).not.toMatch(/openai-official|compatible stays|zotero-premium/);
   });
 
   it('reports a failure, also when the last attempt was skipped inside the failure window', () => {

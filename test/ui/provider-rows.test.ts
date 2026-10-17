@@ -428,9 +428,13 @@ describe('initProviderRows', () => {
     it('says which providers it turned off, and says so when none needed it', async () => {
       const bad = setup({ prefs: { [enabledPref('azure')]: true, [enabledPref('local')]: true }, check: async () => REFUSED });
       const said = await bad.rows.verifyEnabled();
-      expect(said).toContain('azure');
-      expect(said).toContain('local');
+      // Named as the Player names them (issue #193), the local engine by its name
+      expect(said).toContain('Azure, Kokoro');
       expect(said).toMatch(/turned off/i);
+      const ids = setup({ prefs: { [enabledPref('openai-official')]: true, [enabledPref('compatible')]: true, [enabledPref('zotero-premium')]: true }, check: async () => REFUSED });
+      const named = await ids.rows.verifyEnabled();
+      expect(named).toContain('OpenAI, OpenAI Compatible, Zotero Premium');
+      expect(named).not.toMatch(/openai-official|compatible,|zotero-premium/);
       const good = setup({ prefs: { [enabledPref('local')]: true } });
       expect(await good.rows.verifyEnabled()).not.toMatch(/turned off/i);
       const none = setup();

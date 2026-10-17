@@ -11,7 +11,8 @@ supersedes 6.20: the same behavior, measured on 1.11.7-beta5. Follow 3.20's
 recipe (the file's `enabled` item left at the seed's ts); 6.20's older
 `enabled` ts is not a resting state.
 
-Items 3.20, 6.20 and 6.23 of the checklist, under their original numbers.
+Items 3.20, 6.20, 6.23 and 6.24 of the checklist, under their original
+numbers.
 
 ### 3.20
 
@@ -67,4 +68,18 @@ Items 3.20, 6.20 and 6.23 of the checklist, under their original numbers.
     period the `change` sync completes with `settingsSync().transport.held`
     `{}` and the line no longer says "stays off". Restore the key and
     remove the crafted items.
+
+### 6.24
+
+24. **A held provider is named as the Player names it** (issue #193,
+    1.16.12-beta2). Keep `webdav.syncState` first. Write into its `held`
+    the records `openai-official`, `compatible` and `zotero-premium`, each
+    `{ ts: Date.now(), reason: "tester" }`, keep the rest of the state as
+    it was, and open Settings → OpenReader: the Sync group's settings line
+    reads `… OpenAI stays off on this computer: tester. OpenAI Compatible
+    stays off on this computer: tester. Zotero Premium stays off on this
+    computer: tester.` and contains none of the three ids. Put the kept
+    `webdav.syncState` back and confirm it. The restore report ("Turned off
+    OpenAI, OpenAI Compatible: …") needs a restore whose check fails and is
+    unit-tested in `test/ui/provider-rows.test.ts`.
 

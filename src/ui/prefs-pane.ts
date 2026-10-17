@@ -12,7 +12,7 @@ import { SynthesisError } from '../core/providers/errors';
 import { sentences, t } from '../core/l10n';
 import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
-import { CATALOG_CAP_MS, listNamedCatalog, providerTierColumns } from '../read-aloud/catalog';
+import { CATALOG_CAP_MS, listNamedCatalog, providerNaming, providerTierColumns } from '../read-aloud/catalog';
 import { FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
 import { languageDisplayName } from '../read-aloud/language-dropdown';
 import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, SPEED_PERCENT_OBSERVER } from '../read-aloud/read-aloud-memory';
@@ -844,6 +844,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       watch: (onSynced) => hooks.sync?.settings.watch(onSynced) ?? (() => {}),
       watchSwitch: (onChange) => watchSwitchAndFolder(SYNC_SETTINGS_OBSERVER, onChange),
       onApplied: () => restoreDeps.onRestored(),
+      naming: () => providerNaming(loadSettings(prefs)),
     },
     positions: {
       enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'syncPositions'),

@@ -1,6 +1,7 @@
 import { sentences, t } from '../core/l10n';
 import type { SettingsSyncApplied, SettingsSyncStats } from '../core/settings-sync-transport';
 import type { PositionTransportStats } from '../read-aloud/position-transport';
+import { switchLabel, type TierNaming } from '../read-aloud/voice-catalog';
 
 /**
  * The two lines of the Sync group (#68), one under each switch: what the
@@ -43,14 +44,16 @@ export interface SyncStatusDeps {
   settings: LineDeps<SettingsSyncStats, SettingsSyncApplied | null> & {
     /** A sync changed settings on this computer: the pane's unbound rows redraw. */
     onApplied(): void;
+    /** What a held provider's name depends on: the local engine's (issue #193). Absent, the local switch reads "Local". */
+    naming?(): TierNaming;
   };
   positions: LineDeps<PositionTransportStats, void>;
 }
 
 const fromOf = (report: SettingsSyncApplied) => (report.from.length ? report.from.join(', ') : t('ztts-sync-other-computer'));
 
-/** The settings line's text for these stats; empty while the switch is off. */
-export function settingsStatusText(stats: SettingsSyncStats | null, enabled: boolean, formatTime: (ts: number) => string): string {
+/** The settings line's text for these stats, each held provider by its name (issue #193); empty while the switch is off. */
+export function settingsStatusText(stats: SettingsSyncStats | null, enabled: boolean, formatTime: (ts: number) => string, naming: TierNaming = {}): string {
   if (!enabled) return '';
   if (!stats || stats.lastAt === null || stats.lastOutcome === null) return t('ztts-sync-status-waiting');
   const time = formatTime(stats.lastAt);
@@ -67,7 +70,7 @@ export function settingsStatusText(stats: SettingsSyncStats | null, enabled: boo
         ? t('ztts-sync-status-last', { time, count: last.applied.length, from: fromOf(last), when: formatTime(last.at) })
         : t('ztts-sync-status-none', { time });
   const deferred = stats.deferred ? t('ztts-sync-status-deferred', { count: stats.deferred }) : '';
-  const held = Object.entries(stats.held).map(([provider, reason]) => t('ztts-sync-status-held', { provider, reason }));
+  const held = Object.entries(stats.held).map(([id, reason]) => t('ztts-sync-status-held', { provider: switchLabel(id, naming), reason }));
   return sentences(lead, deferred, ...held);
 }
 
@@ -105,7 +108,7 @@ export function initSyncStatusRows(
     line.hidden = text === '';
   };
   const refreshPositions = () => show(positions, positionsStatusText(deps.positions.stats(), deps.positions.enabled(), deps.formatTime));
-  const refreshSettings = () => show(settings, settingsStatusText(deps.settings.stats(), deps.settings.enabled(), deps.formatTime));
+  const refreshSettings = () => show(settings, settingsStatusText(deps.settings.stats(), deps.settings.enabled(), deps.formatTime, deps.settings.naming?.()));
   const refresh = () => {
     refreshPositions();
     refreshSettings();

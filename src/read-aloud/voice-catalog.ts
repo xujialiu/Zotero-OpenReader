@@ -1,5 +1,6 @@
 import { t } from '../core/l10n';
 import type { ProviderId, VoiceInfo } from '../core/providers/types';
+import { isZoteroSwitch, zoteroSwitchTier } from '../core/settings';
 import { ZOTERO_TIERS } from './zotero-voices';
 
 const SEPARATOR = '::';
@@ -85,6 +86,18 @@ export function zoteroTierLabel(tier: string): string {
   if (tier === 'standard') return t('ztts-tier-standard');
   if (tier === 'premium') return t('ztts-tier-premium');
   return tier;
+}
+
+/**
+ * A provider switch's name in a message — the settings-sync line, the
+ * restore report (issue #193): the Player's name for its entry, Zotero's
+ * two tiers in Zotero's words, and any other id as it is (a held record
+ * written by another version). The switch ids themselves are shown
+ * nowhere in the interface.
+ */
+export function switchLabel(id: string, naming: TierNaming = {}): string {
+  if (isZoteroSwitch(id)) return zoteroTierLabel(zoteroSwitchTier(id));
+  return (PROVIDERS as readonly string[]).includes(id) ? providerTierLabel(id as ProviderId, naming) : id;
 }
 
 /** Whether a tier key is one of Zotero's own cloud tiers. */
