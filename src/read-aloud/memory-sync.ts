@@ -940,9 +940,14 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     const undo: (() => void)[] = [];
     lifecycle.set(manager, undo);
     for (const name of ['activate', 'deactivate', '_createController']) {
-      const original = target[name];
-      if (typeof original !== 'function') continue;
+      if (typeof target[name] !== 'function') continue;
       const descriptor = Object.getOwnPropertyDescriptor(target, name);
+      // The method as it stands at each call: an own one found here, else
+      // the prototype's at that moment. The speech text settings shadow
+      // `activate` on the prototype after this attaches, and a function
+      // captured here would bypass that shadow (issue #189).
+      const own = descriptor ? target[name] : null;
+      const current = () => own ?? ownerOf(target, name)?.[name];
       const hook = function (this: unknown, ...args: unknown[]) {
         if (name === 'deactivate') sessions.delete(manager);
         if (name === 'activate' && !manager.active) {
@@ -969,7 +974,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
             return;
           }
         }
-        return Reflect.apply(original, this, args);
+        return Reflect.apply(current(), this, args);
       };
       target[name] = deps.exportFunction ? deps.exportFunction(hook, manager) : hook;
       undo.push(() => {

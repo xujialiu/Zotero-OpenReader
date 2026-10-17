@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { prepareSpeechText, restoreSpeechOffsets, validateBracketPairs } from '../../src/core/speech-text';
 import { createTextSettings } from '../../src/read-aloud/text-settings';
 import { createRemoteInterface } from '../../src/read-aloud/remote-interface';
+import { createDocumentVoices } from '../../src/core/document-voices';
+import { createReadAloudMemorySync } from '../../src/read-aloud/memory-sync';
 
 describe('configurable bracket pairs', () => {
   it('backs up and restores the list while preserving existing opt-out', () => {
@@ -56,6 +58,41 @@ describe('configurable bracket pairs', () => {
     expect(settings.pairs(reader)).toBe('<> []');
     m._active = false; m.activate();
     expect(settings.pairs(reader)).toBe('()');
+    settings.dispose();
+  });
+  it('follows Settings at each Reading session with the Read Aloud memory attached first, as index.ts does (issue #189)', () => {
+    const store: Record<string, unknown> = {};
+    const prefs = { get: (key: string) => store[key], set: (key: string, value: unknown) => void (store[key] = value) };
+    createDocumentVoices(prefs).choose('user/ABCDEFGH', { id: 'local::af_aoede', lang: 'en' });
+    // Zotero's manager: activate and deactivate on the class, the private _active behind the public `active`
+    class Manager {
+      _active = false;
+      selectedVoiceID = 'local::af_aoede';
+      allVoices = [{ id: 'local::af_aoede' }];
+      get active() { return this._active; }
+      activate() { this._active = true; }
+      deactivate() { this._active = false; }
+    }
+    const m = new Manager();
+    const reader = { _internalReader: { _readAloudManager: m, _syncPersistedVoicesToManager() {} } };
+    let enabled = true;
+    let pairs = '<> []';
+    const memory = createReadAloudMemorySync({
+      prefs, documentKey: () => 'user/ABCDEFGH', sameVoice: () => true, globalSpeed: () => true,
+      registerObserver: () => Symbol('observer'), unregisterObserver: () => {}, readers: () => [reader], error: e => { throw e; },
+    });
+    const settings = createTextSettings({ getEnabled: () => enabled, getPairs: () => pairs, error: e => { throw e; } });
+    memory.attach(reader);
+    settings.attach(reader);
+    m.activate();
+    expect(m.active).toBe(true);
+    expect([settings.enabled(reader), settings.pairs(reader)]).toEqual([true, '<> []']);
+    m.deactivate();
+    enabled = false;
+    pairs = '()';
+    m.activate();
+    expect([settings.enabled(reader), settings.pairs(reader)]).toEqual([false, '()']);
+    memory.dispose();
     settings.dispose();
   });
   it.each(['openai-official::alloy', 'native'])('passes cleaned text and restores cached ranges for %s', async id => {

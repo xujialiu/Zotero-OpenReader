@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/angle-brackets/README.md)
 
-## 3g. Enclosing brackets (issues #94, #96, #101, #127)
+## 3g. Enclosing brackets (issues #94, #96, #101, #127, #189)
 
 Run the [baseline](../baseline.md), then import
 `test/fixtures/angle-brackets/angle-brackets.epub` as a temporary standalone
@@ -38,6 +38,10 @@ original values in the workflow's order, with reading memory last.
    still loses the pair. Stop and reopen: effective becomes false and the
    pair reaches synthesis unchanged. Set true and reopen again: stripping
    resumes and the cleaned cache entry remains correctly aligned.
+   Both reopens are in the tab of the first session, after Play: from #146
+   until #189 the first session's values stayed for the tab (`effective`
+   still true after the reopen), which a change made before the tab's
+   first play, or in a new tab, does not show.
 5. **Empty pair.** A segment containing `<>` returns the short silent WAV
    without a provider request, and playback continues into the next
    sentence. If the installed segmenter drops the empty pair, record that

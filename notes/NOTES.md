@@ -744,3 +744,4 @@ then) and is in the git history before that day.
 ### [2026-10-17](NOTES_2026-10-17.md)
 
 - A pick on an idle manager was restored over by the Document voice from before it (issue #183)
+- The memory sync's lifecycle hooks hid every later shadow of `activate` (issue #189)
