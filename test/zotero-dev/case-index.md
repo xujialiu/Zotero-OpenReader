@@ -111,6 +111,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [The global speed travels](cases/global-speed.md) — 1–7 (issue #82)
 - [A WebDAV reply that stalls, breaks or runs too large fails instead of hanging, and its connection is closed](cases/webdav-reply-bounds.md) — 1–8 (issue #169)
 - [The WebDAV folder has Enable / Disable, creates a folder that does not exist yet, and an http:// folder is warned about, never refused](cases/webdav-folder-switch.md) — 1–12 (issues #172–#175, #186)
+- [A WebDAV folder that stops answering: the shutdown waits one bound, and the stopped build stays stopped](cases/webdav-shutdown.md) — 1–2 (issues #219, #220)
 
 ## The end of a pass
 

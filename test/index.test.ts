@@ -344,3 +344,54 @@ describe('the WebDAV folder switch at startup', () => {
     expect(requests).toEqual([]);
   });
 });
+
+// Issue #219: the shutdown's final WebDAV pushes each get a bound of 8 s
+// (index.ts SYNC_SHUTDOWN_TIMEOUT_MS); a folder that stops answering must
+// cost one bound, not one per file
+describe('the shutdown with a WebDAV folder that stops answering (issue #219)', () => {
+  const FOLDER = 'https://dav.test/folder/';
+  const SYNC_SHUTDOWN_TIMEOUT_MS = 8000;
+  const realFetch = globalThis.fetch;
+  afterEach(async () => {
+    vi.useRealTimers();
+    globalThis.fetch = realFetch;
+  });
+
+  /** Starts against a folder that answers, then black-holes it and shuts down; how long the shutdown held, and which files it asked for. */
+  async function shutdownAgainstHangingFolder(prefs: Record<string, unknown>) {
+    vi.useFakeTimers();
+    let reachable = true;
+    const hung: string[] = [];
+    globalThis.fetch = (async (target: string) => {
+      if (reachable) return new Response(null, { status: 404 });
+      hung.push(target.slice(FOLDER.length));
+      return new Promise<Response>(() => {});
+    }) as never;
+    const { report } = await start([], { prefs: { 'extensions.zotero.zotero-tts.webdav.url': FOLDER, ...prefs } });
+    expect(report.failed).toEqual([]);
+    await vi.advanceTimersByTimeAsync(5000);
+    reachable = false;
+    const quitAt = Date.now();
+    let heldFor = -1;
+    const stopped = running.shutdown(ADDON_UPGRADE).then(() => void (heldFor = Date.now() - quitAt));
+    running = null;
+    for (let i = 0; i < 40 && heldFor < 0; i++) await vi.advanceTimersByTimeAsync(1000);
+    await stopped;
+    return { heldFor, hung };
+  }
+
+  it('lets go within one bound at the default switches, both positions files asked for at once', async () => {
+    const { heldFor, hung } = await shutdownAgainstHangingFolder({ 'extensions.zotero.zotero-tts.webdav.syncPositions': true });
+    expect(hung.sort()).toEqual(['xujialiu-positions.json', 'zotero-tts-positions.json']);
+    expect(heldFor).toBeLessThanOrEqual(SYNC_SHUTDOWN_TIMEOUT_MS + 1000);
+  });
+
+  it('lets go within one bound with the settings sync on too', async () => {
+    const { heldFor, hung } = await shutdownAgainstHangingFolder({
+      'extensions.zotero.zotero-tts.webdav.syncPositions': true,
+      'extensions.zotero.zotero-tts.webdav.syncSettings': true,
+    });
+    expect(hung.sort()).toEqual(['xujialiu-positions.json', 'zotero-tts-positions.json', 'zotero-tts-shared-settings.json']);
+    expect(heldFor).toBeLessThanOrEqual(SYNC_SHUTDOWN_TIMEOUT_MS + 1000);
+  });
+});

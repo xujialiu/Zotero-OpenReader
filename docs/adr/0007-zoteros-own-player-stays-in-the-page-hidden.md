@@ -112,8 +112,9 @@ the startup report names the step.
 `ADDON_UNINSTALL`, as `stopEngine` already does. On an upgrade or a
 downgrade the Player leaves its hiding rule in each reader, so Zotero's
 player no longer shows while the successor starts, a gap that can include
-the shutdown's bounded flushes of 8 s each. The successor's `attach`
-replaces the stale rule.
+the shutdown's final WebDAV pushes. They run side by side, each bounded at
+8 s, so a folder that stops answering adds 8 s, not 8 s per file (issue
+#219). The successor's `attach` replaces the stale rule.
 
 The successor's Player starts closed even when a paused session is open
 (the owner's choice, 2026-09-24): the Engine keeps that session paused at

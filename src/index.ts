@@ -1849,23 +1849,21 @@ async function stopPositionTracking(): Promise<void> {
   const sharedFlush = sharedTransport;
   sharedTransport = null;
   documentPositions = null;
-  if (transport) {
-    // The session's final positions go up before the store closes; the
-    // transport's deps hold this generation's sampler, so the captures the
-    // stop() above just made are what it reads
-    try {
-      await withTimeout(transport.flush('shutdown'), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: position sync flush timed out at shutdown'));
-    } catch (e) {
-      Zotero.logError(e);
-    }
-  }
-  if (sharedFlush) {
-    try {
-      await withTimeout(sharedFlush.flush('shutdown'), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: shared position sync flush timed out at shutdown'));
-    } catch (e) {
-      Zotero.logError(e);
-    }
-  }
+  // The session's final positions go up before the store closes; the
+  // transport's deps hold this generation's sampler, so the captures the
+  // stop() above just made are what it reads. The two files go up side by
+  // side, each bounded: against a folder that stops answering the wait is
+  // one bound, not one per file (issue #219)
+  await Promise.all([
+    transport &&
+      withTimeout(transport.flush('shutdown'), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: position sync flush timed out at shutdown')).catch((e) =>
+        Zotero.logError(e),
+      ),
+    sharedFlush &&
+      withTimeout(sharedFlush.flush('shutdown'), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: shared position sync flush timed out at shutdown')).catch((e) =>
+        Zotero.logError(e),
+      ),
+  ]);
   const store = positionStore;
   positionStore = null;
   positionDB = null;
@@ -1973,7 +1971,7 @@ function stopDeletionObserver(): void {
 // settings stays a manual act in the pane (ui/webdav-rows.ts).
 
 function startSettingsAutoUpload(): void {
-  stopSettingsAutoUpload();
+  dropSettingsAutoUpload();
   settingsAutoUpload = createSettingsAutoUpload({
     enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'autoUploadSettings'),
     // Every settings pref there is; the observer names are relative to extensions.zotero.
@@ -1997,9 +1995,23 @@ function startSettingsAutoUpload(): void {
   settingsAutoUpload.start();
 }
 
-function stopSettingsAutoUpload(): void {
+/** Forget the auto-upload without a flush: a restart of the step, or after the shutdown's own flush. */
+function dropSettingsAutoUpload(): void {
   settingsAutoUpload?.stop();
   settingsAutoUpload = null;
+}
+
+/** The shutdown's: a settings change still inside its quiet period goes up now, bounded; then the observers come off. */
+async function stopSettingsAutoUpload(): Promise<void> {
+  const auto = settingsAutoUpload;
+  settingsAutoUpload = null;
+  if (!auto) return;
+  try {
+    await withTimeout(auto.flush(), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: settings auto-upload flush timed out at shutdown'));
+  } catch (e) {
+    Zotero.logError(e);
+  }
+  auto.stop();
 }
 
 // ---- The settings, both ways over the folder (#68) --------------------------
@@ -2759,23 +2771,21 @@ async function shutdown(reason?: number): Promise<void> {
   voiceNotices = null;
   playerVoiceList?.dispose();
   playerVoiceList = null;
-  // A settings change still inside its quiet period goes up now, bounded;
-  // then the observers come off
-  const auto = settingsAutoUpload;
-  settingsAutoUpload = null;
-  if (auto) {
-    try {
-      await withTimeout(auto.flush(), SYNC_SHUTDOWN_TIMEOUT_MS, () => new Error('zotero-tts: settings auto-upload flush timed out at shutdown'));
-    } catch (e) {
-      Zotero.logError(e);
-    }
-    auto.stop();
-  }
-  // The settings sync's last push, bounded, then its observers come off (#68)
-  await stopSettingsSync();
-  // Awaited: the final bookmarks flush to the database and the connection
-  // closes before Zotero goes on shutting down (plugins.js awaits us)
-  await stopPositionTracking();
+  // The last pushes to the WebDAV folder run side by side, each under its
+  // own bound, so a folder that stops answering holds the shutdown for one
+  // bound rather than one per file (issue #219). They write different
+  // files and none reads another's result. Settled, not all: one that
+  // throws is logged, and the rest of the teardown still runs after all
+  // three have ended.
+  const pushes = await Promise.allSettled([
+    stopSettingsAutoUpload(),
+    // The settings sync's last push, bounded, then its observers come off (#68)
+    stopSettingsSync(),
+    // Awaited: the final bookmarks flush to the database and the connection
+    // closes before Zotero goes on shutting down (plugins.js awaits us)
+    stopPositionTracking(),
+  ]);
+  for (const push of pushes) if (push.status === 'rejected') Zotero.logError(push.reason);
   stopReadAloudMemory();
   stopSentenceInView();
   stopHighlightStyling();

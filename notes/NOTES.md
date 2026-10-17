@@ -749,3 +749,4 @@ then) and is in the git history before that day.
 - Enable could not turn on a folder the server did not have yet (issue #186)
 - A stopped build kept arming retries from a run still in flight (issue #220)
 - A change made during a slow backup upload waited for the next change (issue #204)
+- The shutdown's final pushes held it for one bound per file (issue #219)
