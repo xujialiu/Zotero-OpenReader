@@ -67,3 +67,24 @@ Items 3.21 and 6.6–6.9 of the checklist, under their original numbers.
    its event loop): their substrate is proved headlessly
    (`settingsFiles()` runs the very `list()` the button runs) and the
    click paths are section 8's.
+
+### 6.21
+
+21. **A change made during a slow upload still goes up** (issue #204,
+    1.16.12-beta). Against the local stub of the
+    [WebDAV shutdown case](webdav-shutdown.md), in *answer* mode but
+    holding each PUT for 14 s before its 201, with the folder Enabled on
+    the stub and *Keep a backup of this computer's settings on the
+    server* on: change one settings pref (t = 0; the upload's PUT starts
+    at about 10 s), then a second one at about 13 s, while that PUT is
+    held. Expected: the stub logs a second PUT of
+    `zotero-tts-settings_<This computer>.json` starting within a second
+    of the first one's answer (about 24 s), and its body holds the second
+    change; `diagnostics.settingsUpload()` shows `autoUpload.uploads` up
+    by 2, `pending` false and `lastOutcome` `ok`; no third PUT comes in
+    the next 2 minutes. On 1.16.11 the second PUT never comes and
+    `pending` stays `true`. A change whose quiet period has not ended when
+    the upload finishes, and a failed upload's retry, are covered by
+    `test/core/settings-autoupload.test.ts`. Put the test configuration
+    and the switch back after, and confirm them.
+

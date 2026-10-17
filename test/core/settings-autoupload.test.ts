@@ -173,6 +173,46 @@ describe('createSettingsAutoUpload', () => {
     expect(h.auto.stats().watching).toBe(0);
   });
 
+  // Issue #204: the quiet timer of a change made during an upload can fire
+  // into that upload, and the upload was built before the change
+  it('a change made while an upload runs goes up once that upload ends, though its quiet period ended first', async () => {
+    const finish: Array<() => void> = [];
+    const upload = vi.fn(() => new Promise<{ name: string; count: number }>((resolve) => finish.push(() => resolve({ name: 'f.json', count: 1 }))));
+    const h = harness({ upload });
+    h.auto.start();
+    h.auto.changed(); // t = 0
+    await h.advance(AUTO_UPLOAD_DEBOUNCE_MS); // t = 10 s: upload 1 starts, the server is slow
+    expect(upload).toHaveBeenCalledTimes(1);
+    await h.advance(3_000);
+    h.auto.changed(); // t = 13 s, upload 1 still running
+    await h.advance(AUTO_UPLOAD_DEBOUNCE_MS); // t = 23 s: its quiet period ends inside upload 1
+    finish[0]!(); // upload 1 ends at t = 23 s
+    await settle();
+    expect(upload).toHaveBeenCalledTimes(2);
+    finish[1]!();
+    await settle();
+    await h.advance(5 * 60_000);
+    expect(upload).toHaveBeenCalledTimes(2);
+    expect(h.auto.stats()).toMatchObject({ pending: false, uploads: 2, lastOutcome: 'ok' });
+  });
+
+  it('a change whose quiet timer is still armed when the upload ends waits for that timer', async () => {
+    const finish: Array<() => void> = [];
+    const upload = vi.fn(() => new Promise<{ name: string; count: number }>((resolve) => finish.push(() => resolve({ name: 'f.json', count: 1 }))));
+    const h = harness({ upload });
+    h.auto.start();
+    h.auto.changed();
+    await h.advance(AUTO_UPLOAD_DEBOUNCE_MS); // t = 10 s: upload 1 starts
+    await h.advance(1_000);
+    h.auto.changed(); // t = 11 s: its timer is due at 21 s
+    await h.advance(1_000);
+    finish[0]!(); // t = 12 s
+    await settle();
+    expect(upload).toHaveBeenCalledTimes(1);
+    await h.advance(AUTO_UPLOAD_DEBOUNCE_MS - 1_000); // t = 21 s
+    expect(upload).toHaveBeenCalledTimes(2);
+  });
+
   // Issue #220: the shutdown gives the flush its bound, then stops the
   // instance while a request to a hanging server is still in flight
   it('a run still in flight at stop() arms no retry when it fails afterwards', async () => {

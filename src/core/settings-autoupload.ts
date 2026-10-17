@@ -159,6 +159,11 @@ export function createSettingsAutoUpload(deps: SettingsAutoUploadDeps): Settings
         }
       } finally {
         running = null;
+        // A change made during the upload whose quiet timer already fired
+        // into it (issue #204): the upload was built before the change, and
+        // nothing else is scheduled, so it goes now. One still waiting on
+        // its timer, or on a failure's retry, is left to it.
+        if (pending && timer === null && !stopped) void run();
       }
     })();
     return running;
