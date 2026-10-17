@@ -763,3 +763,4 @@ then) and is in the git history before that day.
 - macOS 27 lists some voices twice (issue #185)
 - The voice browser kept samples across a Model change (issue #190)
 - The Windows speech daemon's stop() let a queued request start a new helper (issue #191)
+- Verified live on 1.16.12-beta3: System voices once each, samples made again (issues #185, #190, #191)

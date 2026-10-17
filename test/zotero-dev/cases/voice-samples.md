@@ -55,7 +55,12 @@ Items 2.6 and 2.11 of the checklist, under their original numbers.
 ### 2.11
 
 11. **A sample is made again after the setup changes** (issue #190,
-    1.16.12-beta3). The settings window stays open throughout. ▶ on a
+    1.16.12-beta3). Open a fresh settings window (the samples live as long
+    as the window, so a reused one answers from its cache) and keep it
+    open throughout. Each `diagnostics.systemProvider()` read lists the
+    voices once, and that `osascript` lands in the next read's
+    `spawned`: a delta between two reads is later − earlier − 1, and the
+    counts below are that corrected delta (1.16.12-beta3 run). ▶ on a
     System voice (free; enable System voices for the item if the profile
     keeps them off) and let it end: `diagnostics.systemProvider()`
     `backend.spawned` is up by one `say` (on macOS). ▶ the same voice

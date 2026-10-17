@@ -56,12 +56,16 @@ Items 1.8, 1.17 and 1.18 of the checklist, under their original numbers.
     listing (235 before the fix). With Offer only favorite voices off, in
     an open reader whose Player has listed its voices, the manager's `_allVoices` holds 193 ids starting
     `system::`, none twice. The voice browser's System column reads
-    `(193)`. In the Player on the System entry and English, with the voice
-    listed just before Samantha selected and the reading idle, `Shift+.`
-    three times → `manager.selectedVoiceID` takes three different ids in
-    the list's order, Samantha's among them, and never the same id twice
-    in a row (before the fix it stayed on Samantha). The voice selected at
-    the start is restored after.
+    `(193)`. In the Player on the System entry and English (US), with the
+    voice listed just before Samantha selected (Rocko on this Mac) and the
+    reading paused, `Shift+.` three times → the pending switch's target
+    (`diagnostics.engine()`, the reader's handoff) takes three different
+    ids in the list's order, Samantha's among them, never the same id
+    twice in a row (before the fix it stayed on Samantha's twin), and
+    `manager.selectedVoiceID` follows it at the next Play: a pick during
+    a session parks in the Handoff (`voice-pick.ts`), and an idle manager
+    with the session ended is not reachable on this build (1.16.12-beta3
+    run). Commit the voice selected at the start back after.
 
 ### 1.18
 
