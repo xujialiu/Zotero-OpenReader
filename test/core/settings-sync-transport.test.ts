@@ -574,3 +574,28 @@ describe('a provider the settings sync held off, then enabled by hand', () => {
     expect(h.transport.stats().held).toEqual({ azure: 'Connection failed: 401' });
   });
 });
+
+// Issue #205: an adopted item keeps the other computer's stamp, which may be
+// ahead of this computer's clock; a change made here must still outrank it
+describe('a setting changed here right after it was adopted from a computer whose clock runs ahead', () => {
+  it('keeps the user’s value through the next sync, and pushes it', async () => {
+    const h = harness({ state: { stamps: {}, held: {}, seeded: true } });
+    const ahead = h.now() + 60_000;
+    h.setRemote(file(item({ key: 'readAloud.volume', value: 120, ts: ahead })));
+    await h.transport.flush('startup');
+    expect(h.store['readAloud.volume']).toBe(120);
+    expect(h.state().stamps['readAloud.volume']).toBe(ahead);
+    await h.advance(5_000);
+    h.userSets('readAloud.volume', 80);
+    expect(h.state().stamps['readAloud.volume']).toBe(ahead + 1);
+    await h.advance(SETTINGS_SYNC_DEBOUNCE_MS);
+    expect(h.store['readAloud.volume']).toBe(80);
+    expect(h.remoteItems().find((i) => i.key === 'readAloud.volume')).toEqual({ key: 'readAloud.volume', value: 80, ts: ahead + 1, by: 'desktop' });
+  });
+
+  it('stamps a change with the plain clock once the clock is past every stamp (control)', async () => {
+    const h = harness({ state: { stamps: { 'readAloud.volume': 5 }, held: {}, seeded: true } });
+    h.userSets('readAloud.volume', 80);
+    expect(h.state().stamps['readAloud.volume']).toBe(h.now());
+  });
+});

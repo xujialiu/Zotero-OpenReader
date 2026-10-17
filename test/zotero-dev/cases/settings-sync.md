@@ -22,8 +22,8 @@ changes apply immediately (#121,
 [synced settings during reading](settings-sync-while-reading.md)). Item 3.19 covers
 the positions line beside the settings one.
 
-Items 3.19, 6.11–6.15, 6.17–6.19 and 6.22 of the checklist, under their
-original numbers.
+Items 3.19, 6.11–6.15, 6.17–6.19, 6.22 and 6.25 of the checklist, under
+their original numbers.
 
 ### 3.19
 
@@ -164,3 +164,17 @@ original numbers.
     stamped, and the next `change` sync reports `pushed 0` with no
     `fishspeech.*` item of this machine's in `sharedSettings()`. Restore
     the Fish Speech prefs and remove the crafted items.
+
+### 6.25
+
+25. **A change right after an adoption from a faster clock is kept**
+    (issue #205, 1.16.12-beta2). With the switch on and no player open,
+    craft `readAloud.volume: 120` at `Date.now()+60000`, `by: "tester"`
+    (a computer whose clock runs a minute ahead) → the next trigger adopts
+    it and `state.stamps["readAloud.volume"]` equals the crafted ts.
+    Within that minute, set the volume to 80 here: the stamp becomes the
+    crafted ts + 1, not the clock. After the quiet period the `change` sync reports `adopted 0`,
+    `pushed 1`, the pref stays 80 and `sharedSettings()` shows
+    `readAloud.volume: 80` at the crafted ts + 1, by this machine. Restore
+    the volume and remove the crafted item.
+

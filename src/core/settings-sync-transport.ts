@@ -239,7 +239,11 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
     const section = sectionOf(key);
     try {
       updateState((state) => {
-        state.stamps[key] = now;
+        // Later than the stamp it replaces, whatever this clock says (#205):
+        // an adopted item keeps the other computer's stamp, which may be
+        // ahead of this clock, and a change made here must still outrank it
+        // (the rule of document-voices.ts and SYNC-FORMAT.md 6.6)
+        state.stamps[key] = Math.max(now, (state.stamps[key] ?? 0) + 1);
         // The user switched a provider the sync held off back on (#192):
         // the hold was the sync's, and the Enable that passed its own check ends it
         if (key === `${section}.enabled` && isSwitchId(section, providerIds) && state.held[section] && deps.values()[key] === true) {

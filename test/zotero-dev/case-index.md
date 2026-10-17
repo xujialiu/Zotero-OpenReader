@@ -105,7 +105,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Reading position sync over WebDAV](cases/position-sync.md) — 6.1–6.5, 6.10
 - [The Positions File shared with OpenReader](cases/document-positions.md) — 1–16 (issues #126, #129, #138, #139)
 - [Settings backup](cases/settings-backup.md) — 3.21, 6.6–6.9, 6.21
-- [Settings sync over WebDAV](cases/settings-sync.md) — 3.19, 6.11–6.15, 6.17–6.19, 6.22
+- [Settings sync over WebDAV](cases/settings-sync.md) — 3.19, 6.11–6.15, 6.17–6.19, 6.22, 6.25
 - [Synced settings wait while a tab reads](cases/settings-sync-while-reading.md) — 1.16, 6.16
 - [A synced provider that fails its check goes off here only](cases/settings-sync-provider-check.md) — 3.20, 6.20, 6.23
 - [The global speed travels](cases/global-speed.md) — 1–7 (issue #82)

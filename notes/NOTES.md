@@ -756,3 +756,4 @@ then) and is in the git history before that day.
 ### [2026-10-18](NOTES_2026-10-18.md)
 
 - A provider enabled by hand stayed "held off" by the settings sync (issue #192)
+- A settings change right after an adoption from a faster clock was reverted (issue #205)
