@@ -62,10 +62,20 @@ rule book, whose core is `MEMORY/MEMORY.md`.
   meet, or a diagnostic that reports wrongly; when convenient. It is
   decided from the impact on the user when the issue is written, never
   from the size of the fix, and moved when the evidence changes.
-  `enhancement` and `chore` carry none. The only other labels are the
-  skills' (settled 2026-10-04): the five triage state labels of
-  `docs/agents/triage-labels.md` and wayfinder's `wayfinder:*`; no
-  milestones.
+  `enhancement` and `chore` carry none. The other allowed labels are
+  `working` (below) and the skills' (settled 2026-10-04): the five triage
+  state labels of `docs/agents/triage-labels.md` and wayfinder's
+  `wayfinder:*`; no milestones.
+- **Active issue work carries `working`** (settled 2026-10-18): once a
+  session takes on an issue, add `working` before investigating, discussing
+  a plan, implementing or verifying it:
+  `gh issue edit <number> --add-label working`. Merely browsing issues or
+  organizing the issue list does not count. Keep the label while waiting
+  for the user's decision, test results or permission to commit. Remove
+  it when the issue closes or work is explicitly paused or abandoned:
+  `gh issue edit <number> --remove-label working`. Add it again before
+  resuming work. Adding or removing `working` leaves all other labels
+  unchanged; it tracks ongoing work independently of the triage state.
 - **An issue closes at the commit that finishes it** (settled 2026-09-23,
   issue #133): that commit carries the number in its subject
   (`fix: … (#5)`), and `gh issue close 5` runs right after it, the

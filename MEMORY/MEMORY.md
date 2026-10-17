@@ -32,8 +32,9 @@ covers — its rules bind that work as much as this file's do:
   `tutorials/`, a Chinese page, `notes/`) or the public site, and before
   recording a decision.
 - **Issues** — `MEMORY/issues.md`: whenever you find a bug or start a
-  feature that needs a design decision, and before researching, opening,
-  commenting on or closing a GitHub issue.
+  feature that needs a design decision; before starting or resuming any
+  GitHub issue work (research and verification included); and before
+  opening, commenting on, labeling or closing an issue.
 - **Code** — `MEMORY/code.md`: before changing `src/`, `addon/` or
   `test/`, and before reading Zotero's source or its profile.
 - **Testing** — `MEMORY/testing.md`: before building an xpi to test,
