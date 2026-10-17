@@ -538,3 +538,39 @@ describe('a Fish Speech server at a local address under the settings sync', () =
     expect(h.store['fishspeech.enabled']).toBe(false);
   });
 });
+
+// Issue #192: the hold is the sync's, and the user's own Enable ends it
+describe('a provider the settings sync held off, then enabled by hand', () => {
+  async function heldAzure() {
+    const h = harness({
+      values: { 'azure.enabled': true, 'azure.apiKey': 'old-key' },
+      state: { stamps: { 'azure.enabled': 300, 'azure.apiKey': 100 }, held: {}, seeded: true },
+      remote: file(item({ key: 'azure.apiKey', value: 'new-key', ts: 700 }), item({ key: 'azure.enabled', value: true, ts: 300 })),
+    });
+    h.checkOutcomes.azure = { ok: false, message: 'Connection failed: 401' };
+    await h.transport.flush('startup');
+    expect(h.store['azure.enabled']).toBe(false);
+    expect(h.transport.stats().held).toEqual({ azure: 'Connection failed: 401' });
+    return h;
+  }
+
+  it('is no longer reported held once the user switches it on', async () => {
+    const h = await heldAzure();
+    h.checkOutcomes.azure = { ok: true, message: 'Connected.' };
+    // The pane's Enable: its own check passed, the pref goes on
+    h.userSets('azure.enabled', true);
+    expect(h.state().held).toEqual({});
+    await h.advance(SETTINGS_SYNC_DEBOUNCE_MS);
+    expect(h.store['azure.enabled']).toBe(true);
+    expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', held: {} });
+  });
+
+  it('stays held through another setting’s change, and through the sync’s own writes', async () => {
+    const h = await heldAzure();
+    h.userSets('readAloud.volume', 130);
+    h.userSets('azure.region', 'westus');
+    await h.advance(SETTINGS_SYNC_DEBOUNCE_MS);
+    expect(h.store['azure.enabled']).toBe(false);
+    expect(h.transport.stats().held).toEqual({ azure: 'Connection failed: 401' });
+  });
+});

@@ -752,3 +752,7 @@ then) and is in the git history before that day.
 - The shutdown's final pushes held it for one bound per file (issue #219)
 - Verified live on 1.16.12-beta: the WebDAV folder fixes, and timers that never fire after a re-enable (issues #186, #204, #219, #220)
 - Fish Speech was synced like a hosted provider (issue #184)
+
+### [2026-10-18](NOTES_2026-10-18.md)
+
+- A provider enabled by hand stayed "held off" by the settings sync (issue #192)

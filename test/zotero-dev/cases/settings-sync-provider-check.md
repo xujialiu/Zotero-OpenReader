@@ -11,7 +11,7 @@ supersedes 6.20: the same behavior, measured on 1.11.7-beta5. Follow 3.20's
 recipe (the file's `enabled` item left at the seed's ts); 6.20's older
 `enabled` ts is not a resting state.
 
-Items 3.20 and 6.20 of the checklist, under their original numbers.
+Items 3.20, 6.20 and 6.23 of the checklist, under their original numbers.
 
 ### 3.20
 
@@ -54,3 +54,17 @@ Items 3.20 and 6.20 of the checklist, under their original numbers.
     and checks nothing. Then the real key crafted newer (read into the
     script from the pref, never printed) → applied, `<id>.enabled` back on,
     the check passes, `state.held` `{}`, `uploaded false`.
+
+### 6.23
+
+23. **The user's own Enable ends the hold** (issue #192, 1.16.12-beta2).
+    Hold Azure as in 3.20 (`state.held.azure` set, `azure.enabled` false,
+    the Sync group's line ending `azure stays off on this computer: …` —
+    the provider's name there is 6.24's). Craft the real key back newer
+    *without* a trigger, then press **Enable** in the Azure section: its
+    check passes, `azure.enabled` true, and `state.held` has no `azure` at
+    once (read `webdav.syncState` in the same script). After the quiet
+    period the `change` sync completes with `settingsSync().transport.held`
+    `{}` and the line no longer says "stays off". Restore the key and
+    remove the crafted items.
+

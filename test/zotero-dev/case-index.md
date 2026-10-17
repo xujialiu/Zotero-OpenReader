@@ -107,7 +107,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Settings backup](cases/settings-backup.md) — 3.21, 6.6–6.9, 6.21
 - [Settings sync over WebDAV](cases/settings-sync.md) — 3.19, 6.11–6.15, 6.17–6.19, 6.22
 - [Synced settings wait while a tab reads](cases/settings-sync-while-reading.md) — 1.16, 6.16
-- [A synced provider that fails its check goes off here only](cases/settings-sync-provider-check.md) — 3.20, 6.20
+- [A synced provider that fails its check goes off here only](cases/settings-sync-provider-check.md) — 3.20, 6.20, 6.23
 - [The global speed travels](cases/global-speed.md) — 1–7 (issue #82)
 - [A WebDAV reply that stalls, breaks or runs too large fails instead of hanging, and its connection is closed](cases/webdav-reply-bounds.md) — 1–8 (issue #169)
 - [The WebDAV folder has Enable / Disable, creates a folder that does not exist yet, and an http:// folder is warned about, never refused](cases/webdav-folder-switch.md) — 1–12 (issues #172–#175, #186)

@@ -38,7 +38,7 @@ import { WebDAVError } from './webdav';
  * the file's, or dropped when the file has none, so the flip is never
  * pushed and never switches the working copy off elsewhere — and remembered
  * as held with its reason; the next adoption in that section turns it on
- * and checks again.
+ * and checks again, and the user's own Enable ends the hold (#192).
  *
  * Triggers come from outside as pokes (startup, a reader opening, a tab
  * closing, the pane opening, the switch going on) and from inside: a
@@ -236,9 +236,15 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
   function changed(key: string): void {
     if (applying) return;
     const now = deps.now();
+    const section = sectionOf(key);
     try {
       updateState((state) => {
         state.stamps[key] = now;
+        // The user switched a provider the sync held off back on (#192):
+        // the hold was the sync's, and the Enable that passed its own check ends it
+        if (key === `${section}.enabled` && isSwitchId(section, providerIds) && state.held[section] && deps.values()[key] === true) {
+          delete state.held[section];
+        }
       });
     } catch (e) {
       reportGated(e);
