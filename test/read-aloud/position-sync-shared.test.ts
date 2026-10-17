@@ -47,6 +47,31 @@ function harness() {
 }
 
 describe('the sampler and the Positions File', () => {
+  it.each([false, true])('captures only the speaking duplicate, including its final sentence: reversed=%s', (reversed) => {
+    const h = harness();
+    const speaking = h.add('EPUB0001');
+    const paused = h.add('EPUB0001');
+    paused.manager.paused = true;
+    paused.saved = CFI(2);
+    paused.capture = { locator: 'epubcfi(/6/34!/4/2/4/2/2)', anchor: { exact: 'old', prefix: '', suffix: '' } };
+    if (reversed) h.readers.reverse();
+    h.sync.sample();
+    h.sync.sample();
+    expect(h.shared).toEqual([{ lib: 1, key: 'EPUB0001', exact: 'one', ts: 100 }]);
+    expect(h.stops()).toBe(0);
+    speaking.saved = CFI(6);
+    speaking.capture = { locator: 'epubcfi(/6/34!/4/2/4/2/6)', anchor: { exact: 'two', prefix: '', suffix: '' } };
+    h.tick(10);
+    h.sync.captureClose(speaking);
+    h.readers.splice(h.readers.indexOf(speaking), 1);
+    h.sync.sample();
+    h.sync.sample();
+    expect(h.shared).toEqual([
+      { lib: 1, key: 'EPUB0001', exact: 'one', ts: 100 },
+      { lib: 1, key: 'EPUB0001', exact: 'two', ts: 110 },
+    ]);
+  });
+
   it('hands over the shared half of every new sentence, at the entry stamp, and nothing for an unchanged one', () => {
     const h = harness();
     const reader = h.add('EPUB0001');

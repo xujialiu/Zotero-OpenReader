@@ -268,6 +268,38 @@ describe('a pause sends both positions files up at once (issue #161)', () => {
     globalThis.fetch = realFetch;
   });
 
+  it.each([false, true])('an idle duplicate causes no repeated sync, but a real pause requests both files once: reversed=%s', async (reversed) => {
+    vi.useFakeTimers();
+    const dav = davFolder();
+    globalThis.fetch = dav.fetch as never;
+    const item = { id: 5, libraryID: 1, key: 'PAUSE001', attachmentContentType: 'application/pdf' };
+    const speaking = speakingReader();
+    const idle = speakingReader();
+    idle.manager.active = false;
+    idle.manager.paused = true;
+    const readers = reversed ? [speaking.reader, idle.reader] : [idle.reader, speaking.reader];
+    await start(readers, {
+      prefs: {
+        'extensions.zotero.zotero-tts.webdav.url': FOLDER,
+        'extensions.zotero.zotero-tts.webdav.syncPositions': true,
+      },
+      zotero: {
+        Items: stub({ get: (id: number) => (id === 5 ? item : null), getIDFromLibraryAndKey: (lib: number, key: string) => (lib === 1 && key === item.key ? 5 : false) }),
+        Libraries: stub({ exists: (lib: number) => lib === 1, userLibraryID: 1 }),
+      },
+    });
+    await vi.advanceTimersByTimeAsync(5000);
+    dav.log.length = 0;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(dav.log.filter((request) => FILES.includes(request.name))).toEqual([]);
+    speaking.manager.paused = true;
+    await vi.advanceTimersByTimeAsync(1000);
+    for (const name of FILES) expect(dav.log.filter((request) => request.method === 'GET' && request.name === name)).toHaveLength(1);
+    dav.log.length = 0;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(dav.log.filter((request) => FILES.includes(request.name))).toEqual([]);
+  });
+
   it('requests both files within one sampler tick of the pause, not after a quiet period', async () => {
     vi.useFakeTimers();
     const dav = davFolder();

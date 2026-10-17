@@ -49,7 +49,7 @@ import type { SharedCapture } from './sdt-anchor';
  * works on a session already deactivated by closing the popup, since
  * deactivate freezes but does not clear `savedPosition`
  * (`_resetReadAloudSegmentState` only resets segmentAnnotations) — and it
- * then *freezes* the attachment: a closed reader can linger in `_readers`
+ * then *freezes* that reader: a closed reader can linger in `_readers`
  * while Zotero's teardown regresses its `savedPosition`, and copying that
  * would corrupt the store (the 2026-08-26 incident). Ticks therefore read
  * open sessions only. Details: notes/NOTES.md (2026-08-26).
@@ -116,7 +116,7 @@ export interface PositionSync {
    * One last read of a closing reader, called from the `reader.uninit`
    * wrap while the state is still whole. Reads even a deactivated session
    * (the popup was closed earlier; savedPosition is frozen), then freezes
-   * the attachment so nothing the lingering reader does during teardown
+   * that reader so nothing it does during teardown
    * can be copied over the captured value.
    */
   captureClose(reader: unknown): void;
@@ -155,20 +155,23 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
   let tick: unknown = null;
   let running = false;
   let anyActive = false;
-  // Attachments seen with an open session this plugin session: only these
-  // are still read after deactivate, so a freshly opened document cannot
-  // import Zotero's own restored savedPosition into the store.
-  const wasActive = new Set<string>();
-  // The last position seen per attachment, already serialized: an unchanged
-  // sentence then costs one stringify and no parse.
-  const lastSeen = new Map<string, string>();
+  // A document can be open in several readers (#206). Observations belong
+  // to each reader, not the shared attachment: an idle duplicate is not a
+  // pause of the speaking reader, nor is its older sentence a new position.
+  interface ReaderState {
+    id: string;
+    hadSession: boolean;
+    speaking: boolean;
+    lastSeen?: string;
+  }
+  const readers = new Map<object, ReaderState>();
+  // Both close hooks may run, even after the reader left the list. Freeze
+  // the handle without keeping a closed window alive; a reopen is a new one.
+  const closed = new WeakSet<object>();
   // Attachments permanently deleted this session: never recorded or adopted
   // again, however long the closing reader lingers in _readers — the row is
   // gone, and the map must not put it back (#51)
   const erased = new Set<string>();
-  // Whether each attachment's session was speaking at the last pass, so a
-  // pause or a close is noticed as a transition and not re-announced
-  const speaking = new Map<string, boolean>();
 
   // One broken reader must not stop the pass: a reader torn down mid-tick
   // throws on any property read.
@@ -187,8 +190,15 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
 
   const clock = (): number => guard(() => deps.now(), 0);
 
-  /** What one pass learned about a reader: the attachment it holds open, and whether its session is open. */
-  type Seen = Attachment & { active: boolean };
+  interface Seen {
+    reader: object;
+    attachment: Attachment;
+    id: string;
+    active: boolean;
+    speaking: boolean;
+    /** A changed sentence, copied out of the reader; null means no write. */
+    text: string | null;
+  }
 
   /**
    * Nothing read from the reader is ever *kept*. What Zotero hands back
@@ -200,44 +210,56 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
    * is serialized on the way in; it has to survive as plain data anyway,
    * since it goes into a database row.
    */
-  /** Set by record() when a session stopped speaking this pass; sample() announces it once. */
+  /** Set by observation or disappearance; sample() announces it once. */
   let stopped = false;
 
-  function record(reader: unknown, force = false): Seen | null {
+  function observe(reader: unknown, force = false): Seen | null {
+    if (!reader || typeof reader !== 'object' || closed.has(reader)) return null;
     const attachment = guard(() => deps.attachmentOf(reader), null);
     if (!attachment) return null;
+    const id = attachment.lib + '/' + attachment.key;
+    const previous = readers.get(reader);
+    const state: ReaderState = previous?.id === id ? previous : { id, hadSession: false, speaking: false };
+    readers.set(reader, state);
     const manager = guard(() => deps.managerOf(reader), null);
     const active = !!manager?.active;
-    const seen: Seen = { ...attachment, active };
-    const id = attachment.lib + '/' + attachment.key;
-    // Speaking is active and not paused; a pause or a close is the moment
-    // the other devices should hear about (spec 6.8)
-    const nowSpeaking = active && !manager?.paused;
-    if (speaking.get(id) && !nowSpeaking) stopped = true;
-    speaking.set(id, nowSpeaking);
+    const speaking = active && !manager?.paused;
+    const beganSpeaking = speaking && !state.speaking;
+    if (state.speaking && !speaking) stopped = true;
+    state.speaking = speaking;
+    const seen: Seen = { reader, attachment, id, active, speaking, text: null };
     if (erased.has(id)) return seen;
-    if (active) wasActive.add(id);
-    // Ticks read open sessions only. The one forced read at close also
-    // takes a session deactivated earlier (savedPosition frozen by
-    // deactivate) — but never a document that has not played this plugin
-    // session, whose savedPosition is Zotero's own restored copy, not
-    // something the user just listened to.
-    else if (!force || !wasActive.has(id)) return seen;
+    if (active) state.hadSession = true;
+    // Only this reader's own session permits a final read after deactivate.
+    else if (!force || !state.hadSession) return seen;
     const raw = guard(() => deps.savedPositionOf(reader), null);
     if (raw === null || raw === undefined) return seen;
-    // Serialize once: it is both the change test and the copy.
     const text = guard(() => JSON.stringify(raw), null);
     if (text === null || text === undefined) return seen;
-    if (lastSeen.get(id) === text) return seen;
-    lastSeen.set(id, text);
+    const first = state.lastSeen === undefined;
+    const changed = state.lastSeen !== text;
+    // Observe even a losing duplicate so its unchanged sentence cannot
+    // take over later, after the speaking reader pauses or closes.
+    state.lastSeen = text;
+    if (!changed && !beganSpeaking) return seen;
+    // Merely discovering a paused duplicate is not new reading. Its first
+    // observation can seed an empty store, never replace an existing entry.
+    if (first && !speaking && entries.has(id)) return seen;
+    seen.text = text;
+    return seen;
+  }
+
+  function record(seen: Seen): void {
+    const { attachment, id, text } = seen;
+    if (text === null) return;
     const pos = guard(() => JSON.parse(text) as unknown, null);
-    if (pos === null) return seen;
+    if (pos === null) return;
     // Normalized before the comparison, so the store's point and the
     // reader's raw rect list for the same sentence read as equal — compared
     // raw, every restart would re-write every open document once
     const norm = normalizePosition(pos);
     const previous = entries.get(id);
-    if (samePosition(previous?.pos, norm)) return seen;
+    if (samePosition(previous?.pos, norm)) return;
     // Above whatever is held, clock or no clock: an entry adopted from a
     // machine with a fast clock must not pin this attachment against real
     // listening here — the write has to win the transport's merge too
@@ -247,42 +269,64 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     // The same sentence for the Positions File: a copy read off the reader
     // here, named and written asynchronously by document-positions.ts
     if (deps.sharedCaptureOf && deps.recordedShared) {
-      const capture = guard(() => deps.sharedCaptureOf!(reader), null);
+      const capture = guard(() => deps.sharedCaptureOf!(seen.reader), null);
       if (capture) guard(() => deps.recordedShared!(attachment, capture, entry.ts), undefined);
     }
-    return seen;
+  }
+
+  /** Observe all readers before recording once per attachment, at most. */
+  function recordPass(force: boolean): void {
+    stopped = false;
+    anyActive = false;
+    const present = new Set<object>();
+    const writers = new Map<string, Seen>();
+    for (const reader of guard(() => deps.readers(), [] as unknown[])) {
+      const seen = observe(reader, force);
+      if (!seen) continue;
+      present.add(seen.reader);
+      if (seen.active) anyActive = true;
+      const chosen = writers.get(seen.id);
+      // Even an unchanged speaking sentence blocks a stale paused writer.
+      if (!chosen || (!chosen.speaking && (seen.speaking || seen.text !== null))) writers.set(seen.id, seen);
+    }
+    for (const [reader, state] of readers) {
+      if (present.has(reader)) continue;
+      readers.delete(reader);
+      if (state.speaking) stopped = true;
+    }
+    for (const seen of writers.values()) record(seen);
   }
 
   function sample(): void {
-    let sawActive = false;
-    stopped = false;
-    const present = new Set<string>();
-    for (const reader of guard(() => deps.readers(), [] as unknown[])) {
-      const seen = record(reader);
-      if (seen) present.add(seen.lib + '/' + seen.key);
-      if (seen?.active) sawActive = true;
-    }
-    // A reader that went away while speaking — its tab closed — is a stop too
-    for (const [id, was] of [...speaking]) {
-      if (present.has(id)) continue;
-      speaking.delete(id);
-      if (was) stopped = true;
-    }
+    recordPass(false);
     if (stopped) guard(() => deps.onPauseOrStop?.(), undefined);
-    anyActive = sawActive;
     // The store retries a failed write on this heartbeat — gated there to
     // one attempt per window, so an idle pass costs a size check
     guard(() => deps.retryWrites(), undefined);
   }
 
   function captureClose(reader: unknown): void {
-    // record() is guarded throughout: a reader half torn down at close
-    // costs the final read, never what is already saved
-    const seen = record(reader, true);
-    // Freeze: the closed reader can linger in Zotero.Reader._readers while
-    // teardown regresses its savedPosition — from here on, nothing short of
-    // playing again may touch this attachment's entry
-    if (seen) wasActive.delete(seen.lib + '/' + seen.key);
+    if (!reader || typeof reader !== 'object' || closed.has(reader)) return;
+    const seen = observe(reader, true);
+    if (seen) {
+      // A paused duplicate closing is not new reading while its sibling
+      // speaks. Do not consume the sibling's observation or pause signal.
+      const siblingSpeaking = !seen.speaking && guard(() => {
+        for (const other of deps.readers()) {
+          if (other === reader || !other || typeof other !== 'object' || closed.has(other)) continue;
+          if (guard(() => {
+            const attachment = deps.attachmentOf(other);
+            if (attachment?.lib !== seen.attachment.lib || attachment?.key !== seen.attachment.key) return false;
+            const manager = deps.managerOf(other);
+            return !!manager?.active && !manager.paused;
+          }, false)) return true;
+        }
+        return false;
+      }, false);
+      if (!siblingSpeaking) record(seen);
+    }
+    closed.add(reader);
+    readers.delete(reader);
   }
 
   function arm(delay: number): void {
@@ -321,16 +365,12 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
       // One last look while the readers are still there (plugin shutdown,
       // Zotero quitting), so the final sentence does not ride on the tick.
       // Forced: a popup closed earlier still holds its frozen savedPosition.
-      for (const reader of guard(() => deps.readers(), [] as unknown[])) {
-        record(reader, true);
-      }
+      recordPass(true);
     }
     running = false;
     anyActive = false;
-    lastSeen.clear();
-    wasActive.clear();
+    readers.clear();
     erased.clear();
-    speaking.clear();
     if (tick !== null) {
       guard(() => deps.clearTimeout(tick), undefined);
       tick = null;
@@ -362,8 +402,6 @@ export function createPositionSync(deps: PositionSyncDeps): PositionSync {
     const id = lib + '/' + key;
     const held = entries.get(id) ?? null;
     entries.delete(id);
-    lastSeen.delete(id);
-    wasActive.delete(id);
     erased.add(id);
     return held;
   }

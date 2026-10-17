@@ -319,7 +319,7 @@ describe('createPositionSync', () => {
 
   // The incident: after the capture, the closed reader lingered in _readers
   // with a savedPosition that had regressed — it must not be copied
-  it('freezes an attachment after captureClose() until it plays again', () => {
+  it('freezes a closed reader while allowing a reopened tab to record', () => {
     const readers = [reader()];
     const h = harness(readers);
     h.sync.start();
@@ -329,9 +329,8 @@ describe('createPositionSync', () => {
     readers[0].saved = LATER_POS; // teardown noise on the lingering reader
     h.advance(IDLE_TICK_MS * 3);
     expect(h.sync.lookup(reader())).toEqual(PDF_POINT);
-    // Played again (the tab was reopened): recording resumes
-    readers[0].active = true;
-    readers[0].saved = LATER_POS;
+    // A reopened tab has a new reader handle; the closed one stays frozen.
+    readers[0] = reader({ saved: LATER_POS });
     h.advance(IDLE_TICK_MS);
     expect(h.sync.lookup(reader())).toEqual(LATER_POINT);
   });
