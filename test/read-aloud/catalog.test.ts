@@ -4,6 +4,9 @@ import { SynthesisError } from '../../src/core/providers/errors';
 import { DEFAULTS } from '../../src/core/settings';
 import { CATALOG_CAP_MS, collectCatalog, listNamedCatalog, PROVIDER_LISTING_TIMEOUT_MS, providerNaming, providerTierColumns, providerTierKeys, providerTierLabels } from '../../src/read-aloud/catalog';
 import { TEST_CONNECTION_TIMEOUT_MS } from '../../src/ui/prefs-pane';
+import { createMacBackend } from '../../src/core/providers/system/mac';
+import { createSystemProvider, type SystemProviderDeps } from '../../src/core/providers/system';
+import { buildVoicesResponse, listVoicesResponse } from '../../src/read-aloud/voice-catalog';
 
 function provider(id: ProviderId, voices: { id: string; label: string; locale: string }[] | Error): TTSProvider {
   return {
@@ -88,6 +91,17 @@ describe('collectCatalog', () => {
       ['cloudflare', 'unreachable'],
     ]);
     expect(catalog.every((entry) => entry.voices.length === 0)).toBe(true);
+  });
+
+  // Issue #185: a provider that lists one voice twice (System voices on
+  // macOS 27) doubled its row in the Player and the voice browser, and the
+  // next-voice key stopped on it
+  it('keeps the first of a voice a provider lists twice, and two voices that only share a label', async () => {
+    const samantha = { id: 'osx/Samantha', label: 'Samantha', locale: 'en-US' };
+    const aman = { id: 'osx/Aman', label: 'Aman', locale: 'hi-IN' };
+    const amanPremium = { id: 'osx/Aman.premium', label: 'Aman', locale: 'hi-IN' };
+    const system = provider('system', [samantha, { ...samantha }, aman, amanPremium, { ...aman }]);
+    expect(await collectCatalog(['system'], () => system)).toEqual([{ provider: 'system', voices: [samantha, aman, amanPremium] }]);
   });
 
   it('returns nothing when no provider is enabled', async () => {
@@ -186,6 +200,20 @@ describe('listNamedCatalog', () => {
       { provider: 'mimo', voices: [bingtang] },
       { provider: 'compatible', voices: [alloy] },
     ]);
+  });
+
+  // Issue #185, end to end: what osascript prints on macOS 27, through the
+  // real macOS backend and System provider, to the voices Zotero receives
+  it('publishes a System voice that macOS lists twice once', async () => {
+    const samantha = { id: 'com.apple.voice.compact.en-US.Samantha', name: 'Samantha (English (US))', language: 'en-US', locale: 'en_US' };
+    const backend = createMacBackend({
+      timeoutMs: 5000,
+      run: async () => ({ output: Promise.resolve({ exitCode: 0, stdout: JSON.stringify([samantha, samantha]), stderr: '' }), kill() {} }),
+    });
+    const settings = { ...DEFAULTS, 'openai-official': { ...DEFAULTS['openai-official'], enabled: false }, system: { enabled: true } };
+    const system = createSystemProvider({ backend } as unknown as SystemProviderDeps);
+    const catalog = await listNamedCatalog(settings, () => system);
+    expect(listVoicesResponse(buildVoicesResponse(catalog, 'v1')).map((v) => v.id)).toEqual(['system::osx/com.apple.voice.compact.en-US.Samantha']);
   });
 
   it('leaves an unknown engine nameless instead of failing', async () => {

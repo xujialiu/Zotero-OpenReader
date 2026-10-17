@@ -2,7 +2,7 @@
 
 ## System voices
 
-Item 1.8 of the checklist, under its original number.
+Items 1.8 and 1.17 of the checklist, under their original numbers.
 
 ### 1.8
 
@@ -42,3 +42,23 @@ Item 1.8 of the checklist, under its original number.
    System voices section write that same sentence, word for word, to
    `#ztts-test-result-system` — never a sentence about an address, which
    that section does not have (issue #47); Enable leaves the pref false.
+
+### 1.17
+
+17. **One row per voice when macOS lists a voice twice** (issue #185,
+    1.16.12-beta3; macOS 27.0.1, build 26A434, where the system's list has
+    235 entries for 193 identifiers). With System voices enabled (on a
+    profile that keeps them off, through the pane's switch, and off again
+    after): `diagnostics.systemProvider()` → `platform: "mac"`, `voices`
+    193 long with no repeated `id`, and the ids of Daniel, Moira, Rishi,
+    Samantha and Tessa (the five English voices the system repeats) once
+    each; Zotero's debug output reads `macOS lists 193 voices` for the
+    listing (235 before the fix). With Offer only favorite voices off, in
+    an open reader whose Player has listed its voices, the manager's `_allVoices` holds 193 ids starting
+    `system::`, none twice. The voice browser's System column reads
+    `(193)`. In the Player on the System entry and English, with the voice
+    listed just before Samantha selected and the reading idle, `Shift+.`
+    three times → `manager.selectedVoiceID` takes three different ids in
+    the list's order, Samantha's among them, and never the same id twice
+    in a row (before the fix it stayed on Samantha). The voice selected at
+    the start is restored after.

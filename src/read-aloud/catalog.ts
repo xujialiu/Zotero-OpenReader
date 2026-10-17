@@ -79,6 +79,22 @@ export type CatalogBound = {
 };
 
 /**
+ * A provider's voices with each id once, the first kept. Everything that
+ * lists the plugin's voices — the Player's dropdown and its voice keys, the
+ * voice browser's rows, count and play buttons — reads the catalog, and
+ * none of it can tell two rows of one id apart; System voices on macOS 27
+ * came listed twice (issue #185). By id only: two voices may share a label.
+ */
+function onePerId(voices: VoiceInfo[]): VoiceInfo[] {
+  const seen = new Set<string>();
+  return voices.filter((voice) => {
+    if (seen.has(voice.id)) return false;
+    seen.add(voice.id);
+    return true;
+  });
+}
+
+/**
  * List the voices of every enabled provider, in the given order. Providers
  * are independent: one that cannot list (no key, server down, unknown
  * engine) must not hide the others, so each is awaited on its own and a
@@ -108,7 +124,7 @@ export async function collectCatalog(
         () => controller?.abort(),
       );
       const notices = provider.voiceListNotices?.();
-      return { provider: id, voices, ...(notices?.length ? { notices } : {}) };
+      return { provider: id, voices: onePerId(voices), ...(notices?.length ? { notices } : {}) };
     }),
   );
   const out: CatalogEntry[] = [];

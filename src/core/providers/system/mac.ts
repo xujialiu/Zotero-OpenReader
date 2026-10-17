@@ -6,9 +6,12 @@
  *   `/usr/bin/osascript -l JavaScript`, which is exactly what Gecko
  *   publishes — 191 for 191 on this Mac, measured 2026-08-31 and again
  *   2026-09-06 — where `AVSpeechSynthesisVoice` is not (it carries
- *   `super-compact` ids Gecko never shows). `attributesForVoice` gives the
- *   display name and the BCP-47 tag Gecko shows, including where they
- *   diverge from the identifier (`…kn-IN.Alpana` is "Soumya").
+ *   `super-compact` ids Gecko never shows). macOS 27 repeats identifiers in
+ *   that list (27.0.1, build 26A434: 235 entries for 193 ids, every repeat
+ *   right after its first and identical to it; `say -v '?'` repeats them
+ *   too), so `parseMacVoices` keeps one record per identifier (issue
+ *   #185). `attributesForVoice` gives the display name and the BCP-47 tag
+ *   Gecko shows, including where they diverge from the identifier (`…kn-IN.Alpana` is "Soumya").
  * - **The audio** comes from `/usr/bin/say --file-format=WAVE
  *   --data-format=LEI16@22050 -o <file>`: 22050 Hz mono 16-bit, the shape
  *   the plugin already feeds Zotero. One process per sentence, 0.3–0.6 s
@@ -94,9 +97,15 @@ export function parseMacVoices(stdout: string): SystemVoiceRecord[] {
   }
   if (!Array.isArray(parsed)) throw refuse();
   const out: SystemVoiceRecord[] = [];
+  const seen = new Set<string>();
   for (const entry of parsed) {
     const v = entry as { id?: unknown; name?: unknown; language?: unknown; locale?: unknown } | null;
     if (!v || typeof v.id !== 'string' || !v.id) continue;
+    // One record per identifier: macOS 27 lists some twice (issue #185).
+    // By identifier, never by name — `Aman` and `Aman.premium` share one
+    // and are two voices
+    if (seen.has(v.id)) continue;
+    seen.add(v.id);
     const name = typeof v.name === 'string' ? v.name : '';
     // desc is what Gecko shows as the voice's name, which on macOS is the name itself
     out.push({ id: OSX_ID_PREFIX + v.id, name, desc: name, lang: languageTag(v.language, v.locale) });

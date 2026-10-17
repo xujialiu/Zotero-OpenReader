@@ -24,7 +24,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Providers on first installation (issue #132)](cases/first-install-providers.md)
 
 - [The OpenAI section split into OpenAI, Xiaomi MiMo and OpenAI Compatible, and the old settings carried over (issue #113)](cases/openai-split.md)
-- [System voices](cases/system-voices.md) — 1.8
+- [System voices](cases/system-voices.md) — 1.8, 1.17
 - [Cloudflare Workers AI](cases/cloudflare.md) — 1.14, 2.9, 3.15
 - [Speechify](cases/speechify.md) — 1.15, 2.10, 3.22, 3.23, 3.28
 - [1a. Fish Audio: the cloud voices](cases/fish-audio.md) — 1a.1–1a.8, 1a.14

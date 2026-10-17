@@ -120,6 +120,25 @@ describe('parseMacVoices', () => {
     expect(parseMacVoices(raw).map((r) => r.id)).toEqual(['osx/com.apple.x']);
   });
 
+  // Issue #185: macOS 27.0.1 prints 235 entries for 193 identifiers, every
+  // repeat right after the first and identical to it
+  it('keeps one record per identifier when macOS lists a voice twice', () => {
+    const samantha = { id: 'com.apple.voice.compact.en-US.Samantha', name: 'Samantha', language: 'en-US', locale: 'en_US' };
+    const raw = JSON.stringify([samantha, samantha, { id: 'com.apple.speech.synthesis.voice.Albert', name: 'Albert', language: 'en-US' }]);
+    expect(parseMacVoices(raw)).toEqual([
+      { id: 'osx/com.apple.voice.compact.en-US.Samantha', name: 'Samantha', desc: 'Samantha', lang: 'en-US' },
+      { id: ALBERT, name: 'Albert', desc: 'Albert', lang: 'en-US' },
+    ]);
+  });
+
+  it('keeps two identifiers that share a name: they are two voices', () => {
+    const raw = JSON.stringify([
+      { id: 'com.apple.voice.compact.hi-IN.Aman', name: 'Aman', language: 'hi-IN' },
+      { id: 'com.apple.voice.premium.hi-IN.Aman', name: 'Aman', language: 'hi-IN' },
+    ]);
+    expect(parseMacVoices(raw).map((r) => r.id)).toEqual(['osx/com.apple.voice.compact.hi-IN.Aman', 'osx/com.apple.voice.premium.hi-IN.Aman']);
+  });
+
   it('refuses output that is not a JSON array, naming osascript', () => {
     expect(() => parseMacVoices('execution error: something (-2700)')).toThrow(/osascript/);
     expect(() => parseMacVoices('{"voices": []}')).toThrow(/osascript/);
