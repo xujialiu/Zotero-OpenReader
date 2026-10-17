@@ -64,7 +64,11 @@ export interface Daemon extends SpeechBackend {
   readonly wordTimestamps: true;
   /** Sends one request, starting the helper if needed. Rejects with a SynthesisError. */
   send(request: SystemRequestBody): Promise<SystemResponse>;
-  /** Kills the helper and empties the queue; the next `send` starts a new one. */
+  /**
+   * Kills the helper and empties the queue: every request sent before the
+   * call rejects, and none of them starts a helper (issue #191). The next
+   * `send` starts a new one.
+   */
   stop(): void;
   /** Forgets a spent start budget, so a fixed environment can be tried again without restarting Zotero. */
   reset(): void;
@@ -83,6 +87,17 @@ export function createDaemon(deps: DaemonDeps): Daemon {
   let sent = 0;
   let nextId = 1;
   let lastError: string | null = null;
+  /**
+   * Advanced by every `stop()`. A request carries the generation it was sent
+   * in, and one from before a stop ends where it stands: queued, it never
+   * reaches `ensureProcess`; starting, the helper it started is killed
+   * instead of kept. Swapping the queue alone left the exchanges already
+   * chained onto the old tail running, and the first of them started a
+   * fresh helper right behind the kill, one nothing held any more (#191).
+   */
+  let generation = 0;
+
+  const stopped = () => new SynthesisError('unknown', 'The Windows speech helper was stopped: the plugin is shutting down');
 
   /** Drops the process without waiting for it; the next request starts a fresh one. */
   function discard(why: string): void {
@@ -103,7 +118,8 @@ export function createDaemon(deps: DaemonDeps): Daemon {
   }
 
   /** A started helper that has already announced itself, or a rejection saying why there is none. */
-  async function ensureProcess(): Promise<DaemonProcess> {
+  async function ensureProcess(mine: number): Promise<DaemonProcess> {
+    if (mine !== generation) throw stopped();
     if (process) return process;
     if (starts >= MAX_STARTS) {
       throw new SynthesisError('local-server-down', `The Windows speech helper failed to start ${starts} times: ${lastError ?? 'unknown error'}`);
@@ -116,6 +132,18 @@ export function createDaemon(deps: DaemonDeps): Daemon {
       lastError = message(e);
       throw new SynthesisError('local-server-down', `Cannot start the Windows speech helper: ${lastError}`);
     }
+    /** A start that stop() overtook: the helper goes, not into `process` of a stopped daemon. */
+    const overtaken = (): boolean => {
+      if (mine === generation) return false;
+      try {
+        started.kill();
+      } catch (e) {
+        deps.log?.(e);
+      }
+      deps.debug?.('speech daemon stopped: a start the shutdown overtook');
+      return true;
+    };
+    if (overtaken()) throw stopped();
     try {
       // The unprompted ready frame. Until it arrives the helper may still be
       // loading System.Speech; measured at ~285 ms cold, and a host that
@@ -137,13 +165,14 @@ export function createDaemon(deps: DaemonDeps): Daemon {
       }
       throw e instanceof SynthesisError ? e : new SynthesisError('local-server-down', `The Windows speech helper failed to start: ${lastError}`);
     }
+    if (overtaken()) throw stopped();
     process = started;
     deps.debug?.(`speech daemon started (attempt ${starts})`);
     return started;
   }
 
-  async function exchange(request: SystemRequestBody): Promise<SystemResponse> {
-    const proc = await ensureProcess();
+  async function exchange(request: SystemRequestBody, mine: number): Promise<SystemResponse> {
+    const proc = await ensureProcess(mine);
     const id = nextId++;
     let response: SystemResponse;
     try {
@@ -177,11 +206,12 @@ export function createDaemon(deps: DaemonDeps): Daemon {
 
   function send(request: SystemRequestBody): Promise<SystemResponse> {
     queued += 1;
+    const mine = generation;
     // Chain onto the tail whether it settled or threw, so one failed request
     // never wedges the queue behind it
     const result = queue.then(
-      () => exchange(request),
-      () => exchange(request),
+      () => exchange(request, mine),
+      () => exchange(request, mine),
     );
     queue = result.then(
       () => undefined,
@@ -197,6 +227,7 @@ export function createDaemon(deps: DaemonDeps): Daemon {
     wordTimestamps: true,
     send,
     stop: () => {
+      generation += 1;
       discard('the plugin is shutting down');
       queue = Promise.resolve();
     },

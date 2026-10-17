@@ -239,6 +239,66 @@ describe('createDaemon', () => {
     expect(t.spawn).toHaveBeenCalledTimes(2);
   });
 
+  // Issue #191: a request queued before stop() used to start a fresh helper
+  // right behind the kill, one nothing held any more, so a powershell.exe
+  // outlived the plugin until Zotero exited
+  it('ends the requests queued before stop() without starting a helper for them', async () => {
+    const t = setup();
+    const a = rejects(t.daemon.send({ op: 'speak', voice: 'onecore/X', text: 'one', file: 'a' }), /speech helper failed|shutting down/);
+    const b = rejects(t.daemon.send({ op: 'speak', voice: 'onecore/X', text: 'two', file: 'b' }), /shutting down/);
+    const c = rejects(t.daemon.send({ op: 'speak', voice: 'onecore/X', text: 'three', file: 'c' }), /shutting down/);
+    t.fake.reply(HELLO);
+    await until(() => expect(t.fake.written).toHaveLength(1));
+
+    t.daemon.stop();
+    await Promise.all([a, b, c]);
+    expect(t.spawn).toHaveBeenCalledTimes(1);
+    expect(t.fake.written).toHaveLength(1);
+    expect(t.daemon.state()).toMatchObject({ running: false, queued: 0 });
+  });
+
+  it('kills a helper whose start stop() overtook, rather than keeping it on a stopped daemon', async () => {
+    let started!: (p: DaemonProcess) => void;
+    const t = setup({ spawn: () => new Promise<DaemonProcess>((resolve) => (started = resolve)) });
+    const a = rejects(t.daemon.send({ op: 'ping' }), /shutting down/);
+    await until(() => expect(t.spawn).toHaveBeenCalledTimes(1));
+
+    t.daemon.stop();
+    started(t.fake.process);
+    await a;
+    expect(t.fake.killed()).toBe(1);
+    expect(t.daemon.state().running).toBe(false);
+  });
+
+  it('kills a helper stop() overtook during its handshake', async () => {
+    const t = setup();
+    const a = rejects(t.daemon.send({ op: 'ping' }), /shutting down/);
+    await until(() => expect(t.spawn).toHaveBeenCalledTimes(1));
+
+    t.daemon.stop();
+    t.fake.reply(HELLO);
+    await a;
+    expect(t.fake.killed()).toBe(1);
+    expect(t.fake.written).toEqual([]);
+    expect(t.daemon.state().running).toBe(false);
+  });
+
+  it('still serves a request sent after stop(), with a helper of its own', async () => {
+    const t = setup();
+    const queued = rejects(t.daemon.send({ op: 'ping' }), /shutting down/);
+    t.daemon.stop();
+    await queued;
+    // The queued request never reached spawn
+    expect(t.spawn).not.toHaveBeenCalled();
+
+    const after = t.daemon.send({ op: 'ping' });
+    await until(() => expect(t.spawn).toHaveBeenCalledTimes(1));
+    t.fake.reply(HELLO);
+    await until(() => expect(t.fake.written).toHaveLength(1));
+    t.fake.reply({ id: (t.fake.written[0] as { id: number }).id, ok: true });
+    await expect(after).resolves.toMatchObject({ ok: true });
+  });
+
   it('frames what it writes so the helper can read it back', async () => {
     const t = setup();
     const pending = t.daemon.send({ op: 'speak', voice: 'onecore/X', text: '朗读', file: 'C:\\a.wav' });

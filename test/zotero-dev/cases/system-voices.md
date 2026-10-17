@@ -2,7 +2,7 @@
 
 ## System voices
 
-Items 1.8 and 1.17 of the checklist, under their original numbers.
+Items 1.8, 1.17 and 1.18 of the checklist, under their original numbers.
 
 ### 1.8
 
@@ -62,3 +62,16 @@ Items 1.8 and 1.17 of the checklist, under their original numbers.
     the list's order, Samantha's among them, and never the same id twice
     in a row (before the fix it stayed on Samantha). The voice selected at
     the start is restored after.
+
+### 1.18
+
+18. **Stopping the plugin ends the Windows speech helper for good**
+    (issue #191, 1.16.12-beta3). **Windows only**; on macOS there is no
+    helper and the item is NOT TESTABLE. Count `powershell.exe` with
+    `tasklist /FI "IMAGENAME eq powershell.exe"` before reading. Start
+    reading with a System voice (the default Prefetch asks for several
+    sentences at once) and within the first second disable the plugin
+    (`addon.disable()`): within 5 s the count is back to what it was
+    before the reading, and stays there 30 s later. Enable the plugin
+    again; reading a System voice then starts one helper
+    (`diagnostics.systemProvider()` `backend.running: true`, `starts: 1`).

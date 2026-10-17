@@ -28,6 +28,11 @@ screen, the complete Run JavaScript code, the expected output.
 
 ## 9. Not covered, and why
 
+- The Windows speech helper after a stop ([item 1.18](cases/system-voices.md),
+  issue #191): 1.16.12-beta3 was verified on a Mac, which has no helper;
+  the fix is covered by `test/core/providers/system/daemon.test.ts`
+  against the fake process. Run the item on the Windows machine.
+
 - Previous/next voice ([case 4a](cases/voice-switch.md), issue #95):
   controlled silent audio proves native clock, buffer offset and controller
   handoff behavior, not pronunciation or the perceptual gap between voices.
