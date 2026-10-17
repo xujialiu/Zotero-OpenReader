@@ -406,6 +406,53 @@ describe('createSettingsSyncTransport', () => {
 });
 
 
+// Issue #220: the shutdown's flush gives up at its bound and stop() follows,
+// while the request to a hanging server is still in flight
+describe('a settings sync stopped with a run in flight', () => {
+  function hanging() {
+    const downloads: Array<(e: unknown) => void> = [];
+    const h = harness({
+      state: { stamps: {}, held: {}, seeded: true },
+      over: { client: () => ({ download: () => new Promise<string>((_, reject) => void downloads.push(reject)), upload: async () => {} }) },
+    });
+    return { h, downloads };
+  }
+
+  it('arms no retry when that run fails after stop()', async () => {
+    const { h, downloads } = hanging();
+    const flushing = h.transport.flush('shutdown', { pushOnly: true });
+    expect(downloads).toHaveLength(1);
+    h.transport.stop();
+    downloads[0]!(new WebDAVError('network', 'No reply within 15 s.'));
+    await flushing;
+    expect(h.timers).toEqual([]);
+    await h.advance(10 * SETTINGS_SYNC_RETRY_MS);
+    expect(downloads).toHaveLength(1);
+  });
+
+  it('starts no run that was queued behind it', async () => {
+    const { h, downloads } = hanging();
+    const flushing = h.transport.flush('shutdown', { pushOnly: true });
+    h.transport.poke('tab-close'); // folded into one trailing run
+    h.transport.stop();
+    downloads[0]!(new WebDAVError('network', 'No reply within 15 s.'));
+    await flushing;
+    await settle();
+    expect(downloads).toHaveLength(1);
+    expect(h.timers).toEqual([]);
+  });
+
+  it('still retries a failure that lands before stop(), until stop() disarms it (control)', async () => {
+    const { h, downloads } = hanging();
+    const flushing = h.transport.flush('shutdown', { pushOnly: true });
+    downloads[0]!(new WebDAVError('network', 'No reply within 15 s.'));
+    await flushing;
+    expect(h.timers).toHaveLength(1);
+    h.transport.stop();
+    expect(h.timers).toEqual([]);
+  });
+});
+
 describe('settings sync during reading', () => {
   it('defers a failed provider check if playback starts while the check is pending', async () => {
     let reading = false, checks = 0;

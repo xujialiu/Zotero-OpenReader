@@ -172,4 +172,45 @@ describe('createSettingsAutoUpload', () => {
     expect(h.upload).not.toHaveBeenCalled();
     expect(h.auto.stats().watching).toBe(0);
   });
+
+  // Issue #220: the shutdown gives the flush its bound, then stops the
+  // instance while a request to a hanging server is still in flight
+  it('a run still in flight at stop() arms no retry when it fails afterwards', async () => {
+    let fail!: (e: unknown) => void;
+    const upload = vi.fn(() => new Promise<never>((_, reject) => (fail = reject)));
+    const h = harness({ upload });
+    h.auto.start();
+    h.auto.changed();
+    await h.advance(AUTO_UPLOAD_DEBOUNCE_MS);
+    expect(upload).toHaveBeenCalledOnce();
+    h.auto.stop();
+    fail(new WebDAVError('network', 'No reply within 15 s.'));
+    await settle();
+    expect(h.timers).toEqual([]);
+    await h.advance(10 * AUTO_UPLOAD_RETRY_MS);
+    expect(upload).toHaveBeenCalledOnce();
+    expect(h.auto.stats().pending).toBe(false);
+  });
+
+  it('a change after stop() is not uploaded, even when the run in flight then succeeds', async () => {
+    let finish!: () => void;
+    const upload = vi.fn(() => new Promise<{ name: string; count: number }>((resolve) => (finish = () => resolve({ name: 'f.json', count: 1 }))));
+    const h = harness({ upload });
+    h.auto.start();
+    h.auto.changed();
+    await h.advance(AUTO_UPLOAD_DEBOUNCE_MS);
+    h.auto.stop();
+    h.auto.changed(); // the machine-id rename's prod, from a pane still open
+    finish();
+    await settle();
+    await h.advance(10 * AUTO_UPLOAD_RETRY_MS);
+    expect(upload).toHaveBeenCalledOnce();
+    expect(h.timers).toEqual([]);
+  });
 });
+
+/** Lets an upload's resolution and the run's finally run out. */
+async function settle(): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}

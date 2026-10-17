@@ -747,3 +747,4 @@ then) and is in the git history before that day.
 - The memory sync's lifecycle hooks hid every later shadow of `activate` (issue #189)
 - Verified live on 1.16.11-beta3: a pick that is the first of its region proves nothing (issues #183, #189)
 - Enable could not turn on a folder the server did not have yet (issue #186)
+- A stopped build kept arming retries from a run still in flight (issue #220)

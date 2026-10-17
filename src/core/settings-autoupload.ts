@@ -60,7 +60,11 @@ export interface SettingsAutoUpload {
   changed(): void;
   /** Upload whatever is pending, now; a no-op when nothing is. The caller bounds the wait. */
   flush(): Promise<void>;
-  /** Unregister and cancel; whatever is still pending is dropped — flush first at shutdown. */
+  /**
+   * Unregister and cancel; whatever is still pending is dropped — flush
+   * first at shutdown. Final: a run still in flight records its outcome
+   * and arms nothing (issue #220).
+   */
   stop(): void;
   stats(): SettingsAutoUploadStats;
 }
@@ -70,6 +74,8 @@ export function createSettingsAutoUpload(deps: SettingsAutoUploadDeps): Settings
   let pending = false;
   let timer: unknown = null;
   let running: Promise<void> | null = null;
+  // Set by stop(): a run still in flight then arms nothing when it ends (issue #220)
+  let stopped = false;
   let uploads = 0;
   let lastOutcome: SettingsAutoUploadStats['lastOutcome'] = null;
   let lastAt: number | null = null;
@@ -105,6 +111,9 @@ export function createSettingsAutoUpload(deps: SettingsAutoUploadDeps): Settings
 
   function arm(ms: number): void {
     disarm();
+    // A stopped instance is a zombie after an update or a disable: Zotero
+    // keeps its scope's timers alive, so one armed now would retry forever
+    if (stopped) return;
     try {
       timer = deps.setTimeout(() => {
         timer = null;
@@ -143,7 +152,7 @@ export function createSettingsAutoUpload(deps: SettingsAutoUploadDeps): Settings
           reportGated(e);
           // An unusable configuration retries on the next change, not on a
           // timer — otherwise a blank URL logs an error a minute forever
-          if (!(e instanceof WebDAVError && e.kind === 'config')) {
+          if (!stopped && !(e instanceof WebDAVError && e.kind === 'config')) {
             pending = true;
             arm(AUTO_UPLOAD_RETRY_MS);
           }
@@ -156,7 +165,7 @@ export function createSettingsAutoUpload(deps: SettingsAutoUploadDeps): Settings
   }
 
   function changed(): void {
-    if (!deps.enabled()) return;
+    if (stopped || !deps.enabled()) return;
     pending = true;
     arm(AUTO_UPLOAD_DEBOUNCE_MS);
   }
@@ -178,6 +187,7 @@ export function createSettingsAutoUpload(deps: SettingsAutoUploadDeps): Settings
       await run();
     },
     stop: () => {
+      stopped = true;
       disarm();
       pending = false;
       for (const token of tokens) {

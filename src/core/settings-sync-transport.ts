@@ -135,7 +135,11 @@ export interface SettingsSyncTransport {
   poke(trigger: string): void;
   /** One awaited, forced sync; `pushOnly` — the shutdown's — adopts nothing and checks nothing. The caller bounds the wait. */
   flush(trigger: string, options?: { pushOnly?: boolean }): Promise<void>;
-  /** Unregister and cancel; whatever is pending is dropped — flush first at shutdown. */
+  /**
+   * Unregister and cancel; whatever is pending is dropped — flush first at
+   * shutdown. Final: a run still in flight records its outcome and arms
+   * nothing, and a run queued behind it does not start (issue #220).
+   */
   stop(): void;
   stats(): SettingsSyncStats;
 }
@@ -146,6 +150,8 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
   const tokens: unknown[] = [];
   const providerIds = [...new Set(deps.keys.map(({ key }) => sectionOf(key)).filter((s) => deps.keys.some(({ key }) => key === `${s}.enabled`)))];
   let timer: unknown = null;
+  // Set by stop(): a run still in flight then arms nothing, and a queued one does not start (issue #220)
+  let stopped = false;
   let pendingChange = false;
   /** The transport's own pref writes: the observer neither stamps nor schedules them. */
   let applying = false;
@@ -211,6 +217,9 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
 
   function arm(ms: number, trigger: string): void {
     disarm();
+    // A stopped transport is a zombie after an update or a disable: Zotero
+    // keeps its scope's timers alive, so one armed now would retry forever
+    if (stopped) return;
     try {
       timer = deps.setTimeout(() => {
         timer = null;
@@ -250,6 +259,8 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
   async function sync(trigger: string, force: boolean): Promise<void> {
     const pushOnly = pushOnlyRequested;
     pushOnlyRequested = false;
+    // The trailing run the single-flight queued behind the shutdown's push
+    if (stopped) return;
     syncs++;
     lastTrigger = trigger;
     lastAt = deps.now();
@@ -458,6 +469,7 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
       return flight.flush(trigger);
     },
     stop: () => {
+      stopped = true;
       disarm();
       pendingChange = false;
       for (const token of tokens) {
