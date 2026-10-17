@@ -153,7 +153,9 @@ under their original numbers.
 22. **A Fish Speech server at a local address stays on each computer**
     (issue #184, 1.16.12-beta2). At the default Address
     (`http://localhost:8080`) `settingsSync().heldSections` holds
-    `"fishspeech"` beside `"local"`. With the switch on, crafted items
+    `"fishspeech"`, beside `"local"` and `"compatible"` only when their
+    addresses are local too (on the owner's profile both are public, so
+    `["fishspeech"]` alone, measured 2026-10-18). With the switch on, crafted items
     `fishspeech.baseURL: "http://192.168.1.50:8080"` and
     `fishspeech.enabled: true` at `Date.now()+1000`, `by: "tester"` → the
     next trigger reports `adopted 0` and `deferred 0`, `fishspeech.baseURL`

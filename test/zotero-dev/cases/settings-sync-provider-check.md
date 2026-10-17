@@ -76,9 +76,11 @@ numbers.
     the records `openai-official`, `compatible` and `zotero-premium`, each
     `{ ts: Date.now(), reason: "tester" }`, keep the rest of the state as
     it was, and open Settings → OpenReader: the Sync group's settings line
-    reads `… OpenAI stays off on this computer: tester. OpenAI Compatible
-    stays off on this computer: tester. Zotero Premium stays off on this
-    computer: tester.` and contains none of the three ids. Put the kept
+    reads `… OpenAI stays off on this computer: tester OpenAI Compatible
+    stays off on this computer: tester Zotero Premium stays off on this
+    computer: tester` (the sentences are joined by a space, and a reason
+    with no period of its own gets none; measured 2026-10-18 on
+    1.16.12-beta2) and contains none of the three ids. Put the kept
     `webdav.syncState` back and confirm it. The restore report ("Turned off
     OpenAI, OpenAI Compatible: …") needs a restore whose check fails and is
     unit-tested in `test/ui/provider-rows.test.ts`.

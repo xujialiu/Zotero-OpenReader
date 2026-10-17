@@ -759,3 +759,4 @@ then) and is in the git history before that day.
 - A settings change right after an adoption from a faster clock was reverted (issue #205)
 - The sync line and the restore report named providers by switch id (issue #193)
 - `diagnostics.sharedSettings()` printed the old preset memory in the clear (issue #203)
+- Verified live on 1.16.12-beta2: the settings sync fixes (issues #184, #192, #193, #205, #203)
