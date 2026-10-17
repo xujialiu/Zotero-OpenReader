@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:97bed09b097b -->
+<!-- translated-from: README.md sha256:5c74f8ac7557 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -262,7 +262,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 <details>
 <summary><b>WebDAV 地址示例</b></summary>
 
-地址填的是一个文件夹，第一次上传时创建。Nextcloud：`https://cloud.example.com/remote.php/dav/files/<user>/zotero-openreader/`；坚果云：`https://dav.jianguoyun.com/dav/zotero-openreader/`，配一个应用密码。
+地址填的是一个文件夹；还不存在时，按*启用*会创建它。Nextcloud：`https://cloud.example.com/remote.php/dav/files/<user>/zotero-openreader/`；坚果云：`https://dav.jianguoyun.com/dav/zotero-openreader/`，配一个应用密码。
 
 </details>
 

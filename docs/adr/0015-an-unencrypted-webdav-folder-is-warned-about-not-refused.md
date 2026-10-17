@@ -71,3 +71,13 @@ already sent the credentials.
   poke the syncs at an address not yet checked. A backup written before
   the switch existed, holding a URL, counts as on (`parseBackup`), the
   same rule as the upgrade.
+- **Enable creates a folder the server does not have yet** (issue #186).
+  Every upload waits for the switch, so the folder the README's examples
+  name could not be made by "the first upload" as the check's 404 said:
+  Enable failed on it, and nothing could upload. Enable and the restore
+  check call `check({ create: true })` (`core/webdav.ts`), which answers a
+  PROPFIND 404 with one MKCOL: 201 passes, 405 (it exists after all)
+  passes, 409 is RFC 4918's missing parent and fails with "Check the
+  address", since creating each missing segment would turn a typo into a
+  chain of folders on the user's server. Test connection stays a probe
+  and creates nothing; its 404 says Enable creates the folder.

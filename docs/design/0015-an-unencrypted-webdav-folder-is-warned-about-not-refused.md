@@ -15,6 +15,15 @@ Test connection add a warning to their result whenever the address is
 `http://`, at home as much as on the internet. While the folder is off,
 the sync and the server backup are greyed and do nothing.
 
+A folder that does not exist on the server yet is created when Enable is
+pressed. Nothing else could create it: the sync and the server backup
+wait for the folder to be on, and until this was settled a first setup
+that followed the README's own examples stopped at Enable with a message
+promising an upload that could never happen. Only the last folder of the
+address is created; when the folder above it is missing too, Enable says
+to check the address instead of building the path. Test connection only
+looks, and says that Enable will create the folder.
+
 ## What was turned down
 
 **Refusing `http://` for any address outside the home network.** An
@@ -36,6 +45,12 @@ says the same thing without stopping anything.
 plugin cannot know which networks are private. Every `http://` address is
 warned about, and no switch hides the warning; moving to `https://` is
 what makes it go away.
+
+**Leaving a missing folder to the owner.** The message could have told
+them to create it in the server's own web page. Most people setting up
+the folder for the first time would have had to leave Zotero, find that
+page, and come back to press Enable again, for a folder the README had
+already promised would be created.
 
 ## What it costs
 

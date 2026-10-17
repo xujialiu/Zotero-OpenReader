@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/webdav-folder-switch/README.md)
 
-## The WebDAV folder has Enable / Disable, and an http:// folder is warned about, never refused (issues #172–#175, 1.16.7)
+## The WebDAV folder has Enable / Disable, and an http:// folder is warned about, never refused (issues #172–#175, 1.16.7; #186, 1.16.12)
 
 Since 1.16.7 the WebDAV folder has its own switch, `webdav.enabled`, run
 like a provider's (`src/ui/webdav-rows.ts`). Enable runs the folder's
@@ -14,7 +14,9 @@ connection end their line with the warning `ztts-webdav-plain-http`, on a
 failure too. The upgrade turns the folder on, once, where an address is
 set (the marker `webdav.enabledMigrated`). A restore writes the folder's
 switch off and turns it on only once the restored address passes Enable's
-check. Decision: ADR 0015.
+check. Since 1.16.12 Enable and that restore check create a folder the
+server does not have yet (issue #186); Test connection creates nothing.
+Decision: ADR 0015.
 
 Run the baseline first, with its test WebDAV isolation: the test
 configuration in place and every automatic sync and upload suspended
@@ -95,6 +97,39 @@ switch stays off during the restore's check.
 9. **The zh-CN strings** (when the run can switch Zotero's locale, or by
    `diagnostics.l10n()`): the warning reads `注意：http:// 不加密，密码和发到这里的设置（含 API 密钥）在传输途中可能被他人看到。服务器支持的话，请改用 https://。`
    and the restore's sentence `WebDAV 文件夹在这台电脑上没通过检查，已关闭。`
+
+10. **Test connection on a folder that does not exist yet creates
+    nothing** (issue #186, 1.16.12-beta). With the folder off, set the URL
+    to the test folder's URL plus a fresh subfolder,
+    `zotero-openreader-186-<run id>/`; first confirm from chrome that a
+    PROPFIND Depth 0 on it, with the test credentials, answers 404. Test
+    connection: the line reads `Connection failed: The folder <that URL>
+    does not exist yet. Enable creates it.`, `webdav.enabled` stays
+    `false`, and the same PROPFIND still answers 404.
+11. **Enable creates it.** Same URL, press Enable: `Checking…`, then
+    `Connected to <that URL>.` with no warning; `webdav.enabled` is
+    `true` and the button reads **Disable**. The PROPFIND of item 10 now
+    answers 207, and a PROPFIND Depth 1 on the test folder lists the new
+    subfolder. Cleanup: Disable, DELETE that subfolder (the run's own and
+    nothing else), confirm the PROPFIND answers 404 again, put the test
+    URL back and confirm it.
+12. **A missing parent is refused, and nothing is created.** URL: the
+    test folder plus `missing-186-<run id>/child/`, both absent (confirm
+    404 on each first). Enable: `Connection failed: The folder <URL>
+    cannot be created: the folder above it does not exist. Check the
+    address.`, `webdav.enabled` stays `false`, and a PROPFIND on
+    `missing-186-<run id>/` still answers 404. A server that answers MKCOL
+    on a missing parent with a status other than 409 shows `Creating the
+    folder <URL> failed: HTTP <status>.` instead: report that status, a
+    finding about the server, not a failure of the build, so long as
+    nothing was created and the folder stayed off. Put the test URL back
+    and confirm it.
+
+Only unit tests cover the rest of #186 (`test/core/webdav.test.ts`,
+`test/ui/webdav-rows.test.ts`): a folder created by someone else between
+the PROPFIND and the MKCOL (405 passes), a wrong password that creates
+nothing, and a restore that turns a missing folder on and creates it,
+which needs item 8's native dialog.
 
 What only a human can judge: how the Enable button sits beside Test
 connection, and whether the warning reads well where it wraps.

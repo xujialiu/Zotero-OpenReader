@@ -139,8 +139,12 @@ const PROPFIND_BODY = '<?xml version="1.0" encoding="utf-8"?><propfind xmlns="DA
 export interface WebDAVClient {
   /** The folder the files live in, normalized. */
   readonly url: string;
-  /** Proves the URL and the credentials: the folder answers a PROPFIND. */
-  check(): Promise<void>;
+  /**
+   * Proves the URL and the credentials: the folder answers a PROPFIND.
+   * With `create`, a folder the server does not have yet is made — its last
+   * segment only, never a missing parent (issue #186).
+   */
+  check(options?: { create?: boolean }): Promise<void>;
   /** Writes a file, creating the folder when the server says it is missing. */
   upload(name: string, text: string): Promise<void>;
   /** Reads a file; `not-found` when the server has none. */
@@ -274,10 +278,21 @@ export function createWebDAVClient(cfg: WebDAVConfig, deps: WebDAVDeps): WebDAVC
   return {
     url,
 
-    async check() {
+    async check(options) {
       const { response } = await request('PROPFIND', url, { headers: { Depth: '0' } });
       if (response.status === 404) {
-        throw new WebDAVError('not-found', `The folder ${url} does not exist. It is created on the first upload.`, 404);
+        if (!options?.create) throw new WebDAVError('not-found', `The folder ${url} does not exist yet. Enable creates it.`, 404);
+        // Enable is the commit point every use of the folder waits for, so
+        // it is what makes the folder the README's examples name (issue
+        // #186). A 405 means it exists after all; a 409 is RFC 4918's
+        // missing parent, which is left to the user: creating a chain of
+        // folders would turn a typo into a tree on their server.
+        const { response: made } = await request('MKCOL', url);
+        if (made.status === 409) {
+          throw new WebDAVError('not-found', `The folder ${url} cannot be created: the folder above it does not exist. Check the address.`, 409);
+        }
+        if (!made.ok && made.status !== 405) throw failed(`Creating the folder ${url}`, made);
+        return;
       }
       if (!response.ok) throw failed('PROPFIND', response);
     },

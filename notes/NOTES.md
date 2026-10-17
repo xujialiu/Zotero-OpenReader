@@ -746,3 +746,4 @@ then) and is in the git history before that day.
 - A pick on an idle manager was restored over by the Document voice from before it (issue #183)
 - The memory sync's lifecycle hooks hid every later shadow of `activate` (issue #189)
 - Verified live on 1.16.11-beta3: a pick that is the first of its region proves nothing (issues #183, #189)
+- Enable could not turn on a folder the server did not have yet (issue #186)

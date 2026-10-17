@@ -188,8 +188,11 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
    * a failure too: the request has already gone out. `ok` is a pass of the
    * folder that is still configured when it ends: an address, username or
    * password written meanwhile (a restore from a file) was not checked.
+   * `create` — Enable's and a restore's, never Test connection's — makes a
+   * folder the server does not have yet (issue #186): nothing else can,
+   * since every upload waits for the folder to be on.
    */
-  async function check(progress: string, relabel: boolean): Promise<{ ok: boolean }> {
+  async function check(progress: string, relabel: boolean, create: boolean): Promise<{ ok: boolean }> {
     checking = true;
     hold();
     if (relabel) doc.getElementById(WEBDAV_IDS.toggle)?.setAttribute('label', t('ztts-switch-checking'));
@@ -199,7 +202,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
     let outcome: { ok: boolean; message: string };
     try {
       const client = deps.createClient(cfg);
-      await client.check();
+      await client.check({ create });
       outcome = { ok: true, message: sentences(t('ztts-webdav-connected', { url: client.url }), warning) };
     } catch (e) {
       outcome = { ok: false, message: sentences(t('ztts-connection-failed', { detail: describe(e) }), warning) };
@@ -238,7 +241,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
   // Test connection probes without committing, the folder off or on
   doc.getElementById(WEBDAV_IDS.test)?.addEventListener('command', async () => {
     if (busy || checking) return;
-    await check(t('ztts-webdav-testing'), false);
+    await check(t('ztts-webdav-testing'), false, false);
     paint();
   });
 
@@ -251,7 +254,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
       paint();
       return;
     }
-    if ((await check(t('ztts-switch-checking'), true)).ok) deps.prefs.set(WEBDAV_ENABLED_PREF, true);
+    if ((await check(t('ztts-switch-checking'), true, true)).ok) deps.prefs.set(WEBDAV_ENABLED_PREF, true);
     paint();
   });
 
@@ -323,7 +326,7 @@ export function initWebDAVRows(doc: RowsDocument, deps: WebDAVRowsDeps): WebDAVR
       if (checking || !(wanted ?? enabled())) return '';
       // Off while it is checked: the file held no switch, so it was left as it was
       deps.prefs.set(WEBDAV_ENABLED_PREF, false);
-      const { ok } = await check(t('ztts-switch-checking'), true);
+      const { ok } = await check(t('ztts-switch-checking'), true, true);
       if (ok) deps.prefs.set(WEBDAV_ENABLED_PREF, true);
       paint();
       return ok ? '' : t('ztts-webdav-turned-off');

@@ -86,10 +86,57 @@ describe('check', () => {
     await expect(client(vi.fn(async () => status(403))).check()).rejects.toMatchObject({ kind: 'auth', status: 403 });
   });
 
-  it('reports a folder that does not exist yet', async () => {
-    await expect(client(vi.fn(async () => status(404))).check()).rejects.toMatchObject({
+  it('reports a folder that does not exist yet, and that Enable creates it (issue #186)', async () => {
+    const fetchImpl = vi.fn(async () => status(404));
+    await expect(client(fetchImpl).check()).rejects.toMatchObject({
       kind: 'not-found',
-      message: expect.stringContaining('https://dav.example.com/zotero-tts/'),
+      message: 'The folder https://dav.example.com/zotero-tts/ does not exist yet. Enable creates it.',
+    });
+    // A probe creates nothing
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  // Issue #186: Enable is the only way the folder can be used, so it is what creates it
+  describe('asked to create the folder', () => {
+    it('makes a missing folder with MKCOL, with the credentials, and passes', async () => {
+      const fetchImpl = vi.fn().mockResolvedValueOnce(status(404)).mockResolvedValueOnce(status(201));
+      await expect(client(fetchImpl).check({ create: true })).resolves.toBeUndefined();
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      expect(call(fetchImpl, 1).url).toBe('https://dav.example.com/zotero-tts/');
+      expect(call(fetchImpl, 1).init.method).toBe('MKCOL');
+      expect(call(fetchImpl, 1).init.headers.Authorization).toBe(basicAuthHeader('ann', 'pw'));
+    });
+
+    it('sends no MKCOL for a folder that exists', async () => {
+      const fetchImpl = vi.fn(async () => status(207));
+      await client(fetchImpl).check({ create: true });
+      expect(fetchImpl).toHaveBeenCalledOnce();
+    });
+
+    it('passes when the folder turns out to exist after all (MKCOL 405)', async () => {
+      const fetchImpl = vi.fn().mockResolvedValueOnce(status(404)).mockResolvedValueOnce(status(405));
+      await expect(client(fetchImpl).check({ create: true })).resolves.toBeUndefined();
+    });
+
+    it('creates only the last folder of the address: a missing parent (MKCOL 409) says to check the address', async () => {
+      const fetchImpl = vi.fn().mockResolvedValueOnce(status(404)).mockResolvedValueOnce(status(409));
+      await expect(client(fetchImpl).check({ create: true })).rejects.toMatchObject({
+        kind: 'not-found',
+        status: 409,
+        message: 'The folder https://dav.example.com/zotero-tts/ cannot be created: the folder above it does not exist. Check the address.',
+      });
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports a folder the server will not create by its status, and rejected credentials as such', async () => {
+      const refused = vi.fn().mockResolvedValueOnce(status(404)).mockResolvedValueOnce(status(507));
+      await expect(client(refused).check({ create: true })).rejects.toMatchObject({
+        kind: 'http',
+        status: 507,
+        message: 'Creating the folder https://dav.example.com/zotero-tts/ failed: HTTP 507.',
+      });
+      const auth = vi.fn().mockResolvedValueOnce(status(404)).mockResolvedValueOnce(status(401));
+      await expect(client(auth).check({ create: true })).rejects.toMatchObject({ kind: 'auth', status: 401 });
     });
   });
 

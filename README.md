@@ -553,7 +553,8 @@ backup below.
 <details>
 <summary><b>WebDAV URL examples</b></summary>
 
-The URL is a folder, created on the first upload. Nextcloud:
+The URL is a folder; *Enable* creates it if it does not exist yet.
+Nextcloud:
 `https://cloud.example.com/remote.php/dav/files/<user>/zotero-openreader/`;
 Jianguoyun: `https://dav.jianguoyun.com/dav/zotero-openreader/` with an app
 password.

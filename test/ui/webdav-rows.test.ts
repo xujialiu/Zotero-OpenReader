@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { BACKUP_FILENAME, BACKUP_FORMAT, createBackup, machineSettingsFilename, parseBackup, serializeBackup, type FlatSettings } from '../../src/core/settings-backup';
-import { WebDAVError, type WebDAVClient, type WebDAVConfig, type WebDAVFile } from '../../src/core/webdav';
+import { createWebDAVClient, WebDAVError, type WebDAVClient, type WebDAVConfig, type WebDAVFile } from '../../src/core/webdav';
 import { initWebDAVRows, settingsFileLabel, WEBDAV_IDS, type WebDAVRowsDeps } from '../../src/ui/webdav-rows';
 
 function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
@@ -369,14 +369,16 @@ describe('Test connection', () => {
     const t = setup();
     await t.el(WEBDAV_IDS.test).fire('command');
     expect(t.client.check).toHaveBeenCalledOnce();
+    // A probe: it creates no folder (issue #186)
+    expect(t.client.check).toHaveBeenCalledWith({ create: false });
     expect(t.message()).toBe(`Connected to ${FOLDER}.`);
   });
 
   it('reports a failure in the server’s terms', async () => {
     const t = setup();
-    t.client.check.mockRejectedValueOnce(new WebDAVError('not-found', 'The folder x does not exist. It is created on the first upload.', 404));
+    t.client.check.mockRejectedValueOnce(new WebDAVError('not-found', 'The folder x does not exist yet. Enable creates it.', 404));
     await t.el(WEBDAV_IDS.test).fire('command');
-    expect(t.message()).toBe('Connection failed: The folder x does not exist. It is created on the first upload.');
+    expect(t.message()).toBe('Connection failed: The folder x does not exist yet. Enable creates it.');
   });
 });
 
@@ -406,6 +408,8 @@ describe('The folder\u2019s switch', () => {
     t.fields.password.setAttribute('data-revealed', 'true');
     await t.el(WEBDAV_IDS.toggle).fire('command');
     expect(t.client.check).toHaveBeenCalledOnce();
+    // Enable creates a folder that does not exist yet (issue #186)
+    expect(t.client.check).toHaveBeenCalledWith({ create: true });
     expect(t.prefs.store[ENABLED]).toBe(true);
     expect(t.el(WEBDAV_IDS.message).textContent).toBe(`Connected to ${FOLDER}.`);
     expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Disable');
@@ -553,6 +557,8 @@ describe('verifyEnabled, after a restore', () => {
     const t = setup(restored);
     expect(await t.rows.verifyEnabled(true)).toBe('');
     expect(t.client.check).toHaveBeenCalledOnce();
+    // As Enable would: a restored folder that does not exist yet is created (issue #186)
+    expect(t.client.check).toHaveBeenCalledWith({ create: true });
     expect(t.prefs.store[ENABLED]).toBe(true);
     expect(t.el(WEBDAV_IDS.message).textContent).toBe(`Connected to ${FOLDER}.`);
     expect(t.el(WEBDAV_IDS.toggle).attrs.get('label')).toBe('Disable');
@@ -695,5 +701,108 @@ describe('initWebDAVRows', () => {
     expect(() =>
       initWebDAVRows(doc, { prefs: fakePrefs(), createClient: () => ({}) as WebDAVClient, machineId: { get: () => 'x', set: (r) => r } }),
     ).not.toThrow();
+  });
+});
+
+// Issue #186: the README's examples name a folder the server does not have
+// yet, and every use of the folder waits for Enable — so Enable is what
+// creates it. The real client against a server that keeps RFC 4918's rules:
+// the parent exists, the folder only once MKCOL made it.
+describe('Enable on a folder that does not exist yet (issue #186)', () => {
+  const ENABLED = PREF_PREFIX + 'webdav.enabled';
+  const PARENT = 'https://dav.example.com/dav/';
+  const NEW_FOLDER = PARENT + 'zotero-openreader/';
+
+  function davServer(opts: { folder?: boolean; parent?: boolean } = {}) {
+    const collections = new Set<string>();
+    if (opts.parent !== false) collections.add(PARENT);
+    if (opts.folder) collections.add(NEW_FOLDER);
+    const requests: string[] = [];
+    const parentOf = (url: string) => url.replace(/[^/]+\/?$/, '');
+    const fetchImpl = async (url: string, init: RequestInit) => {
+      const method = init.method ?? 'GET';
+      requests.push(`${method} ${url}`);
+      if ((init.headers as Record<string, string>).Authorization !== 'Basic ' + btoa('ann:pw')) return new Response(null, { status: 401 });
+      if (method === 'PROPFIND') return new Response('<d:multistatus xmlns:d="DAV:"/>', { status: collections.has(url) ? 207 : 404 });
+      if (method === 'MKCOL') {
+        if (collections.has(url)) return new Response(null, { status: 405 });
+        if (!collections.has(parentOf(url))) return new Response(null, { status: 409 });
+        collections.add(url);
+        return new Response(null, { status: 201 });
+      }
+      return new Response(null, { status: 404 });
+    };
+    return { fetchImpl, collections, requests };
+  }
+
+  function rowsOver(server: ReturnType<typeof davServer>, password = 'pw') {
+    const els = new Map((Object.values(WEBDAV_IDS) as string[]).map((id) => [id, new FakeElement()]));
+    const prefs = fakePrefs({
+      [ENABLED]: false,
+      [PREF_PREFIX + 'webdav.url']: NEW_FOLDER,
+      [PREF_PREFIX + 'webdav.username']: 'ann',
+      [PREF_PREFIX + 'webdav.password']: password,
+    });
+    const rows = initWebDAVRows(
+      { getElementById: (id: string) => els.get(id) ?? null },
+      {
+        prefs,
+        createClient: (cfg) => createWebDAVClient(cfg, { fetch: server.fetchImpl as unknown as typeof fetch }),
+        machineId: { get: () => 'this-mac', set: (raw: string) => raw },
+      },
+    );
+    return { prefs, rows, el: (id: string) => els.get(id)!, line: () => els.get(WEBDAV_IDS.message)!.textContent };
+  }
+
+  it('creates the folder and turns it on', async () => {
+    const server = davServer();
+    const t = rowsOver(server);
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.prefs.store[ENABLED], t.line()).toBe(true);
+    expect(server.collections.has(NEW_FOLDER)).toBe(true);
+    expect(t.line()).toBe(`Connected to ${NEW_FOLDER}.`);
+  });
+
+  it('Test connection creates nothing, and says Enable will', async () => {
+    const server = davServer();
+    const t = rowsOver(server);
+    await t.el(WEBDAV_IDS.test).fire('command');
+    expect(server.collections.has(NEW_FOLDER)).toBe(false);
+    expect(server.requests).toEqual([`PROPFIND ${NEW_FOLDER}`]);
+    expect(t.line()).toBe(`Connection failed: The folder ${NEW_FOLDER} does not exist yet. Enable creates it.`);
+  });
+
+  it('a restore that turns the folder on creates it as Enable would', async () => {
+    const server = davServer();
+    const t = rowsOver(server);
+    expect(await t.rows.verifyEnabled(true)).toBe('');
+    expect(t.prefs.store[ENABLED]).toBe(true);
+    expect(server.collections.has(NEW_FOLDER)).toBe(true);
+  });
+
+  it('a wrong password creates nothing and leaves the folder off', async () => {
+    const server = davServer();
+    const t = rowsOver(server, 'typo');
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.prefs.store[ENABLED]).toBe(false);
+    expect(server.collections.has(NEW_FOLDER)).toBe(false);
+    expect(t.line()).toBe('Connection failed: The server rejected the username or password (HTTP 401).');
+  });
+
+  it('a missing parent creates nothing, leaves the folder off and says to check the address', async () => {
+    const server = davServer({ parent: false });
+    const t = rowsOver(server);
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.prefs.store[ENABLED]).toBe(false);
+    expect(server.collections.size).toBe(0);
+    expect(t.line()).toBe(`Connection failed: The folder ${NEW_FOLDER} cannot be created: the folder above it does not exist. Check the address.`);
+  });
+
+  it('a folder that exists is turned on with no MKCOL', async () => {
+    const server = davServer({ folder: true });
+    const t = rowsOver(server);
+    await t.el(WEBDAV_IDS.toggle).fire('command');
+    expect(t.prefs.store[ENABLED]).toBe(true);
+    expect(server.requests).toEqual([`PROPFIND ${NEW_FOLDER}`]);
   });
 });
