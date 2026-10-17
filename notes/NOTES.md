@@ -740,3 +740,7 @@ then) and is in the git history before that day.
 
 - Fish Audio's models, and what its replies cannot say (issues #181, #182)
 - The check before Fish Audio requests is withdrawn (issue #181)
+
+### [2026-10-17](NOTES_2026-10-17.md)
+
+- A pick on an idle manager was restored over by the Document voice from before it (issue #183)

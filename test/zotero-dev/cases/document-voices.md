@@ -1,4 +1,4 @@
-# Independent document voices (issues #146, #179)
+# Independent document voices (issues #146, #179, #183)
 
 [Scripts](../scripts/document-voices/README.md)
 
@@ -71,6 +71,27 @@ bundle includes this diagnostic, not just its version string.
     (`test/read-aloud/memory-sync.test.ts`): neither can be produced
     without a wrong key in the owner's settings or a machine taken
     offline.
+
+12. **A pick while the saved voice is unavailable (issue #183).** Switch
+    the Zotero voices off for the item (snapshot and restore their
+    switches), so a regression can land only on a plugin voice, and mute
+    the volume. Plant as in item 11, on a settled fixture: a manual record
+    naming a Kokoro voice, Kokoro's address at a closed port. Open the
+    player: `documentVoices()`'s reader has `selected: null`,
+    `active: false`, `saved` the Kokoro voice. In the player's voice
+    dropdown pick a voice of another enabled provider that is **not the
+    first voice of the merged list** (before the fix the pick landed
+    there, so the first one passes either way); System voices are local
+    and free where the profile has them. Right after the pick:
+    `selected` is the picked voice, `active: true`, `saved` is the picked
+    voice with `manual: true`, and Zotero's `reader.readAloudVoices` entry
+    for the language names it. Plant again and pick an Entry in the
+    provider dropdown that is not the first of the plugin's: `selected`
+    is a voice of that Entry and `saved` names it. Before the fix both
+    ended on the plugin's alphabetically first voice. An Entry pick with
+    Zotero Standard listed (it ended on a Zotero voice) and a language
+    pick are unit-only (`test/read-aloud/document-voice-pick.test.ts`):
+    live, a regression would spend credits.
 
 Clock ties, malformed imports and migration-once rules are also covered by
 unit tests. Perceptual voice quality is human-only; the live run verifies

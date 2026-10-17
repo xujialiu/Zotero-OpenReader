@@ -230,6 +230,9 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   const documents = createDocumentVoices(deps.prefs);
   const sessions = new WeakMap<object, VoiceChoice | null>();
   let picking = 0;
+  /** The managers (waived) a Player pick is running on, counted outside the sync's own moves and the Handoff's preview. */
+  const inPick = new WeakSet<object>();
+  const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
   const migration = PREF_PREFIX + 'documentVoiceMigrated';
   if (deps.documentKey && deps.prefs.get(migration) !== true) {
     // Only a real previous global choice is migrated; never guess a default
@@ -237,8 +240,31 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     if (!readDefaultVoice(deps.prefs)) writeDefaultVoice(deps.prefs, readMemory(deps.prefs).voice);
     deps.prefs.set(migration, true);
   }
+  /**
+   * The voice a Player pick running on an idle manager has landed on — the
+   * document's voice from that moment, though `notePick` records it only
+   * once the pick returns (issue #183). Zotero persists the pick through
+   * `_setReadAloudVoice`, whose inactive branch runs the restore and
+   * `activate()` inside the pick: with the record from before the pick, both
+   * restores put the unavailable voice back over it, and Zotero fell back to
+   * its first voice. An active manager (a Handoff, a paused session) keeps
+   * its session's voice.
+   */
+  function pickInFlight(manager: any): VoiceChoice | null {
+    try {
+      if (!manager || manager.active || !inPick.has(waive(manager))) return null;
+      const id = manager.selectedVoiceID;
+      const lang = managerLangOf(manager);
+      return typeof id === 'string' && id && lang ? { id, lang } : null;
+    } catch (e) {
+      deps.error(e);
+      return null;
+    }
+  }
   function documentChoice(reader: any): VoiceChoice | null {
     const manager = reader?._internalReader?._readAloudManager;
+    const picked = pickInFlight(manager);
+    if (picked) return picked;
     if (manager?.active && sessions.has(manager)) return sessions.get(manager) ?? null;
     const key = deps.documentKey?.(reader);
     const choice = key ? documents.open(key)?.voice ?? null : null;
@@ -373,7 +399,6 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   const substitutions = new WeakMap<object, Substitution>();
 
   const originals = new WeakMap<object, SyncMethod>();
-  const waive = (value: unknown): any => (deps.waiveXrays ? deps.waiveXrays(value) : value);
 
   const labelOf = (internal: object, id: string, listed: readonly ListedVoice[]): string =>
     published.get(internal)?.find((voice) => voice.id === id)?.label ?? listed.find((voice) => voice.id === id)?.label ?? id;
@@ -738,9 +763,21 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
             deps.error(e);
           }
           let result: unknown;
+          // A Player pick, recorded per manager while it runs (pickInFlight)
+          let picked: object | null = null;
+          try {
+            const target = persist && !applying ? waive(this) : null;
+            if (target && typeof target === 'object' && !inPick.has(target) && !deps.isVoicePreview?.(readerForManager(target))) picked = target;
+          } catch (e) {
+            deps.error(e);
+          }
           if (persist) picking++;
+          if (picked) inPick.add(picked);
           try { result = Reflect.apply(original, this, args); }
-          finally { if (persist) picking--; }
+          finally {
+            if (persist) picking--;
+            if (picked) inPick.delete(picked);
+          }
           try {
             if (persist) notePick(waive(this));
           } catch (e) {
