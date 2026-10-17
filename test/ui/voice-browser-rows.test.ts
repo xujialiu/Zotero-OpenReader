@@ -156,6 +156,8 @@ function setup(
     favoritesOnly?: boolean;
     /** The tabs Read Aloud is open in; none unless said otherwise. */
     readingTabs?: string[];
+    /** The setup the samples are made with (issue #190); omitted, the dep is left out. */
+    sampleSetup?: () => string;
     /** The first column as the pane hands it over; absent, the providers that listed and Zotero's two. */
     tierColumns?: TierColumn[];
     /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
@@ -224,6 +226,7 @@ function setup(
     readingTabs: vi.fn(() => options.readingTabs ?? []),
     warn: vi.fn((_message: string) => {}),
     ...(options.tierColumns ? { tierColumns: vi.fn(() => options.tierColumns!) } : {}),
+    ...(options.sampleSetup ? { sampleSetup: options.sampleSetup } : {}),
     ...(options.askToClose
       ? {
           askToClose: vi.fn(options.askToClose),
@@ -659,6 +662,26 @@ describe('playing a sample', () => {
     await t.play(0).fire('click');
     expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(1);
     expect(t.player.play).toHaveBeenCalledTimes(2);
+  });
+
+  // Issue #190: a Model changed with Settings open (Disable, choose, Enable)
+  // replayed the previous Model's sample, found by voice and text alone
+  it('makes the sample anew once the setup it was made with has changed', async () => {
+    let model = 's2.1-pro-free';
+    const t = setup({ sampleSetup: () => model });
+    await t.rows.load();
+    await t.play(0).fire('click');
+    t.player.play.mock.calls[0][2](null);
+
+    model = 'drama-3';
+    await t.play(0).fire('click');
+    t.player.play.mock.calls[1][2](null);
+    expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(2);
+
+    // The new setup's sample is kept like any other
+    await t.play(0).fire('click');
+    expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(2);
+    expect(t.player.play).toHaveBeenCalledTimes(3);
   });
 
   it('stops the current sample when another voice is played', async () => {

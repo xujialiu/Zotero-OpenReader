@@ -129,6 +129,12 @@ export interface VoiceBrowserDeps {
   listCatalog(): Promise<CatalogEntry[]>;
   /** One bounded synthesis of the sample text; rejects with a readable message. */
   synthesizeSample(provider: ProviderId, voiceId: string, text: string): Promise<Blob>;
+  /**
+   * The setup a sample is made with (core/settings.ts audioSetup), read at
+   * every play: a sample kept from another Model or server is not found
+   * again (issue #190). Omitted, samples are kept by voice and text alone.
+   */
+  sampleSetup?(): string;
   /** Zotero's own Standard and Premium voices; omitted where there is no Zotero to ask. */
   listZoteroVoices?(): Promise<ZoteroVoice[]>;
   /** One sample of Zotero's own, in the server's own words; required for Zotero's voices to be playable. */
@@ -559,7 +565,9 @@ export function initVoiceBrowserRows(
   function sampleSource(voice: BrowserVoice): { key: string; fetch(): Promise<Blob> } {
     if (voice.provider) {
       const text = sampleTextForLocale(voice.locale);
-      return { key: voice.encoded + '\n' + text, fetch: () => deps.synthesizeSample(voice.provider!, voice.id, text) };
+      // Under the setup too: the same voice and text under another Model
+      // is another sample (issue #190)
+      return { key: (deps.sampleSetup?.() ?? '') + '\n' + voice.encoded + '\n' + text, fetch: () => deps.synthesizeSample(voice.provider!, voice.id, text) };
     }
     const sample = deps.sampleZoteroVoice;
     return {

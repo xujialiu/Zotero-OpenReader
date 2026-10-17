@@ -5,7 +5,7 @@ import { initBracketRows } from './bracket-rows';
 import type { ProviderId, TTSProvider } from '../core/providers/types';
 import { LOCAL_ENGINES } from '../core/providers/local/registry';
 import { createProvider, fishModelList, type ProviderDeps } from '../core/providers/factory';
-import { createZoteroPrefs, hiddenZoteroTiers, isZoteroSwitch, loadSettings, PREF_PREFIX, type PrefsBackend, type SwitchId, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, zoteroSwitchTier } from '../core/settings';
+import { audioSetup, createZoteroPrefs, hiddenZoteroTiers, isZoteroSwitch, loadSettings, PREF_PREFIX, type PrefsBackend, type SwitchId, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, zoteroSwitchTier } from '../core/settings';
 import { machineId, renameMachineId } from '../core/machine-id';
 import { getChromeWebSocket, newRequestId } from '../core/providers/azure';
 import { SynthesisError } from '../core/providers/errors';
@@ -614,6 +614,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       );
     },
     synthesizeSample: (id, voiceId, text) => synthesizeSample(win, prefs, id, voiceId, text, providerDeps()),
+    sampleSetup: () => audioSetup(loadSettings(prefs)),
     // The first column: every enabled provider, whether or not it lists
     // anything right now, and Zotero's two (issue #110)
     tierColumns: () => providerTierColumns(loadSettings(prefs)),

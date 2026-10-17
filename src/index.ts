@@ -16,7 +16,7 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t, type L10nArgs } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateFishFreeOnly, migrateLegacyProviderPref, migrateSyncPositionsDefault, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
+import { audioSetup, autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateFishFreeOnly, migrateLegacyProviderPref, migrateSyncPositionsDefault, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
 import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, legacyPrefSet, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
@@ -325,8 +325,7 @@ function playerMessage(key: string, args?: L10nArgs): string {
 
 /** The cache key includes a config fingerprint, so old audio automatically invalidates after a provider's configuration changes. */
 function cacheVersion(): string {
-  const s = loadSettings(prefs);
-  return [pluginVersion, s['openai-official'].model, s.mimo.model, s.compatible.baseURL, s.compatible.model, s.azure.region, s.fish.model, s.local.engine, s.local.baseURL].join('|');
+  return `${pluginVersion}|${audioSetup(loadSettings(prefs))}`;
 }
 
 /**

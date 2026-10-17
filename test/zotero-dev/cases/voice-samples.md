@@ -2,7 +2,7 @@
 
 ## Voice samples in the browser (issues #48, #61)
 
-Item 2.6 of the checklist, under its original number.
+Items 2.6 and 2.11 of the checklist, under their original numbers.
 
 ### 2.6
 
@@ -51,3 +51,21 @@ Item 2.6 of the checklist, under its original number.
    observable here (the prototype wrapper dies with the window); the
    unit test covers it. That the old voice falls silent at the click is
    the user's to hear.
+
+### 2.11
+
+11. **A sample is made again after the setup changes** (issue #190,
+    1.16.12-beta3). The settings window stays open throughout. ▶ on a
+    System voice (free; enable System voices for the item if the profile
+    keeps them off) and let it end: `diagnostics.systemProvider()`
+    `backend.spawned` is up by one `say` (on macOS). ▶ the same voice
+    again → `spawned` unchanged, the sample came from the window's cache.
+    Change a setting that changes a voice's audio on a provider that is
+    off (Azure's Region, say, to another region; the section is editable
+    while Azure is off), then ▶ the same System voice → `spawned` up by
+    one: the samples are kept under the whole setup
+    (`core/settings.ts` `audioSetup`), so any such change makes them again.
+    ▶ once more → unchanged. Put the Region back and turn System voices
+    off again if the item turned them on. A Model changed through Disable,
+    choose, Enable on a paid provider is the same key; it is the unit
+    test's (`test/ui/voice-browser-rows.test.ts`), not spent here.

@@ -41,7 +41,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Independent document voices, global default, backup and sync, an unreachable provider, a pick while unavailable (issues #146, #179, #183)](cases/document-voices.md)
 - [The voice browser: the listing, the default voice and speed](cases/voice-browser.md) — 1.9, 2.1, 2.2, 2.7
 - [Favorite voices](cases/favorites.md) — 2.3–2.5, 2.8
-- [Voice samples in the browser](cases/voice-samples.md) — 2.6
+- [Voice samples in the browser](cases/voice-samples.md) — 2.6, 2.11
 - [The player's voice list](cases/reader-voice-list.md) — 3.1, 3.3
 - [One regional list for the player and shortcuts (issue #106)](cases/player-voice-list.md)
 - [One entry per provider in the player's first dropdown (issue #110)](cases/provider-tiers.md)

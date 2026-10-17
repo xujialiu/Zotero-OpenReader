@@ -761,3 +761,4 @@ then) and is in the git history before that day.
 - `diagnostics.sharedSettings()` printed the old preset memory in the clear (issue #203)
 - Verified live on 1.16.12-beta2: the settings sync fixes (issues #184, #192, #193, #205, #203)
 - macOS 27 lists some voices twice (issue #185)
+- The voice browser kept samples across a Model change (issue #190)

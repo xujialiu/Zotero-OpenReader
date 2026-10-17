@@ -503,6 +503,18 @@ export function prefetchOf(readAloud: Settings['readAloud']): PrefetchSettings {
     : { sentences: DEFAULTS.readAloud.prefetchSentences, requests: DEFAULTS.readAloud.prefetchRequests };
 }
 
+/**
+ * The settings that change what a voice sounds like: a Model, a server's
+ * address, Azure's region, the local engine. Two pieces of audio made under
+ * different setups are different audio, so both the reading cache
+ * (`cacheVersion` in src/index.ts, behind the plugin version) and the voice
+ * browser's samples (issue #190) are keyed with it; a field added here
+ * reaches both.
+ */
+export function audioSetup(s: Settings): string {
+  return [s['openai-official'].model, s.mimo.model, s.compatible.baseURL, s.compatible.model, s.azure.region, s.fish.model, s.local.engine, s.local.baseURL].join('|');
+}
+
 /** The providers whose voices are published, in catalog order. */
 export function enabledProviders(s: Settings): ProviderId[] {
   return PROVIDER_IDS.filter((id) => s[id].enabled);

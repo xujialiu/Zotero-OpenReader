@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  audioSetup,
   DEFAULTS,
   enabledProviders,
   hiddenZoteroTiers,
@@ -193,6 +194,28 @@ describe('enabledProviders', () => {
     };
     expect(enabledProviders(all)).toEqual(PROVIDER_IDS);
     expect(enabledProviders({ ...all, 'openai-official': { ...DEFAULTS['openai-official'], enabled: false } })).toEqual(['mimo', 'compatible', 'azure', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system']);
+  });
+});
+
+// Issue #190: the reading cache's fingerprint, now the voice browser's too
+describe('audioSetup', () => {
+  it('names the settings that change a voice\'s audio, in the order the reading cache has always keyed them', () => {
+    const s = {
+      ...DEFAULTS,
+      'openai-official': { ...DEFAULTS['openai-official'], model: 'tts-1-hd' },
+      mimo: { ...DEFAULTS.mimo, model: 'mimo-tts' },
+      compatible: { ...DEFAULTS.compatible, baseURL: 'http://box:8004', model: 'chatterbox' },
+      azure: { ...DEFAULTS.azure, region: 'eastus' },
+      fish: { ...DEFAULTS.fish, model: 'drama-3' },
+      local: { ...DEFAULTS.local, engine: 'kokoro', baseURL: 'http://localhost:8880' },
+    };
+    expect(audioSetup(s)).toBe('tts-1-hd|mimo-tts|http://box:8004|chatterbox|eastus|drama-3|kokoro|http://localhost:8880');
+  });
+
+  it('moves with a Model and stays put for a key', () => {
+    const fish = (model: string, apiKey: string) => audioSetup({ ...DEFAULTS, fish: { ...DEFAULTS.fish, model, apiKey } });
+    expect(fish('drama-3', 'a')).not.toBe(fish('s2.1-pro-free', 'a'));
+    expect(fish('drama-3', 'a')).toBe(fish('drama-3', 'b'));
   });
 });
 
