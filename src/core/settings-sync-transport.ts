@@ -2,6 +2,7 @@ import type { SwitchId } from './settings';
 import type { FlatSettings, SettingValue } from './settings-backup';
 import {
   editsPlayerList,
+  heldSections,
   mergeSharedSettings,
   parseSharedSettings,
   sectionOf,
@@ -308,6 +309,15 @@ export function createSettingsSyncTransport(deps: SettingsSyncDeps): SettingsSyn
       }
 
       const plan = mergeSharedSettings({ values, stamps: state.stamps, machine: deps.machine() }, remote);
+
+      // A section the address rule keeps here takes nothing from the file,
+      // so a hold on it (a sync from before issue #184 checked one) is moot
+      const kept = [...heldSections(values)].filter((section): section is SwitchId => section in state.held);
+      if (kept.length) {
+        state = updateState((s) => {
+          for (const section of kept) delete s.held[section];
+        });
+      }
 
       // Apply unrelated groups now; defer only groups affecting a current session.
       const applied: string[] = [];

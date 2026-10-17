@@ -82,8 +82,13 @@ export function neverSynced(key: string): boolean {
 /** The keys that may travel at all; which of them do on a given sync also depends on the addresses (heldSections). */
 export const SYNCABLE_KEYS: readonly string[] = Object.keys(KNOWN_DEFAULTS).filter((key) => !neverSynced(key));
 
-/** The provider sections whose address decides whether they travel, and the key that holds it. */
-export const ADDRESSED_SECTIONS: Readonly<Record<string, string>> = { compatible: 'compatible.baseURL', local: 'local.baseURL' };
+/**
+ * The provider sections whose address decides whether they travel, and the
+ * key that holds it: every section that names a server of the user's own.
+ * Fish Speech is one (issue #184: left out when it got its section, its
+ * Address, headers and switch overwrote the other computers' own).
+ */
+export const ADDRESSED_SECTIONS: Readonly<Record<string, string>> = { compatible: 'compatible.baseURL', local: 'local.baseURL', fishspeech: 'fishspeech.baseURL' };
 
 /** `openai` for `openai.apiKey`; the key itself when it has no dot (`prefetch`). */
 export function sectionOf(key: string): string {

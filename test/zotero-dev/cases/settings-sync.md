@@ -22,8 +22,8 @@ changes apply immediately (#121,
 [synced settings during reading](settings-sync-while-reading.md)). Item 3.19 covers
 the positions line beside the settings one.
 
-Items 3.19, 6.11–6.15 and 6.17–6.19 of the checklist, under their original
-numbers.
+Items 3.19, 6.11–6.15, 6.17–6.19 and 6.22 of the checklist, under their
+original numbers.
 
 ### 3.19
 
@@ -147,3 +147,20 @@ numbers.
     before the pane's own sync replaced it with "nothing new"). The applied
     form itself, `Settings synced <time>: <n> from <machine> applied
     here.`, shows while the pane is already open when a sync adopts.
+
+### 6.22
+
+22. **A Fish Speech server at a local address stays on each computer**
+    (issue #184, 1.16.12-beta2). At the default Address
+    (`http://localhost:8080`) `settingsSync().heldSections` holds
+    `"fishspeech"` beside `"local"`. With the switch on, crafted items
+    `fishspeech.baseURL: "http://192.168.1.50:8080"` and
+    `fishspeech.enabled: true` at `Date.now()+1000`, `by: "tester"` → the
+    next trigger reports `adopted 0` and `deferred 0`, `fishspeech.baseURL`
+    and `fishspeech.enabled` keep their values, `lastApplied` is unchanged
+    and no check ran. A `held.fishspeech` record written into
+    `webdav.syncState` before the trigger is gone after it, any other
+    provider's record kept. A change of `fishspeech.headers` here is
+    stamped, and the next `change` sync reports `pushed 0` with no
+    `fishspeech.*` item of this machine's in `sharedSettings()`. Restore
+    the Fish Speech prefs and remove the crafted items.

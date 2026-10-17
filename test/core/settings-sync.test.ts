@@ -96,15 +96,19 @@ describe('the sync set', () => {
   });
 
   it('holds a provider section whose address is local, by that address alone', () => {
-    expect(heldSections(values())).toEqual(new Set(['local']));
-    expect(heldSections(values({ 'local.baseURL': 'https://h200-kokoro.example.org' }))).toEqual(new Set());
-    expect(heldSections(values({ 'compatible.baseURL': 'http://localhost:8004', 'local.baseURL': 'https://k.example.org' }))).toEqual(new Set(['compatible']));
+    // Kokoro and Fish Speech start at a localhost address (issue #184)
+    expect(heldSections(values())).toEqual(new Set(['local', 'fishspeech']));
+    const publicServers = { 'local.baseURL': 'https://k.example.org', 'fishspeech.baseURL': 'https://fish.example.org' };
+    expect(heldSections(values(publicServers))).toEqual(new Set());
+    expect(heldSections(values({ ...publicServers, 'fishspeech.baseURL': 'http://192.168.1.50:8080' }))).toEqual(new Set(['fishspeech']));
+    expect(heldSections(values({ 'local.baseURL': 'https://h200-kokoro.example.org', 'fishspeech.baseURL': 'https://fish.example.org' }))).toEqual(new Set());
+    expect(heldSections(values({ ...publicServers, 'compatible.baseURL': 'http://localhost:8004' }))).toEqual(new Set(['compatible']));
     // A partial set (the file's) without the address: not held from that side
     expect(heldSections({ 'compatible.apiKey': 'sk' })).toEqual(new Set());
     // The hosted sections have no address to be local, and an empty address
     // is not a local one: a fresh machine must be able to receive a server (issue #113)
-    expect(heldSections(values({ 'openai-official.apiKey': 'sk', 'mimo.apiKey': 'k', 'local.baseURL': 'https://k.example.org' }))).toEqual(new Set());
-    expect(heldSections(values({ 'compatible.baseURL': '  ', 'local.baseURL': 'https://k.example.org' }))).toEqual(new Set());
+    expect(heldSections(values({ ...publicServers, 'openai-official.apiKey': 'sk', 'mimo.apiKey': 'k' }))).toEqual(new Set());
+    expect(heldSections(values({ ...publicServers, 'compatible.baseURL': '  ' }))).toEqual(new Set());
   });
 
   it('knows which settings edit the player’s list', () => {
@@ -272,6 +276,34 @@ describe('mergeSharedSettings', () => {
     expect(plan.items).toEqual(remote.sort((a, b) => (a.key < b.key ? -1 : 1)));
     expect(plan.changed).toBe(false);
     expect(plan.skipped.sort()).toEqual(['local.baseURL', 'local.enabled', 'local.voice']);
+  });
+
+  // Issue #184: a Fish Speech server is one on this machine or the LAN, like Kokoro
+  it('keeps a Fish Speech section at a local address on this machine: its address, headers and switch neither up nor down', () => {
+    const LAN = 'http://192.168.1.50:8080';
+    const pushing = mergeSharedSettings(
+      {
+        values: values({ 'fishspeech.enabled': true, 'fishspeech.baseURL': LAN, 'fishspeech.headers': 'Authorization: Bearer x' }),
+        stamps: { 'fishspeech.enabled': 900, 'fishspeech.baseURL': 900, 'fishspeech.headers': 900 },
+        machine,
+      },
+      [],
+    );
+    expect(pushing.pushed).toEqual([]);
+    expect(pushing.items).toEqual([]);
+    const remote = [item({ key: 'fishspeech.baseURL', value: LAN, ts: 900 }), item({ key: 'fishspeech.enabled', value: true, ts: 900 }), item({ key: 'fishspeech.headers', value: 'Authorization: Bearer x', ts: 900 })];
+    // This computer's own server, and one still at the default address that never changed it
+    for (const mine of [{ values: values({ 'fishspeech.baseURL': 'http://localhost:9000' }), stamps: { 'fishspeech.baseURL': 100 } }, { values: values(), stamps: {} as Record<string, number> }]) {
+      const plan = mergeSharedSettings({ ...mine, machine }, remote);
+      expect(plan.adopt).toEqual([]);
+      expect(plan.skipped.sort()).toEqual(['fishspeech.baseURL', 'fishspeech.enabled', 'fishspeech.headers']);
+    }
+  });
+
+  it('syncs a Fish Speech server at a public address like a hosted provider', () => {
+    const publicMine = values({ 'fishspeech.baseURL': 'https://fish.example.org', 'fishspeech.enabled': true });
+    const plan = mergeSharedSettings({ values: publicMine, stamps: { 'fishspeech.baseURL': 900, 'fishspeech.enabled': 900 }, machine }, []);
+    expect(plan.pushed.sort()).toEqual(['fishspeech.baseURL', 'fishspeech.enabled']);
   });
 
   it('never applies a section the file itself puts at a local address, and heals it when this machine’s is newer', () => {

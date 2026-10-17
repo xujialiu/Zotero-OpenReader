@@ -499,3 +499,42 @@ describe('settings sync during reading', () => {
     expect(h.store['azure.apiKey']).toBe('new');
   });
 });
+
+// Issue #184: a Fish Speech server is one on this machine or the LAN
+// (README "What stays on each computer"), kept per computer like Kokoro's
+describe('a Fish Speech server at a local address under the settings sync', () => {
+  const LAN = 'http://192.168.1.50:8080';
+  const OWN = 'http://localhost:9000';
+
+  it('computer A writes neither its address, its headers nor its switch into the shared file', async () => {
+    const h = harness({
+      values: { 'fishspeech.baseURL': LAN, 'fishspeech.enabled': true, 'fishspeech.headers': 'Authorization: Bearer x' },
+      state: { stamps: { 'fishspeech.baseURL': 900, 'fishspeech.enabled': 900, 'fishspeech.headers': 900 }, held: {}, seeded: true },
+    });
+    await h.transport.flush('test');
+    expect(h.remoteItems().filter((i) => i.key.startsWith('fishspeech.'))).toEqual([]);
+  });
+
+  it('computer B keeps its own working server and switch when the file carries A’s, and checks nothing', async () => {
+    const h = harness({
+      values: { 'fishspeech.baseURL': OWN, 'fishspeech.enabled': true },
+      state: { stamps: { 'fishspeech.baseURL': 100, 'fishspeech.enabled': 100 }, held: {}, seeded: true },
+      remote: file(item({ key: 'fishspeech.baseURL', value: LAN, ts: 900 }), item({ key: 'fishspeech.enabled', value: true, ts: 900 }), item({ key: 'fishspeech.headers', value: 'Authorization: Bearer x', ts: 900 })),
+    });
+    await h.transport.flush('test');
+    expect([h.store['fishspeech.baseURL'], h.store['fishspeech.enabled'], h.store['fishspeech.headers']]).toEqual([OWN, true, '']);
+    expect(h.checks).toEqual([]);
+    expect(h.transport.stats().held).toEqual({});
+  });
+
+  it('drops a hold a sync from before the fix left on a section the address rule now keeps here', async () => {
+    const h = harness({
+      values: { 'fishspeech.baseURL': OWN },
+      state: { stamps: { 'fishspeech.baseURL': 900, 'fishspeech.enabled': 900 }, held: { fishspeech: { ts: 1, reason: 'Cannot reach Fish Speech' }, azure: { ts: 1, reason: 'Connection failed: 401' } }, seeded: true },
+      remote: file(item({ key: 'fishspeech.baseURL', value: LAN, ts: 900 }), item({ key: 'fishspeech.enabled', value: true, ts: 900 })),
+    });
+    await h.transport.flush('test');
+    expect(h.transport.stats().held).toEqual({ azure: 'Connection failed: 401' });
+    expect(h.store['fishspeech.enabled']).toBe(false);
+  });
+});
