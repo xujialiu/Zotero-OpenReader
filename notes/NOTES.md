@@ -765,3 +765,4 @@ then) and is in the git history before that day.
 - The Windows speech daemon's stop() let a queued request start a new helper (issue #191)
 - Verified live on 1.16.12-beta3: System voices once each, samples made again (issues #185, #190, #191)
 - A duplicate reader supplied another reader's pause and sentence (issue #206)
+- Verified duplicate readers, and a test item escaped during restoration (issue #206)

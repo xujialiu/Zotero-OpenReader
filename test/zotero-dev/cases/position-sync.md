@@ -138,9 +138,10 @@ one attachment open in multiple readers (issue #206).
     position must not jump back. Then use a fresh duplicate to close the
     speaking reader after a new sentence begins, leaving the older reader
     open: the final captured position survives later ticks. For EPUB, the
-    shared capture names that final sentence too. The tab-close and uninit
-    backstop together must not replace it twice. Use real close paths, not
-    `reader._window.close()`. Closing during the sub-tick race and a stale
+    shared capture names that final sentence too. A stable position or stamp
+    does not prove once-only invocation: an identical write can be deduplicated.
+    The unit tests assert the once-only close behavior. Use real close paths,
+    not `reader._window.close()`. Closing during the sub-tick race and a stale
     `active=true` after teardown are additionally covered deterministically
     in `test/read-aloud/position-sync-duplicates.test.ts`.
 
@@ -153,5 +154,26 @@ one attachment open in multiple readers (issue #206).
     Reopen the document and verify the new reader can record normally.
     Finish with the fixture-close cleanup, remove test positions before
     restoring the original folder, and confirm every saved setting and
-    local/remote fixture record is restored. No new setting or file-format
-    change is part of #206.
+    local/remote fixture record is restored. Erasing the Zotero attachment
+    does not remove its shared item: verify the fixture's native position,
+    document mapping, shared position, generated tombstone, and in-memory
+    copies before restoring automatic sync. Counts alone do not prove the
+    original rows restored. No new setting or file-format change is part
+    of #206.
+
+### Coverage from the 2026-10-18 run
+
+On 1.16.12-beta4 (`f4ccbbb`), Zotero 11.0-beta.1 on macOS: 6.11's pause
+counts passed both reader orders; 6.12's later-speaking B/earlier-paused A
+arrangement and its shared anchor passed live (the reverse stale-paused
+arrangement is unit-covered only); 6.13–6.15 passed their observable position
+checks. Shutdown and once-only close invocation remain unit-covered.
+
+The first cleanup left a shared fixture item in memory and on disk; restoring
+sync uploaded it to the owner's folder. Corrective recovery removed that
+exact item with a conditional write, verified all other items unchanged,
+removed the local fixture rows and reloaded memory with sync off. The final
+restoration sync uploaded nothing. The original local baseline contained
+counts, not complete rows, so byte equality of every pre-existing native
+row could not be established. The kit records that limit and rejects the
+unsafe restoration sequence; future runs require complete row snapshots.
