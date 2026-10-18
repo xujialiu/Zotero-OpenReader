@@ -21,16 +21,38 @@ before following this workflow.
   `git log -p origin/main..main | grep -nE 'sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|\b[0-9a-f]{32}\b'`
   — and stop on any hit, naming the commit and the file but never quoting
   the key. Never force-push.
-- Merges are `git merge --ff-only`. A merge that cannot fast-forward, or
-  any conflict, is not yours: stop and report the state (`git status -sb`,
-  the branches, what diverged).
+- Merges are `git merge --ff-only`. **A `main` that moved on is the
+  merge's to handle** (settled 2026-10-18, by the user's request after
+  #187's merge stopped on another session's commit): when the user says
+  "merge" (or "finish worktree", below) and the branch cannot
+  fast-forward, bring it up to the current `origin/main` without asking —
+  `git rebase origin/main` for a branch that was never pushed;
+  `git merge origin/main` into the branch for one that was, since a
+  pushed branch is never rewritten. Resolve every conflict so that both
+  sides' changes survive, rerun `npm test`, `npm run typecheck` and
+  `npm run build` on the result, and only then `git merge --ff-only`
+  into `main`. Report the conflicts and how each was resolved. Only a
+  conflict where keeping one side undoes the other's purpose — a product
+  decision, not a textual one — stops the merge and goes to the user. A
+  rebase renames the branch's commits: a closed issue whose closing
+  comment names them gets a one-line comment with the new hashes after
+  the push.
+- **"finish worktree"** (settled 2026-10-18) means: confirm the branch's
+  committed work is tested — the checks `MEMORY/testing.md` requires for
+  it have passed, and `npm test`, `npm run typecheck` and `npm run build`
+  are green on the final tree — then merge it into `main` as above and
+  push `main` (the push checks below apply). It is the instruction to
+  merge and to push. A failing check stops it before the merge;
+  uncommitted files in the worktree are not part of it and are reported.
 - Branch deletion: only branches already merged into `main`
   (`git branch --merged main`, `git branch -r --merged origin/main`);
   `git branch -d` (never `-D`) locally, `git push origin --delete <branch>`
   on the remote. `main` is never deleted. Run `git worktree list` first: a
   branch checked out in another worktree is left alone and reported.
 - Nothing interactive (`-i`), and no history rewriting — `rebase`,
-  `commit --amend`, `reset --hard` — unless the brief says so explicitly.
+  `commit --amend`, `reset --hard` — unless the brief says so explicitly;
+  the merge's rebase of a never-pushed branch, above, is the one standing
+  exception.
 - Windows: the Bash tool is Git Bash (`$HOME/Works/...` paths); heredocs
   fail — commit messages go through `-m`, one `-m` per paragraph.
 
