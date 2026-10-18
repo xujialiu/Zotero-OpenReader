@@ -41,7 +41,7 @@ before following this workflow.
   committed work is tested — the checks `MEMORY/testing.md` requires for
   it have passed, and `npm test`, `npm run typecheck` and `npm run build`
   are green on the final tree — then merge it into `main` as above and
-  push `main` (the push checks below apply). It is the instruction to
+  push `main` (the push checks above apply). It is the instruction to
   merge and to push. A failing check stops it before the merge;
   uncommitted files in the worktree are not part of it and are reported.
 - Branch deletion: only branches already merged into `main`
