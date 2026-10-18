@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sentences, t } from '../../src/core/l10n';
 import type { SettingsSyncApplied, SettingsSyncStats } from '../../src/core/settings-sync-transport';
 import type { PositionTransportStats } from '../../src/read-aloud/position-transport';
-import { initSyncStatusRows, positionsStatusText, settingsStatusText, SYNC_STATUS_IDS, type SyncStatusDeps } from '../../src/ui/sync-status-rows';
+import { initSyncStatusRows, positionsStatusText, settingsStatusText, SYNC_STATUS_IDS, type SyncOutcome, type SyncStatusDeps } from '../../src/ui/sync-status-rows';
 
 const stats = (over: Partial<SettingsSyncStats> = {}): SettingsSyncStats => ({
   watching: 54,
@@ -31,6 +31,7 @@ const positions = (over: Partial<PositionTransportStats> = {}): PositionTranspor
   lastError: null,
   remoteEntries: 12,
   adopted: 0,
+  remapped: 0,
   dropped: 0,
   uploaded: false,
   lastAdoption: null,
@@ -117,6 +118,38 @@ describe('positionsStatusText', () => {
   });
 });
 
+describe('positionsStatusText with the Positions File, the phone’s (issue #207)', () => {
+  const shared = (over: Partial<SyncOutcome> = {}): SyncOutcome => ({ lastOutcome: 'ok', lastAt: 3_000, lastError: null, ...over });
+  const NEWER = 'SharedPositionsFileError: The positions file on the server is version 2; this build reads up to 1. Update OpenReader on this computer.';
+
+  it('reports the Positions File’s failure, with its time and error, while the plugin’s own file synced', () => {
+    expect(positionsStatusText(positions(), true, at, shared({ lastOutcome: 'error', lastError: NEWER }))).toBe(t('ztts-positions-status-failed', { time: 'T3000', detail: NEWER }));
+    expect(positionsStatusText(positions({ adopted: 3, lastAdoption: { at: 2_000, count: 3 } }), true, at, shared({ lastOutcome: 'error', lastError: NEWER }))).toBe(
+      t('ztts-positions-status-failed', { time: 'T3000', detail: NEWER }),
+    );
+  });
+
+  it('reports it inside the Positions File’s failure window too', () => {
+    expect(positionsStatusText(positions(), true, at, shared({ lastOutcome: 'skipped', lastError: NEWER }))).toBe(t('ztts-positions-status-failed', { time: 'T3000', detail: NEWER }));
+  });
+
+  it('reports the plugin’s own file first when both failed', () => {
+    expect(positionsStatusText(positions({ lastOutcome: 'error', lastError: 'Error: 503' }), true, at, shared({ lastOutcome: 'error', lastError: NEWER }))).toBe(
+      t('ztts-positions-status-failed', { time: 'T2000', detail: 'Error: 503' }),
+    );
+  });
+
+  it('leaves the line as the plugin’s own file has it while the Positions File is fine, skipped or not started', () => {
+    for (const other of [shared(), shared({ lastOutcome: 'skipped' }), shared({ lastOutcome: null, lastAt: null }), null]) {
+      expect(positionsStatusText(positions(), true, at, other)).toBe(t('ztts-positions-status-none', { time: 'T2000' }));
+    }
+  });
+
+  it('is empty while the switch is off, a failure of either file included', () => {
+    expect(positionsStatusText(positions(), false, at, shared({ lastOutcome: 'error', lastError: NEWER }))).toBe('');
+  });
+});
+
 describe('initSyncStatusRows', () => {
   function setup() {
     const lines = {
@@ -128,6 +161,7 @@ describe('initSyncStatusRows', () => {
     };
     let settingsStats: SettingsSyncStats | null = null;
     let positionsStats: PositionTransportStats | null = null;
+    let sharedStats: SyncOutcome | null = null;
     const enabled = { settings: true, positions: true };
     let onSettingsSynced: ((report: SettingsSyncApplied | null) => void) | null = null;
     let onPositionsSynced: (() => void) | null = null;
@@ -152,6 +186,7 @@ describe('initSyncStatusRows', () => {
       positions: {
         enabled: () => enabled.positions,
         stats: () => positionsStats,
+        shared: () => sharedStats,
         watch: (fn) => {
           onPositionsSynced = fn;
           return () => void unsubscribed.push('positions');
@@ -174,6 +209,9 @@ describe('initSyncStatusRows', () => {
       },
       setPositions: (s: PositionTransportStats | null) => {
         positionsStats = s;
+      },
+      setShared: (s: SyncOutcome | null) => {
+        sharedStats = s;
       },
       settingsSynced: (report: SettingsSyncApplied | null) => onSettingsSynced?.(report),
       positionsSynced: () => onPositionsSynced?.(),
@@ -205,6 +243,20 @@ describe('initSyncStatusRows', () => {
     expect(s.lines.settings.hidden).toBe(true);
   });
 
+  it('writes the positions line from both files after a sync of either (issue #207)', () => {
+    const s = setup();
+    s.setPositions(positions());
+    s.positionsSynced();
+    expect(s.lines.positions.textContent).toBe(t('ztts-positions-status-none', { time: 'T2000' }));
+    // The Positions File's sync ends later, failed: its listener is the positions line's too
+    s.setShared({ lastOutcome: 'error', lastAt: 3_000, lastError: 'Error: 423' });
+    s.positionsSynced();
+    expect(s.lines.positions.textContent).toBe(t('ztts-positions-status-failed', { time: 'T3000', detail: 'Error: 423' }));
+    s.setShared({ lastOutcome: 'ok', lastAt: 4_000, lastError: null });
+    s.positionsSynced();
+    expect(s.lines.positions.textContent).toBe(t('ztts-positions-status-none', { time: 'T2000' }));
+  });
+
   it('redraws the pane only when a settings sync changed something here', () => {
     const s = setup();
     s.setSettings(stats({ adopted: 1, lastApplied: { at: 1_000, applied: ['readAloud.volume'], from: ['laptop'], held: {}, deferred: 0 } }));
@@ -226,7 +278,7 @@ describe('initSyncStatusRows', () => {
     const deps: SyncStatusDeps = {
       formatTime: at,
       settings: { enabled: () => true, stats: () => null, watch: noop, watchSwitch: noop, onApplied: () => {} },
-      positions: { enabled: () => true, stats: () => null, watch: noop, watchSwitch: noop },
+      positions: { enabled: () => true, stats: () => null, shared: () => null, watch: noop, watchSwitch: noop },
     };
     expect(() => initSyncStatusRows({ getElementById: () => null }, deps).refresh()).not.toThrow();
   });

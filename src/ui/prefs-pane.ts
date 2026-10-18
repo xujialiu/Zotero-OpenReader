@@ -29,7 +29,7 @@ import { markPlatform } from './platform-class';
 import { initBoldLabels } from './bold-labels';
 import { initAboutRows } from './about-rows';
 import { initWebDAVRows, type WebDAVRows } from './webdav-rows';
-import { initSyncStatusRows } from './sync-status-rows';
+import { initSyncStatusRows, type SyncOutcome } from './sync-status-rows';
 import { SYNC_SETTINGS_OBSERVER } from '../core/settings-sync';
 import type { SettingsSyncApplied, SettingsSyncStats } from '../core/settings-sync-transport';
 import { SYNC_POSITIONS_OBSERVER, type PositionTransportStats } from '../read-aloud/position-transport';
@@ -496,7 +496,8 @@ export interface PaneHooks {
   /** The Sync group's two status lines (src/index.ts, #68): each transport's stats, a listener per completed sync, and a poke of both when the pane opens. */
   sync?: {
     settings: { stats(): SettingsSyncStats | null; watch(onSynced: (report: SettingsSyncApplied | null) => void): () => void };
-    positions: { stats(): PositionTransportStats | null; watch(onSynced: () => void): () => void };
+    /** `shared` is the Positions File's sync (issue #207); `watch` hears the completed syncs of both files. */
+    positions: { stats(): PositionTransportStats | null; shared(): SyncOutcome | null; watch(onSynced: () => void): () => void };
     poke(): void;
   };
 }
@@ -850,6 +851,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     positions: {
       enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'syncPositions'),
       stats: () => hooks.sync?.positions.stats() ?? null,
+      shared: () => hooks.sync?.positions.shared() ?? null,
       watch: (onSynced) => hooks.sync?.positions.watch(onSynced) ?? (() => {}),
       watchSwitch: (onChange) => watchSwitchAndFolder(SYNC_POSITIONS_OBSERVER, onChange),
     },

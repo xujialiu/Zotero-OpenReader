@@ -16,6 +16,13 @@ import type { PositionEntry } from './read-aloud-position';
  * machine does not have stay in the file untouched: the file is the union
  * of every machine's bookmarks, not this machine's view.
  *
+ * An entry's `lib` is the writer's own library number, and a group library
+ * is numbered per computer (#187): an entry this machine cannot find under
+ * that number is matched by its item key in this machine's own My Library
+ * and groups, and adopted under the number this machine gives it
+ * (`entryHere`). The file keeps it as its writer numbered it, so a group
+ * numbered differently on two computers holds one entry per numbering.
+ *
  * Event-driven, no timer: the wiring pokes it at startup, when a reader
  * opens, when a tab closes, and flushes it once at shutdown. Pokes are
  * fire-and-forget and single-flight — a burst of tab opens coalesces into
@@ -50,19 +57,61 @@ export interface PositionsClient {
   upload(name: string, text: string): Promise<void>;
 }
 
-export interface PositionTransportDeps {
+/**
+ * This computer's libraries, as far as finding an entry's attachment needs
+ * them (#187). Every call may throw; the caller decides what a throw costs.
+ */
+export interface LibraryLookup {
+  /** `Zotero.Libraries.exists`. */
+  libraryExists(lib: number): boolean;
+  /** `Zotero.Items.getIDFromLibraryAndKey` — only entries this machine can resolve are adopted. */
+  itemExists(lib: number, key: string): boolean;
+  /**
+   * The libraries an item key can travel between computers in: My Library
+   * and the groups, never a feed (a feed is local to one computer).
+   */
+  syncedLibraries(): number[];
+}
+
+/**
+ * The entry as this computer holds it (#187), or null when it holds no
+ * such attachment. Under its own number when that names an attachment
+ * here; otherwise under the one synced library here that holds its key —
+ * a group library is numbered per computer, an item key is the same on
+ * every computer that syncs the library. Several libraries holding the key
+ * answer null: an attachment not identified is not guessed at. Throws what
+ * the lookup throws.
+ */
+export function entryHere(entry: PositionEntry, lookup: LibraryLookup): PositionEntry | null {
+  if (lookup.libraryExists(entry.lib) && lookup.itemExists(entry.lib, entry.key)) return entry;
+  let found: number | null = null;
+  for (const lib of lookup.syncedLibraries()) {
+    if (lib === entry.lib || lib === found || !lookup.itemExists(lib, entry.key)) continue;
+    if (found !== null) return null;
+    found = lib;
+  }
+  return found === null ? null : { ...entry, lib: found };
+}
+
+/** The same lookup, reading the libraries at most once: one sync, one import. */
+export function withLibrariesOnce(lookup: LibraryLookup): LibraryLookup {
+  let libraries: number[] | null = null;
+  return {
+    libraryExists: (lib) => lookup.libraryExists(lib),
+    itemExists: (lib, key) => lookup.itemExists(lib, key),
+    syncedLibraries: () => (libraries ??= lookup.syncedLibraries()),
+  };
+}
+
+export interface PositionTransportDeps extends LibraryLookup {
   /** The webdav.syncPositions switch, read per sync so the checkbox applies at once. */
   enabled(): boolean;
   /** A client for the settings as they are now; throws WebDAVError('config') for an unusable URL. */
   client(): PositionsClient;
   /** Every bookmark this machine holds — the sampler's map, store-backed. */
   local(): PositionEntry[];
-  /** Offer one remote entry to the sampler and store; true when strictly newer and taken. */
+  /** Offer one remote entry, under this machine's library number, to the sampler and store; true when strictly newer and taken. */
   adopt(entry: PositionEntry): boolean;
-  /** `Zotero.Items.getIDFromLibraryAndKey` — only entries this machine can resolve are adopted. */
-  itemExists(lib: number, key: string): boolean;
-  /** `Zotero.Libraries.exists`. */
-  libraryExists(lib: number): boolean;
   /**
    * When this machine permanently deleted the attachment — the store's
    * tombstone (#51) — or null. An entry stamped no later than that is
@@ -86,6 +135,8 @@ export interface PositionTransportStats {
   /** The last completed sync's numbers; null before one completes. */
   remoteEntries: number | null;
   adopted: number | null;
+  /** Of those, the ones taken under another library number than the file's (#187). */
+  remapped: number | null;
   /** Entries dropped from the file for this machine's tombstones (#51). */
   dropped: number | null;
   uploaded: boolean | null;
@@ -110,6 +161,7 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
   let lastError: string | null = null;
   let remoteEntries: number | null = null;
   let adoptedCount: number | null = null;
+  let remappedCount: number | null = null;
   let droppedCount: number | null = null;
   let uploadedFlag: boolean | null = null;
   let lastAdoption: PositionTransportStats['lastAdoption'] = null;
@@ -191,16 +243,24 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
         return !gone;
       });
       let adopted = 0;
+      let remapped = 0;
+      // The libraries are read once per sync, and only when an entry's own
+      // number finds nothing here
+      const lookup = withLibrariesOnce(deps);
       for (const entry of merged) {
-        // Only bookmarks this machine can resolve go into its store; the
-        // check failing keeps the entry out of the store, never out of the file
-        let here = false;
+        // Only bookmarks this machine can resolve go into its store, under
+        // its own library number (#187); the check failing keeps the entry
+        // out of the store, never out of the file
+        let here: PositionEntry | null = null;
         try {
-          here = deps.libraryExists(entry.lib) && deps.itemExists(entry.lib, entry.key);
+          here = entryHere(entry, lookup);
         } catch (e) {
           reportGated(e);
         }
-        if (here && deps.adopt(entry)) adopted++;
+        if (here && deps.adopt(here)) {
+          adopted++;
+          if (here.lib !== entry.lib) remapped++;
+        }
       }
       const text = serializePositions(merged);
       let uploaded = false;
@@ -210,13 +270,14 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
       }
       remoteEntries = remote.length;
       adoptedCount = adopted;
+      remappedCount = remapped;
       droppedCount = dropped;
       uploadedFlag = uploaded;
       if (adopted > 0) lastAdoption = { at: deps.now(), count: adopted };
       lastOutcome = 'ok';
       lastError = null;
       lastFailureAt = Number.NEGATIVE_INFINITY;
-      deps.debug(`position sync (${trigger}): ${remote.length} remote, ${merged.length} merged, ${adopted} adopted, ${dropped} dropped${uploaded ? ', uploaded' : ''}`);
+      deps.debug(`position sync (${trigger}): ${remote.length} remote, ${merged.length} merged, ${adopted} adopted${remapped ? ` (${remapped} under this computer's library number)` : ''}, ${dropped} dropped${uploaded ? ', uploaded' : ''}`);
       notify();
     } catch (e) {
       lastOutcome = 'error';
@@ -241,6 +302,7 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
       lastError,
       remoteEntries,
       adopted: adoptedCount,
+      remapped: remappedCount,
       dropped: droppedCount,
       uploaded: uploadedFlag,
       lastAdoption,

@@ -57,7 +57,7 @@ import { createHighlightPin, type HighlightPin } from './core/highlight-pin';
 import { createZoteroHighlightMenu, type ZoteroHighlightMenu } from './ui/zotero-highlight-menu';
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
-import { createPositionTransport, SYNC_POSITIONS_OBSERVER, type PositionTransport } from './read-aloud/position-transport';
+import { createPositionTransport, entryHere, SYNC_POSITIONS_OBSERVER, withLibrariesOnce, type LibraryLookup, type PositionTransport } from './read-aloud/position-transport';
 import { POSITIONS_FILENAME } from './read-aloud/position-file';
 import { createWebDAVClient, type WebDAVDeps } from './core/webdav';
 import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
@@ -151,8 +151,40 @@ let settingsSyncTransport: SettingsSyncTransport | null = null;
 let settingsSyncSwitchObservers: unknown[] = [];
 /** What the pane registers to hear every completed settings sync (ui/sync-status-rows.ts). */
 const settingsSyncListeners = new Set<(report: SettingsSyncApplied | null) => void>();
-/** The same for the positions transport (#40): the pane's other status line. */
+/** The same for both positions transports (#40, #207): the pane's other status line. */
 const positionSyncListeners = new Set<() => void>();
+
+/** Tells the pane's positions line that a sync of either positions file completed. */
+function notifyPositionSync(): void {
+  for (const listener of positionSyncListeners) {
+    try {
+      listener();
+    } catch (e) {
+      Zotero.logError(e);
+    }
+  }
+}
+
+/**
+ * This computer's libraries, for finding the attachment of a position
+ * another computer wrote (#187): a group library is numbered per computer,
+ * so a key not found under the writer's number is looked for in My Library
+ * and the groups here, never in a feed (local to one computer).
+ */
+const zoteroLibraries: LibraryLookup = {
+  libraryExists: (lib) => !!Zotero.Libraries.exists(lib),
+  itemExists: (lib, key) => !!Zotero.Items.getIDFromLibraryAndKey(lib, key),
+  syncedLibraries: () => {
+    const all = Zotero.Libraries.getAll();
+    const ids: number[] = [];
+    // Walked by index: a chrome array, read from the sandbox
+    for (let i = 0; i < all.length; i++) {
+      const library = all[i];
+      if (library?.libraryType === 'user' || library?.libraryType === 'group') ids.push(library.libraryID);
+    }
+    return ids;
+  },
+};
 /** The raw `Zotero.DBConnection`, kept for diagnostics (path, row count). */
 let positionDB: any = null;
 let deleteNotifierID: string | null = null;
@@ -1763,23 +1795,15 @@ async function startPositionTracking(): Promise<void> {
     client: () => createWebDAVClient(loadSettings(prefs).webdav, webdavDeps()),
     local: () => sync.list(),
     adopt: (entry) => sync.adopt(entry),
-    itemExists: (lib, key) => !!Zotero.Items.getIDFromLibraryAndKey(lib, key),
-    libraryExists: (lib) => !!Zotero.Libraries.exists(lib),
+    // An entry is taken under this computer's library number (#187)
+    ...zoteroLibraries,
     // This machine's tombstones (#51): what it permanently deleted leaves the file
     deletedAt: (lib, key) => store?.deletedAt(lib, key) ?? null,
     now: () => Date.now(),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
     // The pane's reading-positions line (ui/sync-status-rows.ts, #68)
-    onSynced: () => {
-      for (const listener of positionSyncListeners) {
-        try {
-          listener();
-        } catch (e) {
-          Zotero.logError(e);
-        }
-      }
-    },
+    onSynced: notifyPositionSync,
   });
   // The Positions File (spec 6), under the same switch: the same pokes, plus
   // the upgrade's backfill of Document Ids before its first sync
@@ -1803,6 +1827,8 @@ async function startPositionTracking(): Promise<void> {
     now: () => Date.now(),
     error: (e) => Zotero.logError(e),
     debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+    // The same line reports this file's failures too (#207)
+    onSynced: notifyPositionSync,
   });
   sharedTransport = shared;
   positionTransport.poke('startup');
@@ -3545,10 +3571,12 @@ const diagnostics = {
   /**
    * The WebDAV side of the bookmarks (#40): whether the switch and the
    * server are set, and what the last sync did — trigger, outcome, counts.
-   * `adopted` counts entries taken from other machines, `dropped` the ones
-   * this machine's tombstones took out of the file (#51); `uploaded` says
-   * whether the merged union went back up. A build is proved by this report
-   * changing across a poke, never by the server's file looking right.
+   * `adopted` counts entries taken from other machines, `remapped` those of
+   * them taken under another library number than the file's (#187),
+   * `dropped` the ones this machine's tombstones took out of the file (#51);
+   * `uploaded` says whether the merged union went back up. A build is
+   * proved by this report changing across a poke, never by the server's
+   * file looking right.
    */
   positionSync: () => {
     const webdav = loadSettings(prefs).webdav;
@@ -4001,18 +4029,21 @@ Zotero.ZoteroTTS = {
         providerDeps,
         // The Backup group's positions pair (#41): the live sampler's map,
         // and a merge in through the same adopt the WebDAV sync uses —
-        // existence-filtered, only the strictly newer taken
+        // under this computer's library number (#187), only the strictly
+        // newer taken
         positionsIO: {
           list: () => positionSync?.list() ?? [],
           importEntries: (entries) => {
             let taken = 0;
+            const lookup = withLibrariesOnce(zoteroLibraries);
             for (const entry of entries) {
+              let here: ReturnType<typeof entryHere> = null;
               try {
-                if (!Zotero.Libraries.exists(entry.lib) || !Zotero.Items.getIDFromLibraryAndKey(entry.lib, entry.key)) continue;
+                here = entryHere(entry, lookup);
               } catch {
                 continue;
               }
-              if (positionSync?.adopt(entry)) taken++;
+              if (here && positionSync?.adopt(here)) taken++;
             }
             // What was just merged should reach the other machines too
             positionTransport?.poke('import');
@@ -4035,6 +4066,8 @@ Zotero.ZoteroTTS = {
           },
           positions: {
             stats: () => positionTransport?.stats() ?? null,
+            // The Positions File's sync, whose failures the line reports too (#207)
+            shared: () => sharedTransport?.stats() ?? null,
             watch: (onSynced) => {
               positionSyncListeners.add(onSynced);
               return () => void positionSyncListeners.delete(onSynced);

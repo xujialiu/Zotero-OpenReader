@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { WebDAVError } from '../../src/core/webdav';
 import { POSITIONS_FILENAME, POSITIONS_FORMAT, POSITIONS_VERSION, serializePositions } from '../../src/read-aloud/position-file';
-import { createPositionTransport, SYNC_RETRY_MS, type PositionTransportDeps } from '../../src/read-aloud/position-transport';
+import { createPositionSync } from '../../src/read-aloud/position-sync';
+import { createPositionTransport, entryHere, SYNC_RETRY_MS, type LibraryLookup, type PositionTransportDeps } from '../../src/read-aloud/position-transport';
 import type { PositionEntry } from '../../src/read-aloud/read-aloud-position';
 
 const entry = (over: Partial<PositionEntry> = {}): PositionEntry => ({
@@ -49,6 +50,7 @@ function harness(over: Partial<PositionTransportDeps> = {}) {
     },
     itemExists: () => true,
     libraryExists: () => true,
+    syncedLibraries: () => [1],
     deletedAt: () => null,
     now: () => clock,
     error: (e) => errors.push(e),
@@ -325,5 +327,214 @@ describe('createPositionTransport', () => {
     expect(h.errors).toHaveLength(1);
     expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([mine]) }]);
     expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', dropped: 0 });
+  });
+});
+
+/**
+ * A lookup over one computer's libraries, `items` as `libraryID/key`;
+ * `libraries` are the ones that sync (My Library and the groups), every
+ * library number in `items` exists here.
+ */
+function lookupOver(items: string[], libraries: number[] = [1, ...items.map((i) => Number(i.split('/')[0]))]): LibraryLookup {
+  const here = new Set([1, ...items.map((i) => Number(i.split('/')[0]))]);
+  return {
+    libraryExists: (lib) => here.has(lib),
+    itemExists: (lib, key) => items.includes(lib + '/' + key),
+    syncedLibraries: () => [...new Set(libraries)],
+  };
+}
+
+describe('entryHere: the entry under this computer’s library number (issue #187)', () => {
+  it('keeps an entry whose library and key name an attachment here as it is', () => {
+    const e = entry({ lib: 2, key: 'K0LABPDF' });
+    expect(entryHere(e, lookupOver(['2/K0LABPDF']))).toBe(e);
+  });
+
+  it('moves an entry to the one library here that holds its key, when its own number is not a library here', () => {
+    expect(entryHere(entry({ lib: 2, key: 'K0LABPDF' }), lookupOver(['3/K0LABPDF']))).toEqual(entry({ lib: 3, key: 'K0LABPDF' }));
+  });
+
+  it('moves it as well when its number is another library here that lacks the key', () => {
+    // Library 2 is a feed on this computer; the group holding the key is 3
+    const lookup = lookupOver(['2/OTHER001', '3/K0LABPDF'], [1, 3]);
+    expect(entryHere(entry({ lib: 2, key: 'K0LABPDF' }), lookup)).toEqual(entry({ lib: 3, key: 'K0LABPDF' }));
+  });
+
+  it('never looks for the key in a library that does not sync, a feed', () => {
+    const lookup = lookupOver(['4/K0LABPDF'], [1]);
+    expect(entryHere(entry({ lib: 2, key: 'K0LABPDF' }), lookup)).toBeNull();
+  });
+
+  it('answers null when no library here holds the key', () => {
+    expect(entryHere(entry({ lib: 2, key: 'K0LABPDF' }), lookupOver(['3/OTHER001']))).toBeNull();
+  });
+
+  it('answers null when several libraries here hold the key: not identified, never guessed', () => {
+    expect(entryHere(entry({ lib: 2, key: 'K0LABPDF' }), lookupOver(['3/K0LABPDF', '5/K0LABPDF']))).toBeNull();
+  });
+
+  it('lets a lookup that throws throw: the caller keeps the entry out of the store', () => {
+    const lookup: LibraryLookup = {
+      ...lookupOver([]),
+      syncedLibraries: () => {
+        throw new Error('Zotero.Libraries cache is not initialized');
+      },
+    };
+    expect(() => entryHere(entry({ lib: 2 }), lookup)).toThrow('not initialized');
+  });
+});
+
+describe('the transport adopts under this computer’s library number (issue #187)', () => {
+  it('offers the sampler the entry under its library here, and counts it remapped', async () => {
+    const h = harness(lookupOver(['3/K0LABPDF']));
+    const theirs = entry({ lib: 2, key: 'K0LABPDF', ts: 2000 });
+    h.setRemote(serializePositions([theirs]));
+    await h.transport.flush('reader-open');
+    expect(h.adopted).toEqual([{ ...theirs, lib: 3 }]);
+    expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', adopted: 1, remapped: 1 });
+    // The file keeps the entry as its writer numbered it
+    expect(h.uploads).toEqual([]);
+  });
+
+  it('counts nothing remapped for an entry taken under its own number', async () => {
+    const h = harness();
+    h.setRemote(serializePositions([entry({ ts: 2000 })]));
+    await h.transport.flush('reader-open');
+    expect(h.transport.stats()).toMatchObject({ adopted: 1, remapped: 0 });
+  });
+
+  it('reads the libraries once per sync, not once per entry', async () => {
+    let reads = 0;
+    const lookup = lookupOver([]);
+    const h = harness({ ...lookup, syncedLibraries: () => (reads++, lookup.syncedLibraries()) });
+    h.setRemote(serializePositions([entry({ lib: 2, key: 'AAAA0001' }), entry({ lib: 2, key: 'AAAA0002' }), entry({ lib: 3, key: 'AAAA0003' })]));
+    await h.transport.flush('reader-open');
+    expect(reads).toBe(1);
+  });
+
+  it('a lookup that throws keeps the entry out of the store and in the file, and reports once', async () => {
+    const h = harness({
+      libraryExists: () => false,
+      syncedLibraries: () => {
+        throw new Error('Zotero.Libraries cache is not initialized');
+      },
+    });
+    const theirs = entry({ lib: 2, key: 'K0LABPDF', ts: 2000 });
+    const mine = entry({ ts: 1000 });
+    h.setLocal([mine]);
+    h.setRemote(serializePositions([theirs]));
+    await h.transport.flush('reader-open');
+    expect(h.adopted).toEqual([]);
+    expect(h.errors).toHaveLength(1);
+    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([mine, theirs]) }]);
+    expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', adopted: 0, remapped: 0 });
+  });
+});
+
+describe('a group library numbered differently on two computers (issue #187)', () => {
+  // One PDF in the group "Lab": the same item key on both computers, but
+  // Zotero numbers a group when an install first meets it (MAX + 1), so
+  // "Lab" is library 2 on A and library 3 on B
+  const KEY = 'K0LABPDF';
+  const AT_A = { pageIndex: 4, rects: [[100, 200, 100, 200]] };
+  const AT_B = { pageIndex: 9, rects: [[10, 20, 10, 20]] };
+
+  /** The user's WebDAV folder: both computers read and write the same file. */
+  function folder() {
+    const server: { text: string | null } = { text: null };
+    const client = {
+      download: async () => {
+        if (server.text === null) throw new WebDAVError('not-found', 'no file yet', 404);
+        return server.text;
+      },
+      upload: async (_name: string, text: string) => {
+        server.text = text;
+      },
+    };
+    return { server, client };
+  }
+
+  /** One computer, its sampler and its transport over the shared folder; the PDF is `lib/KEY` here. */
+  function computer(shared: ReturnType<typeof folder>, lib: number) {
+    let reading: { pos: unknown; speaking: boolean } | null = null;
+    let now = 0;
+    const reader = {};
+    const sync = createPositionSync({
+      initial: [],
+      save: () => {},
+      retryWrites: () => {},
+      readers: () => (reading ? [reader] : []),
+      attachmentOf: () => ({ lib, key: KEY }),
+      managerOf: () => ({ active: true, paused: !reading?.speaking }),
+      savedPositionOf: () => reading?.pos ?? null,
+      setTimeout: () => 0,
+      clearTimeout: () => {},
+      now: () => now,
+      error: (e) => {
+        throw e;
+      },
+    });
+    const transport = createPositionTransport({
+      ...lookupOver([`${lib}/${KEY}`]),
+      enabled: () => true,
+      client: () => shared.client,
+      local: () => sync.list(),
+      adopt: (e) => sync.adopt(e),
+      deletedAt: () => null,
+      now: () => now,
+      error: (e) => {
+        throw e;
+      },
+      debug: () => {},
+    });
+    return {
+      sync,
+      transport,
+      /** Reads the PDF up to `pos` at `at`, and pauses there. */
+      readTo: async (pos: unknown, at: number) => {
+        now = at;
+        reading = { pos, speaking: true };
+        sync.sample();
+        reading = { pos, speaking: false };
+        sync.sample();
+        await transport.flush('pause');
+      },
+    };
+  }
+
+  it('resumes on B where A stopped, and on A where B then stopped', async () => {
+    const shared = folder();
+    const a = computer(shared, 2);
+    const b = computer(shared, 3);
+    await a.readTo(AT_A, 1000);
+    // Shift+Space on B pulls first, then asks the sampler for B's own attachment
+    await b.transport.flush('resume');
+    expect(b.sync.entryOf(3, KEY)?.pos).toEqual(AT_A);
+    await b.readTo(AT_B, 2000);
+    await a.transport.flush('resume');
+    expect(a.sync.entryOf(2, KEY)?.pos).toEqual(AT_B);
+  });
+
+  it('settles the file after one round: each numbering keeps its entry, and nothing goes back and forth', async () => {
+    const shared = folder();
+    const a = computer(shared, 2);
+    const b = computer(shared, 3);
+    await a.readTo(AT_A, 1000);
+    await b.transport.flush('resume');
+    await b.readTo(AT_B, 2000);
+    await a.transport.flush('resume');
+    await a.transport.flush('reader-close');
+    await b.transport.flush('reader-close');
+    const settled = shared.server.text;
+    for (let i = 0; i < 3; i++) {
+      await a.transport.flush('reader-open');
+      await b.transport.flush('reader-open');
+    }
+    expect(shared.server.text).toBe(settled);
+    const items = (JSON.parse(settled!) as { items: PositionEntry[] }).items;
+    expect(items.map((e) => ({ id: `${e.lib}/${e.key}`, ts: e.ts, pos: e.pos }))).toEqual([
+      { id: `2/${KEY}`, ts: 2000, pos: AT_B },
+      { id: `3/${KEY}`, ts: 2000, pos: AT_B },
+    ]);
   });
 });

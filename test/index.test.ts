@@ -460,3 +460,98 @@ describe('diagnostics.sharedSettings() on a file an older copy wrote (issue #203
     expect(items.find((i) => i.key === 'readAloud.volume')?.value).toBe(120);
   });
 });
+
+describe('the positions sync across a group library numbered per computer, and the pane’s line (issues #187, #207)', () => {
+  const FOLDER = 'https://dav.test/positions/';
+  const KEY = 'K0LABPDF';
+  const realFetch = globalThis.fetch;
+  /** Answers for the Positions File come a second late while set. */
+  let slowSharedFile = false;
+  afterEach(async () => {
+    slowSharedFile = false;
+    await running?.shutdown(ADDON_UPGRADE);
+    running = null;
+    vi.useRealTimers();
+    globalThis.fetch = realFetch;
+  });
+
+  /** A WebDAV folder in memory holding `files`: GET answers what is there or 404, PUT stores. */
+  function serve(files: Map<string, string>) {
+    globalThis.fetch = (async (target: string, init: { method: string; body?: string }) => {
+      const name = target.slice(FOLDER.length);
+      if (slowSharedFile && name === 'xujialiu-positions.json') await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (init.method === 'PUT') {
+        files.set(name, init.body ?? '');
+        return new Response(null, { status: 201 });
+      }
+      const text = files.get(name);
+      return text === undefined ? new Response(null, { status: 404 }) : new Response(text, { status: 200 });
+    }) as never;
+  }
+
+  const syncOn = {
+    'extensions.zotero.zotero-tts.webdav.url': FOLDER,
+    'extensions.zotero.zotero-tts.webdav.syncPositions': true,
+  };
+
+  it('takes the other computer’s entry for a group PDF under this computer’s number, never looking in a feed (#187)', async () => {
+    vi.useFakeTimers();
+    // The other computer numbers the group 2; here 2 is a feed, the group is 3
+    const theirs = { lib: 2, key: KEY, pos: { pageIndex: 4, rects: [[100, 200, 100, 200]] }, ts: Date.now() + 60_000 };
+    serve(new Map([['zotero-tts-positions.json', JSON.stringify({ format: 'zotero-tts-positions', version: 1, items: [theirs] })]]));
+    const libraries = [
+      { libraryID: 1, libraryType: 'user' },
+      { libraryID: 2, libraryType: 'feed' },
+      { libraryID: 3, libraryType: 'group' },
+      // A feed holding the key too: were feeds searched, the key would be in two libraries and not taken
+      { libraryID: 4, libraryType: 'feed' },
+    ];
+    const { diagnostics } = await start([], {
+      prefs: syncOn,
+      zotero: {
+        Items: stub({ get: () => null, getIDFromLibraryAndKey: (lib: number, key: string) => (key === KEY && (lib === 3 || lib === 4) ? 10 + lib : false) }),
+        Libraries: stub({ exists: (lib: number) => libraries.some((l) => l.libraryID === lib), userLibraryID: 1, getAll: () => libraries }),
+      },
+    });
+    await vi.advanceTimersByTimeAsync(5000);
+    const sync = JSON.parse(diagnostics.positionSync());
+    expect(sync.transport).toMatchObject({ lastOutcome: 'ok', remoteEntries: 1, adopted: 1, remapped: 1 });
+    expect(sync.localEntries).toBe(1);
+  });
+
+  it('says the sync failed while the Positions File (the phone’s) is a version this build cannot read (#207)', async () => {
+    vi.useFakeTimers();
+    // The plugin's own file is absent and taken on PUT; the Positions File is a later version
+    serve(new Map([['xujialiu-positions.json', JSON.stringify({ format: 'xujialiu-positions', version: 2, items: [] })]]));
+    const { diagnostics } = await start([], { prefs: syncOn });
+    await vi.advanceTimersByTimeAsync(5000);
+    const sync = JSON.parse(diagnostics.positionSync());
+    expect({ own: sync.transport.lastOutcome, shared: sync.shared.transport.lastOutcome }).toEqual({ own: 'ok', shared: 'error' });
+
+    // The owner opens the pane: the line under "Sync reading positions between computers"
+    const line = { textContent: '', hidden: true as boolean | string | undefined };
+    running.prefsPane.onPaneLoad(stub({ getElementById: (id: string) => (id === 'ztts-sync-positions-status' ? line : anything()) }));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(line.textContent).toMatch(/^Reading positions sync failed .*version 2; this build reads up to 1\. Update OpenReader on this computer\.$/);
+  });
+
+  it('redraws the open pane’s line when the Positions File’s sync fails after the plugin’s own has finished (#207)', async () => {
+    vi.useFakeTimers();
+    const files = new Map<string, string>();
+    serve(files);
+    // The Positions File's sync ends a second after the plugin's own
+    slowSharedFile = true;
+    await start([], { prefs: syncOn });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(JSON.parse(running.diagnostics.positionSync()).shared.transport.lastOutcome).toBe('ok');
+    // The phone's app writes a version this build cannot read; then the owner opens the pane
+    files.set('xujialiu-positions.json', JSON.stringify({ format: 'xujialiu-positions', version: 2, items: [] }));
+    const line = { textContent: '', hidden: true as boolean | string | undefined };
+    running.prefsPane.onPaneLoad(stub({ getElementById: (id: string) => (id === 'ztts-sync-positions-status' ? line : anything()) }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(line.textContent).toMatch(/^Reading positions synced /);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(JSON.parse(running.diagnostics.positionSync()).shared.transport.lastOutcome).toBe('error');
+    expect(line.textContent).toMatch(/^Reading positions sync failed .*version 2/);
+  });
+});

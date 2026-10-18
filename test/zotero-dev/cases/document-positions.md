@@ -218,6 +218,28 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
     `"publicationId":null` into the item that lacks it — the bug. The file
     goes back as found (item 10).
 
+### 17
+
+17. **The Sync group's line reports the Positions File's failure** (issue
+    #207; 1.16.12). With the switch on and the plugin's own file syncing
+    (`transport.lastOutcome` `ok`), put the version-2 file of item 9 in
+    place of `xujialiu-positions.json`, then open Settings → OpenReader
+    (the pane-open poke). Expected: `shared.transport.lastOutcome`
+    `error`, `transport.lastOutcome` `ok`, and
+    `#ztts-sync-positions-status` reads `Reading positions sync failed
+    <time>: SharedPositionsFileError: The positions file on the server is
+    version 2; this build reads up to 1. Update OpenReader on this
+    computer.`, `hidden` false, the time that of the Positions File's
+    sync. With the pane left open, put the file back as found and, once
+    60 s have passed since the failure (the retry window; a trigger inside
+    it is skipped and the line stays failed), open and close a tab: the
+    line reads `Reading positions synced <time>; …` again within a second,
+    with no reload of the pane. On 1.16.12-beta4 the line reads `Reading
+    positions synced <time>; nothing new for this computer.` throughout.
+    Which transport's listener redraws an open pane first is a race on the
+    two replies; the Positions File's own listener is pinned by
+    `test/index.test.ts`, not by this item.
+
 ### 10
 
 10. **Restoration.** The crafted items and the version-2 file deleted from

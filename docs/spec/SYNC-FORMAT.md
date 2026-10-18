@@ -142,6 +142,16 @@ The plugin's own reading positions, keyed by Zotero's coordinates.
 - Merged per `lib/key`, newest `ts` wins, an equal `ts` keeps the reader's own
   item. Removal only through the plugin's local tombstones for permanently
   deleted attachments (issue #51); tombstones never travel.
+- `lib` stays the writer's number. A group library is numbered on each
+  computer when that install first meets it, so one group can be 2 on one
+  computer and 3 on another (issue #187). A reader whose own library `lib`
+  holds no item `key` looks for `key` in its own user library and group
+  libraries, never a feed; when exactly one holds it, the reader takes the
+  item under its own number for that library, and none or several leave the
+  item untaken. The file keeps the item as written, and the reader's own copy
+  goes up under its own number with the same `ts`, so a group numbered
+  differently on two computers holds one item per numbering, each kept
+  current by the computers that use it.
 
 **Retirement.** This file is retired in **2.0.0**, and only once the Positions
 File's id rules and locator dialects for `pdf` and `snapshot` are written in
@@ -377,3 +387,9 @@ playing nothing moves.
   (plugin 1.16.3, issue #161): a phone picked up within those ten seconds
   read the file before the desktop's sentence reached it, and reading on
   there stamped the older place newer. No change to any file's shape.
+- **2026-10-18** — section 5: a reader that finds no item `key` in its own
+  library `lib` matches `key` in its own user and group libraries and takes
+  the item under its own number for that library (plugin 1.16.12, issue
+  #187): a group library is numbered per computer, and a position read in a
+  group never reached a computer that numbered it differently. No change to
+  any file's shape.

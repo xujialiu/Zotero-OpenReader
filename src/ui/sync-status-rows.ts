@@ -15,6 +15,10 @@ import { switchLabel, type TierNaming } from '../read-aloud/voice-catalog';
  * changed settings here also redraws the rows that do not bind their pref —
  * the restore's own redraw (ui/prefs-pane.ts onRestored).
  *
+ * The positions switch covers two files, the plugin's own and the Positions
+ * File the phone shares (issue #207): its line is written from the plugin's
+ * own file, and reports a failure of either.
+ *
  * Opening the pane is itself a trigger, and that sync usually finds nothing
  * new — so each line keeps naming the last batch that did bring something
  * here, with its own time, instead of letting "nothing new" bury it
@@ -38,6 +42,9 @@ interface LineDeps<Stats, Report> {
   watchSwitch(onChange: () => void): () => void;
 }
 
+/** What the positions line reads of the Positions File's sync: its last outcome. */
+export type SyncOutcome = Pick<PositionTransportStats, 'lastOutcome' | 'lastAt' | 'lastError'>;
+
 export interface SyncStatusDeps {
   /** A clock time for the lines, in the user's locale. */
   formatTime(ts: number): string;
@@ -47,8 +54,15 @@ export interface SyncStatusDeps {
     /** What a held provider's name depends on: the local engine's (issue #193). Absent, the local switch reads "Local". */
     naming?(): TierNaming;
   };
-  positions: LineDeps<PositionTransportStats, void>;
+  positions: LineDeps<PositionTransportStats, void> & {
+    /** The Positions File's sync (issue #207), whose completed syncs `watch` hears too; null while it is not running. */
+    shared(): SyncOutcome | null;
+  };
 }
+
+/** A sync that failed, or is waiting out the window after a failure. */
+const failed = (stats: SyncOutcome | null): stats is SyncOutcome & { lastAt: number } =>
+  !!stats && stats.lastAt !== null && (stats.lastOutcome === 'error' || (stats.lastOutcome === 'skipped' && !!stats.lastError));
 
 const fromOf = (report: SettingsSyncApplied) => (report.from.length ? report.from.join(', ') : t('ztts-sync-other-computer'));
 
@@ -74,14 +88,23 @@ export function settingsStatusText(stats: SettingsSyncStats | null, enabled: boo
   return sentences(lead, deferred, ...held);
 }
 
-/** The reading-positions line's text for these stats; empty while the switch is off. */
-export function positionsStatusText(stats: PositionTransportStats | null, enabled: boolean, formatTime: (ts: number) => string): string {
+/**
+ * The reading-positions line's text for these stats; empty while the switch
+ * is off. A failure of either file is reported, the plugin's own first;
+ * everything else is the plugin's own file's (issue #207).
+ */
+export function positionsStatusText(
+  stats: PositionTransportStats | null,
+  enabled: boolean,
+  formatTime: (ts: number) => string,
+  shared: SyncOutcome | null = null,
+): string {
   if (!enabled) return '';
+  for (const file of [stats, shared]) {
+    if (failed(file)) return t('ztts-positions-status-failed', { time: formatTime(file.lastAt), detail: file.lastError ?? '' });
+  }
   if (!stats || stats.lastAt === null || stats.lastOutcome === null) return t('ztts-positions-status-waiting');
   const time = formatTime(stats.lastAt);
-  if (stats.lastOutcome === 'error' || (stats.lastOutcome === 'skipped' && stats.lastError)) {
-    return t('ztts-positions-status-failed', { time, detail: stats.lastError ?? '' });
-  }
   if (stats.lastOutcome === 'skipped') return t('ztts-positions-status-waiting');
   const adopted = stats.adopted ?? 0;
   const last = stats.lastAdoption;
@@ -107,7 +130,7 @@ export function initSyncStatusRows(
     // An empty description still takes a line's height under the switch
     line.hidden = text === '';
   };
-  const refreshPositions = () => show(positions, positionsStatusText(deps.positions.stats(), deps.positions.enabled(), deps.formatTime));
+  const refreshPositions = () => show(positions, positionsStatusText(deps.positions.stats(), deps.positions.enabled(), deps.formatTime, deps.positions.shared()));
   const refreshSettings = () => show(settings, settingsStatusText(deps.settings.stats(), deps.settings.enabled(), deps.formatTime, deps.settings.naming?.()));
   const refresh = () => {
     refreshPositions();
