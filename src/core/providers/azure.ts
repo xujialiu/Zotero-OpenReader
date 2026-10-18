@@ -53,23 +53,31 @@ export function newRequestId(): string {
 }
 
 export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvider {
+  // Trimmed once: `fetch` strips a header value's spaces, a URL keeps them as %20,
+  // so a stray space passed Test connection and failed every Segment (issue #202)
+  const apiKey = cfg.apiKey.trim();
   return {
     id: 'azure',
     capabilities: { wordTimestamps: true },
 
     async listVoices(options?: ListVoicesOptions): Promise<VoiceInfo[]> {
-      if (!cfg.apiKey) throw new SynthesisError('no-key', 'Azure API key is not set');
+      if (!apiKey) throw new SynthesisError('no-key', 'Azure API key is not set');
 
       let response: Response;
       try {
         response = await deps.fetch(
           `https://${cfg.region}.tts.speech.microsoft.com/cognitiveservices/voices/list`,
-          { headers: { 'Ocp-Apim-Subscription-Key': cfg.apiKey }, signal: options?.signal },
+          { headers: { 'Ocp-Apim-Subscription-Key': apiKey }, signal: options?.signal },
         );
       } catch (e) {
         throw new SynthesisError('network', String(e));
       }
       if (!response.ok) {
+        // A refused key (or a Region that is not the key's) is the key's problem, not an outage (issue #200)
+        if (response.status === 401 || response.status === 403) {
+          throw new SynthesisError('auth', `Azure rejected the API key (${response.status})`);
+        }
+        if (response.status === 429) throw new SynthesisError('rate-limit', 'Azure rate-limited the voice list (429)');
         throw new SynthesisError('unknown', `Azure voices returned ${response.status}`);
       }
 
@@ -89,13 +97,13 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
      * permission-denied) answer, 401 a bad key. Costs two characters.
      */
     async checkSynthesis(voice: string): Promise<void> {
-      if (!cfg.apiKey) throw new SynthesisError('no-key', 'Azure API key is not set');
+      if (!apiKey) throw new SynthesisError('no-key', 'Azure API key is not set');
       let response: Response;
       try {
         response = await deps.fetch(`https://${cfg.region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
           method: 'POST',
           headers: {
-            'Ocp-Apim-Subscription-Key': cfg.apiKey,
+            'Ocp-Apim-Subscription-Key': apiKey,
             'Content-Type': 'application/ssml+xml',
             'X-Microsoft-OutputFormat': OUTPUT_FORMAT,
           },
@@ -114,7 +122,7 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
     },
 
     synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {
-      if (!cfg.apiKey) {
+      if (!apiKey) {
         return Promise.reject(new SynthesisError('no-key', 'Azure API key is not set'));
       }
       // An already-aborted signal must short-circuit before we ever open a
@@ -130,7 +138,7 @@ export function createAzureProvider(cfg: AzureConfig, deps: AzureDeps): TTSProvi
       const requestId = deps.newRequestId();
       const url =
         `wss://${cfg.region}.tts.speech.microsoft.com/cognitiveservices/websocket/v1` +
-        `?Ocp-Apim-Subscription-Key=${encodeURIComponent(cfg.apiKey)}` +
+        `?Ocp-Apim-Subscription-Key=${encodeURIComponent(apiKey)}` +
         `&X-ConnectionId=${requestId}`;
 
       return new Promise<SynthesisResult>((resolve, reject) => {

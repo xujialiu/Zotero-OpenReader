@@ -1,6 +1,7 @@
 import { alignWordsToText, type TimedWord } from '../align';
 import { pcm16ToWav } from '../wav';
 import { SynthesisError } from './errors';
+import { splitText } from './split-text';
 import { MULTILINGUAL, type ListVoicesOptions, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
 
 /**
@@ -132,33 +133,9 @@ export function isSpeakable(text: string): boolean {
   return /[\p{L}\p{N}]/u.test(text);
 }
 
-/**
- * A segment over the cap in pieces the route takes: each cut at the last
- * sentence end before the cap, else the last whitespace, else the cap
- * itself. The pieces concatenate back to the text, so `offset` is where
- * each begins in it.
- */
+/** A segment over the cap in pieces the route takes (split-text.ts). */
 export function splitForSpeechify(text: string, max = MAX_INPUT_CHARS): { text: string; offset: number }[] {
-  const pieces: { text: string; offset: number }[] = [];
-  let offset = 0;
-  while (text.length - offset > max) {
-    const window = text.slice(offset, offset + max);
-    let cut = 0;
-    for (const match of window.matchAll(/[。！？]|[.!?]\s/g)) cut = match.index + match[0].length;
-    if (cut < 1) {
-      for (let i = window.length - 1; i >= 0; i--) {
-        if (/\s/.test(window[i])) {
-          cut = i + 1;
-          break;
-        }
-      }
-    }
-    if (cut < 1) cut = max;
-    pieces.push({ text: window.slice(0, cut), offset });
-    offset += cut;
-  }
-  pieces.push({ text: text.slice(offset), offset });
-  return pieces;
+  return splitText(text, max);
 }
 
 const MIME: Record<string, string> = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', aac: 'audio/aac' };

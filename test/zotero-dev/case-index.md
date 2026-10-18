@@ -17,6 +17,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [The plugin's icon](cases/plugin-icon.md) — 1.13
 - [The plugin player: layouts, real controls, favorites and following](cases/plugin-player.md)
 - [A provider section: locked fields, Test connection and Enable](cases/provider-controls.md) — 1.3, 1.5, 1.6
+- [Provider replies read as what they are: HTTP errors, login pages, long Segments, Azure keys (issues #198-#202)](cases/provider-replies.md)
 - [The secret fields: covered, uncovered by the eye, and copyable](cases/secret-fields.md) — the masked half of 1.3
 
 ## Providers

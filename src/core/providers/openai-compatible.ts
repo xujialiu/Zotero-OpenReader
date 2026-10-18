@@ -1,5 +1,6 @@
 import { normalizeBaseURL } from './base-url';
 import { SynthesisError } from './errors';
+import { joinMp3, splitText } from './split-text';
 import { MULTILINGUAL, type ListVoicesOptions, type ProviderId, type SynthesisOptions, type SynthesisResult, type TTSProvider, type VoiceInfo } from './types';
 
 /**
@@ -103,6 +104,30 @@ export function parseModelList(body: unknown): string[] {
     if (typeof id === 'string' && id && !out.includes(id)) out.push(id);
   }
   return out;
+}
+
+/** The longest `input` OpenAI's speech route takes, in characters (issue #201). */
+export const SPEECH_INPUT_MAX = 4096;
+
+/** The answers that mean "no voice list on this server" (OpenAI itself answers 404): the documented voices then. */
+const NO_VOICE_LIST = new Set([404, 405, 501]);
+
+/**
+ * The speech route's reply as audio. A gateway that wants a browser login
+ * redirects to its login page, which `fetch` follows to a 200 HTML page
+ * (issue #199): a page or data type is not audio. No type, `audio/*` and
+ * `application/octet-stream` are what servers send.
+ */
+async function speechAudio(response: Response, what: string): Promise<Blob> {
+  const type = (response.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase();
+  if (/^text\/|html|json|xml/.test(type)) {
+    const page = /html/.test(type);
+    throw new SynthesisError(
+      'unknown',
+      `${what}: the server answered with ${page ? `a web page (${type})` : type}, not audio${page ? '. Is a login page in front of it?' : ''}`,
+    );
+  }
+  return response.blob();
 }
 
 function statusError(status: number, what: string): SynthesisError {
@@ -209,7 +234,7 @@ export function createOpenAICompatibleProvider(cfg: OpenAICompatibleConfig, deps
       throw new SynthesisError('network', String(e));
     }
     if (!response.ok) throw await refusal(response, what);
-    if (!chat) return { audio: await response.blob() };
+    if (!chat) return { audio: await speechAudio(response, what) };
     let reply: unknown;
     try {
       reply = await response.json();
@@ -225,6 +250,19 @@ export function createOpenAICompatibleProvider(cfg: OpenAICompatibleConfig, deps
     }
   }
 
+  /**
+   * A text over the speech route's cap in pieces, asked for at once and
+   * joined into one clip (issue #201). OpenAI refuses an `input` over
+   * 4,096 characters with a 400; Zotero can hand over a longer Segment.
+   */
+  async function speakInPieces(text: string, voice: string, signal?: AbortSignal): Promise<{ audio: Blob; note?: string }> {
+    if (cfg.route === 'chat' || text.length <= SPEECH_INPUT_MAX) return speak(text, voice, signal);
+    const pieces = splitText(text, SPEECH_INPUT_MAX);
+    const replies = await Promise.all(pieces.map((piece) => speak(piece.text, voice, signal)));
+    const bytes = await Promise.all(replies.map(async (reply) => new Uint8Array(await reply.audio.arrayBuffer())));
+    return { audio: new Blob([joinMp3(bytes) as Uint8Array<ArrayBuffer>], { type: 'audio/mpeg' }), note: `${cfg.label} speech in ${pieces.length} pieces` };
+  }
+
   const provider: TTSProvider = {
     id: cfg.id,
     // OpenAI's speech endpoint returns no timing information at all, and
@@ -236,9 +274,10 @@ export function createOpenAICompatibleProvider(cfg: OpenAICompatibleConfig, deps
      * Voices, in order of trust: the ones the user typed; the ones the
      * server publishes on /v1/audio/voices (a common extension of
      * OpenAI-compatible servers — OpenAI itself answers 404); the ones the
-     * caller documents for it (OpenAI's own list, MiMo's). A server that
-     * cannot be reached at all is an error, not a reason to show the
-     * documented names for it.
+     * caller documents for it (OpenAI's own list, MiMo's), when the server
+     * says it has no list. A server that cannot be reached at all, or
+     * answers the list with an error, is an error, not a reason to show
+     * the documented names for it.
      */
     async listVoices(options?: ListVoicesOptions): Promise<VoiceInfo[]> {
       const custom = parseVoiceIds(cfg.voices ?? '');
@@ -254,7 +293,8 @@ export function createOpenAICompatibleProvider(cfg: OpenAICompatibleConfig, deps
         }
         const published = parseVoiceList(body);
         if (published.length) return published.map((v) => ({ ...v, locale: MULTILINGUAL }));
-      } else if (response.status === 401 || response.status === 403) {
+      } else if (!NO_VOICE_LIST.has(response.status)) {
+        // A server down behind a gateway answers with a status: it cannot be reached, it has not gone (issue #198)
         throw statusError(response.status, `${base()}/v1/audio/voices`);
       }
       return (cfg.defaultVoices ?? []).map((id) => ({ id, label: id, locale: MULTILINGUAL }));
@@ -294,7 +334,7 @@ export function createOpenAICompatibleProvider(cfg: OpenAICompatibleConfig, deps
 
     async synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {
       if (missingKey()) throw noKey();
-      return speak(text, o.voice, o.signal);
+      return speakInPieces(text, o.voice, o.signal);
     },
   };
   return provider;

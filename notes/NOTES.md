@@ -771,3 +771,4 @@ then) and is in the git history before that day.
 - Snapshots and Reading Mode left M to Zotero's lock (issue #188)
 - A pick after an error or the end waited two minutes for nothing (issue #194)
 - The old voice's late answer was reported as a failed reading (issue #196)
+- OpenAI-compatible and Azure replies read as what they are (issues #198, #199, #200, #201, #202)

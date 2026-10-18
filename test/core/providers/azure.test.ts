@@ -355,3 +355,43 @@ describe('checkSynthesis', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
+
+// Issue #200: a key Azure refuses on its voice list reads as a key problem
+describe('Azure listVoices when the key is refused (#200)', () => {
+  it.each([401, 403])('HTTP %i is auth, not unknown', async (status) => {
+    const fetchImpl = vi.fn(async () => new Response('', { status }));
+    await expect(provider(fetchImpl as unknown as typeof fetch).listVoices()).rejects.toMatchObject({ kind: 'auth' });
+  });
+
+  it('HTTP 429 is rate-limit', async () => {
+    const fetchImpl = vi.fn(async () => new Response('', { status: 429 }));
+    await expect(provider(fetchImpl as unknown as typeof fetch).listVoices()).rejects.toMatchObject({ kind: 'rate-limit' });
+  });
+});
+
+// Issue #202: the key is sent as tested — trimmed — on every route
+describe('an Azure key with a stray space (#202)', () => {
+  const spaced = (fetchImpl: typeof fetch = vi.fn() as unknown as typeof fetch, apiKey = ' key-1 ') =>
+    createAzureProvider({ ...cfg, apiKey }, { fetch: fetchImpl, getWebSocket: () => FakeSocket as unknown as typeof WebSocket, newRequestId: () => 'req-1' });
+
+  it('reaches the WebSocket URL without the spaces', async () => {
+    void spaced().synthesize('Hello world', opts).catch(() => {});
+    await Promise.resolve();
+    expect(FakeSocket.last.url).toContain('Ocp-Apim-Subscription-Key=key-1&');
+    expect(FakeSocket.last.url).not.toContain('%20');
+  });
+
+  it('goes to the voice list and the synthesis check trimmed', async () => {
+    const fetchImpl = vi.fn(async () => Response.json([]));
+    await spaced(fetchImpl as unknown as typeof fetch).listVoices();
+    await spaced(fetchImpl as unknown as typeof fetch).checkSynthesis!('en-US-AvaNeural');
+    for (const call of (fetchImpl as any).mock.calls) expect(call[1].headers['Ocp-Apim-Subscription-Key']).toBe('key-1');
+  });
+
+  it('counts a key of spaces as no key', async () => {
+    const fetchImpl = vi.fn();
+    await expect(spaced(fetchImpl as unknown as typeof fetch, '   ').listVoices()).rejects.toMatchObject({ kind: 'no-key' });
+    await expect(spaced(fetchImpl as unknown as typeof fetch, '   ').synthesize('Hi', opts)).rejects.toMatchObject({ kind: 'no-key' });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
