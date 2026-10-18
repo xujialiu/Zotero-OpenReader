@@ -1,9 +1,21 @@
-/** EPUB following with explicit input intent and whole-range geometry (#93). */
+/**
+ * Following in Zotero's DOM views with explicit input intent and
+ * whole-range geometry (#93): EPUB, and since issue #188 web snapshots and
+ * Reading Mode, which run the same ReadAloud helper (reader.js 53345-53440
+ * in 11.0) and scroll their own window. Owning the helper's lock keeps M
+ * through what re-locks it natively: a new session (53364-53366), Resume
+ * with the sentence on screen (53377-53383), and a return whose unlock ran
+ * on a forgotten state (`setPositionLocked`, 53430-53433).
+ */
 import { autoScrollMode, readingLine } from '../core/settings';
 import { followTarget, lineInputs, lineWords, RETARGET_MS, type Box, type LineWords, type SentenceInViewDeps } from './sentence-in-view';
 import { createFollowIntents, type FollowIntent } from './follow-intent';
 
+/** Which DOM view a record follows, for the diagnostics. */
+type DOMViewKind = 'epub' | 'snapshot' | 'reading-mode';
+
 interface Owned {
+  kind: DOMViewKind;
   intent: FollowIntent;
   reader: any; view: any; helper: any;
   active: boolean; paused: boolean; force: boolean;
@@ -17,6 +29,8 @@ interface Owned {
 export function createDOMFollow(deps: SentenceInViewDeps) {
   const intents = deps.intents ?? createFollowIntents();
   const records = new Map<any, Owned>();
+  /** Internal readers whose state push attaches views made after the first attach, with the undo of that shadow. */
+  const watched = new Map<any, () => void>();
   const dead = (v: any) => !!deps.isDead?.(v);
   const waive = (v: any): any => deps.waiveXrays ? deps.waiveXrays(v) : v;
   const exported = (fn: (...args: any[]) => any, target: any) => deps.exportFunction ? deps.exportFunction(fn, target) : fn;
@@ -80,8 +94,8 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
   }
   const union = (boxes: Box[]): Box => [Math.min(...boxes.map(b => b[0])), Math.min(...boxes.map(b => b[1])), Math.max(...boxes.map(b => b[2])), Math.max(...boxes.map(b => b[3]))];
 
-  function navigate(r: Owned, selector: any) {
-    const options = { ifNeeded: false, block: 'start', behavior: 'smooth', skipHistory: true };
+  function navigate(r: Owned, selector: any, block: 'start' | 'center' = 'start') {
+    const options = { ifNeeded: false, block, behavior: 'smooth', skipHistory: true };
     // A whole range's left/top edge need not be its reading-order start
     // in RTL or vertical pagination. Use Zotero's starting-character probe.
     const target = r.helper._collapseToStart?.(selector) ?? selector;
@@ -148,6 +162,13 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
         navigate(r, target);
         r.last = { at: Date.now(), reason: 'page' };
       }
+    } else if (!r.view.flowMode && root.scrollHeight <= height + 1 && root.scrollWidth <= width + 1) {
+      // A web page that scrolls inside an element of its own: a window scroll
+      // cannot reach it, Zotero's navigation can (issue #188)
+      if (r.force || ((entered || changedMode) && (mode !== 'outside' || outside(whole)))) {
+        navigate(r, selector, 'center');
+        r.last = { at: deps.now?.() ?? Date.now(), reason: 'element' };
+      }
     } else {
       const translate = (b: Box): Box => [b[0] + win.scrollX, b[1] + win.scrollY, b[2] + win.scrollX, b[3] + win.scrollY];
       const target = followTarget({ head: translate(boxes[0]), whole: translate(whole), part: part && translate(part),
@@ -182,7 +203,7 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
 
   function own(r: Owned, key: 'positionLocked' | 'scrolling', value: boolean) {
     const descriptor = Object.getOwnPropertyDescriptor(r.helper, key);
-    if (descriptor?.configurable === false || descriptor?.get || descriptor?.set) throw new Error(`OpenReader: cannot own EPUB ${key}`);
+    if (descriptor?.configurable === false || descriptor?.get || descriptor?.set) throw new Error(`OpenReader: cannot own the DOM view's ${key}`);
     Object.defineProperty(r.helper, key, { configurable: true, enumerable: true,
       get: exported(() => value, r.helper), set: exported(() => {}, r.helper) });
     r.undo.push(() => {
@@ -198,19 +219,59 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     for (const undo of r.undo.reverse()) { try { undo(); } catch (e) { deps.error(e); } }
   }
 
+  /**
+   * Reading Mode is switched on after the Player has opened, and its view
+   * appears after every attach point: the internal reader's push to its
+   * views attaches a view made since, before that view hears the state
+   * (`_pushReadAloudToViews`, reader.js 88113 in 11.0). Where Zotero has no
+   * such method, the attach points alone remain.
+   */
+  function watchViews(reader: any): void {
+    let internal: any;
+    try {
+      internal = waive(reader?._internalReader);
+    } catch {
+      return;
+    }
+    if (!internal || dead(internal) || watched.has(internal) || typeof internal._pushReadAloudToViews !== 'function') return;
+    const descriptor = Object.getOwnPropertyDescriptor(internal, '_pushReadAloudToViews');
+    const original = internal._pushReadAloudToViews;
+    const wrapper = exported(function (this: any, ...args: any[]) {
+      try { if (!disposed) attachViews(reader); } catch (e) { deps.error(e); }
+      return Reflect.apply(original, this, args);
+    }, internal);
+    internal._pushReadAloudToViews = wrapper;
+    watched.set(internal, () => {
+      if (dead(internal) || internal._pushReadAloudToViews !== wrapper) return;
+      if (descriptor) Object.defineProperty(internal, '_pushReadAloudToViews', descriptor);
+      else delete internal._pushReadAloudToViews;
+    });
+  }
+
   function attach(reader: any): boolean {
     if (disposed) return false;
     intents.get(reader);
+    watchViews(reader);
+    return attachViews(reader);
+  }
+
+  function attachViews(reader: any): boolean {
     for (const r of records.values()) if (dead(r.view)) release(r);
     let attached = false;
-    for (const raw of [reader?._internalReader?._primaryView, reader?._internalReader?._secondaryView]) {
+    const internal = reader?._internalReader;
+    const slots: Array<[any, boolean]> = [
+      [internal?._primaryView, false], [internal?._secondaryView, false],
+      [internal?._primarySDTView, true], [internal?._secondarySDTView, true],
+    ];
+    for (const [raw, readingMode] of slots) {
       const view = waive(raw);
-      // Scope is EPUB: snapshots and Reading Mode keep native following.
-      if (!view || dead(view) || !['scrolled', 'paginated'].includes(view.flowMode) || !view._readAloud || !view.iframeDocument) continue;
+      // Every DOM view: EPUB, web snapshot, Reading Mode (issue #188). A PDF view carries no ReadAloud helper.
+      if (!view || dead(view) || !view._readAloud || !view.iframeDocument || Array.isArray(view._pages)) continue;
       if (records.has(view)) { attached = true; continue; }
       const helper = waive(view._readAloud);
       const state = waive(helper.state);
-      const r: Owned = { reader, view, helper, intent: intents.get(reader),
+      const kind: DOMViewKind = readingMode ? 'reading-mode' : ['scrolled', 'paginated'].includes(view.flowMode) ? 'epub' : 'snapshot';
+      const r: Owned = { kind, reader, view, helper, intent: intents.get(reader),
         active: !!state?.active, paused: !!state?.paused, force: false, key: null, mode: autoScrollMode(deps.mode?.()), line: readingLine(deps.line?.()),
         pending: false, reason: 'initial', last: null, navigating: 0, undo: [], regime: null, placedLine: null, words: null };
       try {
@@ -305,10 +366,15 @@ export function createDOMFollow(deps: SentenceInViewDeps) {
     inspect(reader: any): Record<string, unknown> {
       const view = waive(reader?._internalReader?._lastView ?? reader?._internalReader?._primaryView);
       const r = records.get(view);
-      return r ? { kind: 'epub', patched: true, following: r.intent.automatic, paused: r.paused, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
+      return r ? { kind: r.kind, patched: true, following: r.intent.automatic, paused: r.paused, pending: r.pending, mode: autoScrollMode(deps.mode?.()),
         line: readingLine(deps.line?.()), flow: r.view.flowMode, reason: r.reason, last: r.last, words: r.words, placedLine: r.placedLine,
         covered: insetOf(r, r.view.iframeDocument.documentElement.clientHeight || r.view.iframeWindow.innerHeight) } : { kind: 'dom', patched: false };
     },
-    dispose() { disposed = true; for (const r of [...records.values()]) release(r); },
+    dispose() {
+      disposed = true;
+      for (const r of [...records.values()]) release(r);
+      for (const undo of watched.values()) { try { undo(); } catch (e) { deps.error(e); } }
+      watched.clear();
+    },
   };
 }

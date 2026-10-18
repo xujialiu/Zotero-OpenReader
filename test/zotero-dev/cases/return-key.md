@@ -4,11 +4,12 @@
 
 Shift+Enter now means **Go to reading position and switch to auto-scroll**.
 Shift+R means **Go to reading position** without changing A/M. Shift+M
-switches A/M. PDF/EPUB now position through the plugin's follow adapters;
+switches A/M. PDF, EPUB, web snapshots and Reading Mode (issue #188) now
+position through the plugin's follow adapters;
 use `diagnostics.autoScroll()` plus Player state and actual viewport/page
 movement, not native locks or the historical state-forgetting log below.
 Run [Player following, sections 3 and 6](player-following.md) for current
-expectations. Snapshot/Reading Mode retain the native return fallback.
+expectations; snapshots and Reading Mode are its section 7.
 
 ## Historical Shift+Enter verification
 

@@ -487,13 +487,14 @@ provider (or Zotero's Standard / Premium), language, voice.
 <summary><b>Default scrolling, auto-scroll style, the reading line, browsing while listening, return and skip</b></summary>
 
 - *Default scrolling* — choose *Auto-scroll* (the default) or *Manual-scroll*
-  for newly opened PDF and EPUB tabs. Manual-scroll starts them in M.
+  for newly opened PDF, EPUB and web snapshot tabs. Manual-scroll starts
+  them in M.
   Changing this setting leaves existing tabs alone. The default, the
   auto-scroll style and the reading line are backed up and synchronized;
   a tab's current A/M choice is not.
-- *Auto-scroll style* — for PDFs and EPUBs, choose *Scroll at every
-  line* (the default), *Scroll at every sentence* or *Scroll when outside
-  the view*. These styles apply only while A (automatic) is selected.
+- *Auto-scroll style* — for PDFs (Reading Mode included), EPUBs and web
+  snapshots, choose *Scroll at every line* (the default), *Scroll at every
+  sentence* or *Scroll when outside the view*. These styles apply only while A (automatic) is selected.
   Press `Shift+A` to cycle through them; the current style appears briefly.
 - *Scroll at every line* — each time the highlighted word moves onto a
   new line, that line comes to the reading line, so the line being read

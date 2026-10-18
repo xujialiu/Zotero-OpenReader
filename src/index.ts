@@ -298,7 +298,7 @@ function locateReadingPosition(reader: any, automatic: boolean): void {
   if (pdf) sentenceInView?.locate(reader, automatic);
   if (dom) domFollowing?.locate(reader, automatic);
   if (!pdf && !dom) {
-    // Snapshot/Reading Mode views still use Zotero's native position command.
+    // A view neither follower owns (EPUB, snapshots and Reading Mode are the DOM follower's since #188): Zotero's native position command
     const internal = reader?._internalReader;
     internal?._lockPositionToReadAloud?.();
     forgetViewReadAloudState(reader, waived);

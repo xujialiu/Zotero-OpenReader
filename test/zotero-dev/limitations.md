@@ -104,9 +104,10 @@ screen, the complete Run JavaScript code, the expected output.
   merged with the sentence before it — so neither cut state could be
   built on it, and it was dropped. A real journal article joins such
   sentences (the IOVS article: 3 of 429 with `nextPageRects`); §3a names
-  one. Snapshots and Reading Mode keep Zotero's start-of-segment
-  navigation (reader.js:53250); EPUB now uses #93's whole-range follow
-  in scrolled layout and native page navigation in paginated layout.
+  one. EPUB uses #93's whole-range follow in scrolled layout and native
+  page navigation in paginated layout; since #188 web snapshots and
+  Reading Mode use the scrolled layout's, and a page that scrolls inside
+  an element of its own goes through Zotero's navigation.
 - A provider failing mid-document (Zotero's error UI, the 429 that maps
   to the silent `quota-exceeded`, notes/NOTES.md "Still open"): needs a
   server that fails on cue.

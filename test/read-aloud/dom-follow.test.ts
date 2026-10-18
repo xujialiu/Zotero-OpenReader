@@ -362,3 +362,119 @@ it('keeps the EPUB default snapshot through a change received before playback', 
     expect(second.module.automatic(second.reader)).toBe(false);
   } finally { first.module.dispose(); second.module.dispose(); }
 });
+
+/**
+ * Issue #188: web snapshots and Reading Mode run the same ReadAloud helper as
+ * EPUB, with no flowMode. The fixture's helper copies Zotero's lock logic
+ * (reader.js 53345-53440 in 11.0): a new session and a Resume with the
+ * sentence on screen re-lock, and setPositionLocked acts only on an active
+ * state.
+ */
+function snapshotFixture() {
+  const f = fixture();
+  (f.view as any).flowMode = undefined;
+  (f.view as any).flow = undefined;
+  const helper: any = f.helper;
+  helper.setState = function (state: any) {
+    const previous = this.state;
+    this.state = state;
+    if (state.active && !previous?.active) this.positionLocked = true;
+    if (state.active && previous?.paused && !state.paused) this.positionLocked = true;
+    if (this.positionLocked && state.activeSegment && previous?.activeSegment !== state.activeSegment) f.nativeNavigate('native');
+    f.rendered(state);
+    return 'render-result';
+  };
+  helper.setPositionLocked = function (locked: boolean) {
+    if (this.state?.active) this.positionLocked = locked;
+  };
+  return f;
+}
+
+describe('M on a web snapshot and in Reading Mode (#188)', () => {
+  it('attaches to a snapshot view, which has no flowMode, and reports it', () => {
+    const f = snapshotFixture();
+    expect(f.module.attach(f.reader)).toBe(true);
+    expect(f.module.inspect(f.reader)).toMatchObject({ kind: 'snapshot', patched: true });
+    f.module.dispose();
+  });
+
+  it('keeps M through Go to reading position, a new session and a Resume with the sentence on screen', () => {
+    const f = snapshotFixture(); f.module.attach(f.reader);
+    f.push(f.range('a', 1200, 1300)); f.module.manual(f.reader);
+    f.win.scrollTo.mockClear(); f.nativeNavigate.mockClear();
+
+    // Go to reading position: returns once, keeps M
+    f.module.locate(f.reader);
+    expect(f.win.scrollTo).toHaveBeenCalledTimes(1);
+    expect(f.module.automatic(f.reader)).toBe(false);
+    f.win.scrollTo.mockClear();
+    f.push(f.range('b', 1400, 1500));
+    expect(f.win.scrollTo).not.toHaveBeenCalled();
+
+    // Pause, then Resume with the sentence on screen
+    f.helper.setState({ ...f.helper.state, paused: true });
+    f.helper.setState({ ...f.helper.state, paused: false });
+    f.push(f.range('c', 1600, 1700));
+
+    // Stop, then play again
+    f.helper.setState({ active: false, popupOpen: true });
+    f.push(f.range('d', 1800, 1900));
+
+    // A bare scrollTo(x, y) is the pause stopping a smooth scroll where it is; a placement passes options
+    expect(f.win.scrollTo.mock.calls.filter((call: unknown[]) => typeof call[0] === 'object')).toEqual([]);
+    expect(f.nativeNavigate).not.toHaveBeenCalled();
+    expect(f.module.automatic(f.reader)).toBe(false);
+    f.module.dispose();
+  });
+
+  it('enters M on a scroll by hand, so the Player shows the page as it is', () => {
+    const f = snapshotFixture();
+    // The registered handler, with a trusted-shaped event (see the selection test above)
+    const handlers: Record<string, (e: any) => void> = {};
+    f.view.iframeDocument.addEventListener = (type: string, fn: (e: any) => void) => { handlers[type] = fn; };
+    f.module.attach(f.reader);
+    f.push(f.range('a', 1200, 1300));
+    expect(f.module.automatic(f.reader)).toBe(true);
+    handlers.wheel({ deltaX: 0, deltaY: 100, ctrlKey: false, metaKey: false });
+    expect(f.module.automatic(f.reader)).toBe(false);
+    f.module.dispose();
+  });
+
+  it('follows in A with the scroll style, as an EPUB in scrolled layout does', () => {
+    const f = snapshotFixture(); f.module.attach(f.reader);
+    f.push(f.range('a', 1200, 1300));
+    expect(f.win.scrollTo).toHaveBeenCalled();
+    expect(f.nativeNavigate).not.toHaveBeenCalled();
+    f.module.dispose();
+  });
+
+  it('places a sentence through Zotero\'s navigation on a page that scrolls inside an element', () => {
+    const f = snapshotFixture();
+    Object.assign(f.view.iframeDocument.documentElement, { scrollHeight: 1000, clientHeight: 1000 });
+    f.module.attach(f.reader);
+    f.push(f.range('a', 1200, 1300));
+    expect(f.win.scrollTo).not.toHaveBeenCalled();
+    expect(f.nativeNavigate).toHaveBeenCalledWith('a', expect.objectContaining({ block: 'center', skipHistory: true }));
+    f.module.dispose();
+  });
+
+  it('follows a Reading Mode view, including one switched on after the attach', () => {
+    const base = snapshotFixture();
+    const sdt = snapshotFixture();
+    const pdf = { _pages: [], _readAloudPositionLocked: true };
+    const pushes: string[] = [];
+    const push = function () { pushes.push('pushed'); };
+    const internal: any = { _primaryView: pdf, _primarySDTView: null, _pushReadAloudToViews: push };
+    const reader = { _window: {}, _internalReader: internal };
+    expect(base.module.attach(reader)).toBe(false);
+    // Reading Mode on: Zotero makes the SDT view, then pushes the state to its views
+    internal._primarySDTView = sdt.view;
+    internal._pushReadAloudToViews();
+    expect(pushes).toEqual(['pushed']);
+    expect(base.module.inspect({ _internalReader: { _lastView: sdt.view } })).toMatchObject({ kind: 'reading-mode', patched: true });
+    // The PDF view under it is left to the PDF follower
+    expect(pdf._readAloudPositionLocked).toBe(true);
+    base.module.dispose();
+    expect(internal._pushReadAloudToViews).toBe(push);
+  });
+});

@@ -768,3 +768,4 @@ then) and is in the git history before that day.
 - Verified duplicate readers, and a test item escaped during restoration (issue #206)
 - A group library is numbered per computer, so its positions never met (issues #187, #207)
 - Verified on 1.16.12-beta5, and the voice the run left behind (issues #187, #207)
+- Snapshots and Reading Mode left M to Zotero's lock (issue #188)
