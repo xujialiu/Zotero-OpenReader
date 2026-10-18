@@ -9,6 +9,19 @@ here the next time a run exercises one of them, taken from the kit that
 ran it, and the kits then name them instead of carrying a copy; nothing is
 written here that has not run.
 
+## `restore-fix4.js` — the 2026-10-18 run's final restore (executed 2026-10-18)
+
+Restores every pref of that run's private snapshot byte-identically (honoring each pref's
+user-value flag: set or CLEAR), brings the `documentVoices.*` branch back to its snapshot set,
+erases the run's fixture items, closes the settings window, reselects the owner's tab and
+minimizes the host. Run it with `run.start({ kit: '_shared', scripts: ['restore-fix4.js'], runId:
+'<date>-<build>-restore-fix4>' })`; it reads its snapshot from `Zotero.ZoteroTTSRun.state.fix4Prefs`
+(written by the run's baseline script) and `state.fix4RowsBaseline`. Known limit: a pref a live
+reader re-persists (`extensions.zotero.reader.readAloudVoices`) can be re-written by the owner's
+open reader after the restore — the snapshot stays in the run state for a second pass with the
+tab closed. A closed settings window can also flush its preference bindings over a restore —
+close it first, restore last, and touch nothing after.
+
 ## `run.js` — Zotero runs a kit's scripts from disk
 
 The scripts of a kit never pass through the tester's context: one

@@ -1,79 +1,66 @@
-# Player following verification evidence
+# Scripts: player following (#153, and §7 web snapshots / Reading Mode — #188)
 
-[Case](../../cases/player-following.md) · [Checklist index](../../README.md)
+[Case](../../cases/player-following.md) · [Checklist index](../../README.md) · [Runner](../_shared/README.md)
 
-The current acceptance criteria are issue #153's persistent manual follow.
-The older `107-*` and `117-*` scripts in this directory are historical and
-contain superseded recovery expectations. They are not a current runnable
-acceptance kit. Do not use their old hard-coded identities or restoration
-values for a new run.
+## Issue #188 kit (added 2026-10-18)
 
-## September 27, 2026: issue #153
+The DOM follower's `kind` per view: `snapshot` and `reading-mode` rows in `diagnostics.autoScroll()`.
+Fixtures: the return-key HTML snapshot imported as a real snapshot (`importSnapshotFromFile` under a
+parent item + `Zotero.SDT.ensure`, limitations §9) and fixture-a/fixture-c PDFs. The run holds
+`state.fix4Prefs` (the pref snapshot), `state.fix4Items`, `state.fix4RowsBaseline`.
 
-Tested implementation: `c6e99a9`, `1.16.1-beta`; XPI SHA prefix `221876b4`,
-embedded bundle SHA prefix `c2e00f6c`. The unit suite passed 2,755 tests,
-typecheck and build. No production code changed during live verification.
+| Script | Checks | Expected | Params |
+| --- | --- | --- | --- |
+| `188-00-baseline-isolate.js` | Private pref snapshot (18 names + documentVoices.*), mute, memory seed (System voice), WebDAV folder off | folder false; the owner reader untouched | — |
+| `188-01-import-fixtures.js` | Snapshot import + `SDT.ensure` true; fixture-a import | rows at baseline | `snapshotHtml`, `fixtureA` |
+| `188-02-open-snapshot-player.js` | Item 1a: row `kind: "snapshot"`, `patched: true`, `following` = the Player's A; audio-device probe | pass true | — |
+| `188-03-reading-mode-attach.js` | Item 1b: Reading Mode on via the Appearance popup; the row flips within one sentence; no Player reopen | kind "reading-mode", patched true | — |
+| `188-04-shiftR-once-m.js` | Item 2: M (fresh tab on default false), wheel+scroll away, trusted Shift+R returns once (`last.reason "return"`), three sentences scrollY stable, still M | pass true | — |
+| `188-05-stop-play-pause-resume.js` | Item 3: stop/play and pause/resume in M — no page movement, still M | pass true | — |
+| `188-06-wheel-turns-m.js` | Item 4: in A, a trusted wheel disengages at once (row reason "wheel", Player M) | pass true | — |
+| `188-07-a-scroll-styles.js` | Item 5: each scroll style places at the reading line (`last` reason sentence/cut, scrollY == `last.top`); Top bar (layout top) covers 34 px, the 30% line sits below | stylesPass true | — |
+| `188-08-reading-mode-steps.js` | Item 6: steps 2-4 in Reading Mode on fixture-c (element scroller; PageDown is the manual input — a synthesized wheel is not delivered into the SDT document) | all steps pass | `fixtureC` |
+| `188-99-cleanup.js` | Item 7: readers closed, items erased, rows back, doc-voice records back, defaultAutoScroll restored | pass true | — |
 
-| Area | Accepted evidence | Limit |
-| --- | --- | --- |
-| Startup | No failed startup steps; expected bundle symbols present | Version alone was not the identity check |
-| A/M | Player and follow diagnostics agreed in PDF and both EPUB flows; M survived later reading, pause/resume and Player reopen | Smooth visual following was not established in PDF/scrolled EPUB |
-| Defaults | Default off produced new-tab M, default on new-tab A; existing choices stayed unchanged | Live settings-sync round-trip was not run; serialization has unit coverage |
-| Keys and UI | Shift+Enter/R/M/A routing, skips, custom return, editable guard, checkbox and wrapped label observed | First scripts returned unconditional PASS; the report relies on individual recorded observations |
-| Actual positioning | Paginated native flow offset moved 0 to 53995, then Shift+R returned to 0 | PDF and scrolled EPUB controls are bounded below |
-| Current-state cleanup | Fresh private typed baseline restored exactly; fixture readers/items absent, position rows 85, transports idle, host minimized | This does not restore or prove the original pre-incident state |
+Before you start: bridge up; WebDAV folder off (`188-00`); install the xpi, `zotero_plugin_list` =
+manifest `-betaN`, `diagnostics.startup()` all ok. **The host window must be RESTORED for
+188-04…188-08**: `visible()` in dom-follow.ts refuses placement at `windowState === 2`, and a
+synthesized wheel does not reach the view document while minimized. Minimize again afterwards.
 
-The final controls started PDF at scrollTop 2129 and scrolled EPUB at
-scrollY 6984. Native positional scrolling reached 0 in both. Native smooth
-scrolling stayed at those starting offsets after 1.2 seconds; plugin
-Shift+R also stayed there while recording a return request. Subsequent M
-segment changes kept the viewport stable. Therefore physical PDF/scrolled
-EPUB return remains NOT TESTABLE in this environment; paginated return was
-observed. Neither target diagnostics nor unchanged offsets alone prove a
-successful visible return.
+Environment facts this run paid for (macOS, Zotero 11.0-beta.1):
 
-## Isolation incident and unresolved restoration
+- DOM views scroll the view's own window (`view.iframeWindow`), not the shell; scrollY reads and
+  `windowUtils` must target it. A trusted wheel delivered from the SHELL disengages following
+  (reason "wheel") but a synthesized wheel does not drive the scroller — pair the wheel with a
+  `scrollTo` for the distance.
+- Reading Mode (`SDTView`): its root does not scroll — placements carry `last.reason "element"`
+  (the #188 element path, observed live); the trusted keyboard (TIP PageDown) disengages with
+  reason "keyboard"; no synthesized wheel delivery at all.
+- `KeyboardEvent` init objects need `Cu.cloneInto(init, win)`; a paused pick before the first audio
+  has no segment to return to (`_resolveSegmentSelector` null) — wait for it.
+- macOS System voices have no word timings: `line` style falls back to sentence placement
+  (`last.reason "sentence"`).
 
-The first fixture import ran with Zotero core auto-sync enabled. Disposable
-fixture metadata reached the owner API/test WebDAV; the tester subsequently
-acknowledged deletes and found no fixture items, cache rows or deletion logs.
-The original baseline retained summaries instead of private raw values.
-The first cleanup reconstructed voice memory/native voice values and used
-an unrelated earlier value for the owner WebDAV URL. Exact original-state
-restoration cannot be established. The September 22 profile backup was
-excluded because it differs from the known September 27 state.
+## 2026-10-18 run (1.16.12-beta6, xpi sha256 781ccd7b…, commits a5edad5…d9343a5)
 
-The test did not directly write WebDAV username/password or machine ID.
-It did change the URL and voices; syncState changed during the run. Core
-auto-sync was observed enabled without a user value when the incident was
-discovered, but was not captured before the run. It remains disabled with
-a user value. Plugin sync switches remain off. The owner paused Player was
-closed for testing and was intentionally not reopened.
+All of §7's items PASS: snapshot/reading-mode attach (202/276 ms flips), Shift+R once
+(208-259 ms, three stable sentences), stop/play + pause/resume zero movement, wheel→M, all three
+scroll styles placed at target (delta ≤ 1 px), Reading Mode steps 2-4. Cleanup: 4 fixture items
+erased, rows 75→75, documentVoices back to the baseline 58. Two attempts of each script that
+failed on the environment (minimized window, Xray windows, the catalog race) were revised above;
+their results are in `.tmp/zotero-dev/2026-10-18-1.16.12-beta6-player-following-*`.
 
-Later probes took exact private CURRENT-state snapshots, kept core/plugin
-sync off, and restored those snapshots exactly. This is evidence of safe
-later cleanup, not recovery of missing original values. The original-state
-uncertainty and decision about re-enabling sync are still open with the owner.
+## Isolation incident and unresolved restoration (2026-09-27 — historical, still open with the owner)
 
-## Scripts and next run
-
-The proposed replacement `153-*` kit was rewritten after the first pass but
-never rerun as a kit. It is not published here as verified reusable code.
-Unverified drafts are retained in the worktree's ignored
-`.tmp/zotero-dev/player-following-153-unverified/`; executed control probes
-are `.tmp/zotero-dev/current-position-{setup,check,finalize}.js`.
-They are diagnostic artifacts, not a safe reusable setup/cleanup contract.
-A future driver must capture exact typed private state and validate isolation
-before importing fixtures, restore only its own fixture records, and retain
-the final scripts that actually pass. Never infer secret equality from length
-or restore values from another session's globals.
+The first fixture import of the #153 run ran with Zotero core auto-sync enabled; disposable
+fixture metadata reached the owner API/test WebDAV and the original-state restoration of that run
+could not be established (see the git history of this file for the full record). Later runs,
+including this one, take exact typed private snapshots and restore them; the open decision about
+re-enabling sync is still the owner's.
 
 ## Historical runs (superseded behavior)
 
 | Date/build | Coverage and result | Run |
 |---|---|---|
-| 2026-09-16 / 1.12.12-beta | Full manual-follow baseline through cleanup; all scripts ran, with the single PDF/outside later-visible finding above | `2026-09-16-1.12.12-beta-player-following-full` |
-| 2026-09-16 / 1.12.12-beta | Three fixture kinds, A/top/B layouts, pause retention, explicit M/A, stale old pref, two-reader isolation and close/reopen; all checks PASS | `2026-09-16-1.12.12-beta-player-following-ui4` |
-| 2026-09-16 / 1.12.12-beta | Trusted Shift+Enter, previous/next sentence and previous/next paragraph in PDF, scrolled EPUB and paginated EPUB; all expectations PASS | `2026-09-16-1.12.12-beta-player-following-shortcuts2` |
-| 2026-09-16 / 1.12.12-beta | Direct-versus-trusted return comparison and real play-button resume; all expectations PASS | `2026-09-16-1.12.12-beta-player-following-return-compare2` |
-| 2026-09-17 / 1.12.12-beta | Narrow PDF boundary diagnostic with selected/visible preconditions and assertion; fixed and gated resume plus later-visible reentry PASS | `2026-09-17-1.12.12-beta-player-following-boundary2` |
+| 2026-09-27 / 1.16.1-beta | #153: A/M per tab, defaults, keys, paginated return observed; PDF/scrolled-EPUB physical return NOT TESTABLE (native smooth scroll inert) | see the git history of this README |
+| 2026-09-16/17 / 1.12.12-beta | #153 baseline, ui4, shortcuts2, return-compare2, boundary2 — all PASS | `2026-09-16-1.12.12-beta-player-following-*` |

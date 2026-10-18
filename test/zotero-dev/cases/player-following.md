@@ -131,7 +131,9 @@ rows, Auto-scroll for the A rows (snapshot and restore the pref).
    sentence at the reading line as on a scrolled EPUB (`last.reason` in the
    row), and the docked Top bar does not cover it.
 6. Steps 2-4 again in Reading Mode on the PDF fixture. The hidden PDF view
-   under it is not checked.
+   under it is not checked. A synthesized wheel is not delivered into the
+   Reading Mode document through the bridge; PageDown enters M there
+   (`reason: "keyboard"`).
 7. **Cleanup.** Close the fixture readers, restore Default scrolling, delete
    the imported snapshot; no new `can't access dead object` or plugin error.
 

@@ -260,4 +260,8 @@ controls through items 9-12 above.
     press Pause then Play so B takes the sentence, then release A's
     request: no `Playback failed` banner or notice, the Player stays
     playing, `engine()` `session.error` null, B's audio plays on. Repeat
-    with A's held request failing instead.
+    with A's held request failing instead: on 1.16.12-beta6 the takeover
+    did not commit while the sentence's audio was still missing (`stage:
+    waiting`), so the failure landed on A's own store, a failure before
+    the takeover; that variant is unit-tested
+    (`test/core/engine/handoff-late-answer.test.ts`).
