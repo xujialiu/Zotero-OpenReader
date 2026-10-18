@@ -1,4 +1,4 @@
-<!-- translated-from: fish-speech-server.md sha256:1ca567d9bd88 -->
+<!-- translated-from: fish-speech-server.md sha256:f897d7928329 -->
 # 自建 Fish Speech 服务器
 
 [English](fish-speech-server.md) · **简体中文**

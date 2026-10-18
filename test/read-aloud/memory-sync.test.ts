@@ -463,7 +463,7 @@ describe('createReadAloudMemorySync', () => {
     });
   });
 
-  it('moves the manager to Multiple languages before Zotero restores, so Zotero picks the remembered voice', () => {
+  it('moves the manager to Multilingual before Zotero restores, so Zotero picks the remembered voice', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
     const r = fakeReader('zh', z);
@@ -809,7 +809,7 @@ describe('the voice is global while the setting is on', () => {
     }
   };
 
-  // Tab 1's popup picked Ada under Multiple languages: Zotero persisted it
+  // Tab 1's popup picked Ada under Multilingual: Zotero persisted it
   // and the memory learned it. Tab 2 is reading with Isabella, tab 3 is
   // idle. Tab 2 is put through Zotero's own restore — the wrapper's
   // sequence, with the mul entry saying Ada — and goes on with Ada; tab 3
@@ -849,8 +849,8 @@ describe('the voice is global while the setting is on', () => {
   });
 
   // An English document reading with a Kokoro voice under `en`: moved to
-  // Multiple languages first, where the catalog publishes Ada, then restored
-  it('moves a reader on another language to Multiple languages for a global voice', () => {
+  // Multilingual first, where the catalog publishes Ada, then restored
+  it('moves a reader on another language to Multilingual for a global voice', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
     const tab2 = fakeReader('en', z, { active: true, selectedVoiceID: AOEDE, voices: listed });
@@ -863,7 +863,7 @@ describe('the voice is global while the setting is on', () => {
 
   // Xiaoxiao reads Chinese only, and reaches every reader all the same (one
   // voice everywhere, the user's rule): the Chinese document as it is, the
-  // English one and the one the user put on Multiple languages moved to
+  // English one and the one the user put on Multilingual moved to
   // Chinese first, where Zotero offers her
   it('sends a single-language voice to every reader, each moved to its language', () => {
     const z = fakeZotero();
@@ -882,12 +882,12 @@ describe('the voice is global while the setting is on', () => {
     expect(sync.documentLanguage(byHand.reader)).toBe(MULTILINGUAL);
   });
 
-  // A Chinese document that read with Isabella sits on Multiple languages,
+  // A Chinese document that read with Isabella sits on Multilingual,
   // where memory-sync moved it; the language it came from is kept, so a
   // Chinese voice picked elsewhere brings it back. Zotero's deactivate()
   // never resets the manager's language: without this the tab would stay
-  // on Multiple languages, and Isabella, for as long as it is open.
-  it('brings a reader it moved to Multiple languages back for a voice in its document’s language', () => {
+  // on Multilingual, and Isabella, for as long as it is open.
+  it('brings a reader it moved to Multilingual back for a voice in its document’s language', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
     const chinese = fakeReader('zh', z, { active: true, voices: listed });
@@ -1031,7 +1031,7 @@ describe('a pick the pref does not show', () => {
   const ADA = 'azure::en-GB-AdaMultilingualNeural';
   const BRIAN = 'azure::en-US-BrianNeural';
   const listed = [ISABELLA, AOEDE, ADA, BRIAN];
-  // Ada is the only voice under Multiple languages, and the mul entry holds
+  // Ada is the only voice under Multilingual, and the mul entry holds
   // her from an earlier session; the popup's last pick was Brian for English
   const before: VoicesMap = {
     en: { region: 'US', voice: BRIAN, speed: 1.6, tierVoices: { azure: BRIAN } },
@@ -1040,7 +1040,7 @@ describe('a pick the pref does not show', () => {
   const brian: ReadAloudMemory = { speed: 1.6, voice: { id: BRIAN, lang: 'en' } };
   const reading = (voice: string, extra: Record<string, unknown> = {}) => ({ speed: 1.6, active: true, selectedVoiceID: voice, voices: listed, ...extra });
 
-  // The popup's language dropdown switched to Multiple languages: Zotero
+  // The popup's language dropdown switched to Multilingual: Zotero
   // resolves the one voice there and persists the very entry the pref
   // already holds, and Zotero.Prefs.set notifies nobody of an unchanged
   // value. The pick is learned from the manager's own method instead, and
@@ -1118,7 +1118,7 @@ describe('a pick the pref does not show', () => {
     z.readers.push(tab1.reader, tab2.reader);
     sync.attach(tab1.reader);
     sync.attach(tab2.reader);
-    // To Multiple languages: Ada, the mul entry's — not Isabella, the first of the list
+    // To Multilingual: Ada, the mul entry's — not Isabella, the first of the list
     tab1.manager.setLanguage(MULTILINGUAL, { region: null, persist: true });
     expect(tab1.manager._persistedVoices).toEqual(before[MULTILINGUAL]);
     expect(cloneForReader).toHaveBeenCalledWith(tab1.reader, before[MULTILINGUAL]);
@@ -1222,7 +1222,7 @@ describe('a pick the pref does not show', () => {
   });
 });
 
-describe('a reader moved to Multiple languages finds its way back', () => {
+describe('a reader moved to Multilingual finds its way back', () => {
   const XIAOXIAO = 'azure::zh-CN-XiaoxiaoNeural';
   const chinese: ReadAloudMemory = { speed: 1.4, voice: { id: XIAOXIAO, lang: 'zh' } };
   /** What these readers list: the Chinese voice included, so a move to Chinese is a move and not a substitution (issue #35). */
@@ -1230,7 +1230,7 @@ describe('a reader moved to Multiple languages finds its way back', () => {
 
   // Zotero's deactivate() resets everything but the manager's language, and
   // the manager lives as long as the reader: a Chinese document that read
-  // with Isabella stays on Multiple languages for good unless it is brought
+  // with Isabella stays on Multilingual for good unless it is brought
   // back — at its next popup open, once the remembered voice is a Chinese
   // one, so that Zotero restores its own entry for Chinese
   it('at the next popup open, once the remembered voice is not global', () => {
@@ -1269,7 +1269,7 @@ describe('a reader moved to Multiple languages finds its way back', () => {
   // Where the user put a manager by hand is its "document language" from
   // then on: the voice's language for as long as the voice is remembered,
   // and back there once it is cleared
-  it('moves a manager the user put on Multiple languages to the voice’s language, and back when the voice goes', () => {
+  it('moves a manager the user put on Multilingual to the voice’s language, and back when the voice goes', () => {
     const z = fakeZotero();
     const sync = createReadAloudMemorySync(z.deps);
     const r = fakeReader(MULTILINGUAL, z, { voices: listed });
@@ -1369,7 +1369,7 @@ describe('the remembered voice is not in the list', () => {
     expect(z.deps.error).not.toHaveBeenCalled();
   });
 
-  it('prefers a favorite among the Local voices offered, and the document’s language over Multiple languages', () => {
+  it('prefers a favorite among the Local voices offered, and the document’s language over Multilingual', () => {
     const z = fakeZotero(prefs, puck);
     const t = withDeps(z);
     t.favorites.mockReturnValue([BRIAN.id]);
@@ -1545,7 +1545,7 @@ describe('the remembered voice is not in the list', () => {
       const sync = createReadAloudMemorySync(t.deps);
       const r = fakeReader('en', z, { voices: [STANDARD, AVA] });
       sync.attach(r.reader);
-      // The previous open: substituted, reading Ava under Multiple languages
+      // The previous open: substituted, reading Ava under Multilingual
       sync.opening(r.reader);
       open(r);
       expect(r.manager.lang).toBe(MULTILINGUAL);

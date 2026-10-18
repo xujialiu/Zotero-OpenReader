@@ -173,6 +173,11 @@ One item of the player's first dropdown: a provider that has voices, or
 one of Zotero's own two.
 _Avoid_: tier (Zotero's word for its own three), voice mode
 
+**Multilingual**:
+The language listed first under an entry, holding the voices that speak
+whatever language they are given.
+_Avoid_: Multiple languages, mul
+
 **Zotero voices**:
 The voices Zotero itself sells, Zotero Standard and Zotero Premium, paid
 with credits on a Zotero account.

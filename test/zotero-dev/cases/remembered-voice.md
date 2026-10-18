@@ -35,7 +35,7 @@ Items 3.2, 3.11 and 4.7 of the checklist, under their original numbers.
     memory naming a single-language Local voice V_en under `en`, the
     `mul` entry naming a Local multilingual voice V_mul — neither the
     first of its Local pool, or the check proves nothing — and both
-    fixtures paused on V_en: tab 1's dropdown to *Multiple languages*,
+    fixtures paused on V_en: tab 1's dropdown to *Multilingual*,
     driven through its own rows (the language `CustomSelect`'s trigger,
     then `pointerup` on the `…-option-mul` row), read in the same
     script. Expected `manager._persistedVoices` = the `mul` entry (voice

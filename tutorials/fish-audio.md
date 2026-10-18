@@ -87,7 +87,7 @@ start off. The three source switches work independently.
   appears only once and stays listed as long as an enabled source
   supplies it.
 - **Language.** Voices are grouped by their language, or under
-  *Multiple languages* when they list several. English voices with a
+  *Multilingual* when they list several. English voices with a
   published regional accent are grouped separately, such as English
   (United States), English (United Kingdom), and English (India).
   English voices without a region stay under English.

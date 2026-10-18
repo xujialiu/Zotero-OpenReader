@@ -133,7 +133,7 @@ const ZOTERO_VOICES: ZoteroVoice[] = [
 // Names as read-aloud/language-dropdown.ts asks for them: the base tag where
 // the tier holds one region of the language, the full tag where several
 const LOCALE_NAMES: Record<string, string> = {
-  mul: 'Multiple languages',
+  mul: 'Multilingual',
   zh: 'Chinese',
   en: 'English',
   'en-US': 'English (United States)',
@@ -322,7 +322,7 @@ describe('the first column', () => {
     const t = setup();
     await t.rows.load();
     expect(t.selectedTier()).toBe('Azure (4)');
-    expect(t.locales()).toEqual(['Multiple languages (2)', 'Chinese (1)', 'English (1)']);
+    expect(t.locales()).toEqual(['Multilingual (2)', 'Chinese (1)', 'English (1)']);
     expect(t.labels()).toEqual(['Ava Multilingual', 'Brian Multilingual']);
   });
 
@@ -392,7 +392,7 @@ describe('loading the catalog', () => {
   it('groups an entry’s voices by locale, Multilingual first, the rest by display name', async () => {
     const t = setup();
     await t.rows.load();
-    expect(t.locales()).toEqual(['Multiple languages (2)', 'Chinese (1)', 'English (1)']);
+    expect(t.locales()).toEqual(['Multilingual (2)', 'Chinese (1)', 'English (1)']);
     expect(t.status()).toBe('Default voice: Choose a default voice | Global speed: 1.0×');
   });
 
@@ -406,7 +406,7 @@ describe('loading the catalog', () => {
       prefs: { [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: null, voice: { id: encodeVoiceId('azure', 'en-US-JennyNeural'), lang: 'en' } }) },
     });
     await t.rows.load();
-    expect(t.locales()).toEqual(['Multiple languages (2)', 'Chinese (1)', 'English (United Kingdom) (1)', 'English (United States) (1)']);
+    expect(t.locales()).toEqual(['Multilingual (2)', 'Chinese (1)', 'English (United Kingdom) (1)', 'English (United States) (1)']);
     expect(t.status()).toBe('Default voice: Azure | English (United States) | Jenny | Global speed: 1.0×');
     await t.pickTier('Zotero Standard');
     expect(t.locales()).toEqual(['English (2)', 'German (1)']);
@@ -420,7 +420,7 @@ describe('loading the catalog', () => {
       catalog: [...CATALOG, { provider: 'azure', voices: [{ id: 'zh-TW-YunJheNeural', label: '雲哲', locale: 'zh-TW' }] }],
     });
     await t.rows.load();
-    expect(t.locales()).toEqual(['Multiple languages (2)', 'Chinese (2)', 'English (1)']);
+    expect(t.locales()).toEqual(['Multilingual (2)', 'Chinese (2)', 'English (1)']);
     await t.pickLocale('Chinese');
     expect(t.labels()).toEqual(['晓晓', '雲哲']);
     await t.label(1).fire('click');
@@ -1093,11 +1093,11 @@ describe('the default voice', () => {
     expect(t.status()).toBe('Default voice: Zotero Premium | English | Aria | Global speed: 1.0×');
   });
 
-  it('finds a voice chosen under Multiple languages, and only that one', async () => {
+  it('finds a voice chosen under Multilingual, and only that one', async () => {
     const t = setup({ prefs: remembered(encodeVoiceId('openai-official', 'alloy'), 'mul') });
     await t.rows.load();
     expect(t.selectedTier()).toBe('OpenAI (1)');
-    expect(t.selectedLocale()).toBe('Multiple languages (1)');
+    expect(t.selectedLocale()).toBe('Multilingual (1)');
     expect(t.highlighted()).toEqual(['alloy']);
     expect(t.label(0).attrs.get('title')).toMatch(/click to clear/i);
     // The other multilingual voices, under their own provider, are nobody's default
@@ -1112,7 +1112,7 @@ describe('the default voice', () => {
   it('finds a multilingual voice remembered under a concrete language', async () => {
     const t = setup({ prefs: remembered(encodeVoiceId('azure', 'en-US-AvaMultilingualNeural'), 'en') });
     await t.rows.load();
-    expect(t.selectedLocale()).toBe('Multiple languages (2)');
+    expect(t.selectedLocale()).toBe('Multilingual (2)');
     expect(t.highlighted()).toEqual(['Ava Multilingual']);
   });
 
@@ -1130,7 +1130,7 @@ describe('the default voice', () => {
     const t = setup({ prefs: remembered(encodeVoiceId('azure', 'fr-FR-DeniseNeural'), 'fr', 1.2) });
     await t.rows.load();
     expect(t.selectedTier()).toBe('Azure (4)');
-    expect(t.selectedLocale()).toBe('Multiple languages (2)');
+    expect(t.selectedLocale()).toBe('Multilingual (2)');
     expect(t.highlighted()).toEqual([]);
     expect(t.status()).toBe('Default voice: azure::fr-FR-DeniseNeural (not listed now) | Global speed: 1.2×');
   });
@@ -1283,9 +1283,9 @@ describe('the highlight follows the memory', () => {
     await t.rows.load();
     picked(t, { id: alloy, lang: 'mul' }, 1.8);
     expect(t.selectedTier()).toBe('OpenAI (1)');
-    expect(t.selectedLocale()).toBe('Multiple languages (1)');
+    expect(t.selectedLocale()).toBe('Multilingual (1)');
     expect(t.highlighted()).toEqual(['alloy']);
-    expect(t.status()).toBe('Default voice: OpenAI | Multiple languages | alloy | Global speed: 1.8×');
+    expect(t.status()).toBe('Default voice: OpenAI | Multilingual | alloy | Global speed: 1.8×');
   });
 
   it('follows to one of Zotero’s own voices, in its tier', async () => {
@@ -1342,7 +1342,7 @@ describe('the highlight follows the memory', () => {
     const t = setup({ prefs: remembered(xiaoxiao, 'zh') });
     picked(t, { id: alloy, lang: 'mul' });
     await t.rows.load();
-    expect(t.selectedLocale()).toBe('Multiple languages (1)');
+    expect(t.selectedLocale()).toBe('Multilingual (1)');
     expect(t.highlighted()).toEqual(['alloy']);
   });
 });
@@ -1371,7 +1371,7 @@ describe('a row click sets the default', () => {
     expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×');
   });
 
-  it('files a multilingual voice under Multiple languages, with no region', async () => {
+  it('files a multilingual voice under Multilingual, with no region', async () => {
     const t = setup();
     await t.rows.load();
     await t.pickTier('OpenAI');

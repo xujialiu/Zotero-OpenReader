@@ -124,7 +124,7 @@ describe('migrateGlobalSpeed', () => {
 });
 
 describe('memoryFromVoices', () => {
-  it('starts from the speed Zotero already stores and the voice chosen under Multiple languages', () => {
+  it('starts from the speed Zotero already stores and the voice chosen under Multilingual', () => {
     expect(memoryFromVoices(voices)).toEqual({ speed: 1.4, voice: { id: ISABELLA, lang: MULTILINGUAL } });
   });
 
@@ -158,7 +158,7 @@ describe('isMultilingualVoiceId', () => {
 });
 
 describe('isGlobalVoice', () => {
-  it('is a voice chosen under Multiple languages, or multilingual by its id wherever it was chosen', () => {
+  it('is a voice chosen under Multilingual, or multilingual by its id wherever it was chosen', () => {
     expect(isGlobalVoice({ id: 'local::af_bella', lang: MULTILINGUAL })).toBe(true);
     expect(isGlobalVoice({ id: 'azure::en-US-AvaMultilingualNeural', lang: 'en' })).toBe(true);
     expect(isGlobalVoice({ id: 'azure::zh-CN-XiaoxiaoNeural', lang: 'zh' })).toBe(false);
@@ -234,7 +234,7 @@ describe('planSync', () => {
     expect(planSync(null, voices, multilingual)).toEqual({ lang: null, voices: null });
   });
 
-  it('moves every document to Multiple languages when the remembered voice is multilingual', () => {
+  it('moves every document to Multilingual when the remembered voice is multilingual', () => {
     expect(planSync('zh', voices, multilingual)).toEqual({ lang: MULTILINGUAL, voices: null });
   });
 
@@ -278,7 +278,7 @@ describe('planSync', () => {
     expect(planSync('zh', settled, remembered, 'standard')).toEqual({ lang: 'en', voices: null });
   });
 
-  it('puts the remembered multilingual voice back if the Multiple languages entry drifted', () => {
+  it('puts the remembered multilingual voice back if the Multilingual entry drifted', () => {
     const drifted = { ...voices, [MULTILINGUAL]: { ...voices[MULTILINGUAL], voice: 'openai-official::alloy', speed: 1.0 } };
     expect(planSync('en', drifted, multilingual)).toEqual({
       lang: MULTILINGUAL,
@@ -372,14 +372,14 @@ describe('pickSubstitute', () => {
     expect(pickSubstitute([BELLA, AVA], [BELLA.id, AVA.id], 'en')).toEqual(BELLA);
   });
 
-  it('then the document’s language, then Multiple languages, then the rest', () => {
+  it('then the document’s language, then Multilingual, then the rest', () => {
     expect(pickSubstitute([XIAOXIAO, AVA, BELLA], [], 'en')).toEqual(BELLA);
     expect(pickSubstitute([XIAOXIAO, AVA], [], 'en')).toEqual(AVA);
     expect(pickSubstitute([XIAOXIAO], [], 'en')).toEqual(XIAOXIAO);
     expect(pickSubstitute([BELLA, XIAOXIAO], [], 'zh')).toEqual(XIAOXIAO);
     // A regional document language is matched on its base
     expect(pickSubstitute([BELLA, XIAOXIAO], [], 'zh-TW')).toEqual(XIAOXIAO);
-    // No language known: Multiple languages first
+    // No language known: Multilingual first
     expect(pickSubstitute([BELLA, AVA], [], null)).toEqual(AVA);
   });
 

@@ -113,7 +113,7 @@ first run (`scripts/openai-split/README.md`).
    Compatible` and `Xiaomi MiMo` (sorted by name among the others), 28
    voices under the first (`Abigail.wav` … as their own names) and 9 under
    the second (`mimo_default`, `冰糖`, `茉莉`, `苏打`, `白桦`, `Mia`, `Chloe`,
-   `Milo`, `Dean`), all under Multiple languages; their ids
+   `Milo`, `Dean`), all under Multilingual; their ids
    `compatible::Abigail.wav`, `mimo::冰糖`. A fixture's popup opened muted
    lists the same two entries in its first dropdown; one sentence of
    `fixture-b.pdf` read with `mimo::冰糖` (`selectVoice`, paused in the

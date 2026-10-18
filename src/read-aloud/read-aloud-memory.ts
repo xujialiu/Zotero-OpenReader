@@ -8,7 +8,7 @@ import { compareVoiceLabels, decodeVoiceId, pluginVoiceTier, type ListedVoice } 
  * Zotero remembers the Read Aloud voice and speed per document language
  * (`reader.readAloudVoices`, core/read-aloud-speed.ts), keyed by the language
  * it detects when a document opens. A language without an entry starts at
- * 1.0× with a fallback voice, and a voice chosen under "Multiple languages"
+ * 1.0× with a fallback voice, and a voice chosen under "Multilingual"
  * lives under the key `mul`, which no document ever resolves to. This module
  * keeps one choice across documents instead: the speed the user last set
  * anywhere, and the voice the user last picked — applied to every document
@@ -122,7 +122,7 @@ export function memoryLangForLocale(locale: string): string {
  * A starting point when nothing has been remembered yet: a speed from
  * Zotero's pref (one entry is as good as another — all came from the same
  * slider), and a globally-usable voice — the `mul` entry's, since a voice
- * chosen under "Multiple languages" can only have been meant for every
+ * chosen under "Multilingual" can only have been meant for every
  * document, else any entry holding a voice that is multilingual by its id
  * (the trace left by the removed multilingualEverywhere switch, which had
  * such voices chosen under concrete languages). A single-language voice
@@ -178,7 +178,7 @@ export interface SyncPlan {
 
 /**
  * Whether this voice id can read any language. The catalog offers such
- * voices under "Multiple languages" now, so new choices carry the
+ * voices under "Multilingual" now, so new choices carry the
  * `lang === 'mul'` marker — but pref entries written while the removed
  * multilingualEverywhere switch published them under every language hold
  * them under `en` or `zh`, and this is what still recognizes those. Every
@@ -196,7 +196,7 @@ export function isMultilingualVoiceId(id: string): boolean {
 
 /**
  * Whether a remembered voice is applied to every document: chosen under
- * "Multiple languages", or multilingual by its id (above). Any other voice
+ * "Multilingual", or multilingual by its id (above). Any other voice
  * reads one language and applies to documents in that language only.
  */
 export function isGlobalVoice(choice: VoiceChoice): boolean {
@@ -216,7 +216,7 @@ export function sameChoice(a: VoiceChoice | null, b: VoiceChoice | null): boolea
  * and says nothing. This takes the first of the **plugin's own** voices the
  * list offers — one whose id decodes, whatever provider's entry it sits
  * under; never a Standard or Premium one — favorites before the rest, the
- * document's language before Multiple languages before other languages,
+ * document's language before Multilingual before other languages,
  * and within a rank the voice browser's order. Null when the list has no
  * plugin voice at all, which leaves the choice to Zotero.
  */

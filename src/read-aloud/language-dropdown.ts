@@ -19,10 +19,12 @@
  *   (`manager.languages` filters by `_selectedTier`), so one language
  *   reads "English" in a tier and "English (United States)" in another.
  *
- * The dropdown's order — "Multiple languages" first, the rest by label —
+ * The dropdown's order — "Multilingual" first, the rest by label —
  * is the Player's (player-controller.ts); the browser sorts its column the
  * same way.
  */
+
+import { MULTILINGUAL } from '../core/providers/types';
 
 /** Zotero's LANGUAGE_EQUIVALENTS and REGION_EQUIVALENTS (reader.js ~37977). */
 const LANGUAGE_EQUIVALENTS: Record<string, string> = { cmn: 'zh' };
@@ -58,11 +60,14 @@ export function dropdownLabels(languages: Iterable<string>, displayName: (code: 
 /**
  * A tag's display name the way the dropdown renders one — `languageDisplay:
  * 'standard'`, in the given locale (the app's when none) — or the tag
- * itself when ICU cannot name it.
+ * itself when ICU cannot name it. In English the multilingual entry is
+ * "Multilingual", not ICU's "Multiple languages"; other locales keep ICU's.
  */
 export function languageDisplayName(code: string, locale?: string): string {
   try {
-    return new Intl.DisplayNames(locale ? [locale] : undefined, { type: 'language', languageDisplay: 'standard' }).of(code) ?? code;
+    const names = new Intl.DisplayNames(locale ? [locale] : undefined, { type: 'language', languageDisplay: 'standard' });
+    if (code === MULTILINGUAL && baseLanguage(names.resolvedOptions().locale) === 'en') return 'Multilingual';
+    return names.of(code) ?? code;
   } catch {
     return code;
   }

@@ -128,7 +128,7 @@ export interface ReadAloudMemorySync {
    * Kokoro default with a Windows voice.
    */
   applySilently<T>(fn: () => T): T;
-  /** The language a reader's document is in, as far as the sync knows: the manager's, or the one the manager was moved to Multiple languages from. */
+  /** The language a reader's document is in, as far as the sync knows: the manager's, or the one the manager was moved to Multilingual from. */
   documentLanguage(reader: unknown): string | null;
   /** A popup is opening on this reader — Zotero has asked for its voices: what this open has to say about a substitute starts afresh. */
   opening(reader: unknown): void;

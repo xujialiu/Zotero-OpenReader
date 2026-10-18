@@ -73,7 +73,7 @@ spaces, `-` and `_` only.
    key>` into **Extra headers**.
 3. **Test connection** → *Connected. N voices available.* → **Enable**.
 4. In the player, the voices are the folder names under **Fish Speech**,
-   filed under *Multiple languages*: the server does not say
+   filed under *Multilingual*: the server does not say
    which language a voice speaks, and the model speaks 80 languages.
 
 ## Good to know

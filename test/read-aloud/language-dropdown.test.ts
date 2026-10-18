@@ -36,7 +36,7 @@ const NAMES: Record<string, string> = {
   zh: 'Chinese',
   de: 'German',
   'de-DE': 'German (Germany)',
-  mul: 'Multiple languages',
+  mul: 'Multilingual',
 };
 const name = (code: string) => NAMES[code] ?? code;
 
@@ -47,7 +47,7 @@ describe('dropdownLabels', () => {
       ['en-GB', 'English (United Kingdom)'],
       ['de-DE', 'German'],
       ['zh', 'Chinese'],
-      ['mul', 'Multiple languages'],
+      ['mul', 'Multilingual'],
     ]);
   });
 
@@ -60,7 +60,8 @@ describe('languageDisplayName', () => {
   it('writes the region in full, as the dropdown does — never "American English"', () => {
     expect(languageDisplayName('en-US', 'en')).toBe('English (United States)');
     expect(languageDisplayName('en', 'en')).toBe('English');
-    expect(languageDisplayName('mul', 'en')).toBe('Multiple languages');
+    expect(languageDisplayName('mul', 'en')).toBe('Multilingual');
+    expect(languageDisplayName('mul', 'en-GB')).toBe('Multilingual');
     expect(languageDisplayName('ar-001', 'en')).toBe('Arabic (world)');
   });
 

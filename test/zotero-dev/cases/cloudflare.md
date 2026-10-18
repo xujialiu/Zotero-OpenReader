@@ -54,7 +54,7 @@ Items 1.14, 2.9 and 3.15 of the checklist, under their original numbers.
    Kingdom) 4, English (Ireland) 1, English (Australia) 2, English
    (Philippines) 1, Spanish (Mexico) 3, Spanish (Spain) 4, Spanish
    (Colombia) 1, Spanish (Latin America) 2, Chinese 1, Japanese 1,
-   Korean 1 — 66, and none under Multiple languages. Labels read
+   Korean 1 — 66, and none under Multilingual. Labels read
    `Cloudflare-Aura-1 Angus (male)`, `Cloudflare-Aura-2 Amalthea
    (female)`, `Cloudflare-MeloTTS Chinese`. One sample of
    `Cloudflare-MeloTTS Chinese` → `audio/wav` (MeloTTS is uncompressed,

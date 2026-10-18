@@ -3909,7 +3909,7 @@ const diagnostics = {
    * a voice is picked in one tab's popup: `memory.voice` names it and so
    * does `selectedVoiceID` on every reader that was reading and could take
    * it. Per reader, `docLang` is the document's language as memory-sync
-   * knows it (the language the manager was moved to Multiple languages
+   * knows it (the language the manager was moved to Multilingual
    * from), `listsDefault` whether the manager's voice list — loaded at
    * its popup's last open — has the memory's voice at all, and
    * `substitution` what the last sync did when it did not: the voice that

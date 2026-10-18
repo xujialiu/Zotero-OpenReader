@@ -26,7 +26,7 @@ export type SynthesisResult = {
  * OpenAI's, Azure's "Multilingual" ones, voices of unknown language from
  * OpenAI-compatible servers. `mul` is BCP-47 for "multiple languages", so
  * Zotero's language dropdown (labelled through Intl.DisplayNames) shows
- * them as their own entry, "Multiple languages" / "多语种", instead of
+ * them as their own entry, "Multilingual" / "多语种", instead of
  * repeating them under every language.
  */
 export const MULTILINGUAL = 'mul';

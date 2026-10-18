@@ -1,4 +1,4 @@
-<!-- translated-from: fish-audio.md sha256:372c89cf4f7d -->
+<!-- translated-from: fish-audio.md sha256:7b210a436b0a -->
 # Fish Audio：克隆语音、一个免费模型、逐词高亮
 
 [English](fish-audio.md) · **简体中文**
