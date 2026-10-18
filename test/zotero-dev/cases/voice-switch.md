@@ -244,3 +244,20 @@ cold-request latency or exhaust all provider combinations. The linked official
 follow-up verifies Standard and Premium same-tier word handoffs; cross-tier
 manual changes were outside #95's shortcut pool; #108 now covers those
 controls through items 9-12 above.
+
+15. **A pick after an error or the end of the document (#194).** On a PDF
+    fixture of two short sentences, read a plugin voice A to the end: the
+    Player shows Play, `engine()` `session.paused` false. Pick another
+    voice B of the same provider in the Player: within 3 s the notice
+    turns `ready` (not a lasting `Preparing voice`), `voiceSwitch()`
+    `handoff.pending` B; wait 130 s: no `Could not switch` notice and no
+    `no prepared handoff boundary was reached` in the error console.
+    Play: B reads from the start. Repeat after a failed sentence (point
+    the provider at a closed port for the second sentence, or a fixture
+    error), picking B after the error shows.
+16. **The old voice's late answer (#196).** Hold A's first request (a
+    delayed fixture request, as in item 12), pick B and wait for B's audio,
+    press Pause then Play so B takes the sentence, then release A's
+    request: no `Playback failed` banner or notice, the Player stays
+    playing, `engine()` `session.error` null, B's audio plays on. Repeat
+    with A's held request failing instead.

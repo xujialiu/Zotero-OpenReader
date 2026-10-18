@@ -142,6 +142,14 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
 
   // ReadAloudController (reader.js 39298-39312)
   paused = false;
+  /**
+   * Stopped by an `Error` or `Complete` this session sent, until the next
+   * speak. Read Aloud's manager pauses itself on both and writes nothing to
+   * the controller (reader.js 85139-85150 in 11.0), so `paused` stays false,
+   * as the copied controller has it, while the Player shows the play arrow
+   * (issue #194).
+   */
+  private halted = false;
   speed = 1;
   error: string | null = null;
   buffering = false;
@@ -286,6 +294,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.completedScope = 'document';
     this.completed = false;
     this.paused = false;
+    this.halted = false;
     this.error = null;
     this.buffering = false;
     this.lastSkipGranularity = null;
@@ -321,6 +330,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.generation++;
     this.prefetcher.cancel();
     this.ended = true;
+    this.halted = false;
     this.carriedOn = false;
     this.clearGap();
     this.cancelSkip();
@@ -332,6 +342,11 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   }
 
   // ---- The controller's members ---------------------------------------------
+
+  /** The reading waits for Play: paused, or stopped by an error or the end of the document (issue #194). */
+  get waitsForPlay(): boolean {
+    return this.paused || this.halted;
+  }
 
   /** `paused = …` (reader.js 39316-39323). */
   setPaused(paused: boolean): void {
@@ -564,6 +579,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
   /** `_speakInternal` (reader.js 40162-40221). */
   private speakInternal(): void {
     this.awaitingHandoff = null;
+    this.halted = false;
     if (this.ended || !this.segments || !this.store) return;
     if (this.paused) {
       this.stop();
@@ -582,6 +598,7 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       if (generation !== this.generation || this.position !== index) return;
       this.setBuffering(false);
       this.segmentStart(segment, index);
+      this.halted = true;
       this.deps.emit('Error', segment);
       this.showFailed();
     };
@@ -633,13 +650,14 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       });
       return;
     }
+    // A takeover replaces the store within the run: the old voice's late answer is not the reading's (issue #196)
     store.get(index).then(
       (clip) => {
-        if (generation !== this.generation || this.position !== index) return;
+        if (generation !== this.generation || this.position !== index || this.store !== store) return;
         start(clip);
       },
       (e: unknown) => {
-        if (generation !== this.generation || this.position !== index) return;
+        if (generation !== this.generation || this.position !== index || this.store !== store) return;
         if (!(e instanceof ClipError && e.stage === 'closed')) this.deps.log?.(e);
         this.failPlayback(index, e instanceof ClipError ? e.code : 'unknown');
         handleError();
@@ -688,11 +706,13 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
       this.deps.emit('ActiveSegmentChange', this.currentSegment);
       this.completedScope = 'selection';
       this.completed = true;
+      this.halted = true;
       this.deps.emit('Complete', null);
     } else if (this.position === last) {
       this.position = this.backwardStopIndex ?? 0;
       this.completedScope = 'document';
       this.completed = true;
+      this.halted = true;
       this.deps.emit('Complete', null);
     } else {
       this.position++;

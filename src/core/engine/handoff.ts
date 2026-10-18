@@ -205,7 +205,7 @@ export class Handoff<Clip extends EngineClip> {
       this.updatePausedNotice();
       this.noteOldRequests();
       const now = this.deps.clock.now();
-      if (this.session.paused) this.deadline = now + HANDOFF_SWITCH_MS;
+      if (this.session.waitsForPlay) this.deadline = now + HANDOFF_SWITCH_MS;
       if (now > this.deadline) {
         this.fail(new Error('OpenReader: no prepared handoff boundary was reached'));
         return;
@@ -248,7 +248,7 @@ export class Handoff<Clip extends EngineClip> {
     try {
       await this.within(this.store.get(index), HANDOFF_REQUEST_MS, 'OpenReader: preparing the next voice timed out');
       if (!this.valid()) return;
-      if (!this.session.paused) await this.openOutput();
+      if (!this.session.waitsForPlay) await this.openOutput();
       if (!this.valid()) return;
       this.ready.add(index);
       const report = this.options.report;
@@ -267,7 +267,7 @@ export class Handoff<Clip extends EngineClip> {
         `voice audio ready: segment ${index}, ${observed.elapsedMs} ms, playing ${observed.playingIndex} at ${observed.progress}, timings ${observed.oldTimings}/${observed.newTimings}`,
       );
       this.missed = Math.max(this.missed, this.session.position - index);
-      if (this.waitingAt === index && this.session.position === index && !this.session.paused) {
+      if (this.waitingAt === index && this.session.position === index && !this.session.waitsForPlay) {
         // The reading waited for this: the new voice takes the sentence from its start
         this.waitingAt = null;
         this.commit('sentence', index, 0, 0);
@@ -289,7 +289,7 @@ export class Handoff<Clip extends EngineClip> {
   private armWord(): boolean {
     const s = this.session;
     const report = this.options.report;
-    if (s.paused) return false;
+    if (s.waitsForPlay) return false;
     const index = s.position;
     if (this.sentenceOnlyIndex === index) {
       report.wordDecision = 'paused-sentence-fallback';
@@ -342,7 +342,7 @@ export class Handoff<Clip extends EngineClip> {
     if (!this.valid() || s.playingSource !== armed) {
       this.cancel();
       // Called off between the last look and the cut: the old voice reads on from that word's end
-      if (!s.ended && !s.paused && s.playingSource === armed) s.continueFrom(boundary.end);
+      if (!s.ended && !s.waitsForPlay && s.playingSource === armed) s.continueFrom(boundary.end);
       return;
     }
     this.commit('word', index, boundary.offset, boundary.charStart);
@@ -363,7 +363,7 @@ export class Handoff<Clip extends EngineClip> {
    */
   sentenceStart(index: number): boolean {
     const s = this.session;
-    if (!this.valid() || s.paused || !this.ready.has(index) || (s.currentIndex === index && !s.landing)) return false;
+    if (!this.valid() || s.waitsForPlay || !this.ready.has(index) || (s.currentIndex === index && !s.landing)) return false;
     return this.commit('sentence', index, 0, 0);
   }
 
@@ -379,7 +379,7 @@ export class Handoff<Clip extends EngineClip> {
     }
     const report = this.options.report;
     report.waitedAt = index;
-    if (this.ready.has(index) && !this.session.paused) {
+    if (this.ready.has(index) && !this.session.waitsForPlay) {
       this.commit('sentence', index, 0, 0);
       return;
     }
@@ -413,7 +413,7 @@ export class Handoff<Clip extends EngineClip> {
   private pausedBoundary(): WordBoundary | null {
     const s = this.session;
     const index = s.position;
-    if (!this.valid() || !s.paused || !this.ready.has(index) || s.currentIndex !== index) return null;
+    if (!this.valid() || !s.waitsForPlay || !this.ready.has(index) || s.currentIndex !== index) return null;
     return pausedWordHandoff(
       String(this.segments[index]?.text ?? ''),
       s.timings,
@@ -426,7 +426,7 @@ export class Handoff<Clip extends EngineClip> {
 
   private updatePausedNotice(): void {
     const s = this.session;
-    if (!this.valid() || !s.paused) return;
+    if (!this.valid() || !s.waitsForPlay) return;
     // Play continues with the new voice: at the paused word, or from the start of the sentence it will speak
     const ready = !!this.pausedBoundary() || (this.ready.has(s.position) && (s.currentIndex !== s.position || s.landing));
     if (ready === this.noticeReady) return;
@@ -445,7 +445,7 @@ export class Handoff<Clip extends EngineClip> {
   /** The manager's `play`, with a switch pending: `proceed` plays, after the new voice has taken the paused word if it can. */
   play(proceed: () => void): void {
     const s = this.session;
-    if (this.valid() && s.paused && this.ready.has(s.position) && !this.deps.audio.running()) {
+    if (this.valid() && s.waitsForPlay && this.ready.has(s.position) && !this.deps.audio.running()) {
       if (!this.resumePending) {
         this.resumePending = true;
         this.openOutput().then(
@@ -471,7 +471,7 @@ export class Handoff<Clip extends EngineClip> {
   private resumePrepared(): void {
     const s = this.session;
     const index = s.position;
-    if (!this.valid() || !s.paused || !this.ready.has(index) || !this.deps.audio.running()) return;
+    if (!this.valid() || !s.waitsForPlay || !this.ready.has(index) || !this.deps.audio.running()) return;
     const boundary = this.pausedBoundary();
     // Never jump over an unaligned word to reach a later usable cut
     if (!boundary) {
@@ -529,7 +529,7 @@ export class Handoff<Clip extends EngineClip> {
         return;
       }
       // Paused, the new voice is selected and Play reads in it: nothing to wait for (issue #154)
-      if (s.paused || (s.isPlaying && this.deps.audio.running())) {
+      if (s.waitsForPlay || (s.isPlaying && this.deps.audio.running())) {
         this.options.notice('selected');
         return;
       }

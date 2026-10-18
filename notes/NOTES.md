@@ -769,3 +769,5 @@ then) and is in the git history before that day.
 - A group library is numbered per computer, so its positions never met (issues #187, #207)
 - Verified on 1.16.12-beta5, and the voice the run left behind (issues #187, #207)
 - Snapshots and Reading Mode left M to Zotero's lock (issue #188)
+- A pick after an error or the end waited two minutes for nothing (issue #194)
+- The old voice's late answer was reported as a failed reading (issue #196)
