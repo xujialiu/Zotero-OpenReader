@@ -16,8 +16,11 @@ Against the test WebDAV folder (`MEMORY/testing.md`, Test WebDAV first),
 never the owner's own, with *Sync reading positions between computers* on;
 the snapshot, isolation and cleanup gate are the
 [position sync case](position-sync.md)'s. The fixture is a generated PDF
-of the run's own (at least five pages), imported into My Library, with no
-position held for it before the run; nothing plays out loud. The owner's
+of the run's own (at least five pages, page 4 a body paragraph of several
+lines: a page holding one short line is classified `excluded` by Zotero's
+analysis and never segmented, so a resume there falls to page 5), imported
+into My Library, with no position held for it before the run; nothing
+plays out loud. The owner's
 profile has My Library only, so the entry is written under a number no
 library has here: `L` is a number with `Zotero.Libraries.exists(L)`
 false. Two real numberings of one group need two profiles and are not
@@ -36,9 +39,13 @@ unit-tested (`test/read-aloud/position-transport.test.ts`,
    (reader-open): N remote, M merged, 1 adopted (1 under this computer's
    library number), 0 dropped`; `positionSync().transport` `lastOutcome`
    `ok`, `adopted` 1, `remapped` 1; `localEntries` one more than before;
-   the store holds `1/<fixture key>` with that `ts` and `pos`. On
-   1.16.12-beta4 the same file gives `0 adopted`, no `remapped` field and
-   no row for the fixture (the bug).
+   the store holds `1/<fixture key>` with that `ts` and `pos`. The file
+   keeps `{lib: L}` as written; the reader-open sync merged before it
+   adopted, so this computer's copy `{lib: 1}` with the same `ts` goes up
+   on the next sync (measured 2026-10-18: the resume pull of item 2,
+   `… 0 adopted, 0 dropped, uploaded`). On 1.16.12-beta4 the same file
+   gives `0 adopted`, no `remapped` field and no row for the fixture (the
+   bug).
 
 ### 2
 
@@ -46,11 +53,17 @@ unit-tested (`test/read-aloud/position-transport.test.ts`,
    1, muted, with a non-metered System voice: Shift+Space logs `position
    sync (resume)` first, and the first segment read is on page 4 at the
    crafted point (`pageIndex` 3), not on the page in view. Stop reading.
+   Needs a profile whose Player offers a System voice: on 2026-10-18 the
+   signed-out profile's System entry listed none and no session started
+   (NOT TESTABLE; the resume line came first, and the start target was the
+   stored point).
 
 ### 3
 
 3. **The file settles.** Close the fixture's tab (a sync): `uploaded`
-   true, and the file holds both `{lib: 1, key: <fixture key>}` and `{lib:
+   true on that sync or on the stop's pause sync before it (2026-10-18:
+   the pause sync carried it, the close read `uploaded` false), and the
+   file holds both `{lib: 1, key: <fixture key>}` and `{lib:
    L, key: <fixture key>}` (item 2's reading moved this computer's copy on:
    its `ts` newer than the crafted one, `L`'s entry as written). Open and
    close another tab twice: each sync `uploaded` false, the file byte for
@@ -58,4 +71,8 @@ unit-tested (`test/read-aloud/position-transport.test.ts`,
 
 Cleanup: the fixture's two entries out of the file, which goes back as
 found; the fixture's row, Document Id mapping and tombstone as the
-position sync case's cleanup gate says; the switches restored last.
+position sync case's cleanup gate says; the switches restored last. A
+voice picked to start item 2's session moves `readAloud.memory` and
+`readAloud.defaultVoice`: snapshot both first, and put them back through a
+voice pick, since a pref write is overwritten by the running memory-sync
+(2026-10-18: both were left naming a System voice instead of the owner's).
