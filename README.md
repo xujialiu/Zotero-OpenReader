@@ -379,6 +379,9 @@ provider (or Zotero's Standard / Premium), language, voice.
   and **Zotero Standard** and **Zotero Premium** are Zotero's own, each
   while its switch is on; multilingual voices sit under "Multiple
   languages", first in the language column.
+- **Every region and dialect is a language of its own**, here and in the
+  player: Chinese (Hong Kong) beside Chinese (China), Chinese (Liaoning).
+  Each is named as the OpenReader app names it.
 - **▶** — a sample in the voice's own language: your voices cost one short
   request, Zotero's own cost nothing.
 - *Offer only favorite voices* trims the player to the marked

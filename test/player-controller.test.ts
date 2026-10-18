@@ -10,8 +10,10 @@ function fixture() {
   const manager = {
     active: false, paused: true, speed: 1.2, lang: 'en', region: 'US', currentVoiceRegion: 'US',
     selectedTier: 'fish', selectedVoiceID: 'fish::one', buffering: false, error: null,
-    allVoices: [{ id: 'fish::one', name: 'One', tier: 'fish' }],
-    voicesForLanguage: [{ id: 'fish::one', name: 'One', tier: 'fish' }],
+    allVoices: [{ id: 'fish::one', name: 'One', tier: 'fish', language: 'en-US' }] as { id: string; name?: string; label?: string; tier: string; language?: string }[],
+    voicesForLanguage: [{ id: 'fish::one', name: 'One', tier: 'fish', language: 'en-US' }],
+    // ReadAloudManager's: the selected entry's voices, and their languages as Zotero normalizes them
+    get voices() { return this.allVoices.filter((v) => v.tier === this.selectedTier); },
     languages: new Set(['en-US']), tiers: new Set(['fish']),
     selectVoice: vi.fn(), selectTier: vi.fn(), setLanguage: vi.fn(), setSpeed: vi.fn(),
   };
@@ -119,6 +121,44 @@ describe('player controller', () => {
     expect(f.start).not.toHaveBeenCalled();
     await expect(f.controller.command(f.reader, 'navigate', 'arbitrary')).rejects.toThrow();
     expect(f.navigate).toHaveBeenCalledTimes(1);
+  });
+  // Issue #223: Zotero's `languages` has one zh for every Chinese region;
+  // the Player lists the entry's locales, each its own language, named by
+  // what tells it apart, and shows the selected voice's own
+  it('lists each locale of the entry as its own language, and selects the selected voice’s', async () => {
+    const f = fixture();
+    const voices = [
+      { id: 'azure::cn', label: '晓晓', tier: 'azure', language: 'zh-CN' },
+      { id: 'azure::hk', label: '曉曼', tier: 'azure', language: 'zh-HK' },
+      { id: 'azure::tw', label: '曉臻', tier: 'azure', language: 'zh-TW' },
+      { id: 'azure::ln', label: '晓北', tier: 'azure', language: 'zh-CN-liaoning' },
+      { id: 'azure::yue', label: '晓敏', tier: 'azure', language: 'yue-CN' },
+      { id: 'azure::ava', label: 'Ava Multilingual', tier: 'azure', language: 'mul' },
+      { id: 'azure::any', label: 'Any', tier: 'azure', language: '*' },
+      { id: 'fish::one', label: 'One', tier: 'fish', language: 'en-US' },
+    ];
+    Object.assign(f.manager, {
+      selectedTier: 'azure', selectedVoiceID: 'azure::hk', lang: 'zh', region: 'HK', currentVoiceRegion: null,
+      allVoices: voices, languages: new Set(['zh', 'zh-CN-liaoning', 'yue', 'mul']), tiers: new Set(['azure', 'fish']),
+    });
+    const state = f.controller.snapshot(f.reader);
+    expect(state.locales).toEqual([
+      { value: 'mul', label: 'Multilingual' },
+      { value: 'yue-CN', label: 'Cantonese' },
+      { value: 'zh-CN', label: 'Chinese (China)' },
+      { value: 'zh-HK', label: 'Chinese (Hong Kong)' },
+      { value: 'zh-CN-liaoning', label: 'Chinese (Liaoning)' },
+      { value: 'zh-TW', label: 'Chinese (Taiwan)' },
+    ]);
+    expect(state.locale).toBe('zh-HK');
+    // A stale requested region does not move it: the voice decides
+    f.manager.region = 'TW';
+    expect(f.controller.snapshot(f.reader).locale).toBe('zh-HK');
+    await f.controller.command(f.reader, 'locale', 'zh-TW');
+    expect(f.manager.setLanguage).toHaveBeenCalledWith('zh', { region: 'TW', persist: true });
+    await f.controller.command(f.reader, 'locale', 'zh-CN-liaoning');
+    expect(f.manager.setLanguage).toHaveBeenCalledWith('zh', { region: 'CN-liaoning', persist: true });
+    await expect(f.controller.command(f.reader, 'locale', 'zh')).rejects.toThrow();
   });
   it('clones language options into the reader realm and validates provider and locale choices', async () => {
     const f = fixture();

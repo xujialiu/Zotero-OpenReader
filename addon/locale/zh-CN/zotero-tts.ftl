@@ -136,6 +136,15 @@ ztts-help-default-voice =
     .value = ?
     .help = 新文档先用默认语音；在播放器里换声音只影响当前文档。
 
+# A dialect in the language lists is named by its place: Chinese (Liaoning) (issue #223).
+# The ids end in the dialect's tag as the provider sends it (Azure's zh-CN-liaoning).
+ztts-place-guangxi = 广西
+ztts-place-henan = 河南
+ztts-place-liaoning = 辽宁
+ztts-place-shaanxi = 陕西
+ztts-place-shandong = 山东
+ztts-place-sichuan = 四川
+
 
 ## Reading
 

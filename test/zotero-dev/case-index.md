@@ -45,6 +45,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Voice samples in the browser](cases/voice-samples.md) — 2.6, 2.11
 - [The player's voice list](cases/reader-voice-list.md) — 3.1, 3.3
 - [One regional list for the player and shortcuts (issue #106)](cases/player-voice-list.md)
+- [Every region a language of its own, named as on the phone (issue #223)](cases/regional-languages.md)
 - [One entry per provider in the player's first dropdown (issue #110)](cases/provider-tiers.md)
 - [Zotero's Standard and Premium behind switches of their own (issue #111)](cases/zotero-tiers.md)
 - [Each Zotero tier's remaining time in the settings, with Add more time and Log in (issues #159, #140)](cases/zotero-credits.md)

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clampSpeed,
+  isLanguageSupported,
   isZoteroLangKey,
   nextSpeed,
   persistSpeed,
@@ -9,6 +10,7 @@ import {
   resolveVoiceLang,
   SPEED_MAX,
   SPEED_MIN,
+  zoteroKeepsRegion,
 } from '../../src/core/read-aloud-speed';
 import type { PrefsBackend } from '../../src/core/settings';
 
@@ -115,6 +117,43 @@ describe('resolveVoiceLang', () => {
     expect(resolveVoiceLang('en', ['en-GB', 'en-US'], ['en-AU'])).toBe('en-GB');
     expect(resolveVoiceLang('pt', ['pt-PT', 'pt-BR'])).toBe('pt-BR');
     expect(resolveVoiceLang('de', ['de-AT', 'de-DE'])).toBe('de-AT');
+  });
+});
+
+// What Zotero's manager offers for a language (isLanguageSupported, reader.js
+// 38110 in Zotero 11.0): the base language, and with a region asked for, that
+// region or none — both through normalizeLanguage, so CN, HK and TW are no
+// region at all, and XA and SA are both 001 (issue #223)
+describe('isLanguageSupported', () => {
+  it('admits a voice of the language, in the region asked for or none, and a wildcard one', () => {
+    expect(isLanguageSupported('en-US', 'en-US')).toBe(true);
+    expect(isLanguageSupported('en', 'en-US')).toBe(true);
+    expect(isLanguageSupported('en-GB', 'en-US')).toBe(false);
+    expect(isLanguageSupported('en-GB', 'en')).toBe(true);
+    expect(isLanguageSupported('*', 'de')).toBe(true);
+    expect(isLanguageSupported('de-DE', 'en')).toBe(false);
+  });
+
+  it('sees every Chinese region as none, and both Arabic ones as the world', () => {
+    expect(isLanguageSupported('zh-CN', 'zh-HK')).toBe(true);
+    expect(isLanguageSupported('zh-TW', 'zh-HK')).toBe(true);
+    expect(isLanguageSupported('cmn-CN', 'zh')).toBe(true);
+    expect(isLanguageSupported('ar-SA', 'ar-XA')).toBe(true);
+    expect(isLanguageSupported('ar-EG', 'ar-XA')).toBe(false);
+    // A dialect is a region to Zotero, and a Mandarin voice a regionless fallback for it
+    expect(isLanguageSupported('zh-CN', 'zh-CN-liaoning')).toBe(true);
+    expect(isLanguageSupported('zh-CN-sichuan', 'zh-CN-liaoning')).toBe(false);
+  });
+});
+
+describe('zoteroKeepsRegion', () => {
+  it('says whether Zotero tells a locale’s region apart', () => {
+    expect(zoteroKeepsRegion('en-US')).toBe(true);
+    expect(zoteroKeepsRegion('zh-CN-liaoning')).toBe(true);
+    expect(zoteroKeepsRegion('sr-Latn-RS')).toBe(true);
+    expect(zoteroKeepsRegion('en')).toBe(true);
+    expect(zoteroKeepsRegion('mul')).toBe(true);
+    for (const lost of ['zh-CN', 'zh-HK', 'zh-TW', 'ar-XA', 'ar-SA', 'cmn-CN', 'yue-CN']) expect(zoteroKeepsRegion(lost)).toBe(false);
   });
 });
 

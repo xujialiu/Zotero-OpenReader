@@ -8,6 +8,7 @@ import type { CatalogEntry } from '../../src/read-aloud/catalog';
 import type { SpeedManagerLike } from '../../src/read-aloud/default-speed';
 import { parseFavoriteVoices } from '../../src/read-aloud/favorites';
 import { READ_ALOUD_MEMORY_PREF, readMemory, SPEED_PERCENT_PREF } from '../../src/read-aloud/read-aloud-memory';
+import { languageNames } from '../../src/read-aloud/language-dropdown';
 import { encodeVoiceId } from '../../src/read-aloud/voice-catalog';
 import type { ZoteroVoice } from '../../src/read-aloud/zotero-voices';
 import {
@@ -130,16 +131,8 @@ const ZOTERO_VOICES: ZoteroVoice[] = [
   { id: 'zotero-standard-ben', label: 'Ben', locale: 'de-DE', tier: 'standard' },
 ];
 
-// Names as read-aloud/language-dropdown.ts asks for them: the base tag where
-// the tier holds one region of the language, the full tag where several
-const LOCALE_NAMES: Record<string, string> = {
-  mul: 'Multilingual',
-  zh: 'Chinese',
-  en: 'English',
-  'en-US': 'English (United States)',
-  'en-GB': 'English (United Kingdom)',
-  de: 'German',
-};
+// Names as the player's dropdown writes them (read-aloud/language-dropdown.ts), in English
+const namesInEnglish = (locales: readonly string[]) => languageNames(locales, { locale: 'en' });
 
 function setup(
   options: {
@@ -158,6 +151,8 @@ function setup(
     readingTabs?: string[];
     /** The setup the samples are made with (issue #190); omitted, the dep is left out. */
     sampleSetup?: () => string;
+    /** How the languages are named; English, as the player's dropdown writes them, unless said otherwise. */
+    languageNames?: (locales: readonly string[]) => Map<string, string>;
     /** The first column as the pane hands it over; absent, the providers that listed and Zotero's two. */
     tierColumns?: TierColumn[];
     /** The reading guard's question and its Stop (issue #71); absent, the guard only refuses. */
@@ -204,7 +199,7 @@ function setup(
     }),
     sampleZoteroVoice: vi.fn(async (voiceId: string) => new Blob([`zotero:${voiceId}`])),
     player,
-    localeName: (code: string) => LOCALE_NAMES[code] ?? code,
+    languageNames: options.languageNames ?? namesInEnglish,
     readAloudManagers: vi.fn(() => options.managers ?? []),
     globalSpeed: vi.fn(() => prefs.store[GLOBAL_SPEED_PREF] !== false),
     sameVoice: vi.fn(() => prefs.store[SAME_VOICE_PREF] !== false),
@@ -412,22 +407,33 @@ describe('loading the catalog', () => {
     expect(t.locales()).toEqual(['English (2)', 'German (1)']);
   });
 
-  // Zotero's normalizeLanguage drops the Chinese regions: the popup has one
-  // "Chinese" offering every Chinese voice, and so has the column; a row
-  // keeps its own locale, whose region the pick remembers
-  it('files every Chinese region under one Chinese entry, as the popup does', async () => {
+  // Issue #223: every locale is its own language, as on the phone — Zotero's
+  // own dropdown merged the Chinese regions into one "Chinese"; a dialect is
+  // named by its place, Hong Kong as Hong Kong
+  it('lists each Chinese region as its own language, named by what tells it apart', async () => {
     const t = setup({
-      catalog: [...CATALOG, { provider: 'azure', voices: [{ id: 'zh-TW-YunJheNeural', label: '雲哲', locale: 'zh-TW' }] }],
+      catalog: [...CATALOG, {
+        provider: 'azure',
+        voices: [
+          { id: 'zh-TW-YunJheNeural', label: '雲哲', locale: 'zh-TW' },
+          { id: 'zh-HK-HiuMaanNeural', label: '曉曼', locale: 'zh-HK' },
+          { id: 'zh-CN-liaoning-XiaobeiNeural', label: '晓北', locale: 'zh-CN-liaoning' },
+          { id: 'yue-CN-XiaoMinNeural', label: '晓敏', locale: 'yue-CN' },
+        ],
+      }],
     });
     await t.rows.load();
-    expect(t.locales()).toEqual(['Multilingual (2)', 'Chinese (2)', 'English (1)']);
-    await t.pickLocale('Chinese');
-    expect(t.labels()).toEqual(['晓晓', '雲哲']);
-    await t.label(1).fire('click');
+    expect(t.locales()).toEqual([
+      'Multilingual (2)', 'Cantonese (1)', 'Chinese (China) (1)', 'Chinese (Hong Kong) (1)', 'Chinese (Liaoning) (1)',
+      'Chinese (Taiwan) (1)', 'English (1)',
+    ]);
+    await t.pickLocale('Chinese (Taiwan)');
+    expect(t.labels()).toEqual(['雲哲']);
+    await t.label(0).fire('click');
     expect(t.memory().voice).toEqual({ id: encodeVoiceId('azure', 'zh-TW-YunJheNeural'), lang: 'zh' });
     expect(t.zoteroVoices()).toBeUndefined();
-    expect(t.selectedLocale()).toBe('Chinese (2)');
-    expect(t.status()).toBe('Default voice: Azure | Chinese | 雲哲 | Global speed: 1.0×');
+    expect(t.selectedLocale()).toBe('Chinese (Taiwan) (1)');
+    expect(t.status()).toBe('Default voice: Azure | Chinese (Taiwan) | 雲哲 | Global speed: 1.0×');
   });
 
   // The provider is the entry the voice sits under (issue #110): no prefix
@@ -1906,7 +1912,7 @@ describe('labelOf', () => {
 // listed, why.
 describe('statusLine', () => {
   const voices = browserVoices(CATALOG, ZOTERO_VOICES);
-  const tiers = groupVoicesByTier(voices, (code) => LOCALE_NAMES[code] ?? code, listedColumns(CATALOG));
+  const tiers = groupVoicesByTier(voices, namesInEnglish, listedColumns(CATALOG));
   const bella = encodeVoiceId('local', 'af_bella');
   const choice = { id: bella, lang: 'en' };
   const home = defaultVoiceRows(voices, choice)[0];
@@ -2052,13 +2058,15 @@ describe('the columns open on the default in view', () => {
       voices: [...LANGUAGES.map((code) => ({ id: `v_${code}`, label: `v_${code}`, locale: code })), ...eleven('as'), ...eleven('av')],
     },
   ];
+  // Named by their codes, so the column's order is the codes'
+  const codes = (locales: readonly string[]) => new Map(locales.map((locale) => [locale, locale]));
   const remembered = (id: string, lang: string) => ({ [READ_ALOUD_MEMORY_PREF]: JSON.stringify({ speed: null, voice: { id, lang } }) });
   // 'as' is the ninth language (index 8); its voices sort as_01 … as_11 then v_as, so as_10 is the tenth row (index 9)
   const deep = encodeVoiceId('local', 'as_10');
   const centered = (index: number) => index * ROW + ROW / 2 - (4 * ROW) / 2;
 
   it('scrolls both columns to the selection when it is out of view, centered', async () => {
-    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    const t = setup({ catalog: wide, zotero: [], languageNames: codes, prefs: remembered(deep, 'as') });
     await t.rows.load();
     expect(t.selectedLocale()).toBe('as (12)');
     expect(t.highlighted()).toEqual(['as_10']);
@@ -2067,7 +2075,7 @@ describe('the columns open on the default in view', () => {
   });
 
   it('leaves a column alone when the selection is in view already', async () => {
-    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    const t = setup({ catalog: wide, zotero: [], languageNames: codes, prefs: remembered(deep, 'as') });
     await t.rows.load();
     const before = t.el(VOICE_BROWSER_IDS.voices).scrollTop;
     // A row inside the viewport clicked: the default moves there, and the list does not move under the pointer
@@ -2078,7 +2086,7 @@ describe('the columns open on the default in view', () => {
   });
 
   it('does not move the language column on a language click', async () => {
-    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    const t = setup({ catalog: wide, zotero: [], languageNames: codes, prefs: remembered(deep, 'as') });
     await t.rows.load();
     const locales = t.el(VOICE_BROWSER_IDS.locales);
     // The user scrolled back to the top and clicks an entry there
@@ -2091,7 +2099,7 @@ describe('the columns open on the default in view', () => {
   // The voice column on a tier or language click is a new list, and nothing
   // is under the pointer there: it opens at its top, or on the default row
   it('opens the voice list at its top for a language without the default, wherever the last list was scrolled', async () => {
-    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    const t = setup({ catalog: wide, zotero: [], languageNames: codes, prefs: remembered(deep, 'as') });
     await t.rows.load();
     expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(centered(9));
     await t.pickLocale('av');
@@ -2101,7 +2109,7 @@ describe('the columns open on the default in view', () => {
   });
 
   it('opens the voice list on the default row when a language click returns to its language', async () => {
-    const t = setup({ catalog: wide, zotero: [], prefs: remembered(deep, 'as') });
+    const t = setup({ catalog: wide, zotero: [], languageNames: codes, prefs: remembered(deep, 'as') });
     await t.rows.load();
     await t.pickLocale('av');
     await t.pickLocale('as');
@@ -2112,7 +2120,7 @@ describe('the columns open on the default in view', () => {
   });
 
   it('opens the voice list at its top when the default row is within the first rows', async () => {
-    const t = setup({ catalog: wide, zotero: [], prefs: remembered(encodeVoiceId('local', 'as_02'), 'as') });
+    const t = setup({ catalog: wide, zotero: [], languageNames: codes, prefs: remembered(encodeVoiceId('local', 'as_02'), 'as') });
     await t.rows.load();
     await t.pickLocale('av');
     await t.pickLocale('as');
@@ -2121,7 +2129,7 @@ describe('the columns open on the default in view', () => {
   });
 
   it('scrolls to a default picked elsewhere that is off screen', async () => {
-    const t = setup({ catalog: wide, zotero: [], prefs: remembered(encodeVoiceId('local', 'as_01'), 'as') });
+    const t = setup({ catalog: wide, zotero: [], languageNames: codes, prefs: remembered(encodeVoiceId('local', 'as_01'), 'as') });
     await t.rows.load();
     expect(t.el(VOICE_BROWSER_IDS.voices).scrollTop).toBe(0);
     setRemembered(t.prefs, { speed: null, voice: { id: deep, lang: 'as' } });

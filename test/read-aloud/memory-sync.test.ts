@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { MULTILINGUAL } from '../../src/core/providers/types';
-import { READ_ALOUD_VOICES_PREF, type VoicesMap } from '../../src/core/read-aloud-speed';
+import { isLanguageSupported, normalizeLanguage, READ_ALOUD_VOICES_PREF, type VoicesMap } from '../../src/core/read-aloud-speed';
 import type { PrefsBackend } from '../../src/core/settings';
 import { setDefaultSpeed } from '../../src/read-aloud/default-speed';
 import { createReadAloudMemorySync, READ_ALOUD_VOICES_OBSERVER, type ReadAloudMemoryDeps } from '../../src/read-aloud/memory-sync';
@@ -190,10 +190,10 @@ function fakeReader(
       manager._region = null;
       manager._voiceID = null;
     }
-    // Zotero's isLanguageSupported: the base language, and with a region set, that region or none
-    const forLang = tierVoices.filter(
-      (v) => baseOf(v.language) === baseOf(manager._lang) && (!manager._region || !regionOf(v.language) || regionOf(v.language) === manager._region),
-    );
+    // Zotero's isLanguageSupported: the base language, and with a region set, that region or none —
+    // normalized, so every Chinese region is none and XA and SA are both 001 (issue #223)
+    const asked = manager._region ? `${manager._lang}-${manager._region}` : manager._lang;
+    const forLang = tierVoices.filter((v) => isLanguageSupported(v.language, asked));
     if (manager._voiceID && forLang.some((v) => v.id === manager._voiceID)) {
       manager._selectedTier = tierOf(manager._voiceID);
       return;
@@ -215,9 +215,10 @@ function fakeReader(
     const tierVoice = target ? persisted.tierVoices?.[target] : undefined;
     let pick: string | null = !regionChanged && available(tierVoice) ? tierVoice : !regionChanged && available(persisted.voice) ? persisted.voice : null;
     if (pick === null) {
-      // The first voice of the selected or the entry's region, else the first of the pool
+      // The first voice of the selected or the entry's region, else the first of the pool;
+      // a voice's region as Zotero's getVoiceRegion reads it, normalized
       const region = manager._region || persistedRegion;
-      pick = (region && pool.find((v) => regionOf(v.language) === region)?.id) || pool[0].id;
+      pick = (region && pool.find((v) => regionOf(normalizeLanguage(v.language)) === region)?.id) || pool[0].id;
     }
     manager._voiceID = pick;
     manager._selectedTier = tierOf(pick);
@@ -1900,6 +1901,138 @@ describe('explicit generic and regional language picks', () => {
     const { tab } = setup();
     tab.manager.setLanguage('en', { region: 'US', persist: false });
     expect(tab.manager.selectedVoiceID).toBe(generic.id);
+  });
+});
+
+// Issue #223: each locale is its own language in the Player, but Zotero's
+// manager resolves a pick through normalizeLanguage, which drops the regions
+// CN, HK and TW and maps XA and SA to 001 — so its own fallback lands on the
+// remembered Mandarin voice for Chinese (Hong Kong), and a provider switch
+// forgets Hong Kong. The sync stages the voice of the locale picked.
+describe('languages Zotero cannot tell apart', () => {
+  const v = (id: string, language: string, tier = 'azure') => ({ id: `azure::${id}`, language, tier, label: id });
+  const cn1 = v('zh-CN-XiaoxiaoNeural', 'zh-CN');
+  const cn2 = v('zh-CN-YunxiNeural', 'zh-CN');
+  const hk1 = v('zh-HK-HiuMaanNeural', 'zh-HK');
+  const hk2 = v('zh-HK-WanLungNeural', 'zh-HK');
+  const tw1 = v('zh-TW-HsiaoChenNeural', 'zh-TW');
+  const ln = v('zh-CN-liaoning-XiaobeiNeural', 'zh-CN-liaoning');
+  const chinese = [cn1, cn2, hk1, hk2, tw1, ln];
+
+  function setup(current: FakeVoice, entry: Record<string, unknown>, list: FakeVoice[] = chinese, lang = 'zh', tier = 'azure') {
+    const z = fakeZotero({ [lang]: entry }, { speed: 1.6, voice: { id: current.id, lang } });
+    const sync = createReadAloudMemorySync(z.deps);
+    const tab = fakeReader(lang, z, { active: true, speed: 1.6, selectedVoiceID: current.id, selectedTier: tier, region: null, persisted: entry, voices: list });
+    z.readers.push(tab.reader);
+    return { z, sync, tab };
+  }
+  const entryOf = (voice: FakeVoice, region: string | null = null) => ({ region, voice: voice.id, speed: 1.6, tierVoices: { [voice.tier]: voice.id } });
+
+  it('lands a Hong Kong pick on a Hong Kong voice, not on the remembered Mandarin one', () => {
+    const { z, sync, tab } = setup(cn2, entryOf(cn2));
+    sync.attach(tab.reader);
+    tab.manager.setLanguage('zh', { region: 'HK', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(hk1.id);
+    expect(z.voices().zh.voice).toBe(hk1.id);
+    expect(z.deps.debug).toHaveBeenCalledWith(expect.stringContaining(`staged an exact zh-HK voice for the language pick: ${hk1.id}`));
+    // With no Chinese voice remembered, Zotero's own fallback finds no Hong Kong one either: it takes its first
+    const fresh = setup(cn2, {});
+    fresh.sync.attach(fresh.tab.reader);
+    fresh.tab.manager.setLanguage('zh', { region: 'HK', persist: true });
+    expect(fresh.tab.manager.selectedVoiceID).toBe(hk1.id);
+  });
+
+  it('takes the remembered voice of the locale picked, and stages nothing for it', () => {
+    const entry = entryOf(hk2);
+    const { tab, sync } = setup(cn1, entry);
+    sync.attach(tab.reader);
+    tab.manager.setLanguage('zh', { region: 'HK', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(hk2.id);
+    expect(tab.manager._persistedVoices).toEqual(entry);
+  });
+
+  it('goes back from Hong Kong to Mandarin, and to Taiwan past a stale requested region', () => {
+    const { tab, sync } = setup(hk1, entryOf(hk1));
+    sync.attach(tab.reader);
+    tab.manager.setLanguage('zh', { region: 'CN', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(cn1.id);
+    tab.manager.setLanguage('zh', { region: 'HK', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(hk1.id);
+    // The requested region says Taiwan while the voice is Hong Kong's: Zotero's setLanguage would return at once
+    tab.manager._region = 'TW';
+    tab.manager.setLanguage('zh', { region: 'TW', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(tw1.id);
+  });
+
+  it('leaves a dialect, a region Zotero tells apart, to the rules of #91', () => {
+    const { tab, sync } = setup(cn2, entryOf(cn2));
+    sync.attach(tab.reader);
+    tab.manager.setLanguage('zh', { region: 'CN-liaoning', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(ln.id);
+  });
+
+  it('tells Zotero Premium’s two Arabic languages apart', () => {
+    const xa1 = { id: 'zotero-premium-ar-XA-1', language: 'ar-XA', tier: 'premium', label: 'Premium Voice 1' };
+    const xa2 = { id: 'zotero-premium-ar-XA-2', language: 'ar-XA', tier: 'premium', label: 'Premium Voice 2' };
+    const sa1 = { id: 'zotero-premium-ar-SA-1', language: 'ar-SA', tier: 'premium', label: 'Premium Voice 3' };
+    // Saudi Arabia's listed first, so Zotero's first-of-the-pool fallback is the wrong one for XA
+    const { tab, sync } = setup(xa2, entryOf(xa2), [sa1, xa1, xa2], 'ar', 'premium');
+    sync.attach(tab.reader);
+    tab.manager.setLanguage('ar', { region: 'SA', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(sa1.id);
+    tab.manager.setLanguage('ar', { region: 'XA', persist: true });
+    expect(tab.manager.selectedVoiceID).toBe(xa1.id);
+  });
+
+  // ReadAloudManager.selectTier (reader.js 84779-84791): the region of the voice
+  // carried over — none for a Chinese one — then the new entry's remembered voice
+  function zoteroSelectTier(tab: ReturnType<typeof fakeReader>, z: ReturnType<typeof fakeZotero>) {
+    const m = tab.manager;
+    tab.proto.selectTier = vi.fn((tier: string) => {
+      const voice = m.allVoices.find((one: FakeVoice) => one.id === m._voiceID);
+      const normalized = voice ? normalizeLanguage(voice.language) : '';
+      m._selectedTier = tier;
+      m._region = (normalized.includes('-') ? normalized.slice(normalized.indexOf('-') + 1) : null) ?? m._region;
+      m._voiceID = (m._persistedVoices as { tierVoices?: Record<string, string> }).tierVoices?.[tier] ?? null;
+      m._resolveVoice();
+      const now = m.allVoices.find((one: FakeVoice) => one.id === m._voiceID);
+      if (now) z.zoteroWrites(m.lang, { region: null, voice: now.id, speed: m.speed, tierVoices: { [now.tier]: now.id } });
+    });
+  }
+
+  it('keeps Hong Kong across a provider switch where the new entry has it, and nothing else', () => {
+    const sysCn = { id: 'system::macos/Tingting', language: 'zh-CN', tier: 'system', label: 'Tingting' };
+    const sysHk = { id: 'system::macos/Sinji', language: 'zh-HK', tier: 'system', label: 'Sinji' };
+    const entry = { region: null, voice: hk1.id, speed: 1.6, tierVoices: { system: sysCn.id, azure: hk1.id } };
+    const { tab, sync, z } = setup(hk1, entry, [...chinese, sysCn, sysHk]);
+    zoteroSelectTier(tab, z);
+    sync.attach(tab.reader);
+    tab.manager.selectTier('system');
+    expect(tab.manager.selectedVoiceID).toBe(sysHk.id);
+    expect(z.deps.debug).toHaveBeenCalledWith(expect.stringContaining(`staged a zh-HK voice for the provider pick: ${sysHk.id}`));
+    // And back: Azure's remembered voice is now System's, so Hong Kong is staged again
+    tab.manager.selectTier('azure');
+    expect(tab.manager.selectedVoiceID).toBe(hk1.id);
+    // An entry with no voice of the locale is left to Zotero
+    const other = setup(hk1, { ...entry, tierVoices: { system: sysCn.id, azure: hk1.id } }, [...chinese, sysCn]);
+    zoteroSelectTier(other.tab, other.z);
+    other.sync.attach(other.tab.reader);
+    other.tab.manager.selectTier('system');
+    expect(other.tab.manager.selectedVoiceID).toBe(sysCn.id);
+  });
+
+  it('stages nothing for a provider switch from a locale Zotero tells apart', () => {
+    const us = { id: 'azure::en-US-JennyNeural', language: 'en-US', tier: 'azure', label: 'Jenny' };
+    const sysUs = { id: 'system::macos/Samantha', language: 'en-US', tier: 'system', label: 'Samantha' };
+    const sysGb = { id: 'system::macos/Daniel', language: 'en-GB', tier: 'system', label: 'Daniel' };
+    const entry = { region: 'US', voice: us.id, speed: 1.6, tierVoices: { system: sysGb.id, azure: us.id } };
+    const { tab, sync, z } = setup(us, entry, [us, sysGb, sysUs], 'en');
+    zoteroSelectTier(tab, z);
+    sync.attach(tab.reader);
+    tab.manager.selectTier('system');
+    // Zotero carries US over itself and falls back from the GB voice to the first US one
+    expect(tab.manager.selectedVoiceID).toBe(sysUs.id);
+    expect(z.deps.debug).not.toHaveBeenCalledWith(expect.stringContaining('for the provider pick'));
   });
 });
 

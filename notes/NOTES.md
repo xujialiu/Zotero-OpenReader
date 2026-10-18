@@ -773,3 +773,7 @@ then) and is in the git history before that day.
 - The old voice's late answer was reported as a failed reading (issue #196)
 - OpenAI-compatible and Azure replies read as what they are (issues #198, #199, #200, #201, #202)
 - The shortcut recorder wrote keys it could not read and heard every field (issues #210, #211)
+
+### [2026-10-19](NOTES_2026-10-19.md)
+
+- Zotero resolves every Chinese region as one, so a language pick needs the plugin's voice (issue #223)

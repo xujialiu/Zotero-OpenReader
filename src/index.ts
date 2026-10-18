@@ -72,7 +72,7 @@ import { readReadAloudVoices, resolveVoiceLang } from './core/read-aloud-speed';
 import { runStartupSteps, type StartupReport } from './core/startup-steps';
 import { CATALOG_CAP_MS, listNamedCatalog, providerNaming, providerTierColumns, providerTierLabels, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
-import { dropdownLanguage, languageDisplayName } from './read-aloud/language-dropdown';
+import { languageNames, voiceLanguages } from './read-aloud/language-dropdown';
 import { decodeVoiceId, pluginVoiceTier, zoteroTierLabel } from './read-aloud/voice-catalog';
 import { createProviderTiers, type ProviderTiers } from './read-aloud/provider-tiers';
 import { createWindowWrapper } from './read-aloud/window-interface';
@@ -2867,7 +2867,7 @@ function readerRows(row: (reader: any) => unknown): unknown[] {
 }
 
 /** A language tag named as the popup's dropdown names it, in the app's locale — what the pane hands the voice browser too. */
-const appLanguageName = (code: string) => languageDisplayName(code, Zotero.locale ?? 'en');
+const appLanguageNames = (locales: readonly string[]) => languageNames(locales, { locale: Zotero.locale ?? 'en' });
 
 /** What this start's split of the old OpenAI section did (core/openai-split.ts); null when it found no old section. TEMPORARY, issue #113. */
 let openaiSplitReport: SplitReport | null = null;
@@ -3770,7 +3770,7 @@ const diagnostics = {
       });
       const rows = defaultVoiceRows(voices, memory.voice);
       const home = rows[0] ?? null;
-      const tiers = groupVoicesByTier(voices, appLanguageName, columns);
+      const tiers = groupVoicesByTier(voices, appLanguageNames, columns);
       return JSON.stringify(
         {
           memory,
@@ -3784,7 +3784,7 @@ const diagnostics = {
           problems,
           rows: rows.map((r) => ({ tier: r.tier, locale: r.locale, label: r.label, id: r.encoded })),
           // The language entry the row sits under, named as the popup's dropdown names it
-          opensOn: home ? { tier: home.tier, language: dropdownLanguage(home.locale), name: languageNameOf(tiers, home) } : 'the usual tier (no listed row is the default)',
+          opensOn: home ? { tier: home.tier, language: home.locale, name: languageNameOf(tiers, home) } : 'the usual tier (no listed row is the default)',
           // The pane's line as it opens (statusLine): the slider starts at startingSpeed, each half answers to its "everywhere" switch, then the not-a-favorite warning and the listing trouble
           status: statusLine({ voices, problems, choice: memory.voice, home, tiers, speed: globalSpeed ? startingSpeed(prefs) : null, sameVoice, favoritesOnly, favorites }),
         },
@@ -3796,14 +3796,16 @@ const diagnostics = {
     }
   },
   /**
-   * The voice browser's language column beside the popup's dropdown, from
-   * inside the sandbox: per tier, the entries the browser shows for the
-   * very listing the pane gets, and for every open reader whose popup has
-   * loaded its voices, the languages its manager offers on the tier it is
-   * on (`manager.languages` — Zotero's normalized codes). The two sets
+   * The voice browser's language column beside the Player's language
+   * dropdown, from inside the sandbox: per tier, the languages the browser
+   * shows for the very listing the pane gets, and for every open reader
+   * whose Player has loaded its voices, the languages its dropdown offers
+   * on the tier it is on (`player`, with their names, and the selected
+   * one), beside the manager's `languages` — Zotero's normalized codes,
+   * one zh for every Chinese region (issue #223). `player` and `browser`
    * must match while every voice is offered (favorites-only off, Zotero's
-   * own Local voices hidden); the names are compared with the dropdown by
-   * eye.
+   * own Local voices hidden); the names are the browser's in Zotero's
+   * locale and the Player's in the sandbox's.
    */
   languageColumn: async () => {
     try {
@@ -3815,13 +3817,15 @@ const diagnostics = {
         zoteroError = String(e);
       }
       const catalog = await withTimeout(listCatalog(), CATALOG_CAP_MS, () => new Error(`No voice list within ${Math.round(CATALOG_CAP_MS / 1000)} s`));
-      const tiers = groupVoicesByTier(browserVoices(catalog, zotero), appLanguageName, providerTierColumns(loadSettings(prefs)));
+      const tiers = groupVoicesByTier(browserVoices(catalog, zotero), appLanguageNames, providerTierColumns(loadSettings(prefs)));
       const column = (tier: unknown) => tiers.find((g) => g.tier === tier)?.languages.map((l) => l.language).sort() ?? [];
       const readers = (Zotero.Reader._readers ?? []).map((r: any) => {
         const manager = r?._internalReader?._readAloudManager;
         const tier = safe(() => manager?._selectedTier ?? null);
-        const languages = safe(() => [...(manager?.languages ?? [])]);
-        const popup = Array.isArray(languages) ? [...languages].sort() : languages;
+        const zotero = safe(() => [...(manager?.languages ?? [])].sort());
+        const state = safe(() => playerController.snapshot(r)) as ReturnType<typeof playerController.snapshot> | string;
+        const locales = typeof state === 'object' ? state.locales : null;
+        const player = locales ? locales.map((l) => l.value).sort() : state;
         const browser = column(tier);
         return {
           title: safe(() => {
@@ -3829,9 +3833,13 @@ const diagnostics = {
             return (item?.parentItem ?? item)?.getField('title') ?? null;
           }),
           tier,
-          popup,
+          player,
+          names: locales ? locales.map((l) => `${l.label} [${l.value}]`) : null,
+          selected: typeof state === 'object' ? state.locale : null,
+          zotero,
+          voiceLanguages: safe(() => voiceLanguages(manager?.voices).sort()),
           browser,
-          same: Array.isArray(popup) && JSON.stringify(popup) === JSON.stringify(browser),
+          same: Array.isArray(player) && JSON.stringify(player) === JSON.stringify(browser),
         };
       });
       return JSON.stringify(

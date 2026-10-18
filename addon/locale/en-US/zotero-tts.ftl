@@ -158,6 +158,15 @@ ztts-help-default-voice =
     .value = ?
     .help = New documents start with the default voice; changing the voice in the player affects only that document.
 
+# A dialect in the language lists is named by its place: Chinese (Liaoning) (issue #223).
+# The ids end in the dialect's tag as the provider sends it (Azure's zh-CN-liaoning).
+ztts-place-guangxi = Guangxi
+ztts-place-henan = Henan
+ztts-place-liaoning = Liaoning
+ztts-place-shaanxi = Shaanxi
+ztts-place-shandong = Shandong
+ztts-place-sichuan = Sichuan
+
 
 ## Reading
 

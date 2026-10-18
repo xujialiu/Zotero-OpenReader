@@ -68,12 +68,47 @@ const lookup = (table: Record<string, string>, key: string): string | undefined 
 /** Everything before the first hyphen — Zotero's getBaseLanguage, which is also the key it persists under. */
 const getBaseLanguage = (lang: string): string => lang.replace(/-.+$/g, '');
 
-function normalizeLanguage(lang: string): string {
+/** Zotero's `normalizeLanguage`: `cmn` is `zh`, the regions CN, HK and TW are none, XA and SA are 001. */
+export function normalizeLanguage(lang: string): string {
   const base = getBaseLanguage(lang);
   const region = lang.includes('-') ? lang.substring(base.length + 1) : '';
   const normalizedBase = lookup(LANGUAGE_EQUIVALENTS, base) ?? base;
   const normalizedRegion = lookup(REGION_EQUIVALENTS, region) ?? region;
   return normalizedRegion ? `${normalizedBase}-${normalizedRegion}` : normalizedBase;
+}
+
+/**
+ * Zotero's `isLanguageSupported` (reader.js 38110 in Zotero 11.0), which
+ * decides what the manager offers for a language — `voicesForLanguage`,
+ * and the pool `_resolveVoice` and `_findFallbackVoice` choose from: a
+ * wildcard voice, else the same base language, with a region asked for
+ * that region or none, both normalized. So to Zotero every Chinese voice
+ * of zh-CN, zh-HK or zh-TW is a regionless one, offered for any Chinese
+ * (issue #223).
+ */
+export function isLanguageSupported(voiceLang: string, lang: string): boolean {
+  if (voiceLang === '*' || lang === '*') return true;
+  const normalizedLang = normalizeLanguage(lang);
+  const normalizedVoiceLang = normalizeLanguage(voiceLang);
+  if (getBaseLanguage(normalizedVoiceLang) !== getBaseLanguage(normalizedLang)) return false;
+  if (!normalizedLang.includes('-')) return true;
+  return !normalizedVoiceLang.includes('-') || normalizedVoiceLang === normalizedLang;
+}
+
+/**
+ * Whether Zotero's manager tells a locale's region apart (issue #223): its
+ * normalization keeps the region as written. `en-US`, `zh-CN-liaoning` and
+ * a tag with no region to lose do; zh-CN, zh-HK, zh-TW, ar-XA and ar-SA do
+ * not — Zotero's `getVoiceRegion` answers none or `001` for them, so its
+ * own fallback cannot find such a region, and the plugin stages the voice
+ * (memory-sync).
+ */
+export function zoteroKeepsRegion(locale: string): boolean {
+  const base = getBaseLanguage(locale);
+  const region = locale.includes('-') ? locale.substring(base.length + 1) : '';
+  if (!region) return true;
+  const normalized = normalizeLanguage(locale);
+  return normalized.substring(getBaseLanguage(normalized).length + 1) === region;
 }
 
 /** The first of `preferred` in the base language names the region, else Zotero's default for it, else none. */

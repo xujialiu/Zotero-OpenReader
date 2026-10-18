@@ -6,7 +6,7 @@ import { NAVIGATION_ACTIONS, type NavigationAction } from '../core/shortcut-acti
 import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
 import { VOLUME_PREF, clampVolume } from '../core/read-aloud-volume';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from './favorites';
-import { baseLanguage, dropdownLabels, languageDisplayName } from './language-dropdown';
+import { baseLanguage, languageNames, voiceLanguages } from './language-dropdown';
 import { compareVoiceLabels } from './voice-catalog';
 import { formatTimeLeft, isLowTime } from '../core/time-left';
 
@@ -87,19 +87,32 @@ export function createPlayerController(deps: PlayerControllerDeps) {
     if (m.error === 'quota-exceeded' && (tier === 'standard' || tier === 'premium')) return deps.message('ztts-player-zotero-short', { tier: name });
     return deps.message(m.error === 'quota-exceeded' ? 'ztts-player-quota-error' : 'ztts-player-playback-error');
   }
+  /** The selected voice's own locale, which is what the language dropdown shows; null for none or a wildcard one. */
+  function selectedLanguage(m: any): string | null {
+    const voices = m?.voices;
+    const id = m?.selectedVoiceID;
+    for (let i = 0; i < (voices?.length ?? 0); i++) {
+      if (voices[i]?.id !== id) continue;
+      const language = voices[i].language;
+      return typeof language === 'string' && language && language !== '*' ? language : null;
+    }
+    return null;
+  }
   function snapshot(reader: any): PlayerSnapshot {
     const m = managerOf(reader);
     const labels = deps.labels();
     const providers: PlayerOption[] = [];
     if (m?.tiers) for (const tier of m.tiers) providers.push({ value: String(tier), label: labels[tier] ?? String(tier) });
     providers.sort((a, b) => compareVoiceLabels(a.label, b.label));
-    const languages: string[] = [];
-    if (m?.languages) for (const language of m.languages) languages.push(String(language));
-    const locales = [...dropdownLabels(languages, languageDisplayName)].map(([value, label]) => ({ value, label }));
+    // The entry's voices' languages, each locale its own (issue #223) — not the
+    // manager's `languages`, which Zotero normalizes into one zh for zh-CN,
+    // zh-HK and zh-TW (getSupportedLanguages, reader.js 39370)
+    const locales = [...languageNames(voiceLanguages(m?.voices))].map(([value, label]) => ({ value, label }));
     locales.sort((a, b) => a.value === 'mul' ? -1 : b.value === 'mul' ? 1 : compareVoiceLabels(a.label, b.label));
+    // No voice selected, or a wildcard one: the language the manager was asked for
     const region = m?.currentVoiceRegion ?? m?.region;
     const full = m?.lang ? String(m.lang) + (region ? '-' + region : '') : '';
-    const locale = locales.some(v => v.value === full) ? full : locales.some(v => v.value === m?.lang) ? String(m.lang) : '';
+    const locale = selectedLanguage(m) ?? (locales.some(v => v.value === full) ? full : locales.some(v => v.value === m?.lang) ? String(m.lang) : '');
     return {
       expandOnOpen: pref('openExpanded') === true,
       remaining: m && pref('remainingTime') !== false && deps.remainingTime ? remainingTimeLines(deps.remainingTime(reader), deps.message) : [],

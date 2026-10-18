@@ -9,7 +9,7 @@ import type { CatalogEntry } from '../read-aloud/catalog';
 import { setDefaultSpeed, type SpeedManagerLike } from '../read-aloud/default-speed';
 import { regionOfLocale, setDefaultVoice } from '../read-aloud/default-voice';
 import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } from '../read-aloud/favorites';
-import { dropdownLabels, dropdownLanguage, languageDisplayName } from '../read-aloud/language-dropdown';
+import { languageNames } from '../read-aloud/language-dropdown';
 import { isMultilingualVoiceId, memoryLangForLocale, readMemory, sameChoice, type VoiceChoice } from '../read-aloud/read-aloud-memory';
 import { compareVoiceLabels, encodeVoiceId, isZoteroTier, providerTierLabel, tierForProvider, zoteroTierLabel, type TierEntry } from '../read-aloud/voice-catalog';
 import { ZOTERO_TIERS, type ZoteroVoice } from '../read-aloud/zotero-voices';
@@ -23,8 +23,8 @@ import { refuseWhileReading, type AffectedTab } from './reading-guard';
  * is found there. The first column is the popup's first dropdown (issue
  * #110, read-aloud/provider-tiers.ts): every enabled provider, `(0)` when
  * it lists nothing right now, and Zotero's two, sorted by displayed name;
- * the language column is the popup's dropdown for the entry — the same
- * entries, named the same way (read-aloud/language-dropdown.ts).
+ * the language column is the player's dropdown for the entry — the same
+ * languages, named the same way (read-aloud/language-dropdown.ts).
  *
  * The plugin's voices are the enabled providers' (read-aloud/catalog.ts),
  * each under its provider's tier; Standard and Premium are Zotero's own
@@ -141,12 +141,12 @@ export interface VoiceBrowserDeps {
   sampleZoteroVoice?(voiceId: string): Promise<Blob>;
   player: SamplePlayer;
   /**
-   * Display name of a language tag as the popup's dropdown writes it
-   * (read-aloud/language-dropdown.ts languageDisplayName: "en-US" →
-   * "English (United States)", "en" → "English"); injected so tests do not
-   * depend on the ICU data.
+   * The names of one entry's languages as the player's dropdown writes them
+   * (read-aloud/language-dropdown.ts languageNames: "English (United
+   * States)" beside "English (United Kingdom)", a lone en-US "English"), in
+   * the pane's language; the app's default locale when omitted.
    */
-  localeName?(code: string): string;
+  languageNames?(locales: readonly string[]): Map<string, string>;
   /** The ReadAloudManager of every open reader, looked up when the slider is released; omitted where there is no Zotero to ask. */
   readAloudManagers?(): SpeedManagerLike[];
   /**
@@ -209,7 +209,7 @@ export type BrowserVoice = {
   tier: VoiceTier;
   locale: string;
 };
-/** One entry of the language column: a dropdown entry (read-aloud/language-dropdown.ts) and the voices that file under it. */
+/** One entry of the language column: a locale, its name in the player's dropdown (read-aloud/language-dropdown.ts) and its voices. */
 type LanguageGroup = { language: string; name: string; voices: BrowserVoice[] };
 export type TierGroup = { tier: VoiceTier; label: string; count: number; languages: LanguageGroup[] };
 
@@ -256,14 +256,13 @@ export function listedColumns(catalog: readonly Pick<CatalogEntry, 'provider' | 
  * rather than disappearing — plus any tier a listed voice carries that
  * none of them names, so nothing listed is lost; sorted by displayed name
  * with the voice list's collation, Han by pinyin before Latin, like the
- * player's first dropdown. Each holds the popup's language dropdown for
- * that entry (read-aloud/language-dropdown.ts: a voice files under Zotero's
- * normalized language, so every Chinese region is the one "Chinese"; an
- * entry carries its region only where the entry holds the language in
- * several), Multilingual first and the rest by display name, each holding
- * its voices by label.
+ * player's first dropdown. Each holds the player's language dropdown for
+ * that entry (read-aloud/language-dropdown.ts: a voice is listed under its
+ * own locale, so zh-CN, zh-HK and zh-TW are three languages, each named by
+ * what tells it apart from the entry's others, issue #223), Multilingual
+ * first and the rest by display name, each holding its voices by label.
  */
-export function groupVoicesByTier(voices: BrowserVoice[], localeName: (code: string) => string, columns: readonly TierColumn[]): TierGroup[] {
+export function groupVoicesByTier(voices: BrowserVoice[], namesOf: (locales: readonly string[]) => Map<string, string>, columns: readonly TierColumn[]): TierGroup[] {
   const entries = new Map<string, string>();
   for (const column of columns) if (!entries.has(column.tier)) entries.set(column.tier, column.label);
   for (const voice of voices) if (!entries.has(voice.tier)) entries.set(voice.tier, zoteroTierLabel(voice.tier));
@@ -272,12 +271,11 @@ export function groupVoicesByTier(voices: BrowserVoice[], localeName: (code: str
     const mine = voices.filter((voice) => voice.tier === tier);
     const byLanguage = new Map<string, BrowserVoice[]>();
     for (const voice of mine) {
-      const language = dropdownLanguage(voice.locale);
-      const list = byLanguage.get(language) ?? [];
+      const list = byLanguage.get(voice.locale) ?? [];
       list.push(voice);
-      byLanguage.set(language, list);
+      byLanguage.set(voice.locale, list);
     }
-    const names = dropdownLabels(byLanguage.keys(), localeName);
+    const names = namesOf([...byLanguage.keys()]);
     const languages = [...byLanguage.entries()]
       .map(([language, list]) => ({
         language,
@@ -297,10 +295,9 @@ export function tierLabelOf(tiers: readonly TierGroup[], tier: string): string {
   return tiers.find((g) => g.tier === tier)?.label ?? zoteroTierLabel(tier);
 }
 
-/** The name of the language entry a listed voice sits under: its tier's dropdown entry, the tag itself for a voice not listed. */
+/** The name of the language a listed voice sits under: its locale's in its tier's column, the tag itself for a voice not listed. */
 export function languageNameOf(tiers: readonly TierGroup[], voice: BrowserVoice): string {
-  const language = dropdownLanguage(voice.locale);
-  return tiers.find((g) => g.tier === voice.tier)?.languages.find((l) => l.language === language)?.name ?? language;
+  return tiers.find((g) => g.tier === voice.tier)?.languages.find((l) => l.language === voice.locale)?.name ?? voice.locale;
 }
 
 /**
@@ -497,7 +494,7 @@ export function initVoiceBrowserRows(
   },
   deps: VoiceBrowserDeps,
 ): { load(): Promise<void>; refresh(): void; labelOf(id: string): string | null; dispose(): void } {
-  const localeName = deps.localeName ?? languageDisplayName;
+  const namesOf = deps.languageNames ?? ((locales: readonly string[]) => languageNames(locales));
   /** The line under the columns, written as text: a description's `value` never wraps, and this line grows past the window (issue #31). */
   const status = (text: string) => {
     const line = doc.getElementById(VOICE_BROWSER_IDS.status);
@@ -510,7 +507,7 @@ export function initVoiceBrowserRows(
   /** What failed to list last time, shown beside what did until the next listing. */
   let problems: string[] = [];
   let selectedTier: VoiceTier | null = null;
-  /** The language column's entry: a dropdown language (read-aloud/language-dropdown.ts), not a voice's own locale. */
+  /** The language column's entry: a locale, each its own language since issue #223 (read-aloud/language-dropdown.ts). */
   let selectedLanguage: string | null = null;
   let loading = false;
   /** The encoded id being fetched / being played; at most one of each, ever. */
@@ -844,10 +841,10 @@ export function initVoiceBrowserRows(
     defaults = defaultVoiceRows(listed ?? [], choice);
     // A default row in view (the row just clicked, say) keeps the columns
     // where they are; only a default elsewhere moves them
-    const home = defaults.find((v) => v.tier === selectedTier && dropdownLanguage(v.locale) === selectedLanguage) ?? defaults[0];
+    const home = defaults.find((v) => v.tier === selectedTier && v.locale === selectedLanguage) ?? defaults[0];
     if (home) {
       selectedTier = home.tier;
-      selectedLanguage = dropdownLanguage(home.locale);
+      selectedLanguage = home.locale;
       render();
     } else {
       renderVoices();
@@ -929,7 +926,7 @@ export function initVoiceBrowserRows(
     if (!selectedTier || !tiers.some((g) => g.tier === selectedTier && g.count)) {
       const home = defaults[0];
       selectedTier = home?.tier ?? tiers.find((g) => g.count)?.tier ?? tiers[0]?.tier ?? null;
-      selectedLanguage = home ? dropdownLanguage(home.locale) : selectedLanguage;
+      selectedLanguage = home ? home.locale : selectedLanguage;
     }
     const group = tierGroup();
     if (!group?.languages.some((l) => l.language === selectedLanguage)) selectedLanguage = group?.languages[0]?.language ?? null;
@@ -955,7 +952,7 @@ export function initVoiceBrowserRows(
       const listing = await listBrowserVoices(deps);
       listed = listing.voices;
       problems = listing.problems;
-      tiers = groupVoicesByTier(listed, localeName, listing.columns);
+      tiers = groupVoicesByTier(listed, namesOf, listing.columns);
       defaults = defaultVoiceRows(listed, choice);
       reselect();
       render();

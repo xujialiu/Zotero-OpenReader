@@ -14,7 +14,7 @@ import { withTimeout } from '../core/timeout';
 import { createWebDAVClient } from '../core/webdav';
 import { CATALOG_CAP_MS, listNamedCatalog, providerNaming, providerTierColumns } from '../read-aloud/catalog';
 import { FAVORITES_OBSERVER, FAVORITES_ONLY_OBSERVER, parseFavoriteVoices } from '../read-aloud/favorites';
-import { languageDisplayName } from '../read-aloud/language-dropdown';
+import { languageNames } from '../read-aloud/language-dropdown';
 import { readMemory, writeMemory, READ_ALOUD_MEMORY_OBSERVER, SPEED_PERCENT_OBSERVER } from '../read-aloud/read-aloud-memory';
 import type { PositionEntry } from '../read-aloud/read-aloud-position';
 import { readReadAloudVoices, READ_ALOUD_VOICES_PREF } from '../core/read-aloud-speed';
@@ -633,8 +633,8 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       () => doc.createElementNS(XHTML, 'audio') as HTMLAudioElement,
       () => loadSettings(prefs).readAloud.volume,
     ),
-    // Named as the popup's dropdown names them, in the app's locale
-    localeName: (code) => languageDisplayName(code, Zotero.locale ?? 'en'),
+    // Named as the player's language dropdown names them, in the app's locale
+    languageNames: (locales) => languageNames(locales, { locale: Zotero.locale ?? 'en' }),
     // The manager of every open reader, the way the shortcuts reach it: a
     // released slider changes the pace of a document that is playing at once
     readAloudManagers: () => (Zotero.Reader._readers ?? []).map((r: any) => r?._internalReader?._readAloudManager).filter(Boolean),

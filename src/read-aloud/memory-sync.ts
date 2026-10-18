@@ -1,9 +1,16 @@
 import { t } from '../core/l10n';
 import { createDocumentVoices, readDefaultVoice, writeDefaultVoice } from '../core/document-voices';
 import { PREF_PREFIX } from '../core/settings';
-import { READ_ALOUD_VOICES_PREF, readReadAloudVoices, resolveVoiceLang, type VoiceEntry, type VoicesMap } from '../core/read-aloud-speed';
+import {
+  isLanguageSupported,
+  READ_ALOUD_VOICES_PREF,
+  readReadAloudVoices,
+  resolveVoiceLang,
+  zoteroKeepsRegion,
+  type VoiceEntry,
+  type VoicesMap,
+} from '../core/read-aloud-speed';
 import type { PrefsBackend } from '../core/settings';
-import { dropdownLanguage } from './language-dropdown';
 import { setDefaultSpeed, settingDefaultSpeed, type SpeedManagerLike } from './default-speed';
 import {
   memoryFromVoices,
@@ -602,7 +609,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
   }
 
   /**
-   * The popup's language dropdown — Zotero's `setLanguage` with `persist` —
+   * The Player's language dropdown — Zotero's `setLanguage` with `persist` —
    * resolves at once and persists what it lands on, against
    * `_persistedVoices` as it stands: the entry of the language the manager
    * was on, since only Zotero's restore writes that field and nothing on the
@@ -614,6 +621,15 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    * its voice, and its region rule (a region chosen that differs from the
    * entry's skips the entry's voice) compares against the right entry. A
    * language with no entry is left to Zotero, as without the plugin.
+   *
+   * The language picked is a locale (issue #223), and Zotero's pool for it
+   * is wider (`isLanguageSupported`): a generic voice is a fallback for a
+   * regional pick (#91), and to Zotero zh-CN, zh-HK and zh-TW are all one
+   * Chinese and ar-XA and ar-SA one Arabic, so its own fallback cannot find
+   * such a region (`getVoiceRegion` answers none or 001) and lands on the
+   * remembered voice or the first it lists. Where it would, a voice of the
+   * locale is staged as the entry's: the remembered one when it is of the
+   * locale, else the first.
    */
   function stageLanguagePick(manager: any, lang: unknown, requestedRegion: unknown): void {
     if (typeof lang !== 'string' || !lang) return;
@@ -625,34 +641,37 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     }
     let entry = loadEntry(reader, manager, lane);
     const region = typeof requestedRegion === 'string' && requestedRegion ? requestedRegion : null;
-    const wanted = dropdownLanguage(region ? `${lane}-${region}` : lane);
+    // The locale the Player's dropdown lists (player-controller.ts splits it into the two)
+    const wanted = region ? `${lane}-${region}` : lane;
     const m = waive(manager);
-    // Generic voices are valid regional fallbacks in Zotero. A remembered
-    // generic voice can therefore win over an explicit US/GB/etc. pick,
-    // making the popup show generic English again (it displays the voice's
-    // region, not the requested one). Only stage an exact variant when one
-    // exists in the same target-tier pool Zotero would use.
+    // Zotero's own pool for the pick, in the target tier where it has one:
+    // what its resolution can land on
     const listed = listedVoicesOf(m) ?? [];
-    const compatible = listed.filter((voice) => {
-      if (voice.language === '*') return true;
-      const language = dropdownLanguage(voice.language);
-      return memoryLangForLocale(language) === lane && (!region || !language.includes('-') || language === wanted);
-    });
+    const compatible = listed.filter((voice) => isLanguageSupported(voice.language, wanted));
     const tiers = entry.tierVoices && typeof entry.tierVoices === 'object' && !Array.isArray(entry.tierVoices)
       ? entry.tierVoices as Record<string, unknown>
       : {};
     const target = m.selectedTier || Object.keys(tiers).at(-1) || null;
     const tierPool = target ? compatible.filter((voice) => tierOf(voice) === target) : compatible;
     const pool = tierPool.length ? tierPool : compatible;
-    const exact = pool.filter((voice) => dropdownLanguage(voice.language) === wanted);
+    const exact = pool.filter((voice) => voice.language === wanted);
     const savedIDs = [target ? tiers[target] : undefined, entry.voice];
     const remembered = savedIDs.map((id) => pool.find((voice) => voice.id === id)).find(Boolean);
     const regionChanged = !!(region && entry.region && region !== entry.region);
-    // Different nonempty regions already work natively. A regional pick
-    // without an available remembered voice also takes an exact match by
-    // Zotero's own fallback; leave those paths and missing variants alone.
-    if (exact.length && exact.length !== pool.length && !regionChanged
-      && (!region || remembered) && (!remembered || dropdownLanguage(remembered.language) !== wanted)) {
+    // Nothing to stage where Zotero's pool holds only voices of the locale:
+    // whatever it lands on is one, as without the plugin
+    const stage = !exact.length || exact.length === pool.length
+      ? false
+      : zoteroKeepsRegion(wanted)
+        // A region Zotero tells apart (#91): different nonempty regions
+        // already work natively, and a regional pick without an available
+        // remembered voice takes an exact match by Zotero's own fallback;
+        // only a remembered generic voice would win over the pick
+        ? !regionChanged && (!region || !!remembered) && remembered?.language !== wanted
+        // One it cannot: unless the remembered voice is of the locale, and
+        // no region change makes Zotero skip it, Zotero lands elsewhere
+        : regionChanged || remembered?.language !== wanted;
+    if (stage) {
       const pick = savedIDs.map((id) => exact.find((voice) => voice.id === id)).find(Boolean) ?? exact[0];
       const tierVoices = { ...tiers };
       const pickTier = tierOf(pick);
@@ -666,17 +685,50 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     }
     // setLanguage returns early when its requested fields already match.
     // Those fields can still name US while the selected voice is generic,
-    // or have no region after restoring a US voice. Align the old field
-    // with the voice the popup actually displays so the user's change runs.
+    // or have no region after restoring a US voice, or name Taiwan while the
+    // voice is Hong Kong's. Align the old field with the voice the dropdown
+    // actually shows so the user's change runs.
     if (exact.length && m.lang === lane && m.region === region) {
       const current = listed.find((voice) => voice.id === m.selectedVoiceID);
-      if (current) {
-        const currentLanguage = dropdownLanguage(current.language);
-        const currentRegion = currentLanguage.includes('-') ? currentLanguage.slice(currentLanguage.indexOf('-') + 1) : null;
+      if (current && current.language !== '*') {
+        const currentRegion = current.language.includes('-') ? current.language.slice(current.language.indexOf('-') + 1) : null;
         if (currentRegion !== region) m._region = currentRegion;
       }
     }
     deps.debug?.(`staged Zotero's entry for the dropdown's ${lane}: voice ${voiceOfEntry(entry)}`);
+  }
+
+  /**
+   * The Player's provider dropdown — Zotero's `selectTier` — carries the
+   * current voice's region over to the new entry (`currentVoiceRegion`,
+   * reader.js 84782) and takes that entry's remembered voice for the
+   * language, else a fallback. A Chinese voice's region is none to Zotero
+   * and both Arabic ones are 001, so a Hong Kong voice came out on the new
+   * entry's Mandarin one (issue #223). Where the new entry has voices of the
+   * current voice's locale and Zotero cannot tell that locale apart, one of
+   * them is staged as the entry's voice for the new entry: its remembered
+   * one when it is of the locale, else the first. Not for this sync's own
+   * moves (`applying`).
+   */
+  function stageTierPick(manager: any, tier: unknown): void {
+    if (applying || typeof tier !== 'string' || !tier) return;
+    const m = waive(manager);
+    const listed = listedVoicesOf(m) ?? [];
+    const current = listed.find((voice) => voice.id === m.selectedVoiceID);
+    if (!current || current.language === '*' || zoteroKeepsRegion(current.language)) return;
+    const mine = listed.filter((voice) => voice.language === current.language && tierOf(voice) === tier);
+    if (!mine.length) return;
+    const reader = readerForManager(manager);
+    if (!reader) return;
+    const entry = loadEntry(reader, manager, memoryLangForLocale(current.language));
+    const tiers = entry.tierVoices && typeof entry.tierVoices === 'object' && !Array.isArray(entry.tierVoices)
+      ? entry.tierVoices as Record<string, unknown>
+      : {};
+    const pick = mine.find((voice) => voice.id === tiers[tier]) ?? mine[0];
+    if (tiers[tier] === pick.id) return;
+    const staged = { ...entry, tierVoices: { ...tiers, [tier]: pick.id } };
+    m._persistedVoices = deps.cloneForReader ? deps.cloneForReader(reader, staged) : staged;
+    deps.debug?.(`staged a ${current.language} voice for the provider pick: ${pick.id}`);
   }
 
   function reconcile(reader: any, voices: ListedVoices, preserveCurrent = false): void {
@@ -745,8 +797,9 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    * the same to `_resolveVoice`). `setLanguage` counts only with
    * `persist`: Zotero's own calls and this sync's pass none — and with it,
    * the entry of the language chosen goes in before Zotero resolves
-   * (stageLanguagePick). `this` and the options object arrive behind Xray
-   * wrappers and are waived.
+   * (stageLanguagePick), as a provider's voice of a Chinese region goes in
+   * before `selectTier` resolves (stageTierPick). `this` and the options
+   * object arrive behind Xray wrappers and are waived.
    */
   function attachPicks(manager: any): void {
     const proto = manager ? ownerOf(manager, 'selectVoice') : null;
@@ -759,6 +812,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
           try {
             persist = name !== 'setLanguage' || !!waive(args[1])?.persist;
             if (persist && name === 'setLanguage') stageLanguagePick(this, args[0], waive(args[1])?.region);
+            if (persist && name === 'selectTier') stageTierPick(this, args[0]);
           } catch (e) {
             deps.error(e);
           }

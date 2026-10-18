@@ -173,6 +173,12 @@ One item of the player's first dropdown: a provider that has voices, or
 one of Zotero's own two.
 _Avoid_: tier (Zotero's word for its own three), voice mode
 
+**Language**:
+One way of speaking that an entry offers voices in: a language and, where
+the entry has it in more than one place, dialect or script, which one.
+The player lists languages between the entry and the voice.
+_Avoid_: locale, region, dialect, accent
+
 **Multilingual**:
 The language listed first under an entry, holding the voices that speak
 whatever language they are given.

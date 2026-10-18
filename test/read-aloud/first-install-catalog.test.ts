@@ -24,7 +24,7 @@ describe.each(['installed', 'fallback'] as const)('first-install catalog (%s def
     const deps: ProviderDeps = { fetch, getWebSocket: () => { throw new Error('Unexpected WebSocket'); }, newRequestId: () => 'fixture' };
     const log = vi.fn();
     const catalog = await listNamedCatalog(settings, (id) => createProvider(id, settings, deps), log);
-    const groups = groupVoicesByTier(browserVoices(catalog), (code) => code, providerTierColumns(settings));
+    const groups = groupVoicesByTier(browserVoices(catalog), (locales) => new Map(locales.map((locale) => [locale, locale])), providerTierColumns(settings));
     return { groups, fetch, log };
   }
 

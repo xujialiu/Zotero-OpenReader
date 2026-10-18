@@ -21,8 +21,9 @@ keeps English (United States) displayed. Repeat with English (United Kingdom).
 ## 2. Generic English remains available
 
 Select English, then Fish Audio's Adrian from the actual menu. It remains
-selected and the language displays English. A stale requested US region
-must not turn generic selection into an empty list. Confirm no provider
+selected and the language displays English. Since issue #223 its menu holds
+only the generic English voices, no `en-US` one. A stale requested US
+region must not turn generic selection into an empty list. Confirm no provider
 voice IDs, favorites or saved choices are rewritten by catalog filtering.
 
 ## 3. A singleton region and fallback
