@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/regional-languages/README.md)
 
 ## Every region a language of its own, named as on the phone (issue #223)
 
@@ -55,20 +55,25 @@ switch are already on. Never switch a provider on for the run.
 
 ### 3. A Chinese region picked in the Player
 
-1. On the fixture's Player, choose the System entry, then a `zh-CN` voice
-   through the voice dropdown, so that a Mandarin voice is remembered for `zh`.
+1. On the fixture's Player, choose the System entry, then Chinese (China)
+   (`staged an exact zh-CN voice for the language pick`), then a `zh-CN`
+   voice through the voice dropdown, so that a Mandarin voice is remembered
+   for `zh`. A paused voice pick waits for Play as the #108 handoff: one
+   muted play-pause commits it.
 2. Through the language dropdown, choose Chinese (Hong Kong).
    `diagnostics.pluginPlayer()` for the fixture: `state.locale` `zh-HK`, and
    `state.voice` Sinji's id. The debug output has
    `staged an exact zh-HK voice for the language pick: <Sinji>`.
    `diagnostics.playerVoiceList()`: `patched: true`, `offered` the number of
-   `zh-HK` System voices, and `compatible` larger (Zotero's own list, every
-   Chinese voice).
+   `zh-HK` System voices (1), and `compatible` larger (Zotero's own list,
+   every Chinese voice: 19 on macOS 27).
 3. Choose Chinese (Taiwan): `state.locale` `zh-TW` and a `zh-TW` voice.
    Then Chinese (China): back on a `zh-CN` voice. Each settles within one
    second, and the Player stays paused.
 4. The previous/next voice keys on Chinese (Taiwan) cycle inside the
-   `zh-TW` voices only, wrapping both ways.
+   `zh-TW` voices only, wrapping both ways. While paused the evidence is
+   `diagnostics.voiceSwitch()`'s pending target and `last.to`: the
+   selection itself moves only on Play.
 
 ### 4. A provider switch keeps the region
 
@@ -85,7 +90,7 @@ switch are already on. Never switch a provider on for the run.
 ### 5. Regions Zotero tells apart are unchanged
 
 1. The checks of `cases/regional-picks.md` items 2-3 on System's English:
-   US, GB and generic English stay `en-US`, `en-GB` and `en`.
+   US and GB stay `en-US` and `en-GB` (macOS offers no generic `en`).
 2. Under a generic language (`en` from Fish Audio, where it is on), the voice
    menu holds only generic voices (issue #223; `cases/player-voice-list.md`
    item 2).
@@ -97,3 +102,9 @@ selected tab, and the fixture's document voice. Erase the fixture, read new
 plugin errors, and confirm the owner's readers match the baseline. A
 locale switch is not driven (it kills Zotero, `notes/NOTES_2026-09-10.md`):
 the other locale's names are the unit tests'.
+
+**Verified 2026-10-19 on 1.16.12-beta7** (Zotero 11.0-beta.1, macOS, en-US),
+by two `zotero-tester` runs, the first of which timed out after item 2:
+items 1, 2.1, 2.3 and 3-6 PASS; 2.2 and 4.1 NOT TESTABLE with Azure and
+Zotero Premium off. The table is
+[issue #223's closing comment](https://github.com/xujialiu/Zotero-OpenReader/issues/223#issuecomment-6253782187).

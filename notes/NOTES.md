@@ -777,3 +777,4 @@ then) and is in the git history before that day.
 ### [2026-10-19](NOTES_2026-10-19.md)
 
 - Zotero resolves every Chinese region as one, so a language pick needs the plugin's voice (issue #223)
+- Verified live on 1.16.12-beta7: three Chinese languages on macOS, and a tester cut off at 30 minutes (issue #223)
