@@ -112,6 +112,24 @@ const MODIFIER_KEYS = new Set([
 
 const FUNCTION_KEY = /^F([1-9]|1[0-9]|2[0-4])$/i;
 
+/**
+ * The other `KeyboardEvent.code` values a real key gives the recorder,
+ * from the UI Events code list: the ISO and JIS extra keys, the IME keys,
+ * the function section's leftovers and the media and browser keys. They
+ * are written as their code and read back as it, so a recorded binding
+ * parses (issue #210: `Shift+IntlBackslash` read "(invalid)").
+ */
+const OTHER_KEY_CODES = new Set([
+  'IntlBackslash', 'IntlRo', 'IntlYen',
+  'Convert', 'NonConvert', 'KanaMode', 'Lang1', 'Lang2', 'Lang3', 'Lang4', 'Lang5',
+  'ContextMenu', 'Help', 'Pause', 'PrintScreen',
+  'AudioVolumeDown', 'AudioVolumeMute', 'AudioVolumeUp',
+  'BrowserBack', 'BrowserFavorites', 'BrowserForward', 'BrowserHome', 'BrowserRefresh', 'BrowserSearch', 'BrowserStop',
+  'Eject', 'LaunchApp1', 'LaunchApp2', 'LaunchMail',
+  'MediaPlayPause', 'MediaSelect', 'MediaStop', 'MediaTrackNext', 'MediaTrackPrevious',
+  'Power', 'Sleep', 'WakeUp',
+]);
+
 /** Turn a key token from text, or a `KeyboardEvent.key`, into a DOM code. */
 function codeFromKeyToken(token: string): string | null {
   if (token.length === 1) {
@@ -125,6 +143,7 @@ function codeFromKeyToken(token: string): string | null {
   if (fn) return 'F' + fn[1];
   // Already a DOM code ("KeyA", "Digit1", "NumpadAdd")
   if (/^(Key[A-Z]|Digit[0-9]|Numpad[A-Za-z0-9]+)$/.test(token)) return token;
+  if (OTHER_KEY_CODES.has(token)) return token;
   return null;
 }
 

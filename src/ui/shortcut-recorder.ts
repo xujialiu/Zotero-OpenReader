@@ -18,6 +18,7 @@ export type RecorderOutcome =
   | { kind: 'cancel' }
   | { kind: 'clear' }
   | { kind: 'reject'; reason: 'needs-modifier' }
+  | { kind: 'reject'; reason: 'unsupported' }
   | { kind: 'reject'; reason: 'conflict'; conflictsWith: ShortcutAction }
   | { kind: 'set'; text: string };
 
@@ -34,12 +35,15 @@ export function recorderOutcome(
   if (!shortcut) return { kind: 'ignore' };
   const problem = shortcutProblem(shortcut, { allowBareArrows: allowsBareArrows(action) });
   if (problem) return { kind: 'reject', reason: problem };
+  // Only what the reader can read back is written: a key it cannot leaves the binding as it was (issue #210)
+  const text = formatShortcut(shortcut);
+  if (!parseShortcut(text)) return { kind: 'reject', reason: 'unsupported' };
   for (const other of SHORTCUT_ACTIONS) {
     if (other === action) continue;
     const existing = parseShortcut(current[other] ?? '');
     if (existing && sameShortcut(existing, shortcut)) return { kind: 'reject', reason: 'conflict', conflictsWith: other };
   }
-  return { kind: 'set', text: formatShortcut(shortcut) };
+  return { kind: 'set', text };
 }
 
 /** Button label for a stored binding. */

@@ -468,6 +468,7 @@ ztts-key-invalid = { $text }（无效）
 ztts-key-conflict = 已被“{ $action }”使用。
 ztts-key-needs-modifier-or-arrow = 请加上修饰键（Ctrl、Alt、Shift 或 Cmd）或使用方向键：单独的按键会输入字符。
 ztts-key-needs-modifier = 请加上修饰键（Ctrl、Alt、Shift 或 Cmd）：单独的按键会输入字符。
+ztts-key-unsupported = 这个键不能用作快捷键。
 ztts-action-speed-reset = 重置速度
 ztts-action-slower = 减速
 ztts-action-faster = 加速

@@ -6,6 +6,8 @@ import { recorderOutcome, shortcutLabel } from './shortcut-recorder';
 
 interface ElementLike {
   setAttribute(name: string, value: string): void;
+  /** The armed button takes the focus, so the recording is the button's (issue #211). */
+  focus?(): void;
   /** The message line's text (issue #31). */
   textContent: string;
   addEventListener(type: string, listener: (event: any) => void): void;
@@ -15,8 +17,19 @@ interface ElementLike {
 /** The part of Document the rows need; tests pass a fake. */
 export interface RowsDocument {
   getElementById(id: string): ElementLike | null;
-  addEventListener(type: 'keydown', listener: (event: any) => void, capture: boolean): void;
-  removeEventListener(type: 'keydown', listener: (event: any) => void, capture: boolean): void;
+  addEventListener(type: 'keydown' | 'focusin', listener: (event: any) => void, capture: boolean): void;
+  removeEventListener(type: 'keydown' | 'focusin', listener: (event: any) => void, capture: boolean): void;
+}
+
+/** Whether a key aimed at `target` is typing into a field: a text input, a text area, an editable menulist or rich text. */
+function isTextEntry(target: any): boolean {
+  if (!target || typeof target !== 'object') return false;
+  if (target.isContentEditable) return true;
+  const name = String(target.localName ?? '').toLowerCase();
+  if (name === 'textarea' || name === 'search-textbox') return true;
+  if (name === 'menulist') return !!target.editable;
+  if (name !== 'input') return false;
+  return !['button', 'checkbox', 'radio', 'range', 'color', 'file', 'image', 'reset', 'submit'].includes(String(target.type ?? 'text').toLowerCase());
 }
 
 type RecorderEvent = KeyEventLike & { preventDefault(): void; stopPropagation(): void };
@@ -56,7 +69,7 @@ const ACTION_NAMES: Record<ShortcutAction, () => string> = {
 export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLabel: string): { refresh(): void } {
   const prefKey = (action: ShortcutAction) => `${PREF_PREFIX}shortcuts.${action}`;
   const button = (action: ShortcutAction) => doc.getElementById(`ztts-key-${action}`);
-  let recording: { action: ShortcutAction; handler: (event: RecorderEvent) => void } | null = null;
+  let recording: { action: ShortcutAction; handler: (event: RecorderEvent) => void; away: (event: any) => void } | null = null;
 
   /** Written as text: a description's `value` never wraps (issue #31). */
   const setMessage = (text: string) => {
@@ -76,15 +89,30 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
   };
 
   const stop = () => {
-    if (recording) doc.removeEventListener('keydown', recording.handler, true);
+    if (recording) {
+      doc.removeEventListener('keydown', recording.handler, true);
+      doc.removeEventListener('focusin', recording.away, true);
+    }
     recording = null;
     refresh();
   };
 
+  /**
+   * A recording is its row's button's (issue #211): the settings window is
+   * one document for every pane, so a recording that heard every key there
+   * took the next key typed into a Base URL or the search box. It ends when
+   * the focus goes anywhere else, and a key aimed at a text field ends it and
+   * reaches the field.
+   */
   const start = (action: ShortcutAction) => {
     stop();
     setMessage('');
-    const handler = (event: RecorderEvent) => {
+    const armed = button(action);
+    const handler = (event: RecorderEvent & { target?: unknown }) => {
+      if (isTextEntry(event.target)) {
+        stop();
+        return;
+      }
       const outcome = recorderOutcome(event, action, loadSettings(prefs).shortcuts);
       if (outcome.kind === 'ignore') return;
       event.preventDefault();
@@ -97,16 +125,24 @@ export function initShortcutRows(doc: RowsDocument, prefs: PrefsBackend, metaLab
         setMessage(
           outcome.reason === 'conflict'
             ? t('ztts-key-conflict', { action: ACTION_NAMES[outcome.conflictsWith]() })
-            : allowsBareArrows(action)
+            : outcome.reason === 'unsupported'
+              ? t('ztts-key-unsupported')
+              : allowsBareArrows(action)
               ? t('ztts-key-needs-modifier-or-arrow')
               : t('ztts-key-needs-modifier'),
         );
       }
       stop();
     };
-    recording = { action, handler };
+    const away = (event: any) => {
+      if (event?.target !== armed) stop();
+    };
+    recording = { action, handler, away };
     doc.addEventListener('keydown', handler, true);
     refresh();
+    armed?.focus?.();
+    // After the focus has moved to the button, so its own focusin does not end it
+    if (recording?.handler === handler) doc.addEventListener('focusin', away, true);
   };
 
   for (const action of SHORTCUT_ACTIONS) {

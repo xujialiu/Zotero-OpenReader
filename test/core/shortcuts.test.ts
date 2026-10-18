@@ -152,3 +152,25 @@ describe('sameShortcut', () => {
     expect(sameShortcut(parseShortcut('Shift+Z')!, parseShortcut('Shift+X')!)).toBe(false);
   });
 });
+
+// Issue #210: every key code a real key gives the recorder round-trips
+describe('key codes beyond the letters, digits and named keys (#210)', () => {
+  const codes = [
+    'IntlBackslash', 'IntlYen', 'IntlRo', 'Lang1', 'Lang2', 'Lang3', 'Lang4', 'Lang5', 'Convert', 'NonConvert', 'KanaMode',
+    'ContextMenu', 'Pause', 'PrintScreen', 'Help', 'MediaPlayPause', 'MediaStop', 'MediaTrackNext', 'MediaTrackPrevious',
+    'AudioVolumeUp', 'AudioVolumeDown', 'AudioVolumeMute', 'BrowserBack', 'BrowserForward', 'BrowserHome', 'BrowserRefresh',
+    'BrowserSearch', 'BrowserStop', 'BrowserFavorites', 'LaunchApp1', 'LaunchApp2', 'LaunchMail', 'MediaSelect', 'Eject',
+  ];
+  it.each(codes)('%s parses back from its text form and matches its key', (code) => {
+    const s = { ctrl: true, alt: false, shift: false, meta: false, code };
+    const parsed = parseShortcut(formatShortcut(s));
+    expect(parsed).toEqual(s);
+    expect(matchesShortcut(parsed!, { key: 'x', code, ctrlKey: true, altKey: false, shiftKey: false, metaKey: false })).toBe(true);
+  });
+
+  it('still refuses a code no key has, and a modifier as the key', () => {
+    expect(parseShortcut('Ctrl+Quux')).toBeNull();
+    expect(parseShortcut('Ctrl+Shift')).toBeNull();
+    expect(parseShortcut('Ctrl+ShiftLeft')).toBeNull();
+  });
+});

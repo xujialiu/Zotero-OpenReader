@@ -95,7 +95,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [The player keys and the tab they reach](cases/player-keys.md) — 4.1–4.3, 4.5, 4.6
 - [Start at the selected sentence (issue #105)](cases/selection-start.md)
 - [Shift+Enter — go to reading position](cases/return-key.md) — 4.4
-- [The shortcut recorder](cases/shortcut-recorder.md) — 4.8
+- [The shortcut recorder, keys outside the letters, a recording left armed (issues #210, #211)](cases/shortcut-recorder.md) — 4.8
 - [Stop reading everywhere](cases/stop-key.md) — 4.9
 - [Word highlight on / off](cases/word-highlight-key.md) — 4.10
 - [Highlight and underline the sentence (issue #145, 1.15.1)](cases/annotate-keys.md)

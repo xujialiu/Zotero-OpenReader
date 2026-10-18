@@ -79,3 +79,20 @@ describe('shortcutLabel', () => {
     expect(shortcutLabel('meta+z', 'Cmd')).toBe('Cmd+Z');
   });
 });
+
+// Issue #210: a key the recorder can record is one the reader can read back
+describe('recording a key outside the letters, digits and named keys (#210)', () => {
+  it.each([
+    ['IntlBackslash', 'Shift+IntlBackslash', { shiftKey: true }],
+    ['Pause', 'Ctrl+Pause', { ctrlKey: true }],
+    ['ContextMenu', 'Ctrl+ContextMenu', { ctrlKey: true }],
+  ])('records %s as a binding that parses and is not invalid', (code, text, mods) => {
+    const outcome = recorderOutcome(ev({ key: 'x', code, ...mods }), 'speedUp', current);
+    expect(outcome).toEqual({ kind: 'set', text });
+    expect(shortcutLabel(text)).toBe(text);
+  });
+
+  it('refuses a key the parser cannot read, so the binding is kept', () => {
+    expect(recorderOutcome(ev({ key: 'x', code: 'Quux', shiftKey: true }), 'speedUp', current)).toEqual({ kind: 'reject', reason: 'unsupported' });
+  });
+});

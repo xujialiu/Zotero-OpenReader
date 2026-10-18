@@ -772,3 +772,4 @@ then) and is in the git history before that day.
 - A pick after an error or the end waited two minutes for nothing (issue #194)
 - The old voice's late answer was reported as a failed reading (issue #196)
 - OpenAI-compatible and Azure replies read as what they are (issues #198, #199, #200, #201, #202)
+- The shortcut recorder wrote keys it could not read and heard every field (issues #210, #211)

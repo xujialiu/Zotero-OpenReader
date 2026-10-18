@@ -524,6 +524,7 @@ ztts-key-invalid = { $text } (invalid)
 ztts-key-conflict = Already used by "{ $action }".
 ztts-key-needs-modifier-or-arrow = Add a modifier (Ctrl, Alt, Shift or Cmd) or use an arrow key: a bare key would type instead.
 ztts-key-needs-modifier = Add a modifier (Ctrl, Alt, Shift or Cmd): a bare key would type instead.
+ztts-key-unsupported = This key cannot be used for a shortcut.
 # The actions as the conflict message names them
 ztts-action-speed-reset = Reset speed
 ztts-action-slower = Slower

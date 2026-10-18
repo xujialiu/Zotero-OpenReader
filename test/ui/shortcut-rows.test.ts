@@ -49,6 +49,13 @@ class FakeElement {
   get label() {
     return this.getAttribute('label');
   }
+  /** Set by fakeDoc: the document hears a focusin when this element takes the focus. */
+  onFocus: ((el: FakeElement) => void) | null = null;
+  focused = 0;
+  focus() {
+    this.focused++;
+    this.onFocus?.(this);
+  }
 }
 
 const IDS = [
@@ -95,17 +102,29 @@ const IDS = [
 function fakeDoc() {
   const els = new Map(IDS.map((id) => [id, new FakeElement()]));
   const keydownListeners: Array<{ fn: (e: unknown) => void; capture: boolean }> = [];
+  const focusListeners: Array<(e: unknown) => void> = [];
+  const focusin = (target: unknown) => {
+    for (const fn of [...focusListeners]) fn({ target });
+  };
+  for (const el of els.values()) el.onFocus = focusin;
   return {
     els,
     el: (id: string) => els.get(id)!,
     getElementById: (id: string) => els.get(id) ?? null,
     addEventListener: vi.fn((type: string, fn: (e: unknown) => void, capture: boolean) => {
       if (type === 'keydown') keydownListeners.push({ fn, capture });
+      if (type === 'focusin') focusListeners.push(fn);
     }),
     removeEventListener: vi.fn((type: string, fn: (e: unknown) => void) => {
-      const i = keydownListeners.findIndex((l) => l.fn === fn);
-      if (i >= 0) keydownListeners.splice(i, 1);
+      const list: Array<{ fn: unknown } | unknown> = type === 'focusin' ? focusListeners : keydownListeners;
+      const i = list.findIndex((l) => (type === 'focusin' ? l === fn : (l as { fn: unknown }).fn === fn));
+      if (i >= 0) list.splice(i, 1);
     }),
+    /** The focus moves to `target`, an element outside the rows (a text field, the search box). */
+    focusin,
+    get focusWatchers() {
+      return focusListeners.length;
+    },
     keydown(partial: Record<string, unknown>) {
       const event = {
         key: '',
@@ -308,5 +327,57 @@ describe('addon/content/preferences.xhtml', () => {
     expect(helpOf('startFromSelection')).toMatch(/every state/);
     for (const action of SPEED_ACTIONS) expect(rowOf(action), action).not.toMatch(help);
     expect(xhtml).not.toContain('<description>Sentence, paragraph');
+  });
+
+  // Issue #211: a recording belongs to its row's button
+  describe('a recording left armed (#211)', () => {
+    const field = { localName: 'input', type: 'text' };
+
+    it('takes the focus to the armed button', () => {
+      const { doc } = setup();
+      doc.el('ztts-key-speedDown').fire('command');
+      expect(doc.el('ztts-key-speedDown').focused).toBe(1);
+      expect(doc.recording).toBe(1);
+    });
+
+    it('ends when the focus moves to another field, and a key typed there is the field\'s', () => {
+      const { doc, prefs } = setup();
+      doc.el('ztts-key-speedDown').fire('command');
+      doc.focusin(field);
+      expect(doc.recording).toBe(0);
+      expect(doc.focusWatchers).toBe(0);
+      expect(doc.el('ztts-key-speedDown').label).toBe('Shift+X');
+      const event = doc.keydown({ key: 'Backspace', code: 'Backspace', target: field });
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(prefs.store[key('speedDown')]).toBeUndefined();
+    });
+
+    it('lets a key aimed at a text field through and ends the recording', () => {
+      const { doc, prefs } = setup();
+      doc.el('ztts-key-speedDown').fire('command');
+      const event = doc.keydown({ key: 'v', code: 'KeyV', metaKey: true, target: field });
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(event.stopPropagation).not.toHaveBeenCalled();
+      expect(prefs.store[key('speedDown')]).toBeUndefined();
+      expect(doc.recording).toBe(0);
+    });
+
+    it('still records a key on the armed button', () => {
+      const { doc, prefs } = setup();
+      const button = doc.el('ztts-key-speedDown');
+      button.fire('command');
+      const event = doc.keydown({ key: 'k', code: 'KeyK', ctrlKey: true, target: button });
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(prefs.store[key('speedDown')]).toBe('Ctrl+K');
+    });
+  });
+
+  // Issue #210: a key the parser cannot read is refused with its own message
+  it('refuses a key that cannot be bound and keeps the binding (#210)', () => {
+    const { doc, prefs } = setup();
+    doc.el('ztts-key-speedUp').fire('command');
+    doc.keydown({ key: 'x', code: 'Quux', shiftKey: true });
+    expect(prefs.store[key('speedUp')]).toBeUndefined();
+    expect(doc.el('ztts-key-message').textContent).toMatch(/cannot be used/i);
   });
 });
