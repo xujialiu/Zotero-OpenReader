@@ -528,7 +528,7 @@ describe('favorites', () => {
     await t.rows.load();
     await t.pickLocale('English');
     expect(t.heart(0).textContent).toBe(GLYPHS.favorite);
-    await t.pickLocale('Multiple');
+    await t.pickLocale('Multilingual');
     expect(t.heart(0).textContent).toBe(GLYPHS.notFavorite);
   });
 
@@ -708,7 +708,7 @@ describe('playing a sample', () => {
     await t.rows.load();
     await t.play(0).fire('click');
     await t.pickLocale('Chinese');
-    await t.pickLocale('Multiple');
+    await t.pickLocale('Multilingual');
     expect(t.play(0).textContent).toBe(GLYPHS.stop);
   });
 
@@ -722,7 +722,7 @@ describe('playing a sample', () => {
     // Back on the entry the sample belongs to — the language is kept across
     // the switch, so its own one has to be picked again
     await t.pickTier('Azure');
-    await t.pickLocale('Multiple');
+    await t.pickLocale('Multilingual');
     expect(t.play(0).textContent).toBe(GLYPHS.stop);
   });
 });
@@ -1521,7 +1521,7 @@ describe('only a favorite can be the default while the switch is on', () => {
     const ava = encodeVoiceId('azure', 'en-US-AvaMultilingualNeural');
     const t = setup({ prefs: { ...remembered(xiaoxiao, 'zh'), ...favorites(ava) } });
     await t.rows.load();
-    await t.pickLocale('Multiple');
+    await t.pickLocale('Multilingual');
     expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×');
     expect(t.label(1).attrs.get('title')).toMatch(/make it the default/i);
     t.prefs.set(FAVORITES_ONLY_PREF, true);
@@ -1533,7 +1533,7 @@ describe('only a favorite can be the default while the switch is on', () => {
     await t.heart(0).fire('click');
     expect(t.status()).toBe('Default voice: Azure | Chinese | 晓晓 | Global speed: 1.0×');
     t.prefs.set(FAVORITES_ONLY_PREF, false);
-    await t.pickLocale('Multiple');
+    await t.pickLocale('Multilingual');
     expect(t.label(1).attrs.get('title')).toMatch(/make it the default/i);
   });
 
