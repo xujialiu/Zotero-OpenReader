@@ -89,6 +89,10 @@ final scope; the earlier draft's community search is not shipped.
     any field. Once a failed check ends, the Manual voices restriction must
     be reapplied. The real pane wiring is also exercised by
     `test/ui/prefs-pane-state.test.ts`.
+    Verified on 2026-10-20, 1.16.13-beta / Zotero 11.0-beta.1: all item-10
+    expectations passed without a paid request. The revised script closed
+    Settings before its finally-based restore, verified values and
+    user-value presence, and discarded its private key snapshot.
 
 **Verified on 2026-09-12, 1.12.2-beta2 (Luna-max tester).** Startup
 20/20; `(official, own, manual)` counts `000=1, 001=2, 010=1, 011=2,

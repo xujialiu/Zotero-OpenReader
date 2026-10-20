@@ -164,6 +164,10 @@ values below were derived from `src/` and corrected by the first run
     daily-limit handlers for both tiers, synchronous pref notifications,
     and observer removal on pane unload. Closing and reopening Settings
     must not leave duplicate switch reactions or new plugin errors.
+    Verified on 2026-10-20, 1.16.13-beta / Zotero 11.0-beta.1: both tiers,
+    both directions and reopening passed; labels changed in 51–57 ms and
+    the browser followed. The revised kit also covered an initially-on
+    tier with Test connection, and restored values and user-value presence.
 
 What it may touch: `zotero-tts.zotero-standard.enabled`,
 `zotero-tts.zotero-premium.enabled` (both back to `true`), the provider

@@ -782,3 +782,4 @@ then) and is in the git history before that day.
 ### [2026-10-20](NOTES_2026-10-20.md)
 
 - A connection check must keep its settings through the committing continuation (issues #214, #215, #216)
+- Verified live, and a reusable test must keep credentials it clears (issues #214, #215, #216)

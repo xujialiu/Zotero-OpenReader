@@ -75,3 +75,11 @@ without native dialogs; unrelated settings not invalidating the check.
 `test/ui/prefs-pane-state.test.ts` drives the real pane and connection
 check; `test/ui/provider-rows.test.ts` covers the controlled interleavings.
 Do not open Restore settings' native file dialog to simulate this race.
+
+Verified on 2026-10-20 with 1.16.13-beta, Zotero 11.0-beta.1: all listed
+checks passed against the local stub. Fields and secret eyes were locked
+at the held reply (105 ms); stale checks showed the exact check-again
+message; closing Settings before release left the switch off. The kit's
+cleanup also restored a nonempty synthetic credential and a deliberately
+abandoned pending check, including user-value presence. This run does not
+establish live coverage on Zotero 10.

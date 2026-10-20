@@ -1,7 +1,6 @@
 [Checklist index](../../README.md) · [All scripts](../README.md) · [Case](../../cases/zotero-tiers.md) · [Tester workflow](../../../../.agents/zotero-tester.md)
 
 ## Scripts
-
 Run in this order through `_shared/run.js` (`kit: 'zotero-tiers'`), with
 `params: { fixtureItemID: 25290 }` on every `start` (the standing library
 item `ZTTS Fixture A`). `08`/`09` bracket the tester's own
@@ -30,9 +29,9 @@ rather than reusing `01`'s, needing no fixture — and run any time after
 | `10-signed-out-greyed.js` | Item 10 (issue #130, strings updated for #159): opens the pane fresh, self-heals both switches ON, disables Standard (item 3's way, real click), shadows `Zotero.Sync.Data.Local.hasCredentials` to `() => false` (own descriptor kept) and fires `api-key`, then dispatches a raw `command` event at the greyed button | `standardAfterSignOut.disabled: true`; `premiumAfterSignOut.disabled: false`; the new reason `Not signed in to a Zotero account.` on both lines (old string gone), a shown `Log in` on each result's row, credits rows hidden; `zoteroTiers().signedIn: false` with both checks `ok: false`; every reader `signedIn: false`; `commandEventWasNoOp: true` | — |
 | `11-signed-in-again.js` | Item 11 (issue #130, updated for #159): restores `hasCredentials` (the kept descriptor) and fires `api-key` again, polls the credits rows shown (see Limits), then enables Standard the item-5 way (polled on the PREF); closes the pane | `standardDisabledFalse: true`; both result lines `''`; both Log in links hidden again; `creditsRowsShownAgain: true` (~0.4 s); every reader `signedIn: true`; `standardResultMatchesExpected: true` | — |
 | `12-cleanup-restore.js` | Restores every pref from `state.baseline`, in order, `readAloud.memory` last; closes the settings window; reports the error ring | Every restored pref `matches: true` | — |
+| `13-external-switch-repaint.js` | Item 12 (issue #215), self-contained: with the pane open and no Player on the tested tier, an external write of `zotero-tts.zotero-<tier>.enabled` (the refusal handler's exact pref write) repaints the button label, clears the stale success line and updates the voice-browser tier list — both tiers, both directions, and again after closing and reopening Settings. Safety: requires WebDAV folder off, reuses (never overwrites) an unfinished snapshot, try/finally restore (values + presence, Settings closed first). A tier already ON gets its settled success line from Test connection (list/read only, never a synthesis), not from an Enable click that would have turned it off | `successLine` kept separately per tier (`Signed in: 28 Standard voices.` / `Signed in: 1,452 Premium voices.`, `via` names enable vs test-connection), `offLabelMs` ~51 ms, `offLineClearedFromSuccess: true`, `offBrowserMs` ~0.16–1 s; ON `onLabelMs` ~51–56 ms, `onBrowserMs` ~0.4–0.9 s; after reopen `offBrowserOk: true`; `allRestored: true` | — |
 
 ## Before you start
-
 - Build: confirm with `zotero_plugin_list` + `diagnostics.startup()` +
   `diagnostics.zoteroTiers().feature === "zotero-tiers"` +
   `diagnostics.providerTiers()` carrying a `hidden` field (done directly).
@@ -53,7 +52,6 @@ rather than reusing `01`'s, needing no fixture — and run any time after
   this case is authorized to touch Zotero's own voices (A3–A7 are it).
 
 ## Limits
-
 - **`manager.languages` is scoped to the CURRENTLY SELECTED TIER, not a
   union across tiers**: a "both on" capture read either 9 languages
   (Standard's) or ~67 (Fish's) depending on which tier the popup happened
@@ -142,9 +140,10 @@ rather than reusing `01`'s, needing no fixture — and run any time after
   in-place reinstall, which prior runs of this kit did not have.
 
 ## Runs
-
 | Date | Build | Report | Items | Notes |
 | --- | --- | --- | --- | --- |
 | 2026-09-29 | 1.16.2-beta6, Zotero 10.0.3-beta.3+80bc5565e | this run's reply (#159/#158 continuation verification) | 1 PASS (21 groupboxes, Zotero after `ztts-provider-mimo`), 2 PASS (#159 message format, credits in the `credits` field), 10 PASS (#159 Log in links + reason strings, greyed Enable, no-op command), 11 PASS (re-run clean after the credits-row poll fix above, rows shown at 395 ms) | `01`/`02`/`10`/`11` as revised for #159; a mini-pass (no fixture, no `00`/`12` — the zotero-credits kit owned isolation and cleanup); the owner's paused fish session was open throughout and the reading guard correctly did not fire |
+| 2026-10-20 (follow-up) | 1.16.13-beta (SHA-256 fed53c1d…a63), Zotero 11.0-beta.1+b551fb670 | [Verification and kit follow-up](https://github.com/xujialiu/Zotero-OpenReader/issues/215#issuecomment-6288334685) | 12 PASS in revised form (4.8 s; Standard initially ON exercised the new Test-connection branch — `successLine` kept separately, `offLineClearedFromSuccess: true`; Premium OFF exercised the Enable branch; reopen clean; folder:false assert + try/finally restore with Settings closed first) | run clean |
+| 2026-10-20 | 1.16.13-beta (SHA-256 fed53c1d…a63), Zotero 11.0-beta.1+b551fb670 | [Verification](https://github.com/xujialiu/Zotero-OpenReader/issues/215#issuecomment-6288334685) | 12 PASS (both tiers, both directions, repaint ≤62 ms, stale success line cleared from a real success line, browser follows ≤0.9 s, reopen pass clean, switches restored to their snapshot-off values) | `13` v1 read the row at the pref-flip instant (before the check's message landed) — revised to settle on the success line before the external writes and re-run clean; both tiers were OFF on this profile, so the script enabled each through its own check first |
 | 2026-09-22 | 1.14.1-beta2, Zotero 10.0.3-beta.3+80bc5565e | the #130 closing comment | 10 PASS (`standardAfterSignOut`/`premiumAfterSignOut` exact reason text, every reader `signedIn: false`, `commandEventWasNoOp: true`), 11 PASS (ungreyed at once, every reader `signedIn: true`, Enable re-check matches `zoteroTiers()`'s own message) | First run of `10`/`11`, new for issue #130; both written and run clean first time; found live (see Limits) — toggling either switch while the owner's own OTHER open tab already had an active session logged a caught, harmless `[zotero-tts]` error unrelated to these items' own PASS/FAIL |
 | 2026-09-15 | 1.12.11-beta and -beta2, Zotero 10.0.3-beta.1+cfec88e31 | issue #111 verification, first and second pass (the run replies) | First pass: 1–7, 9 PASS except the voice-browser column and the status line (both real bugs, fixed in beta2, see Limits); 8 not run (optional). Second pass on beta2: 1–7, 9 PASS clean | `01`/`05`/`06`/`07` revised mid-first-run (a label attribute, a click-poll race); `04b`/`06`/`07` revised in the second (a guard race, the settlement poll, flip-vs-target); `03b`/`04b` added; superseded per-run detail cut |
