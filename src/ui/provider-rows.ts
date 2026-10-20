@@ -1,4 +1,4 @@
-import { t } from '../core/l10n';
+import { sentences, t } from '../core/l10n';
 import { loadSettings, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../core/settings';
 import { providerNaming } from '../read-aloud/catalog';
 import { switchLabel } from '../read-aloud/voice-catalog';
@@ -23,10 +23,10 @@ import { isSecretField, setSecretLocked } from './secret-rows';
  * stays on unless the guard's Close and continue closes those players
  * first (#160). Enable is never checked: it only adds voices.
  *
- * Test connection stays: while a provider is off it probes without
- * committing — and fills the Model suggestions, which has to happen while
- * the fields are editable — while on it is the retry after a server came
- * back, listing the voices again when it passes.
+ * Test connection probes without committing. Every check holds the fields
+ * until it finishes; then an off section is editable again, with its Model
+ * suggestions. An on section lists voices again after a passing check.
+ * Results belong to the settings checked, never to a later edit (#214).
  *
  * A switch that cannot go on yet — Zotero's two tiers while no Zotero
  * account is signed in (issue #130) — has its Enable greyed and the reason
@@ -52,13 +52,27 @@ export interface ProviderRowsDeps extends ReadingGuardDeps {
    * (ui/prefs-pane.ts).
    */
   onSwitched?(id: SwitchId, on: boolean): void;
-  /** The section's fields were just unlocked: the preset rows gray out theirs again (ui/server-preset-rows.ts). Omitted where there are none. */
+  /** Reapply a field's own restriction after the section unlocks (Manual voices, for example). */
   onUnlocked?(id: SwitchId): void;
+  /** Pref names are relative to extensions.zotero, as in Zotero.Prefs.registerObserver. */
+  watch?(name: string, changed: () => void): () => void;
+  /** A switch changed outside these rows: refresh the pane's catalog and account information. */
+  onExternalSwitch?(id: SwitchId): void;
   /** Why the switch cannot go on right now, or null when it can. Absent, every switch can. */
   blocked?(id: SwitchId): string | null;
   /** A Test connection's or an Enable's check has just finished, passed or failed: the Zotero section reads its credits again (issue #159). */
   onChecked?(id: SwitchId): void;
 }
+
+export interface ProviderRows {
+  refresh(): void;
+  verifyEnabled(): Promise<string>;
+  /** Shared by nested controls: an enabled or checking section accepts no edits. */
+  locked(id: SwitchId): boolean;
+  dispose(): void;
+}
+
+type CheckedOutcome = CheckOutcome & { stale?: boolean };
 
 /** The section's elements: the groupbox holding the fields, the switch, Test connection, and the line both write to. */
 export function providerRowIds(id: SwitchId): { section: string; toggle: string; test: string; result: string } {
@@ -71,11 +85,23 @@ const FIELDS_SELECTOR = 'input, menulist, checkbox';
 export function initProviderRows(
   doc: { getElementById(id: string): any },
   deps: ProviderRowsDeps,
-): { refresh(): void; verifyEnabled(): Promise<string> } {
+): ProviderRows {
   const pref = (id: SwitchId) => `${PREF_PREFIX}${id}.enabled`;
   const enabled = (id: SwitchId) => deps.prefs.get(pref(id)) === true;
-  /** The providers whose check is running: their buttons are held, and a click meanwhile does nothing. */
+  /** Checks hold the section, including its independently painted nested controls. */
   const busy = new Set<SwitchId>();
+  const writing = new Set<SwitchId>();
+  const stops: Array<() => void> = [];
+  let disposed = false;
+  const locked = (id: SwitchId): boolean => disposed || enabled(id) || busy.has(id);
+  const setEnabled = (id: SwitchId, on: boolean): void => {
+    writing.add(id);
+    try {
+      deps.prefs.set(pref(id), on);
+    } finally {
+      writing.delete(id);
+    }
+  };
 
   const elements = (id: SwitchId) => {
     const ids = providerRowIds(id);
@@ -102,53 +128,63 @@ export function initProviderRows(
    * while the switch cannot go on, with the reason on its line.
    */
   function paint(id: SwitchId): void {
+    if (disposed) return;
     const { toggle, test, result } = elements(id);
     const on = enabled(id);
+    const checking = busy.has(id);
     const reason = blocked(id);
-    toggle?.setAttribute('label', on ? t('ztts-switch-disable') : t('ztts-switch-enable'));
-    if (toggle) toggle.disabled = !on && reason !== null;
-    if (test) test.disabled = false;
-    if (reason !== null) {
+    toggle?.setAttribute('label', checking ? t('ztts-switch-checking') : on ? t('ztts-switch-disable') : t('ztts-switch-enable'));
+    if (toggle) toggle.disabled = checking || (!on && reason !== null);
+    if (test) test.disabled = checking;
+    if (!checking && reason !== null) {
       say(id, reason);
       shown.set(id, reason);
-    } else if (shown.has(id)) {
+    } else if (!checking && shown.has(id)) {
       // Only the reason leaves: a line written since it was shown stays
       if (result?.textContent === shown.get(id)) say(id, '');
       shown.delete(id);
     }
     for (const field of fields(id)) {
-      field.disabled = on;
+      field.disabled = locked(id);
       // A secret the user uncovered to edit it would stay in the clear behind
       // the lock, with its eye greyed out and nothing able to cover it again
       // (issue #19). So locking covers it: while a provider is on, its
       // secrets cannot be read at all.
-      if (isSecretField(field)) setSecretLocked(field, on);
+      if (isSecretField(field)) setSecretLocked(field, locked(id));
     }
-    if (!on) deps.onUnlocked?.(id);
+    if (!locked(id)) deps.onUnlocked?.(id);
   }
 
-  /** Both buttons held while a check runs. */
   function hold(id: SwitchId): void {
-    const { toggle, test } = elements(id);
     busy.add(id);
-    if (toggle) toggle.disabled = true;
-    if (test) test.disabled = true;
+    paint(id);
   }
 
-  /** The check as Test connection runs it; one that throws is a failed one, never an unhandled rejection. */
-  async function run(id: SwitchId): Promise<CheckOutcome> {
+  /**
+   * Compare in the caller's continuation, immediately before accepting the
+   * result: another pref write can run between this promise and its await.
+   * The snapshot includes credentials but never leaves this closure (#214).
+   */
+  async function run(id: SwitchId): Promise<() => CheckedOutcome> {
+    const snapshot = () => JSON.stringify(loadSettings(deps.prefs)[id]);
+    const checked = snapshot();
+    const reason = blocked(id);
+    let outcome: CheckOutcome;
     try {
-      return await deps.check(id);
+      outcome = await deps.check(id);
     } catch (e) {
-      return { ok: false, message: t('ztts-connection-failed', { detail: e instanceof Error ? e.message : String(e) }) };
+      outcome = { ok: false, message: t('ztts-connection-failed', { detail: e instanceof Error ? e.message : String(e) }) };
     }
+    return () => snapshot() === checked && blocked(id) === reason
+      ? outcome
+      : { ok: false, stale: true, message: t('ztts-provider-settings-changed') };
   }
 
   async function onToggle(id: SwitchId): Promise<void> {
-    if (busy.has(id)) return;
+    if (disposed || busy.has(id)) return;
     if (enabled(id)) {
-      if (await refuseWhileReading(deps, { [`${id}.enabled`]: false })) return;
-      deps.prefs.set(pref(id), false);
+      if (await refuseWhileReading(deps, { [`${id}.enabled`]: false }) || disposed) return;
+      setEnabled(id, false);
       deps.onSwitched?.(id, false);
       // The last check's "Connected…" beside an Enable button would read as
       // if it still held; cleared first, so a reason Enable is greyed for stands
@@ -167,10 +203,12 @@ export function initProviderRows(
     hold(id);
     elements(id).toggle?.setAttribute('label', t('ztts-switch-checking'));
     say(id, t('ztts-switch-checking'));
-    const outcome = await run(id);
+    const completed = await run(id);
+    if (disposed) return;
+    const outcome = completed();
     say(id, outcome.message);
     if (outcome.ok) {
-      deps.prefs.set(pref(id), true);
+      setEnabled(id, true);
       deps.onSwitched?.(id, true);
     }
     busy.delete(id);
@@ -180,10 +218,12 @@ export function initProviderRows(
   }
 
   async function onTest(id: SwitchId): Promise<void> {
-    if (busy.has(id)) return;
+    if (disposed || busy.has(id)) return;
     hold(id);
     say(id, t('ztts-switch-testing'));
-    const outcome = await run(id);
+    const completed = await run(id);
+    if (disposed) return;
+    const outcome = completed();
     say(id, outcome.message);
     busy.delete(id);
     paint(id);
@@ -193,8 +233,21 @@ export function initProviderRows(
 
   for (const id of SWITCH_IDS) {
     const { toggle, test } = elements(id);
-    toggle?.addEventListener('command', () => onToggle(id));
-    test?.addEventListener('command', () => onTest(id));
+    const toggleCommand = () => onToggle(id);
+    const testCommand = () => onTest(id);
+    toggle?.addEventListener('command', toggleCommand);
+    test?.addEventListener('command', testCommand);
+    stops.push(() => {
+      toggle?.removeEventListener?.('command', toggleCommand);
+      test?.removeEventListener?.('command', testCommand);
+    });
+    const stop = deps.watch?.(`zotero-tts.${id}.enabled`, () => {
+      if (disposed || writing.has(id)) return;
+      if (!busy.has(id)) say(id, '');
+      paint(id);
+      deps.onExternalSwitch?.(id);
+    });
+    if (stop) stops.push(stop);
     paint(id);
   }
 
@@ -217,6 +270,7 @@ export function initProviderRows(
    * frozen. Returns one sentence for the restore's message line.
    */
   async function verifyEnabled(): Promise<string> {
+    if (disposed) return '';
     const inUse = (id: SwitchId) => !!deps.affectedTabs?.({ [`${id}.enabled`]: false }).length;
     const wanted = SWITCH_IDS.filter((id) => enabled(id) && !busy.has(id) && !inUse(id));
     if (!wanted.length) return '';
@@ -226,11 +280,15 @@ export function initProviderRows(
       say(id, t('ztts-switch-checking'));
     }
     const turnedOff: SwitchId[] = [];
+    let stale = false;
     await Promise.all(
       wanted.map(async (id) => {
-        const outcome = await run(id);
-        if (!outcome.ok && !inUse(id)) {
-          deps.prefs.set(pref(id), false);
+        const completed = await run(id);
+        if (disposed) return;
+        const outcome = completed();
+        stale ||= !!outcome.stale;
+        if (!outcome.ok && !outcome.stale && !inUse(id)) {
+          setEnabled(id, false);
           deps.onSwitched?.(id, false);
           turnedOff.push(id);
         }
@@ -239,14 +297,23 @@ export function initProviderRows(
         paint(id);
       }),
     );
-    if (!turnedOff.length) return t('ztts-providers-checked', { count: wanted.length });
+    if (disposed) return '';
+    const changed = stale ? t('ztts-provider-settings-changed') : '';
+    if (!turnedOff.length) return changed || t('ztts-providers-checked', { count: wanted.length });
     // The switches moved, so the voice browser lists again — once, after all of them
     deps.onVoicesChanged();
     // As the Player names them (issue #193): the ids are shown nowhere else
     const naming = providerNaming(loadSettings(deps.prefs));
     const named = SWITCH_IDS.filter((id) => turnedOff.includes(id)).map((id) => switchLabel(id, naming)).join(', ');
-    return t('ztts-providers-turned-off', { named, count: turnedOff.length });
+    return sentences(t('ztts-providers-turned-off', { named, count: turnedOff.length }), changed);
   }
 
-  return { refresh, verifyEnabled };
+  function dispose(): void {
+    if (disposed) return;
+    disposed = true;
+    for (const stop of stops.splice(0)) stop();
+    busy.clear();
+  }
+
+  return { refresh, verifyEnabled, locked, dispose };
 }

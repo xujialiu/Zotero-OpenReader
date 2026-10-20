@@ -6,9 +6,22 @@ import { PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../..
 import { initProviderRows, providerRowIds, type CheckOutcome } from '../../src/ui/provider-rows';
 import { REVEAL_CLASS, REVEALED_ATTRIBUTE } from '../../src/ui/secret-rows';
 
-function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
+function fakePrefs(initial: Record<string, unknown> = {}) {
   const store = { ...initial };
-  return { store, get: (k) => store[k], set: (k, v) => void (store[k] = v) };
+  const observers = new Map<string, () => void>();
+  return {
+    store, observers, get: (k: string) => store[k],
+    set: (k: string, v: unknown) => {
+      if (store[k] === v) return;
+      store[k] = v;
+      observers.get(k)?.();
+    },
+    watch: (name: string, changed: () => void) => {
+      const key = 'extensions.zotero.' + name;
+      observers.set(key, changed);
+      return () => { observers.delete(key); };
+    },
+  } satisfies PrefsBackend & Record<string, unknown>;
 }
 
 class FakeElement {
@@ -68,6 +81,7 @@ const REFUSED: CheckOutcome = { ok: false, message: 'The server rejected the API
 function setup(
   options: {
     prefs?: Record<string, unknown>;
+    observe?: boolean;
     reading?: string[];
     protectedProvider?: string;
     check?: (id: SwitchId) => Promise<CheckOutcome>;
@@ -103,6 +117,7 @@ function setup(
   const onUnlocked = vi.fn((_id: SwitchId) => {});
   const warn = vi.fn((_message: string) => {});
   const onChecked = vi.fn((_id: SwitchId) => {});
+  const onExternalSwitch = vi.fn((_id: SwitchId) => {});
   const reading = options.reading ?? [];
   const rows = initProviderRows(doc, {
     prefs,
@@ -110,6 +125,8 @@ function setup(
     onVoicesChanged,
     onUnlocked,
     onChecked,
+    onExternalSwitch,
+    ...(options.observe ? { watch: prefs.watch } : {}),
     readingTabs: () => reading,
     warn,
     ...(options.protectedProvider ? { affectedTabs: (changes: Record<string, string | number | boolean>) => affectedReading(flattenSettings(loadSettings(prefs)), changes,
@@ -132,7 +149,7 @@ function setup(
       enabled: () => prefs.store[enabledPref(id)],
     };
   };
-  return { prefs, rows, check, onVoicesChanged, onUnlocked, onChecked, warn, of };
+  return { prefs, rows, check, onVoicesChanged, onUnlocked, onChecked, onExternalSwitch, warn, of };
 }
 
 describe('initProviderRows', () => {
@@ -544,6 +561,122 @@ describe('initProviderRows', () => {
       expect(t.check).not.toHaveBeenCalled();
       expect(t.of('zotero-standard').enabled()).toBeUndefined();
       expect(t.of('zotero-standard').toggle.disabled).toBe(true);
+    });
+  });
+
+  describe('a check owns only the settings it examined (#214)', () => {
+    it.each(['toggle', 'test'] as const)('locks the fields and secret reveal while %s checks, including after a refresh', async action => {
+      const gate = deferred<CheckOutcome>();
+      const t = setup({ check: () => gate.promise });
+      const row = t.of('compatible');
+      row.secret().setAttribute(REVEALED_ATTRIBUTE, 'true');
+      const checking = row[action].fire('command');
+      t.rows.refresh();
+      expect(row.locked()).toEqual([true, true]);
+      expect(row.secret().getAttribute(REVEALED_ATTRIBUTE)).toBeNull();
+      expect(row.secret().nextElementSibling!.disabled).toBe(true);
+      gate.resolve(REFUSED);
+      await checking;
+      expect(row.locked()).toEqual([false, false]);
+      expect(row.secret().nextElementSibling!.disabled).toBe(false);
+    });
+
+    it.each(['baseURL', 'apiKey', 'model', 'voices', 'headers'])('rejects an Enable when its %s changes, without echoing the setting', async field => {
+      const gate = deferred<CheckOutcome>();
+      const t = setup({ check: () => gate.promise });
+      const checking = t.of('compatible').toggle.fire('command');
+      t.prefs.set(PREF_PREFIX + 'compatible.' + field, 'changed-value');
+      gate.resolve(CONNECTED);
+      await checking;
+      expect(t.of('compatible').enabled()).not.toBe(true);
+      expect(t.of('compatible').result()).toMatch(/settings changed.*check again/i);
+      expect(t.of('compatible').result()).not.toContain('changed-value');
+      expect(t.onVoicesChanged).not.toHaveBeenCalled();
+    });
+
+    it('ignores changes to another provider and to reading settings', async () => {
+      const gate = deferred<CheckOutcome>();
+      const t = setup({ check: () => gate.promise });
+      const checking = t.of('compatible').toggle.fire('command');
+      t.prefs.set(PREF_PREFIX + 'azure.region', 'another-region');
+      t.prefs.set(PREF_PREFIX + 'readAloud.speedPercent', 150);
+      gate.resolve(CONNECTED);
+      await checking;
+      expect(t.of('compatible').enabled()).toBe(true);
+    });
+
+    it.each([CONNECTED, REFUSED])('does not let a stale restore check overwrite newer settings ($ok)', async outcome => {
+      const gate = deferred<CheckOutcome>();
+      const t = setup({ prefs: { [enabledPref('compatible')]: true }, check: () => gate.promise });
+      const checking = t.rows.verifyEnabled();
+      t.prefs.set(PREF_PREFIX + 'compatible.model', 'new-model');
+      gate.resolve(outcome);
+      const message = await checking;
+      expect(t.of('compatible').enabled()).toBe(true);
+      expect(t.of('compatible').result()).toMatch(/settings changed.*check again/i);
+      expect(message).toMatch(/settings changed.*check again/i);
+      expect(t.onVoicesChanged).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('observed switches (#215)', () => {
+    it.each(SWITCH_IDS)('repaints an external change to %s without running a check', id => {
+      const t = setup({ observe: true, prefs: { [enabledPref(id)]: true } });
+      t.prefs.set(enabledPref(id), false);
+      expect(t.of(id).label()).toBe('Enable');
+      expect(t.of(id).locked()).toEqual([false, false]);
+      expect(t.onExternalSwitch).toHaveBeenCalledExactlyOnceWith(id);
+      expect(t.check).not.toHaveBeenCalled();
+    });
+
+    it('does not duplicate refresh callbacks for its own writes, including restore verification', async () => {
+      const t = setup({ observe: true });
+      await t.of('compatible').toggle.fire('command');
+      await t.of('compatible').toggle.fire('command');
+      expect(t.onVoicesChanged).toHaveBeenCalledTimes(2);
+      expect(t.onExternalSwitch).not.toHaveBeenCalled();
+      const restored = setup({ observe: true, prefs: { [enabledPref('compatible')]: true, [enabledPref('azure')]: true }, check: async () => REFUSED });
+      await restored.rows.verifyEnabled();
+      expect(restored.onVoicesChanged).toHaveBeenCalledTimes(1);
+      expect(restored.onExternalSwitch).not.toHaveBeenCalled();
+    });
+
+    it('keeps a busy section locked after an external Disable and discards its old success', async () => {
+      const gate = deferred<CheckOutcome>();
+      const t = setup({ observe: true, prefs: { [enabledPref('compatible')]: true }, check: () => gate.promise });
+      const checking = t.of('compatible').test.fire('command');
+      t.prefs.set(enabledPref('compatible'), false);
+      expect(t.of('compatible').locked()).toEqual([true, true]);
+      expect(t.of('compatible').toggle.disabled).toBe(true);
+      gate.resolve(CONNECTED);
+      await checking;
+      expect(t.of('compatible').label()).toBe('Enable');
+      expect(t.of('compatible').result()).toMatch(/settings changed.*check again/i);
+      expect(t.onVoicesChanged).not.toHaveBeenCalled();
+    });
+
+    it('checks identity in the committing continuation, not before the last await', async () => {
+      const gate = deferred<CheckOutcome>();
+      const t = setup({ check: () => gate.promise });
+      const checking = t.of('compatible').toggle.fire('command');
+      gate.resolve(CONNECTED);
+      await Promise.resolve();
+      t.prefs.set(PREF_PREFIX + 'compatible.baseURL', 'https://changed.example');
+      await checking;
+      expect(t.of('compatible').enabled()).not.toBe(true);
+      expect(t.of('compatible').result()).toMatch(/settings changed.*check again/i);
+    });
+
+    it('does not enable a tier after the account signs out during its check', async () => {
+      const gate = deferred<CheckOutcome>();
+      let signedIn = true;
+      const t = setup({ check: () => gate.promise, blocked: () => signedIn ? null : 'Not signed in.' });
+      const checking = t.of('zotero-premium').toggle.fire('command');
+      signedIn = false;
+      gate.resolve(CONNECTED);
+      await checking;
+      expect(t.of('zotero-premium').enabled()).not.toBe(true);
+      expect(t.of('zotero-premium').toggle.disabled).toBe(true);
     });
   });
 

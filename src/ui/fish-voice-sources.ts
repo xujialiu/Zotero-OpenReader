@@ -26,8 +26,8 @@ const SOURCE_ROWS: readonly { name: SourceName; id: string; pref: string; observ
 
 export interface FishVoiceSourcesDeps {
   prefs: PrefsBackend;
-  /** Whether changing a source changes the voices of an enabled Read Aloud player. */
-  fishEnabled(): boolean;
+  /** The provider section is enabled or checking; neither permits edits. */
+  locked(): boolean;
   /** Repaints after settings restore or a preference observer event. */
   watch?(observer: string, onChange: () => void): () => void;
 }
@@ -56,9 +56,9 @@ export function initFishVoiceSources(
   let disposed = false;
   const stops: Array<() => void> = [];
 
-  const fishEnabled = (): boolean => {
+  const locked = (): boolean => {
     try {
-      return deps.fishEnabled();
+      return deps.locked();
     } catch {
       return false;
     }
@@ -67,7 +67,8 @@ export function initFishVoiceSources(
   const sourceOn = (name: SourceName): boolean => boolPref(deps.prefs, FISH_SOURCE_PREFS[name]);
 
   function paint(): void {
-    const on = fishEnabled();
+    if (disposed) return;
+    const on = locked();
     for (const row of SOURCE_ROWS) {
       const box = boxes.get(row.name);
       if (box) {
@@ -76,18 +77,15 @@ export function initFishVoiceSources(
       }
     }
     const manual = sourceOn('manual');
-    // Provider rows lock their own inputs while Fish is enabled. The source
-    // panel also locks this field when Manual voices are off, including while
-    // Fish is disabled, so the saved text remains visible but untouched.
+    // Repaints from source observers must retain the section's checking lock
+    // too (#214). An unlocked section still respects Manual voices (#216).
     if (modelIds) modelIds.disabled = on || !manual;
-
   }
 
   function onCommand(name: SourceName): void {
     if (disposed) return;
-    // Enabled Fish settings are a checked configuration. Even a synthetic
-    // command must not edit it; Disable unlocks the source choices.
-    if (fishEnabled()) {
+    // Even a synthetic command cannot edit an enabled or checking section.
+    if (locked()) {
       paint();
       return;
     }

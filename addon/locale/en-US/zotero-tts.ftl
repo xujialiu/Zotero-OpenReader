@@ -136,6 +136,7 @@ ztts-switch-enable = Enable
 ztts-switch-disable = Disable
 ztts-switch-checking = Checking…
 ztts-switch-testing = Testing…
+ztts-provider-settings-changed = Settings changed during the check. Check again.
 
 
 ## Voice browser

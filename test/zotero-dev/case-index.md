@@ -16,7 +16,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [The plugin's strings in Zotero's language](cases/localization.md) — 1.10–1.12
 - [The plugin's icon](cases/plugin-icon.md) — 1.13
 - [The plugin player: layouts, real controls, favorites and following](cases/plugin-player.md)
-- [A provider section: locked fields, Test connection and Enable](cases/provider-controls.md) — 1.3, 1.5, 1.6
+- [A provider section: locked fields, Test connection and Enable](cases/provider-controls.md) — 1.3, 1.5, 1.6–1.6.2 (checked settings, #214)
 - [Provider replies read as what they are: HTTP errors, login pages, long Segments, Azure keys (issues #198-#202)](cases/provider-replies.md)
 - [The secret fields: covered, uncovered by the eye, and copyable](cases/secret-fields.md) — the masked half of 1.3
 
@@ -30,7 +30,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Speechify](cases/speechify.md) — 1.15, 2.10, 3.22, 3.23, 3.28
 - [1a. Fish Audio: the cloud voices](cases/fish-audio.md) — 1a.1–1a.8, 1a.14
 - [1a. Fish Speech: a server of the owner's own](cases/fish-speech.md) — 1a.9–1a.13
-- [1b. Fish Audio voice sources (issue #91)](cases/fish-voice-sources.md)
+- [1b. Fish Audio voice sources (issues #91, #216)](cases/fish-voice-sources.md) — item 10: Manual IDs across refreshes
 - [1c. Fish Audio: the model (issue #182)](cases/fish-model.md)
 - [1c. Fish settings refinement (issue #91, beta5)](cases/fish-settings-refinement.md)
 - [Fish English voices under their regions (issue #91, beta5)](cases/fish-english-regions.md)
@@ -47,7 +47,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [One regional list for the player and shortcuts (issue #106)](cases/player-voice-list.md)
 - [Every region a language of its own, named as on the phone (issue #223)](cases/regional-languages.md)
 - [One entry per provider in the player's first dropdown (issue #110)](cases/provider-tiers.md)
-- [Zotero's Standard and Premium behind switches of their own (issue #111)](cases/zotero-tiers.md)
+- [Zotero's Standard and Premium behind switches of their own (issues #111, #215)](cases/zotero-tiers.md) — item 12: external switch changes
 - [Each Zotero tier's remaining time in the settings, with Add more time and Log in (issues #159, #140)](cases/zotero-credits.md)
 - [A Zotero voice's remaining time in the player, and a tier switched off when it runs out (issue #140)](cases/zotero-time-left.md)
 - [The player without a Zotero account (issue #130)](cases/signed-out-voices.md)

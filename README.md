@@ -103,6 +103,10 @@ while their switches are on, sorted by name.
   filing every plugin voice under Local.
 - **Enable**, at the end of every provider section, runs the connection
   check first: a provider that does not answer never switches on.
+- **While a connection check runs**, that provider's fields are locked;
+  other sections remain usable. If its settings change through a restore
+  or sync before the check finishes, check again: the old result cannot
+  approve the changed settings.
 - **Zotero's own Standard and Premium** have a switch each in the
   **Zotero Read Aloud** section, both on to begin with. Switch one off and
   that tier leaves the player's first dropdown, the voice browser and the

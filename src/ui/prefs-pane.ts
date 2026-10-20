@@ -666,9 +666,12 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       return () => Zotero.Prefs.unregisterObserver(token);
     },
   });
+  let providerRows: ReturnType<typeof initProviderRows> | null = null;
+  let paneClosed = false;
+  const fishLocked = () => providerRows?.locked('fish') ?? loadSettings(prefs).fish.enabled;
   const fishVoiceSources = initFishVoiceSources(doc, {
     prefs,
-    fishEnabled: () => loadSettings(prefs).fish.enabled,
+    locked: fishLocked,
     watch: (name, onChange) => {
       const token = Zotero.Prefs.registerObserver(name, onChange);
       return () => Zotero.Prefs.unregisterObserver(token);
@@ -679,7 +682,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     prefs,
     t,
     loadList: () => fishModelList(providerDeps().fetch),
-    fishEnabled: () => loadSettings(prefs).fish.enabled,
+    locked: fishLocked,
     watch: (name, onChange) => {
       const token = Zotero.Prefs.registerObserver(name, onChange);
       return () => Zotero.Prefs.unregisterObserver(token);
@@ -690,6 +693,8 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   win?.addEventListener(
     'unload',
     () => {
+      paneClosed = true;
+      providerRows?.dispose();
       followChoice.dispose();
       fishModelRows.dispose();
       fishVoiceSources.dispose();
@@ -719,11 +724,35 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   });
   void zoteroCredits.refresh();
 
+  // A restore writes switches and fields synchronously, one at a time.
+  // Repaint buttons at once, but list only the completed settings, once.
+  let externalRefreshPending = false;
+  let externalCreditsChanged = false;
+  const refreshExternalSwitch = (id: SwitchId) => {
+    externalCreditsChanged ||= isZoteroSwitch(id);
+    if (externalRefreshPending) return;
+    externalRefreshPending = true;
+    void Promise.resolve().then(() => {
+      externalRefreshPending = false;
+      if (paneClosed) return;
+      void voiceBrowserRows.load();
+      if (externalCreditsChanged) void zoteroCredits.refresh();
+      externalCreditsChanged = false;
+    });
+  };
   // The provider switches: Enable runs checkProvider and locks the section,
   // and the voice browser lists again on every switch (ui/provider-rows.ts)
-  const providerRows = initProviderRows(doc, {
+  providerRows = initProviderRows(doc, {
     prefs,
     ...readingGuard,
+    watch: (name, changed) => {
+      const token = Zotero.Prefs.registerObserver(name, changed);
+      return () => Zotero.Prefs.unregisterObserver(token);
+    },
+    onUnlocked: (id) => {
+      if (id === 'fish') fishVoiceSources.refresh();
+    },
+    onExternalSwitch: refreshExternalSwitch,
     check: (id) => checkProvider(doc, prefs, id, providerDeps()),
     onVoicesChanged: () => {
       fishVoiceSources.refresh();
@@ -747,7 +776,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     accountObserver = Zotero.Notifier.registerObserver(
       {
         notify: () => {
-          providerRows.refresh();
+          providerRows?.refresh();
           void zoteroCredits.refresh();
         },
       },
@@ -793,7 +822,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       // The restored prefs may switch providers on or off: the switches and
       // locks follow (after the preset rows, which gray their fields
       // first), and the voices are listed again
-      providerRows.refresh();
+      providerRows?.refresh();
       fishVoiceSources.refresh();
       fishModelRows.refresh();
       void voiceBrowserRows.load();
@@ -805,7 +834,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     // failure beside it (ui/provider-rows.ts, issue #21). The WebDAV
     // folder's switch is checked the same way, at the same time (issue #175)
     verifyProviders: async (restored: FlatSettings) =>
-      sentences(...(await Promise.all([providerRows.verifyEnabled(), webdavRows?.verifyEnabled(restored['webdav.enabled'] as boolean | undefined) ?? Promise.resolve('')]))),
+      sentences(...(await Promise.all([providerRows?.verifyEnabled() ?? Promise.resolve(''), webdavRows?.verifyEnabled(restored['webdav.enabled'] as boolean | undefined) ?? Promise.resolve('')]))),
   };
   initBackupRows(doc, { ...backupFileIO(win), ...restoreDeps, positions: hooks.positionsIO });
   // The sandbox's own fetch, and the pane window's AbortController, whose

@@ -45,7 +45,7 @@ function setup(options: { enabled?: boolean; stored?: string; list?: FishModelLi
     prefs,
     t,
     loadList,
-    fishEnabled: () => options.enabled ?? false,
+    locked: () => options.enabled ?? false,
     watch: (name, fn) => {
       watchers.set(name, fn);
       return () => watchers.delete(name);

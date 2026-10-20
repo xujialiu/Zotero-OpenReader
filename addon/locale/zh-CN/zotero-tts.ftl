@@ -114,6 +114,7 @@ ztts-switch-enable = 启用
 ztts-switch-disable = 停用
 ztts-switch-checking = 正在检查…
 ztts-switch-testing = 正在测试…
+ztts-provider-settings-changed = 检查期间设置已更改，请重新检查。
 
 
 ## Voice browser

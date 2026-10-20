@@ -22,7 +22,7 @@ function setup(enabled = true) {
   const watchers = new Map<string, () => void>();
   const sources = initFishVoiceSources({ getElementById: id => elements.get(id) }, {
     prefs,
-    fishEnabled: () => enabled,
+    locked: () => enabled,
     watch: (name, onChange) => {
       watchers.set(name, onChange);
       return () => { watchers.delete(name); };

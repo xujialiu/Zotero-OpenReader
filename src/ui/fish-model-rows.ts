@@ -40,8 +40,8 @@ export interface FishModelRowsDeps {
   t: Translate;
   /** Fish's list, through the provider's session cache; never throws. */
   loadList(): Promise<FishModelList>;
-  /** Whether Fish Audio is enabled: its fields are locked then, and a pick is ignored. */
-  fishEnabled(): boolean;
+  /** The provider section is enabled or checking; a pick is ignored in either state. */
+  locked(): boolean;
   /** Repaints when the pref changes elsewhere: a restore, the sync. */
   watch?(observer: string, onChange: () => void): () => void;
 }
@@ -63,9 +63,9 @@ export function initFishModelRows(doc: { getElementById(id: string): any }, deps
     const value = deps.prefs.get(FISH_MODEL_PREF);
     return typeof value === 'string' && value.trim() ? value.trim() : DEFAULT_FISH_MODEL;
   };
-  const enabled = (): boolean => {
+  const locked = (): boolean => {
     try {
-      return deps.fishEnabled();
+      return deps.locked();
     } catch {
       return false;
     }
@@ -84,7 +84,7 @@ export function initFishModelRows(doc: { getElementById(id: string): any }, deps
     if (disposed) return;
     const picked = String(menu.value ?? '');
     // A locked section takes no pick, even a synthetic one
-    if (enabled() || !picked) {
+    if (locked() || !picked) {
       refresh();
       return;
     }

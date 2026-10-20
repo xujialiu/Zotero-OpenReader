@@ -71,6 +71,25 @@ final scope; the earlier draft's community search is not shipped.
    debug store, and report byte-identical state and no new plugin or
    dead-object errors. The beta build may remain installed for the owner.
 
+10. **Manual IDs stay restricted across refreshes (issue #216).**
+    This item needs no working key or synthesis. Privately snapshot Fish's
+    switch, key, source choices and IDs; keep WebDAV off and close only
+    affected Players under the baseline rules. With Fish off and Manual
+    voices off, the ID input must be disabled. Use an empty key so Test
+    connection and Enable fail locally without a paid request. After each
+    failure, the ordinary fields are editable, but IDs remain disabled.
+    Send the account `api-key` notification without changing the account:
+    IDs must still be disabled. Turn Manual voices on: IDs become editable;
+    turn it off: the saved text is retained and disabled again. Restore all
+    snapshots privately, reporting equality only.
+
+    The held-check/source-observer interleaving and synthetic source/model
+    commands are covered by `test/ui/fish-provider-state.test.ts`, without
+    a live Fish request. A source refresh during a check may never unlock
+    any field. Once a failed check ends, the Manual voices restriction must
+    be reapplied. The real pane wiring is also exercised by
+    `test/ui/prefs-pane-state.test.ts`.
+
 **Verified on 2026-09-12, 1.12.2-beta2 (Luna-max tester).** Startup
 20/20; `(official, own, manual)` counts `000=1, 001=2, 010=1, 011=2,
 100=339, 101=340, 110=339, 111=340` on an account with no own models and

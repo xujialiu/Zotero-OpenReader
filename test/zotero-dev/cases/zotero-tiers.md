@@ -151,6 +151,20 @@ values below were derived from `src/` and corrected by the first run
     `true` again. Enable Standard (item 5's way): `Checking…`, then item
     2's message and `Disable`.
 
+12. **An external switch change reaches the open pane (issue #215).**
+    With no Player using the tested tier, keep Settings open and snapshot
+    both tier switches. Write an enabled tier's pref false, as the refusal
+    handler does after closing its Players. Expected immediately: its
+    button reads `Enable`, not `Disable`; its old success line is cleared
+    (a signed-out reason may remain), and the voice browser stops offering
+    the tier after its list settles. Check Standard and Premium separately.
+    Restore both switches and confirm the pane follows in both directions.
+    Do not spend credits or sign out the owner to manufacture a refusal.
+    `test/ui/prefs-pane-state.test.ts` covers the actual used-up and
+    daily-limit handlers for both tiers, synchronous pref notifications,
+    and observer removal on pane unload. Closing and reopening Settings
+    must not leave duplicate switch reactions or new plugin errors.
+
 What it may touch: `zotero-tts.zotero-standard.enabled`,
 `zotero-tts.zotero-premium.enabled` (both back to `true`), the provider
 switches of item 7 (back to what they were, through Enable), the fixture
