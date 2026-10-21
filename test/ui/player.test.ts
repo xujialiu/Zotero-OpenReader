@@ -52,13 +52,23 @@ function matches(el: any, selector: string): boolean {
 
 function fakeReader(options: { frameLoads?: boolean } = {}) {
   const frameLoads = options.frameLoads ?? true;
+  const winListeners: Array<{ type: string; fn: (event: unknown) => void; capture: boolean }> = [];
   const win: any = {
+    listeners: winListeners,
+    /** A pointerdown in the reader's own page: the capturing listeners hear it first. */
+    pointerdown(target: unknown) {
+      for (const { fn } of winListeners.filter(l => l.type === 'pointerdown').sort((a, b) => Number(b.capture) - Number(a.capture))) fn({ type: 'pointerdown', target });
+    },
     closed: false, innerWidth: 1200, innerHeight: 800,
     ResizeObserver: class { observe() {} disconnect() {} },
     MutationObserver: class { observe() {} disconnect() {} },
     matchMedia: () => ({ addEventListener() {}, removeEventListener() {} }),
     getComputedStyle: () => ({ getPropertyValue: () => '', backgroundColor: 'rgb(255, 255, 255)', color: '', fontFamily: '', fontSize: '', borderColor: '' }),
-    addEventListener() {}, removeEventListener() {},
+    addEventListener(type: string, fn: (event: unknown) => void, capture?: unknown) { winListeners.push({ type, fn, capture: capture === true }); },
+    removeEventListener(type: string, fn: (event: unknown) => void, capture?: unknown) {
+      const index = winListeners.findIndex(l => l.type === type && l.fn === fn && l.capture === (capture === true));
+      if (index >= 0) winListeners.splice(index, 1);
+    },
   };
   const root = fakeElement('html');
   const head = fakeElement('head');
@@ -127,6 +137,7 @@ function setup(options: { prefs?: Record<string, unknown> } = {}) {
     error: vi.fn(),
     exportResize() {}, exportFloating() {}, exportMenu() {}, exportLayout() {},
     renderLayout: () => false,
+    closeMenu: vi.fn(),
     prefs: fakePrefs(options.prefs),
     snapshot: vi.fn(() => snapshot(state.opened)),
     command: vi.fn(async () => {}),
@@ -290,6 +301,40 @@ describe('the Player, the only player (#134)', () => {
       expect(styles(head)[0].textContent).not.toContain('.find-popup');
       player.dispose({ handBack: true });
     }
+  });
+
+  it("closes the Player's open menu on a click anywhere in the reader's own page: the toolbar, the sidebar, Zotero's popups (#213)", async () => {
+    const { deps } = setup();
+    const { reader, doc, win } = fakeReader();
+    const player = createPluginPlayer(deps);
+    player.attach(reader);
+    toggleOf(doc).click();
+    await vi.advanceTimersByTimeAsync(0);
+    const sidebar = fakeElement('div');
+    win.pointerdown(sidebar);
+    // The Player closed: there is no menu to close, and no call is made
+    toggleOf(doc).click();
+    await vi.advanceTimersByTimeAsync(0);
+    win.pointerdown(sidebar);
+    expect(deps.closeMenu).toHaveBeenCalledTimes(1);
+    expect(deps.closeMenu).toHaveBeenCalledWith(frameOf(doc).contentWindow);
+    // Heard in the capture phase, so a widget that stops the click cannot keep the menu open
+    expect(win.listeners.filter((l: any) => l.type === 'pointerdown').map((l: any) => l.capture)).toEqual([true]);
+    player.dispose({ handBack: true });
+    expect(win.listeners.filter((l: any) => l.type === 'pointerdown')).toEqual([]);
+  });
+
+  it("keeps closing the menu harmless when the Player's page cannot be reached (#213)", async () => {
+    const { deps } = setup();
+    deps.closeMenu.mockImplementation(() => { throw new Error('dead object'); });
+    const { reader, doc, win } = fakeReader();
+    const player = createPluginPlayer(deps);
+    player.attach(reader);
+    toggleOf(doc).click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(() => win.pointerdown(fakeElement('div'))).not.toThrow();
+    expect(deps.error).toHaveBeenCalled();
+    player.dispose({ handBack: true });
   });
 
   it('starts closed over a reading its predecessor left open, and its button carries the reading on', async () => {

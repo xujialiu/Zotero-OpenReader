@@ -46,6 +46,25 @@ Do not start or resume owner playback.
   filtered/empty search results, repeated opens and all three layouts.
   Bottom/top menus retain the existing 8 px gap to the bar. Switching menus,
   Escape, outside click and second-click close still work.
+- **A click outside the Player closes its menu (issue #213).** In all three
+  layouts, open the voice list, then in turn the speed menu, and click
+  outside the Player with a trusted click: the PDF page, the EPUB page, a
+  toolbar button (zoom), the sidebar's Outline, and inside the Appearance
+  popup. After each, no `.popover` is left in the Player's document and the
+  frame's height is back to 34 px in the bars (in floating, the panel's own
+  height, `108` or `202`, with `menuInset` 0 in `diagnostics` of the
+  Player). Expected mechanism: a click in a view moves the focus out of
+  the Player's page (its window's `blur`); a toolbar, sidebar or popup
+  click calls the page's `zttsClosePopover` from the host's capture-phase
+  pointerdown on the reader's window. Record, for the toolbar click,
+  whether the Player's window lost focus at all (`document.hasFocus()` in
+  the Player's page before and after), which is read from Zotero's source
+  and not yet seen. The click that lands on the page still does its own
+  work there (a toolbar zoom zooms, the Outline item is selected).
+- **No menu closes by itself while reading (issue #213).** With a session
+  playing, open the voice list and leave it for at least three sentences:
+  it stays open and the frame stays at 460 px. A click inside the menu
+  (the search field, a scroll of the list) keeps it open.
 - All layouts: scroll language/voice choices down/up; the search rectangle
   stays fixed. Playback snapshot refresh must not reset list scroll. Keyboard
   navigation keeps the selected choice visible without moving the search box.

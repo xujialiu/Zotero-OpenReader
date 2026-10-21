@@ -2697,6 +2697,10 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
             Reflect.apply(win.zttsSetLayout, win, [layout]);
             return true;
           },
+          closeMenu: (target) => {
+            const win = Components.utils.waiveXrays(target);
+            if (typeof win.zttsClosePopover === 'function') Reflect.apply(win.zttsClosePopover, win, []);
+          },
           prefs,
           snapshot: (reader) => playerController.snapshot(reader),
           command: (reader, action, value) => playerController.command(reader, action, value),

@@ -258,4 +258,10 @@ document.addEventListener('keydown', event => {
   }
 });
 window.addEventListener('resize', place);
+// A menu closes when the user turns to anything outside the Player, and the
+// frame gives back the 460 px it lies over the page with (#213). A click in
+// the document moves the focus out of this page; a click on the reader's own
+// toolbar or sidebar keeps it here, so the host calls zttsClosePopover then.
+window.zttsClosePopover = () => { if (popover) closePopover(); };
+window.addEventListener('blur', window.zttsClosePopover);
 render();

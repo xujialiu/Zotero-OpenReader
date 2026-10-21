@@ -25,6 +25,8 @@ export function createPluginPlayer(deps: {
   exportMenu(target: Window, place: (json: string) => string): void;
   exportLayout(target: Window, change: (layout: string) => void): void;
   renderLayout(target: Window, layout: string): boolean;
+  /** Closes the Player page's open menu, if any (#213). */
+  closeMenu(target: Window): void;
   prefs: PrefsBackend;
   snapshot(reader: any): PlayerSnapshot;
   command(reader: any, action: string, value?: unknown): Promise<void>;
@@ -213,6 +215,15 @@ export function createPluginPlayer(deps: {
       }
       if (frame.style.height !== height + 'px') frame.style.height = height + 'px';
     };
+    // A click on the reader's own toolbar, sidebar or popups leaves the focus
+    // where it was (Zotero's FocusManager cancels the pointerdown there), so
+    // the Player's page never hears it: the host closes its menu (#213). A
+    // click inside the Player's frame never reaches this window.
+    const outside = () => {
+      try {
+        if (entries.get(doc)?.open && frame.contentWindow) deps.closeMenu(frame.contentWindow);
+      } catch (error) { deps.error(error); }
+    };
     let unlistenKeys: (() => void) | null = null;
     const loaded = () => {
       if (frame.contentWindow) {
@@ -284,7 +295,8 @@ export function createPluginPlayer(deps: {
     entries.set(doc, { frame, style, button, open: false, reader, nativeOpened: deps.snapshot(reader).opened, failed: null, refused: false, lastSnapshot: '', actionError: null, openedAt: 0, moved: false, remaining: false, expanded: deps.snapshot(reader).expandOnOpen, menuInset: 0, listener, resize, connect, cleanup: () => {
       clearTimeout(connectionTimer);
       for (const cleanup of [() => unlistenKeys?.(), () => button.removeEventListener('click', toggle),
-        () => geometry?.disconnect(), () => changes?.disconnect(), () => scheme?.removeEventListener('change', resize)]) {
+        () => geometry?.disconnect(), () => changes?.disconnect(), () => scheme?.removeEventListener('change', resize),
+        () => win.removeEventListener('pointerdown', outside, true)]) {
         try { cleanup(); } catch (error) { if (live(doc)) deps.error(error); }
       }
     } });
@@ -302,6 +314,7 @@ export function createPluginPlayer(deps: {
     doc.body.append(frame);
     doc.defaultView?.addEventListener('message', listener);
     doc.defaultView?.addEventListener('resize', resize);
+    win.addEventListener('pointerdown', outside, true);
     paint(doc);
   }
   function refresh(): void {
