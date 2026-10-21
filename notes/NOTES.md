@@ -788,3 +788,4 @@ then) and is in the git history before that day.
 
 - A click outside the Player reaches its page as a blur, or not at all (issue #213)
 - The Skip keys took the arrows from the Outline and the sliders (issue #212)
+- The speed keys stepped from a speed nobody reads (issue #197)

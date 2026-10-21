@@ -163,8 +163,8 @@ export function isZoteroLangKey(lang: string): boolean {
   return /^[a-z]{2,3}$/.test(lang);
 }
 
-/** The speed Zotero last persisted for the language, else for any language, else 1. */
-export function readPersistedSpeed(prefs: PrefsBackend, lang: string | null, preferred: readonly string[] = []): number {
+/** The speed Zotero last persisted for the language, else for any language; null when no entry holds one. */
+export function findPersistedSpeed(prefs: PrefsBackend, lang: string | null, preferred: readonly string[] = []): number | null {
   const voices = readReadAloudVoices(prefs);
   const key = resolveVoiceLang(lang, Object.keys(voices), preferred);
   const candidates = key ? [voices[key], ...Object.values(voices)] : Object.values(voices);
@@ -172,7 +172,12 @@ export function readPersistedSpeed(prefs: PrefsBackend, lang: string | null, pre
     const speed = entry?.speed;
     if (typeof speed === 'number' && Number.isFinite(speed) && speed > 0) return speed;
   }
-  return SPEED_DEFAULT;
+  return null;
+}
+
+/** The speed Zotero last persisted for the language, else for any language, else 1. */
+export function readPersistedSpeed(prefs: PrefsBackend, lang: string | null, preferred: readonly string[] = []): number {
+  return findPersistedSpeed(prefs, lang, preferred) ?? SPEED_DEFAULT;
 }
 
 /**

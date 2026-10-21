@@ -1,7 +1,8 @@
 import { readHighlightLevels, toggleWord, writeHighlightLevels, type HighlightLevels, type WordTiming } from '../core/highlight-level';
-import { nextSpeed, persistSpeed, readPersistedSpeed, type SpeedAction } from '../core/read-aloud-speed';
+import { findPersistedSpeed, nextSpeed, persistSpeed, readPersistedSpeed, type SpeedAction } from '../core/read-aloud-speed';
 import { clampVolume, nextVolume, VOLUME_PREF, type VolumeAction } from '../core/read-aloud-volume';
-import { autoScrollMode, playerLayout, setPlayerLayout, PREF_PREFIX, type AutoScrollMode, type PrefsBackend } from '../core/settings';
+import { autoScrollMode, DEFAULTS, playerLayout, setPlayerLayout, PREF_PREFIX, type AutoScrollMode, type PrefsBackend } from '../core/settings';
+import { readGlobalSpeed } from '../read-aloud/read-aloud-memory';
 import {
   ANNOTATION_TYPE,
   isAnnotateAction,
@@ -255,14 +256,31 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     }
   };
 
+  /**
+   * The speed a tab whose manager has not learned its language yet (its
+   * Player never opened) will read at, and that a speed key steps from
+   * (#197): the Global speed while one speed is used everywhere, else
+   * Zotero's stored speed, else the Global speed again, which is where a
+   * press goes when Zotero's pref has no entry to carry it. Each press
+   * updates the Global speed: through rememberSpeed with no entry, through
+   * memory-sync's observer of Zotero's pref with one.
+   */
+  function idleSpeed(lang: string | null, preferred: readonly string[]): number {
+    const global = readGlobalSpeed(deps.prefs);
+    if (global === null) return readPersistedSpeed(deps.prefs, lang, preferred);
+    const everywhere = deps.prefs.get(PREF_PREFIX + 'readAloud.globalSpeed');
+    if (typeof everywhere === 'boolean' ? everywhere : DEFAULTS.readAloud.globalSpeed) return global;
+    return findPersistedSpeed(deps.prefs, lang, preferred) ?? global;
+  }
+
   function adjust(reader: unknown, action: SpeedAction): number {
     const manager = managerOf(reader);
     const lang = manager?.lang ?? null;
     // A manager only learns the persisted speed once it knows its language
     // (reader._syncPersistedVoicesToManager); before that its `speed` is the
-    // constructor default, not the user's setting, so start from the pref.
+    // constructor default, not the user's setting, so start from the setting.
     const preferred = deps.preferredLanguages?.() ?? [];
-    const current = lang && typeof manager?.speed === 'number' ? manager.speed : readPersistedSpeed(deps.prefs, lang, preferred);
+    const current = lang && typeof manager?.speed === 'number' ? manager.speed : idleSpeed(lang, preferred);
     const next = nextSpeed(current, action);
     // A held key at the limit must not keep restarting the same segment.
     if (next === current && action !== 'speedReset') return next;

@@ -29,6 +29,17 @@ Items 4.1–4.3, 4.5 and 4.6 of the checklist, under their original numbers.
 - A synthetic repeat event can isolate the handler but is reported separately
   from a trusted held-key sequence. Subjective audio quality at rapid speed
   changes and the physical keyboard's repeat delay remain human observations.
+- **A tab whose Player was never opened (issue #197).** Open a fixture in a
+  new tab and do not open its Player (its manager's `lang` is `null`). With
+  *Use one speed everywhere* on, three Shift+C presses there show
+  `G+0.05×`, `G+0.10×`, `G+0.15×` from the Global speed `G`
+  (`readAloud.speedPercent` / 100), and the pref follows each press;
+  Shift+X steps back the same way. Opening the Player afterwards reads at
+  the last speed shown. Restore the Global speed and every
+  `reader.readAloudVoices` speed afterwards. The profile with no entry in
+  `reader.readAloudVoices`, where the keys used to stay at 1.05×, is a
+  unit test's (`test/ui/read-aloud-shortcuts.test.ts`): the owner's
+  entries are not rewritten for it.
 
 ### 4.2
 

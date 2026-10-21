@@ -3,6 +3,7 @@ import { HIGHLIGHT_SWITCH_PREFS } from '../../src/core/highlight-level';
 import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
 import { VOLUME_PREF } from '../../src/core/read-aloud-volume';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
+import { readGlobalSpeed, readMemory, SPEED_PERCENT_PREF, writeMemory } from '../../src/read-aloud/read-aloud-memory';
 import {
   arrowKeyBelongsToWidget,
   createReadAloudShortcuts,
@@ -225,6 +226,64 @@ describe('handleKeyDown', () => {
     shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC' }), resolve);
     expect(manager.setSpeed).toHaveBeenCalledWith(1.55, false);
     expect(voicesPref(prefs)).toEqual({ en: { speed: 1.55 } });
+  });
+
+  describe('on a tab whose Player was never opened, so its manager knows no language (#197)', () => {
+    const ONE_SPEED_EVERYWHERE = PREF_PREFIX + 'readAloud.globalSpeed';
+    /** An idle manager with no language, and the memory as index.ts wires it: learnSpeed stores the Global speed. */
+    function idle(prefsAtStart: Record<string, unknown> = {}) {
+      const t = setup();
+      Object.assign(t.prefs.store, prefsAtStart);
+      t.manager.active = false;
+      t.manager.lang = null;
+      t.manager.speed = 1;
+      t.rememberSpeed.mockImplementation((speed: number) => writeMemory(t.prefs, { ...readMemory(t.prefs), speed }));
+      const press = (key: 'C' | 'X') => t.shortcuts.handleKeyDown(keyEvent({ key, code: `Key${key}` }), t.resolve);
+      const toasts = () => t.showToast.mock.calls.map(([, speed]) => speed);
+      return { ...t, press, toasts };
+    }
+
+    it("steps one 0.05x per press with no entry in Zotero's pref, where the Global speed keeps each press", () => {
+      const { press, toasts, prefs } = idle();
+      press('C');
+      press('C');
+      press('C');
+      expect(toasts()).toEqual([1.05, 1.1, 1.15]);
+      expect(readGlobalSpeed(prefs)).toBe(1.15);
+      expect(prefs.store[READ_ALOUD_VOICES_PREF]).toBeUndefined();
+    });
+
+    it('starts from a Global speed already set, so the faster key never lowers it and the slower key never raises it', () => {
+      const faster = idle({ [SPEED_PERCENT_PREF]: 150 });
+      faster.press('C');
+      expect(faster.toasts()).toEqual([1.55]);
+      expect(readGlobalSpeed(faster.prefs)).toBe(1.55);
+      const slower = idle({ [SPEED_PERCENT_PREF]: 80 });
+      slower.press('X');
+      expect(slower.toasts()).toEqual([0.75]);
+    });
+
+    it("starts from the Global speed, not Zotero's entries, while one speed is used everywhere: that is the speed the tab reads at", () => {
+      const { press, toasts, prefs } = idle({ [SPEED_PERCENT_PREF]: 120, [READ_ALOUD_VOICES_PREF]: JSON.stringify({ en: { speed: 1.5 } }) });
+      press('C');
+      expect(toasts()).toEqual([1.25]);
+      // Every entry follows, as before; memory-sync's observer learns the Global speed from it
+      expect(voicesPref(prefs)).toEqual({ en: { speed: 1.25 } });
+    });
+
+    it("starts from Zotero's stored speed while one speed everywhere is off, as before", () => {
+      const { press, toasts } = idle({ [ONE_SPEED_EVERYWHERE]: false, [SPEED_PERCENT_PREF]: 120, [READ_ALOUD_VOICES_PREF]: JSON.stringify({ en: { speed: 1.5 } }) });
+      press('C');
+      expect(toasts()).toEqual([1.55]);
+    });
+
+    it('steps the Global speed, where each press is kept, while one speed everywhere is off and Zotero stores no speed', () => {
+      const { press, toasts, rememberSpeed } = idle({ [ONE_SPEED_EVERYWHERE]: false, [SPEED_PERCENT_PREF]: 120 });
+      press('C');
+      press('C');
+      expect(toasts()).toEqual([1.25, 1.3]);
+      expect(rememberSpeed).toHaveBeenLastCalledWith(1.3);
+    });
   });
 
   // An idle manager on a tag no key resolves — an EPUB declaring en_US, a PDF
