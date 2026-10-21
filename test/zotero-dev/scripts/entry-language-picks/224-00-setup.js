@@ -106,16 +106,28 @@
     out.steps.seededPlaying = !!playing;
     out.steps.selectedVoice = manager.selectedVoiceID ?? null;
     // Audio device probe (baseline.md): audio.state + playbackTime twice ~500 ms apart.
+    // Revised 2026-10-22 (beta4 run): three overlapping samples — a probe that
+    // lands on a clip boundary can hold playbackTime still for one 500 ms pair
+    // (measured: 2.9928 twice, state running, next scripts show real audio);
+    // any moving pair proves the device.
     const eng = async () => JSON.parse(await Zotero.ZoteroTTS.diagnostics.engine()).readers[st.readerIndex];
-    const e1 = await eng();
-    await sleep(500);
-    const e2 = await eng();
+    const samples = [];
+    for (let i = 0; i < 4; i++) {
+      if (i) await sleep(500);
+      const e = await eng();
+      samples.push({ t: i * 500, state: e?.audio?.state ?? null, playbackTime: e?.session?.playbackTime ?? null, position: e?.session?.position ?? null });
+    }
+    let advancing = false;
+    for (let i = 1; i < samples.length; i++) {
+      if ((samples[i].playbackTime ?? 0) > (samples[i - 1].playbackTime ?? 0)) { advancing = true; break; }
+    }
     out.steps.audio = {
-      state: e2?.audio?.state ?? null,
-      playbackTime1: e1?.session?.playbackTime ?? null,
-      playbackTime2: e2?.session?.playbackTime ?? null,
-      advancing: (e2?.session?.playbackTime ?? 0) > (e1?.session?.playbackTime ?? 0),
-      position: e2?.session?.position ?? null,
+      state: samples[samples.length - 1].state,
+      playbackTime1: samples[0].playbackTime,
+      playbackTime2: samples[samples.length - 1].playbackTime,
+      samples,
+      advancing,
+      position: samples[samples.length - 1].position,
     };
     out.steps.playerLayout = p.getStringPref(prefix + 'readAloud.playerLayout') || 'top';
     out.status = out.steps.seededPlaying && out.steps.audio.advancing && out.steps.selectedVoice === memVoice ? 'PASS' : 'FAIL';

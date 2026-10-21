@@ -1,6 +1,9 @@
 // Issue #224 case item 7.1: paused on V, a language pick still opens the voice
 // menu — but no "Paused. Choose a voice to continue." notice appears (the
 // reading was already paused). State: the player reopened by item 6.1, paused.
+// Revised 2026-10-22 (beta4 run): settle any notice left by the previous
+// script (224-10's draft pick shows the same text for 5 s) to hidden BEFORE
+// the pick — otherwise the stale notice reads as this pick's own.
 (async () => {
   const S = Zotero.ZoteroTTSRun.state.ep224 || {};
   const out = { status: 'FAIL', checks: {}, errors: [] };
@@ -20,6 +23,16 @@
     out.checks.before = { paused: before.paused, selected: before.selected, player: before.player, notice: noticeState() };
     if (!before.paused) throw new Error('the manager is not paused');
     const noticeBefore = noticeState();
+    // Settle: wait until no notice is rendered (the previous script's notice
+    // lives 5 s). A notice still visible after 7.5 s is not stale — throw.
+    let settled = null;
+    for (let t = 0; t < 7500; t += 100) {
+      const n = noticeState();
+      if (!n || n.opacity !== '1') { settled = { waitedMs: t, before: noticeBefore, final: n }; break; }
+      await sleep(100);
+    }
+    if (!settled) throw new Error('a notice is still visible before the pick: ' + JSON.stringify(noticeState()));
+    out.checks.settle = settled;
 
     // Pick English (United Kingdom) in the language menu, through the Player page.
     const localeName = new Intl.DisplayNames([Zotero.locale], { type: 'language', languageDisplay: 'standard' }).of('en-GB');

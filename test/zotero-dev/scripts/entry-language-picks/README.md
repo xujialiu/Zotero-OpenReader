@@ -7,8 +7,8 @@ provider until a voice of the draft is chosen and played.
 
 | script | what it checks | what it expects | params |
 | --- | --- | --- | --- |
-| `224-00-setup.js` | Private pref/user-value snapshot into `Zotero.ZoteroTTSRun.state.ep224`, WebDAV folder off, mute, fixture-a.pdf in, player open and playing on the memory's System en-US voice, audio probe | `webdavFolder: false`, memory a `system::` voice, `seededPlaying` true, `audio.advancing` true, `selectedVoice` = memory voice | `fixtureA`, `fixtureTitle` |
-| `224-01-build.js` | Item 1: the build | `startup()` version 1.16.13-beta3, every step ok; `voiceSwitch().mechanism` `engine-handoff-v3` | — |
+| `224-00-setup.js` | Private pref/user-value snapshot into `Zotero.ZoteroTTSRun.state.ep224`, WebDAV folder off, mute, fixture-a.pdf in, player open and playing on the memory's System en-US voice, audio probe | `webdavFolder: false`, memory a `system::` voice, `seededPlaying` true, `audio.advancing` true, `selectedVoice` = memory voice | `fixtureA` (ABSOLUTE path — a relative one fails the import), `fixtureTitle` |
+| `224-01-build.js` | Item 1: the build | `startup()` version the kit's expected beta (1.16.13-beta4 since 2026-10-22), every step ok; `voiceSwitch().mechanism` `engine-handoff-v3` | — |
 | `224-02-language-pick.js` | Item 2.1: language en-GB picked while playing | within 1 s: `paused` true, `selected` V, player `{system, en-GB, '', chooseVoice}`, draft `{system, en-GB}`; notice "Paused. Choose a voice to continue." opacity 1, `pre-line`, gone after 5 s | — |
 | `224-03-menu-and-quiet.js` | Items 2.2 + 2.3: the voice menu opens by itself; nothing reads meanwhile | popover aria `Voice`, exactly the System entry's en-GB rows, none `chosen`; `.play` disabled; engine voice V, `store.requests` flat, paused | — |
 | `224-04-entry-pick-keep.js` | Item 3.3 (language half) + 3.1: repicking the shown language changes nothing; the Fish entry pick keeps en-GB | draft and notice unchanged, no menu; then player `{fish, en-GB, '', chooseVoice}`, voice menu opens with exactly the entry's en-GB rows | — |
@@ -24,7 +24,7 @@ provider until a voice of the draft is chosen and played.
 ## Before you start
 
 - Build and bridge: `zotero_ping`, `zotero_plugin_list` at the manifest's
-  `-betaN` (1.16.13-beta3), `diagnostics.startup()` all ok,
+  `-betaN` (1.16.13-beta4 on 2026-10-22), `diagnostics.startup()` all ok,
   `voiceSwitch().mechanism` `engine-handoff-v3`. WebDAV off before 224-00 and
   re-confirmed after any install.
 - Fixture: `fixture-a.pdf` imported by 224-00 (17 segments); its reader index
@@ -49,6 +49,21 @@ provider until a voice of the draft is chosen and played.
 - A paused language pick shows no notice and the diagnostic's
   `handoff.notice` keeps the last kind recorded: only the rendered
   `#ztts-voice-notice` opacity is evidence (224-11).
+- 224-11 settles any notice the PREVIOUS script left (same text, 5 s life)
+  to hidden before its pick (revised 2026-10-22, executed); and it must run
+  on a state WITHOUT a standing draft — a repick of the shown language is a
+  no-op (item 3.3) and opens no voice menu. Reset via the player's
+  close/reopen first, then a trusted Shift+Space if the reopen came back
+  playing (both measured 2026-10-22).
+- The audio probe samples three overlapping 500 ms pairs and passes on any
+  moving pair (revised 2026-10-22, executed): a single pair can land on a
+  clip boundary — measured `playbackTime` 2.9928 twice, `state` `running`,
+  with the same session advancing minutes later.
+- When the machine's output device is gone, a FRESH fixture session comes up
+  `audio.state` `suspended` at 0 (measured 2026-10-22 twice, window restored
+  and minimized alike; no MEDIASINK error, the engine synthesizes normally):
+  224-00 then FAILs `advancing` — a machine condition, not a product one.
+  The session that is already open keeps working until its player closes.
 - 224-08's voice menu is auto-opened by the pick's followUp: use it when it is
   open — a click on the voice button toggles that very menu closed.
 
@@ -60,5 +75,13 @@ provider until a voice of the draft is chosen and played.
   (contentWindow frame access; trusted keys in 224-07; the followUp menu in
   224-08; the en-US landing and en-GB draft in 224-10; the rendered-notice
   check in 224-11; Zotero 11 close/erase in 224-99) are the ones in this kit.
+- 2026-10-22, build 1.16.13-beta4 (the #224/#225 notice-wiring fix), run
+  `2026-10-22-1.16.13-beta4-entry-language-picks`: items 1, 2.1–7.1 PASS
+  (224-01…224-10, plus 224-11 after the settle revision, executed via `one()`).
+  224-00 FAIL `audio.advancing` — one pair frozen at a clip boundary (above);
+  the revised probe executed twice more (runs `-2`, `-3`) with the device gone:
+  `suspended` at 0, FAIL (machine). Setup's other steps held every time
+  (`webdavFolder` false, memory the System voice, `seededPlaying` true,
+  `selectedVoice` = memory). Expected build in 224-01 updated to beta4.
 - Issue comment holding the full table: the run report of 2026-10-22
-  (issues #224/#225 verification).
+  (issues #224/#225 verification re-run).

@@ -35,15 +35,23 @@ voice is too fast to time out live: NOT TESTABLE live.
 
 ## Limits
 
-- 2026-10-22, build 1.16.13-beta3: the two-line notice does NOT render — the
-  toast reads only "Preparing voice: B". Root cause: `src/index.ts` wires
-  `notice: (reader, kind, voice) => voiceNotices?.notice(reader, kind, voice)`
-  and drops voice-pick's fourth `reading` argument (the unit test passes the
-  arguments directly to the notices object, so it cannot catch the wiring).
-  Items 2.1 and 3.1's notice clause FAIL on this; every other clause holds.
+- 2026-10-22, build 1.16.13-beta4 (the notice-wiring fix `notice: (...args) =>
+  voiceNotices?.notice(...args)` in `src/index.ts`, proven in the installed
+  bundle): the two-line notice RENDERS — items 2.1 and 3.1 PASS. On beta3 the
+  toast read only "Preparing voice: B" because the wiring dropped voice-pick's
+  fourth `reading` argument (the unit test passes the arguments directly to the
+  notices object, so it cannot catch the wiring).
 - A pending switch survives ~5 s only when the sentence is long enough: the
   "past five seconds" leg needs `stillPending` true at t+5 s (225-02 records
-  it; 225-02's run had 5.57 s of pending).
+  it). 2026-10-22 beta4 at the recorded speed 1.45: takeover at 2.91 s, the leg
+  vacuous. A supplementary probe (`.tmp/zotero-dev/run-224/pending-past-5s.js`,
+  speed 0.5 before the pick, restored after) held the switch pending 6.75 s:
+  opacity 1 with the two-line text at t+5 s, gone at the takeover.
+- Audio-dependent legs need the machine's output device: on 2026-10-22 it died
+  mid-run (~18:22) — fresh sessions come up `audio.state` `suspended` at 0
+  (minimized or restored alike, no MEDIASINK error). Every audio-driven check
+  of this kit ran BEFORE that with `advancing` true; a later run must re-probe
+  first (224-00's probe or 225-01's `audio` step).
 
 ## Runs
 
@@ -51,4 +59,13 @@ voice is too fast to time out live: NOT TESTABLE live.
   (225-04 PASS; 225-03 evidence) and `-3` (225-01 PASS, 225-02 evidence): the
   table is in the run report of 2026-10-22 (issues #224/#225 verification).
   225-02's menu-toggle fix and 225-01's resume retry are the revisions in this
-  kit; both executed in run `-3`.
+  kit; both executed in run `-3`. Items 2.1 and 3.1's notice clause FAILED on
+  beta3 (one-line notice).
+- 2026-10-22, build 1.16.13-beta4, run `2026-10-22-1.16.13-beta4-pending-voice`:
+  225-01, 225-02, 225-03, 225-04 all PASS. Item 2.1: `Reading voice: Daniel
+  (English (UK))\nPreparing voice: Eddy (English (UK))`, opacity 1, `pre-line`,
+  at 38 ms pending, field reads B, B's row the chosen one; takeover 2.91 s,
+  notice gone (kind `selected`). Item 3.1: `Reading voice: Eddy…\nPreparing
+  voice: Grandma…`, no called-off notice (`calledOffSeen` false), D took over.
+  3.2/3.3: `player.voice` A at once, pending null, no called-off notice; the
+  speed call-off notice 5 s then opacity 0; session speed restored (1.45).
