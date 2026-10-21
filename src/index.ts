@@ -817,7 +817,10 @@ function watchWindow(win: any): void {
         win.Zotero_Tabs ? win.Zotero_Tabs.selectedID : null,
         (r: any) => isSpeaking(readAloudManager(r)),
       ),
-    { isEditable: (event) => isEditableTarget(event.target) || isEditableTarget(deepActiveElement(win.document)) },
+    {
+      isEditable: (event) => isEditableTarget(event.target) || isEditableTarget(deepActiveElement(win.document)),
+      focused: () => deepActiveElement(win.document),
+    },
   );
 }
 
@@ -845,6 +848,7 @@ function watchReader(reader: any): void {
   if (iframe) {
     readAloudShortcuts.listen(iframe, () => reader, {
       isEditable: (event) => isEditableTarget(event.target) || isEditableTarget(deepActiveElement(iframe.document)),
+      focused: () => deepActiveElement(iframe.document),
     });
   }
   hookPositionCapture(reader);

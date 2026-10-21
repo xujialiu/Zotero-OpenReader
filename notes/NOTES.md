@@ -787,3 +787,4 @@ then) and is in the git history before that day.
 ### [2026-10-21](NOTES_2026-10-21.md)
 
 - A click outside the Player reaches its page as a blur, or not at all (issue #213)
+- The Skip keys took the arrows from the Outline and the sliders (issue #212)

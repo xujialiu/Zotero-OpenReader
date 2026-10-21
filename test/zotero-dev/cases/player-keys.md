@@ -38,6 +38,16 @@ Items 4.1–4.3, 4.5 and 4.6 of the checklist, under their original numbers.
    flag is already true when a session starts, so force it false
    (`Components.utils.waiveXrays(view)._readAloudPositionLocked = false`)
    before each press, or the check proves nothing.
+- **The Outline and the sliders keep their arrows (issue #212).** With a
+  session open and paused, click an Outline item that has children in the
+  sidebar of the PDF fixture, so the focus is on it. Trusted ArrowRight
+  expands it and ArrowLeft collapses it (the item's `aria-expanded` or its
+  children shown); Shift+ArrowRight and Shift+ArrowLeft do the same. The
+  active segment does not move on any of them, and `keydown()` reports the
+  key not consumed by the plugin. Then focus the size slider of the EPUB
+  fixture's Appearance popup: ArrowRight and ArrowLeft move its value, and
+  the segment stays. Control: click the page, and ArrowRight skips one
+  segment again. Restore the slider's value and the Outline's state.
 
 ### 4.3
 

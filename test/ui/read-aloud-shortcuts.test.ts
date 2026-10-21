@@ -4,6 +4,7 @@ import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
 import { VOLUME_PREF } from '../../src/core/read-aloud-volume';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import {
+  arrowKeyBelongsToWidget,
   createReadAloudShortcuts,
   deepActiveElement,
   isEditableTarget,
@@ -376,6 +377,49 @@ describe('navigation', () => {
     expect(manager.skipAhead).toHaveBeenCalledWith('paragraph');
     shortcuts.handleKeyDown(left({ shiftKey: true }), resolve);
     expect(manager.skipBack).toHaveBeenCalledWith('paragraph');
+  });
+
+  describe("the reader's widgets that use the left and right arrows themselves (#212)", () => {
+    /** The sidebar's Outline (reader.js: div.outline-view, role=listbox) and an item inside it. */
+    const outline: any = { tagName: 'DIV', className: 'outline-view', closest: (selector: string) => (selector === '.outline-view' ? outline : null) };
+    const outlineItem = { tagName: 'DIV', className: 'item', closest: (selector: string) => (selector === '.outline-view' ? outline : null) };
+    /** A slider, such as the Appearance popup's size slider (reader.js: input type=range). */
+    const slider: any = { tagName: 'INPUT', type: 'range', closest: (selector: string) => (selector === 'input[type="range"]' ? slider : null) };
+    const keys = { ArrowRight: right(), ArrowLeft: left(), 'Shift+ArrowRight': right({ shiftKey: true }), 'Shift+ArrowLeft': left({ shiftKey: true }) };
+
+    for (const [name, target] of Object.entries({ 'the Outline': outline, 'an Outline item': outlineItem, 'a slider': slider })) {
+      it(`leaves every arrow Skip to ${name}, as Zotero's own key manager does, while a session is open`, () => {
+        const { shortcuts, manager, resolve } = setup();
+        manager.paused = true;
+        for (const [key, base] of Object.entries(keys)) {
+          const event = { ...base, target, preventDefault: vi.fn(), stopPropagation: vi.fn() };
+          expect(shortcuts.handleKeyDown(event, resolve), key).toBe(false);
+          expect(event.preventDefault, key).not.toHaveBeenCalled();
+          expect(event.stopPropagation, key).not.toHaveBeenCalled();
+        }
+        expect(manager.skipAhead).not.toHaveBeenCalled();
+        expect(manager.skipBack).not.toHaveBeenCalled();
+      });
+    }
+
+    // The chrome window's listener hears a reader's key with the reader's frame as its target
+    it('leaves them to the Outline when the listener finds it through the focus, not the target', () => {
+      const { shortcuts, manager, resolve } = setup();
+      const frame = { tagName: 'BROWSER', closest: () => null };
+      const event = right({ target: frame });
+      expect(shortcuts.handleKeyDown(event, resolve, { focused: () => outlineItem })).toBe(false);
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(manager.skipAhead).not.toHaveBeenCalled();
+    });
+
+    it('still skips from the page, and keeps the other keys working on a focused slider', () => {
+      const { shortcuts, manager, resolve } = setup();
+      const page = { tagName: 'DIV', closest: () => null };
+      expect(shortcuts.handleKeyDown(right({ target: page }), resolve, { focused: () => page })).toBe(true);
+      expect(manager.skipAhead).toHaveBeenCalledWith('sentence');
+      expect(shortcuts.handleKeyDown(keyEvent({ key: 'C', code: 'KeyC', target: slider }), resolve)).toBe(true);
+      expect(manager.setSpeed).toHaveBeenCalledWith(1.05, true);
+    });
   });
 
   it('works while paused: the new position is pushed after locking without playing', () => {
@@ -1264,6 +1308,25 @@ describe('isEditableTarget', () => {
     expect(isEditableTarget({ tagName: 'DIV' })).toBe(false);
     expect(isEditableTarget(null)).toBe(false);
     expect(isEditableTarget(undefined)).toBe(false);
+  });
+});
+
+describe('arrowKeyBelongsToWidget (#212)', () => {
+  const inside = (selector: string) => ({ closest: (s: string) => (s === selector ? {} : null) });
+  it('gives ArrowLeft and ArrowRight to an Outline or a slider, and nothing else', () => {
+    for (const key of ['ArrowLeft', 'ArrowRight']) {
+      expect(arrowKeyBelongsToWidget(key, inside('.outline-view'))).toBe(true);
+      expect(arrowKeyBelongsToWidget(key, inside('input[type="range"]'))).toBe(true);
+      expect(arrowKeyBelongsToWidget(key, inside('.toolbar'))).toBe(false);
+    }
+    for (const key of ['ArrowUp', 'ArrowDown', 'C', 'Enter']) expect(arrowKeyBelongsToWidget(key, inside('.outline-view'))).toBe(false);
+  });
+
+  it('answers false for no element, one without closest, and one whose closest throws', () => {
+    expect(arrowKeyBelongsToWidget('ArrowRight', null)).toBe(false);
+    expect(arrowKeyBelongsToWidget('ArrowRight', undefined)).toBe(false);
+    expect(arrowKeyBelongsToWidget('ArrowRight', { tagName: 'DIV' })).toBe(false);
+    expect(arrowKeyBelongsToWidget('ArrowRight', { closest: () => { throw new TypeError("can't access dead object"); } })).toBe(false);
   });
 });
 

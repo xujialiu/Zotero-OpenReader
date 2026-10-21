@@ -195,6 +195,8 @@ export interface ReadAloudShortcutsDeps {
 export interface HandleOptions {
   /** Replaces the default `event.target` check; chrome windows look at the focused element inside nested frames instead. */
   isEditable?(event: ShortcutKeyEvent): boolean;
+  /** The element with focus, followed into nested frames: a chrome window hears a reader's key with the reader's frame as its target. */
+  focused?(): unknown;
 }
 
 export interface ReadAloudShortcuts {
@@ -513,6 +515,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
     if (!action) return false;
     const isEditable = options.isEditable ?? ((e: ShortcutKeyEvent) => isEditableTarget(e.target));
     if (isEditable(event)) return false;
+    if (arrowKeyBelongsToWidget(event.key, event.target) || arrowKeyBelongsToWidget(event.key, options.focused?.())) return false;
     const reader = resolveReader();
     // The stop key takes no reader: it closes every player in every window,
     // and is the one key that works with the library tab selected. Taken
@@ -658,6 +661,24 @@ export function isEditableTarget(target: unknown): boolean {
     const tag = String(el.tagName ?? el.localName ?? '').toLowerCase();
     if (tag === 'input') return !NON_TEXT_INPUT_TYPES.has(String(el.type ?? 'text').toLowerCase());
     return tag === 'textarea' || tag === 'select' || tag === 'editable-text' || tag === 'textbox' || tag === 'search-textbox';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * True when a left or right arrow belongs to the focused widget, which uses
+ * it itself: the sidebar's Outline expands and collapses an item with it, a
+ * slider moves with it. Zotero's own key manager leaves exactly these two
+ * keys to exactly these two widgets, with any modifiers (reader.js
+ * `KeyboardManager._handleKeyDown`, "Allow to expand/collapse outline items
+ * with left and right arrow keys"); so do the shortcuts (#212).
+ */
+export function arrowKeyBelongsToWidget(key: string, element: unknown): boolean {
+  if (key !== 'ArrowLeft' && key !== 'ArrowRight') return false;
+  const el = element as { closest?(selector: string): unknown } | null;
+  try {
+    return !!el && typeof el.closest === 'function' && !!(el.closest('.outline-view') || el.closest('input[type="range"]'));
   } catch {
     return false;
   }
