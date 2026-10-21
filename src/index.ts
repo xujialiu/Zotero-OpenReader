@@ -2508,7 +2508,8 @@ function startVoicePick(): void {
     isDead: value => Components.utils.isDeadWrapper(value),
     error: error => Zotero.logError(error),
     debug: message => Zotero.debug(`[zotero-tts] ${message}`),
-    notice: (reader, kind, voice) => voiceNotices?.notice(reader, kind, voice),
+    // Every argument as it comes: the voice reading, the fourth, was dropped here once (issue #225)
+    notice: (...args) => voiceNotices?.notice(...args),
   });
   eachReader((reader) => voicePick?.attach(reader));
 }
