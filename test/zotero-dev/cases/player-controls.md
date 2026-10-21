@@ -52,8 +52,11 @@ Do not start or resume owner playback.
   toolbar button (zoom), the sidebar's Outline, and inside the Appearance
   popup. After each, no `.popover` is left in the Player's document and the
   frame's height is back to 34 px in the bars (in floating, the panel's own
-  height, `108` or `202`, with `menuInset` 0 in `diagnostics` of the
-  Player). Expected mechanism: a click in a view moves the focus out of
+  height: `108` or `202`, or `128` or `222` while the remaining-time row
+  shows, as on the fixtures; `frame.style.top` back where it was before
+  the menu). Measured 2026-10-21 on 1.16.13-beta2: the toolbar click
+  leaves the Player's page focused, so the host's pointerdown is what
+  closes the menu there. Expected mechanism: a click in a view moves the focus out of
   the Player's page (its window's `blur`); a toolbar, sidebar or popup
   click calls the page's `zttsClosePopover` from the host's capture-phase
   pointerdown on the reader's window. Record, for the toolbar click,

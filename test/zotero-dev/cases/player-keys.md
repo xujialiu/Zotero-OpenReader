@@ -14,7 +14,7 @@ Items 4.1–4.3, 4.5 and 4.6 of the checklist, under their original numbers.
    visible document for ~900 ms, memory `speed`, every language entry's
    `speed`, the log `spread read-aloud speed N to M reader(s)`, the idle
    tab's manager takes the speed without persisting. Shift+X back;
-   Shift+Z to 1 (the toast reads `1.0×`; increments retain two decimals); the popup's own
+   Shift+Z to 1 (the toast reads `1.0×`, and `1.5×`, not `1.50×`: a trailing zero is dropped); the popup's own
    `setSpeed(1.7, true)` restores.
 
 - **Held speed keys (issue #122).** Send an initial trusted Shift+C and
@@ -49,16 +49,24 @@ Items 4.1–4.3, 4.5 and 4.6 of the checklist, under their original numbers.
    flag is already true when a session starts, so force it false
    (`Components.utils.waiveXrays(view)._readAloudPositionLocked = false`)
    before each press, or the check proves nothing.
-- **The Outline and the sliders keep their arrows (issue #212).** With a
-  session open and paused, click an Outline item that has children in the
-  sidebar of the PDF fixture, so the focus is on it. Trusted ArrowRight
-  expands it and ArrowLeft collapses it (the item's `aria-expanded` or its
-  children shown); Shift+ArrowRight and Shift+ArrowLeft do the same. The
-  active segment does not move on any of them, and `keydown()` reports the
-  key not consumed by the plugin. Then focus the size slider of the EPUB
-  fixture's Appearance popup: ArrowRight and ArrowLeft move its value, and
-  the segment stays. Control: click the page, and ArrowRight skips one
-  segment again. Restore the slider's value and the Outline's state.
+- **The Outline and the sliders keep their arrows (issue #212).** Checked
+  by its mechanism, since Zotero 11.0-beta.1 skips on these arrows itself
+  while a session is open (`KeyboardManager._handleKeyDown`, its Read
+  Aloud block, `reader.js` 84523-84552): what is verified is that the
+  plugin does not skip. Use a disposable PDF with an outline (none of
+  `test/fixtures/` has one; the 2026-10-21 run generated one under
+  `.tmp/zotero-dev/fixture-outline/`). With a session open and paused,
+  focus the sidebar's Outline (`Services.focus.focusedElement` is
+  `DIV#outlineView`), wrap the manager's `skipAhead` and `skipBack`
+  (`Components.utils.exportFunction` into the reader window) to record
+  their caller's stack, and press a trusted ArrowRight, then
+  Shift+ArrowRight: no recorded stack holds a `zotero-tts.js` frame (on
+  Zotero 11 the skip that does happen is from `reader.js:84550`). The
+  Outline expands and collapses with them only with no session open, as
+  in Zotero alone. The Appearance popup of Zotero 11.0-beta.1 has no
+  slider to test (2026-10-21). Control: click the page, and ArrowRight
+  skips one segment, the recorded stack holding the plugin's frames.
+  Restore the Outline's state.
 
 ### 4.3
 

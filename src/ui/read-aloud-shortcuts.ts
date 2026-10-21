@@ -687,10 +687,12 @@ export function isEditableTarget(target: unknown): boolean {
 /**
  * True when a left or right arrow belongs to the focused widget, which uses
  * it itself: the sidebar's Outline expands and collapses an item with it, a
- * slider moves with it. Zotero's own key manager leaves exactly these two
+ * slider moves with it. Zotero's focus manager leaves exactly these two
  * keys to exactly these two widgets, with any modifiers (reader.js
- * `KeyboardManager._handleKeyDown`, "Allow to expand/collapse outline items
- * with left and right arrow keys"); so do the shortcuts (#212).
+ * `FocusManager._handleKeyDown`, "Allow to expand/collapse outline items
+ * with left and right arrow keys"); so do the shortcuts (#212). Zotero's
+ * own Read Aloud keys (`KeyboardManager._handleKeyDown`) still skip on them
+ * while a session is open; that is Zotero's, not these shortcuts'.
  */
 export function arrowKeyBelongsToWidget(key: string, element: unknown): boolean {
   if (key !== 'ArrowLeft' && key !== 'ArrowRight') return false;
