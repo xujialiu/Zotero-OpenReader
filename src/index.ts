@@ -249,6 +249,12 @@ const playerController = createPlayerController({
   affectedTabs: readingImpact.affectedTabs,
   message: (key, args) => key.startsWith('ztts-time-') ? t(key, args) : playerMessage(key, args),
   remainingTime: reader => engine?.remainingTime(reader) ?? { status: 'estimating', scope: 'document', seconds: null },
+  // An entry or language picked picks no voice, and Play waits for one (issue #224)
+  choose: (reader, choice) => voicePick?.choose(reader, choice) ?? false,
+  draft: reader => voicePick?.draft(reader) ?? null,
+  needsVoice: reader => voicePick?.needsVoice(reader) ?? false,
+  // The voice a pending switch is to is the Player's at once (issue #225)
+  pendingVoice: reader => voicePick?.pendingVoice(reader) ?? null,
 });
 /** Whether a reader's player reads with, or has selected, a voice of one of Zotero's tiers; a voice being switched to does not count. */
 function readerUsesTier(reader: any, tier: string): boolean {
@@ -1186,6 +1192,8 @@ function startReadAloudShortcuts(pluginID: string): void {
     // The popup's play button; native state handling restarts from a selection
     // on unpause (reader.js _onReadAloudEngineStateChanged, 83880).
     togglePaused: togglePlayerPaused,
+    // No voice chosen in the Player after an entry or language pick (issue #224)
+    needsVoice: (reader: any) => voicePick?.needsVoice(reader) ?? false,
     // Zotero's EPUB, snapshot and Reading Mode views act on the push below
     // only when it is their first: forget the state they hold (issue #76).
     // The line in the debug log is the proof the path ran, and which branch
@@ -2474,8 +2482,15 @@ function startVoicePick(): void {
   voiceNotices = createVoiceNotices({
     document: toastDoc,
     playbackMessage: kind => kind === 'preparing' ? t('ztts-playback-preparing') : t('ztts-playback-failed'),
-    message: (kind, voice) => kind === 'preparing' ? t('ztts-voice-preparing', { voice })
-      : kind === 'failed' ? t('ztts-voice-failed', { voice }) : t('ztts-voice-unavailable'),
+    // The voice reading and the voice being prepared, a line each (issue #225)
+    message: (kind, voice, reading) => kind === 'preparing'
+      ? (reading ? `${t('ztts-voice-reading', { voice: reading })}\n` : '') + t('ztts-voice-preparing', { voice })
+      : kind === 'failed' ? t('ztts-voice-failed', { voice })
+      : kind === 'called-off' ? t('ztts-voice-called-off', { voice })
+      // An entry or language picked picks no voice (issue #224)
+      : kind === 'paused' ? t('ztts-voice-paused-choose')
+      : kind === 'choose' ? t('ztts-voice-choose')
+      : t('ztts-voice-unavailable'),
   });
   playerVoiceList = createPlayerVoiceList({
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
@@ -2920,9 +2935,19 @@ const diagnostics = {
       if (reader) voicePick?.step(reader, direction);
     }
     // v2: the old voice asks for nothing new while a switch is pending; skips and jumps keep it (issue #163)
-    return JSON.stringify({ mechanism: 'engine-handoff-v2', bindings: {
+    // v3: an entry or language pick is a draft with no voice (issue #224), and the Player shows a pending switch's voice (issue #225)
+    const player = (reader: any) => {
+      try {
+        const state = playerController.snapshot(reader);
+        return { provider: state.provider, locale: state.locale, voice: state.voice, chooseVoice: state.chooseVoice };
+      } catch (e) {
+        return String(e);
+      }
+    };
+    return JSON.stringify({ mechanism: 'engine-handoff-v3', bindings: {
       previous: loadSettings(prefs).shortcuts.previousVoice, next: loadSettings(prefs).shortcuts.nextVoice,
     }, readers: readers.map((reader: any, index: number) => ({ index, selected: readAloudManager(reader)?.selectedVoiceID ?? null,
+      paused: readAloudManager(reader)?.paused ?? null, player: player(reader),
       handoff: voicePick?.inspect(reader) ?? null })) }, null, 2);
   },
   /** Cache reuse and, on request, the provider's actual source union. Never returns credentials. */

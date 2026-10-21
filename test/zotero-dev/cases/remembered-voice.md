@@ -30,7 +30,11 @@ Items 3.2, 3.11 and 4.7 of the checklist, under their original numbers.
 
 ### 3.11
 
-11. **The player's language dropdown lands on the language's remembered
+11. *Superseded by issue #224 (1.16.13): the language dropdown picks no
+    voice, the remembered one included, and the Player no longer calls
+    `setLanguage`; the check is
+    [entry-language-picks](entry-language-picks.md). Kept for its number.*
+    **The player's language dropdown lands on the language's remembered
     voice** (issue #49, 1.10.10). With *Use one voice everywhere* on, the
     memory naming a single-language Local voice V_en under `en`, the
     `mul` entry naming a Local multilingual voice V_mul — neither the

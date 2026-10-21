@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPlayerController } from '../src/read-aloud/player-controller';
 import { PREF_PREFIX } from '../src/core/settings';
 
-function fixture() {
+function fixture(extra: Partial<Parameters<typeof createPlayerController>[0]> = {}) {
   const values = new Map<string, unknown>();
   const manager = {
     active: false, paused: true, speed: 1.2, lang: 'en', region: 'US', currentVoiceRegion: 'US',
@@ -33,6 +33,7 @@ function fixture() {
     labels: () => ({ fish: 'Fish Audio', standard: 'Zotero Standard', premium: 'Zotero Premium' }), clone: (_reader, value) => value,
     start, close, togglePaused, rememberSpeed, follow, navigate, automatic, manual, anyReading: () => manager.active,
     message,
+    ...extra,
   });
   return { remainingTime, values, manager, reader, controller, start, close, togglePaused, rememberSpeed, follow, following, manual, navigate, message };
 }
@@ -162,8 +163,9 @@ describe('player controller', () => {
   });
   it('clones language options into the reader realm and validates provider and locale choices', async () => {
     const f = fixture();
-    await f.controller.command(f.reader, 'locale', 'en-US');
-    expect(f.manager.setLanguage).toHaveBeenCalledWith('en', { region: 'US', persist: true });
+    f.manager.allVoices.push({ id: 'fish::two', name: 'Two', tier: 'fish', language: 'en-GB' });
+    await f.controller.command(f.reader, 'locale', 'en-GB');
+    expect(f.manager.setLanguage).toHaveBeenCalledWith('en', { region: 'GB', persist: true });
     await expect(f.controller.command(f.reader, 'provider', 'missing')).rejects.toThrow();
   });
 });
@@ -175,6 +177,102 @@ it('shows remaining time by default, and switching it off bypasses estimation im
   f.values.set(PREF_PREFIX + 'readAloud.remainingTime', false);
   expect(f.controller.snapshot(f.reader).remaining).toEqual([]);
   expect(f.remainingTime).toHaveBeenCalledTimes(1);
+});
+
+describe('an entry or language pick picks no voice (issue #224)', () => {
+  const VOICES = [
+    { id: 'azure::us', label: 'Ava', tier: 'azure', language: 'en-US' },
+    { id: 'azure::gb', label: 'Sonia', tier: 'azure', language: 'en-GB' },
+    { id: 'azure::gb2', label: 'Libby', tier: 'azure', language: 'en-GB' },
+    { id: 'kokoro::gb', label: 'Emma', tier: 'kokoro', language: 'en-GB' },
+    { id: 'kokoro::us', label: 'Bella', tier: 'kokoro', language: 'en-US' },
+    { id: 'fish::one', label: 'One', tier: 'fish', language: 'en-US' },
+  ];
+  function drafted() {
+    let draft: { tier: string; locale: string | null } | null = null;
+    const choose = vi.fn((_reader: unknown, choice: { tier: string; locale: string | null }) => { draft = choice; return true; });
+    const needsVoice = vi.fn(() => draft !== null);
+    const f = fixture({ choose, draft: () => draft, needsVoice });
+    Object.assign(f.manager, {
+      active: true, paused: false, allVoices: VOICES, selectedTier: 'azure', selectedVoiceID: 'azure::gb', region: 'GB', currentVoiceRegion: 'GB',
+      tiers: new Set(['azure', 'kokoro', 'fish']), voicesForLanguage: VOICES.filter((v) => v.language === 'en-GB' && v.tier === 'azure'),
+    });
+    return { ...f, choose, needsVoice, clear: () => { draft = null; } };
+  }
+
+  it('an entry pick keeps the language the new entry has exactly, lists its voices, and chooses none', async () => {
+    const f = drafted();
+    expect(f.controller.snapshot(f.reader)).toMatchObject({ provider: 'azure', locale: 'en-GB', voice: 'azure::gb', chooseVoice: false });
+    await f.controller.command(f.reader, 'provider', 'kokoro');
+    expect(f.choose).toHaveBeenCalledWith(f.reader, { tier: 'kokoro', locale: 'en-GB' });
+    expect(f.manager.selectTier).not.toHaveBeenCalled();
+    const state = f.controller.snapshot(f.reader);
+    expect(state).toMatchObject({ provider: 'kokoro', locale: 'en-GB', voice: '', chooseVoice: true });
+    expect(state.locales.map((l) => l.value)).toEqual(['en-GB', 'en-US']);
+    expect(state.voices).toEqual([{ value: 'kokoro::gb', label: 'Emma' }]);
+  });
+
+  it('an entry without the language leaves it empty too, and lists no voice', async () => {
+    const f = drafted();
+    await f.controller.command(f.reader, 'provider', 'fish');
+    expect(f.choose).toHaveBeenCalledWith(f.reader, { tier: 'fish', locale: null });
+    expect(f.controller.snapshot(f.reader)).toMatchObject({ provider: 'fish', locale: '', voice: '', voices: [], chooseVoice: true });
+  });
+
+  it('a language pick keeps the entry shown and chooses no voice', async () => {
+    const f = drafted();
+    await f.controller.command(f.reader, 'locale', 'en-US');
+    expect(f.choose).toHaveBeenCalledWith(f.reader, { tier: 'azure', locale: 'en-US' });
+    expect(f.manager.setLanguage).not.toHaveBeenCalled();
+    expect(f.controller.snapshot(f.reader)).toMatchObject({ provider: 'azure', locale: 'en-US', voice: '', voices: [{ value: 'azure::us', label: 'Ava' }] });
+    // Under a draft, an entry pick keeps the draft's language
+    await f.controller.command(f.reader, 'provider', 'kokoro');
+    expect(f.choose).toHaveBeenLastCalledWith(f.reader, { tier: 'kokoro', locale: 'en-US' });
+    // And a language pick is checked against the draft entry's languages
+    await f.controller.command(f.reader, 'locale', 'en-GB');
+    expect(f.choose).toHaveBeenLastCalledWith(f.reader, { tier: 'kokoro', locale: 'en-GB' });
+  });
+
+  it('picking the entry or language shown changes nothing', async () => {
+    const f = drafted();
+    await f.controller.command(f.reader, 'provider', 'azure');
+    await f.controller.command(f.reader, 'locale', 'en-GB');
+    expect(f.choose).not.toHaveBeenCalled();
+    expect(f.manager.selectTier).not.toHaveBeenCalled();
+    expect(f.manager.setLanguage).not.toHaveBeenCalled();
+  });
+
+  it('a voice of the draft is a valid pick, and goes to the manager', async () => {
+    const f = drafted();
+    await f.controller.command(f.reader, 'provider', 'kokoro');
+    await f.controller.command(f.reader, 'voice', 'kokoro::gb');
+    expect(f.manager.selectVoice).toHaveBeenCalledWith('kokoro::gb');
+    await expect(f.controller.command(f.reader, 'voice', 'azure::gb')).rejects.toThrow();
+  });
+
+  it('Play and open start nothing while no voice is chosen', async () => {
+    const f = drafted();
+    await f.controller.command(f.reader, 'provider', 'kokoro');
+    await f.controller.command(f.reader, 'play');
+    await f.controller.command(f.reader, 'open');
+    expect(f.needsVoice).toHaveBeenCalledTimes(2);
+    expect(f.togglePaused).not.toHaveBeenCalled();
+    expect(f.start).not.toHaveBeenCalled();
+    f.clear();
+    await f.controller.command(f.reader, 'play');
+    expect(f.togglePaused).toHaveBeenCalledOnce();
+  });
+});
+
+describe('the voice a pending switch is to (issue #225)', () => {
+  it('is the Player’s voice while the manager still reads in the old one', () => {
+    let pending: string | null = 'fish::two';
+    const f = fixture({ pendingVoice: () => pending });
+    f.manager.voicesForLanguage.push({ id: 'fish::two', name: 'Two', tier: 'fish', language: 'en-US' });
+    expect(f.controller.snapshot(f.reader).voice).toBe('fish::two');
+    pending = null;
+    expect(f.controller.snapshot(f.reader).voice).toBe('fish::one');
+  });
 });
 
 describe('a Zotero voice’s time left and its account errors (issue #140)', () => {

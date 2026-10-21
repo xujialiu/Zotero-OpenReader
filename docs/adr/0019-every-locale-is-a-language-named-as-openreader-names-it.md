@@ -72,7 +72,9 @@ issue: 223
     locale before `selectTier` resolves, for such a locale only.
 - **A language pick still lands on a voice**, the remembered one. The
   phone picks nothing, but the manager needs a voice to keep reading.
-  This was the owner's answer of 2026-10-18.
+  This was the owner's answer of 2026-10-18. *Superseded by
+  [ADR 0020](0020-an-entry-or-language-pick-selects-no-voice.md)
+  (issue #224): an entry or language pick selects no voice.*
 
 ## Consequences
 

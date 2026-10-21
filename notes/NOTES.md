@@ -790,3 +790,7 @@ then) and is in the git history before that day.
 - The Skip keys took the arrows from the Outline and the sliders (issue #212)
 - The speed keys stepped from a speed nobody reads (issue #197)
 - Verified live on 1.16.13-beta2, and Zotero 11 skips on the arrows itself (issues #213, #212, #197)
+
+### [2026-10-22](NOTES_2026-10-22.md)
+
+- An entry or language pick is a draft beside the manager, and a pending switch is the Player's voice (issues #224, #225)

@@ -35,7 +35,15 @@ function setup(options: { paused?: boolean; texts?: string[] } = {}) {
     timestamps: segment.text === TEXT ? WORDS : null,
   });
   const segments = (options.texts ?? [TEXT, 'Four five.', 'Six seven.']).map((text) => ({ text }));
-  const voices: any[] = ['a', 'b', 'c'].map((id) => ({ id, label: id.toUpperCase(), language: 'en-US', segmentGranularity: 'sentence' }));
+  const voices: any[] = ['a', 'b', 'c'].map((id) => ({ id, label: id.toUpperCase(), tier: 'local', language: 'en-US', segmentGranularity: 'sentence' }));
+  // Other entries and languages, for the picks of issue #224: Premium in two Englishes, and a British voice of the reading entry
+  const others: any[] = [
+    ['d', 'premium', 'en-US'],
+    ['g', 'premium', 'en-US'],
+    ['e', 'premium', 'en-GB'],
+    ['f', 'local', 'en-GB'],
+  ].map(([id, tier, language]) => ({ id, label: id.toUpperCase(), tier, language, segmentGranularity: 'sentence' }));
+  const all = [...voices, ...others];
   const voiceOf = (v: any) => ({ id: v.id, lang: v.language, sentenceDelay: 0, reader: v });
   const rebuilds: string[] = [];
   const manager: any = {
@@ -45,7 +53,8 @@ function setup(options: { paused?: boolean; texts?: string[] } = {}) {
     _voiceID: 'a',
     _lang: 'en',
     _selectedTier: 'local',
-    allVoices: voices,
+    _region: 'US',
+    allVoices: all,
     segments,
     segmentGranularity: 'sentence',
     get selectedVoiceID() {
@@ -75,11 +84,12 @@ function setup(options: { paused?: boolean; texts?: string[] } = {}) {
       this._stateChanged();
     },
     _applyVoice() {
-      const voice = voices.find((v) => v.id === this._voiceID);
+      const voice = all.find((v) => v.id === this._voiceID);
       rebuilds.push(`${voice.id}:${session.bind({ voice: voiceOf(voice), segments, backwardStopIndex: session.position, forwardStopIndex: null })}`);
       session.setPaused(this.paused);
     },
     _destroyController: vi.fn(),
+    retry: vi.fn(),
     _persistCurrentVoice: vi.fn(),
     _stateChanged: vi.fn(),
     pause() {
@@ -102,7 +112,7 @@ function setup(options: { paused?: boolean; texts?: string[] } = {}) {
     },
     repositionTo(index: number) {
       this.paused = false;
-      const voice = voices.find((v) => v.id === this._voiceID);
+      const voice = all.find((v) => v.id === this._voiceID);
       rebuilds.push(`${voice.id}:${session.bind({ voice: voiceOf(voice), segments, backwardStopIndex: index, forwardStopIndex: null, jump: true })}`);
       session.setPaused(false);
     },
@@ -120,7 +130,7 @@ function setup(options: { paused?: boolean; texts?: string[] } = {}) {
   const notices: string[] = [];
   const pick = createVoicePick({
     engine,
-    notice: (_reader, kind, label) => notices.push(`${kind}:${label}`),
+    notice: (_reader, kind, label, reading) => notices.push(`${kind}:${label}${reading ? ` < ${reading}` : ''}`),
     error: (e) => {
       throw e;
     },
@@ -147,36 +157,19 @@ describe('voice pick', () => {
     expect(t.manager._persistCurrentVoice).toHaveBeenCalledOnce();
     expect(t.rebuilds).toEqual(['c:carried-on']);
     expect(t.playing()).toEqual(['a@0', 'c@0.25']);
-    expect(t.notices).toEqual(['preparing:C', 'selected:C']);
+    expect(t.notices).toEqual(['preparing:C < A', 'selected:C']);
     expect(t.pick.protectedVoices(t.reader)).toEqual([]);
   });
 
-  it.each(['locale', 'tier'])('applies a paused %s pick natively at once, so the lists follow it, and prepares nothing', async (kind) => {
-    const t = setup({ paused: true });
-    if (kind === 'locale') t.manager.setLanguage('fr', { persist: true });
-    else t.manager.selectTier('premium');
-    expect(t.manager.selectedVoiceID).toBe(kind === 'locale' ? 'b' : 'c');
-    expect(t.manager._persistCurrentVoice).toHaveBeenCalledOnce();
-    expect(t.rebuilds).toEqual([kind === 'locale' ? 'b:started' : 'c:started']);
-    await t.clock.advance(300);
-    expect(t.fetch.requests).toHaveLength(0);
-    expect(t.notices).toEqual([]);
-  });
-
-  it.each(['locale', 'tier'])('previews a playing %s pick and commits its fields only at the handoff', async (kind) => {
+  it.each(['locale', 'tier'])('leaves a %s pick to the manager: entry and language picks never reach the Handoff (issue #224)', async (kind) => {
     const t = setup();
     await t.clock.advance(10);
     if (kind === 'locale') t.manager.setLanguage('fr', { persist: true });
     else t.manager.selectTier('premium');
-    expect(t.manager._lang).toBe('en');
-    expect(t.manager._selectedTier).toBe('local');
-    expect(t.manager._persistCurrentVoice).not.toHaveBeenCalled();
-    expect(t.rebuilds).toEqual([]);
-    await t.clock.advance(200);
     expect(t.manager.selectedVoiceID).toBe(kind === 'locale' ? 'b' : 'c');
-    expect(t.manager._lang).toBe(kind === 'locale' ? 'fr' : 'en');
-    expect(t.manager._selectedTier).toBe(kind === 'tier' ? 'premium' : 'local');
-    expect(t.manager._persistCurrentVoice).toHaveBeenCalledOnce();
+    expect(t.session.handoff).toBe(null);
+    expect(t.pick.pendingVoice(t.reader)).toBe(null);
+    expect(t.notices).toEqual([]);
   });
 
   it('calls a pending switch off when the voice reading is picked again, without restarting it', async () => {
@@ -185,7 +178,7 @@ describe('voice pick', () => {
     t.manager.selectVoice('b');
     await t.clock.advance(50);
     t.manager.selectVoice('a');
-    expect(t.notices).toEqual(['preparing:B', 'cancelled:B', 'selected:A']);
+    expect(t.notices).toEqual(['preparing:B < A', 'cancelled:B', 'selected:A']);
     expect(t.rebuilds).toEqual(['a:carried-on']);
     await t.clock.advance(300);
     expect(t.playing()).toEqual(['a@0']);
@@ -197,7 +190,9 @@ describe('voice pick', () => {
     await t.clock.advance(10);
     t.manager.selectVoice('c');
     t.manager.setSpeed(1.5);
-    expect(t.notices).toEqual(['preparing:C', 'cancelled:C']);
+    // The Player showed C: it goes back to A, and says so (issue #225)
+    expect(t.notices).toEqual(['preparing:C < A', 'called-off:C']);
+    expect(t.pick.pendingVoice(t.reader)).toBe(null);
     expect(t.session.handoff).toBe(null);
     expect(t.manager.selectedVoiceID).toBe('a');
     // The switch's shadows went with it: the manager's own methods are back
@@ -239,7 +234,7 @@ describe('voice pick', () => {
       expect(t.manager.selectedVoiceID).toBe('c');
       expect(t.audio.started.at(-1)?.clip.name).toBe(`c:${TEXT}`);
       expect(t.pick.inspect(t.reader)?.last).toMatchObject({ kind: 'word', index: 0 });
-      expect(t.notices).toEqual(['preparing:C', 'selected:C']);
+      expect(t.notices).toEqual(['preparing:C < A', 'selected:C']);
       expect(asked(t, 'a')).toBe(before);
     });
 
@@ -261,7 +256,7 @@ describe('voice pick', () => {
       expect(t.audio.current?.clip.name).toBe('c:Twelve thirteen.');
       expect(t.audio.current?.offset).toBe(0);
       expect(t.pick.inspect(t.reader)?.last).toMatchObject({ kind: 'sentence', index: 5 });
-      expect(t.notices).toEqual(['preparing:C', 'selected:C']);
+      expect(t.notices).toEqual(['preparing:C < A', 'selected:C']);
       expect(asked(t, 'a')).toBe(before);
     });
 
@@ -274,13 +269,13 @@ describe('voice pick', () => {
       await t.clock.advance(25);
       t.fetch.respond(TEXT);
       await t.clock.advance(25);
-      expect(t.notices).toEqual(['preparing:C', 'ready:C']);
+      expect(t.notices).toEqual(['preparing:C < A', 'ready:C']);
       t.manager.play();
       await t.clock.advance(0);
       expect(t.audio.current?.clip.name).toBe(`c:${TEXT}`);
       expect(t.audio.current?.offset).toBe(0);
       expect(t.manager.selectedVoiceID).toBe('c');
-      expect(t.notices).toEqual(['preparing:C', 'ready:C', 'selected:C']);
+      expect(t.notices).toEqual(['preparing:C < A', 'ready:C', 'selected:C']);
     });
   });
 
@@ -290,7 +285,7 @@ describe('voice pick', () => {
     t.manager.pause();
     t.manager.selectVoice('c');
     await t.clock.advance(150);
-    expect(t.notices).toEqual(['preparing:C', 'ready:C']);
+    expect(t.notices).toEqual(['preparing:C < A', 'ready:C']);
     t.manager.play();
     await t.clock.advance(0);
     expect(t.playing()).toEqual(['a@0', 'c@0.25']);
@@ -378,5 +373,216 @@ describe('voice pick', () => {
     for (const name of ['selectVoice', 'selectTier', 'setLanguage', 'pause', 'play', 'skipAhead', 'setSpeed', 'deactivate']) {
       expect(t.manager[name].name, name).toBe(name);
     }
+  });
+});
+
+describe('the voice a pending switch is to, on the Player (issue #225)', () => {
+  it('is the picked voice until the new voice takes over, then the manager’s', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    expect(t.pick.pendingVoice(t.reader)).toBe(null);
+    t.manager.selectVoice('c');
+    expect(t.pick.pendingVoice(t.reader)).toBe('c');
+    expect(t.manager.selectedVoiceID).toBe('a');
+    await t.clock.advance(200);
+    expect(t.manager.selectedVoiceID).toBe('c');
+    expect(t.pick.pendingVoice(t.reader)).toBe(null);
+  });
+
+  it('a newer pick takes the place of the pending one without a called-off notice', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.manager.selectVoice('b');
+    t.manager.selectVoice('c');
+    expect(t.pick.pendingVoice(t.reader)).toBe('c');
+    expect(t.notices).toEqual(['preparing:B < A', 'cancelled:B', 'preparing:C < A']);
+  });
+
+  it('Stop calls the switch off with a notice', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.manager.selectVoice('c');
+    t.manager.deactivate();
+    expect(t.pick.pendingVoice(t.reader)).toBe(null);
+    expect(t.notices).toEqual(['preparing:C < A', 'called-off:C']);
+  });
+
+  it('a failed switch takes the picked voice away again', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.fetch.hold = true;
+    t.manager.selectVoice('c');
+    await t.clock.advance(130_000);
+    expect(t.pick.pendingVoice(t.reader)).toBe(null);
+    expect(t.notices.at(-1)).toBe('failed:C');
+    expect(t.manager.selectedVoiceID).toBe('a');
+  });
+
+  it('a detach calls the switch off quietly', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.manager.selectVoice('c');
+    t.pick.detach(t.reader);
+    expect(t.notices).toEqual(['preparing:C < A', 'cancelled:C']);
+  });
+});
+
+describe('an entry or language pick picks no voice (issue #224)', () => {
+  const asked = (t: ReturnType<typeof setup>, voice: string) => t.fetch.requests.filter((r) => r.voice === voice).length;
+
+  it('pauses a reading, keeps the manager’s voice, memory and controller, and asks for nothing', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    expect(t.pick.choose(t.reader, { tier: 'premium', locale: 'en-GB' })).toBe(true);
+    expect(t.manager.paused).toBe(true);
+    expect(t.session.paused).toBe(true);
+    expect(t.manager.selectedVoiceID).toBe('a');
+    expect(t.manager._selectedTier).toBe('local');
+    expect(t.manager._persistCurrentVoice).not.toHaveBeenCalled();
+    expect(t.rebuilds).toEqual([]);
+    expect(t.pick.draft(t.reader)).toEqual({ tier: 'premium', locale: 'en-GB' });
+    expect(t.pick.inspect(t.reader)?.draft).toEqual({ tier: 'premium', locale: 'en-GB' });
+    expect(t.notices).toEqual(['paused:']);
+    await t.clock.advance(300);
+    expect(asked(t, 'e')).toBe(0);
+  });
+
+  it('calls a pending switch off without a called-off notice', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.manager.selectVoice('c');
+    t.pick.choose(t.reader, { tier: 'local', locale: 'en-GB' });
+    expect(t.session.handoff).toBe(null);
+    expect(t.pick.pendingVoice(t.reader)).toBe(null);
+    expect(t.notices).toEqual(['preparing:C < A', 'cancelled:C', 'paused:']);
+    // The switch's own play and pause shadows went with it
+    expect(t.manager.pause.name).toBe('pause');
+  });
+
+  it('while paused, says nothing and pauses nothing', async () => {
+    const t = setup({ paused: true });
+    t.pick.choose(t.reader, { tier: 'premium', locale: 'en-US' });
+    expect(t.manager.paused).toBe(true);
+    expect(t.notices).toEqual([]);
+  });
+
+  it('refuses Play, Retry and a jump with a notice, and lets a skip move the place, still paused', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    const retry = t.manager.retry;
+    t.pick.choose(t.reader, { tier: 'premium', locale: 'en-GB' });
+    t.manager.play();
+    expect(t.manager.paused).toBe(true);
+    t.manager.retry();
+    expect(retry).not.toHaveBeenCalled();
+    t.manager.jumpTo(2);
+    expect(t.session.position).toBe(0);
+    expect(t.manager.paused).toBe(true);
+    expect(t.notices).toEqual(['paused:', 'choose:', 'choose:', 'choose:']);
+    expect(t.pick.needsVoice(t.reader)).toBe(true);
+    t.manager.skipAhead('sentence');
+    await t.clock.advance(600);
+    expect(t.session.position).toBe(1);
+    expect(t.manager.paused).toBe(true);
+    expect(t.session.paused).toBe(true);
+  });
+
+  it('commits a voice of the draft as a fresh selection: nothing asked before Play, and Play reads the sentence from its start', async () => {
+    const t = setup();
+    await t.clock.advance(100);
+    t.pick.choose(t.reader, { tier: 'premium', locale: 'en-GB' });
+    t.manager.selectVoice('e');
+    expect(t.pick.draft(t.reader)).toBe(null);
+    expect(t.pick.needsVoice(t.reader)).toBe(false);
+    expect(t.manager.selectedVoiceID).toBe('e');
+    expect(t.manager._selectedTier).toBe('premium');
+    expect(t.manager._lang).toBe('en');
+    expect(t.manager._region).toBe('GB');
+    expect(t.manager._persistCurrentVoice).toHaveBeenCalledOnce();
+    expect(t.rebuilds).toEqual(['e:started']);
+    expect(t.manager.paused).toBe(true);
+    expect(t.session.handoff).toBe(null);
+    expect(t.notices).toEqual(['paused:', 'selected:E']);
+    // The draft's shadows are gone: the manager plays again
+    expect(t.manager.play.name).toBe('play');
+    await t.clock.advance(300);
+    expect(asked(t, 'e')).toBe(0);
+    t.manager.play();
+    await t.clock.advance(0);
+    expect(t.audio.current?.clip.name).toBe(`e:${TEXT}`);
+    expect(t.audio.current?.offset).toBe(0);
+  });
+
+  it('refuses a voice outside the draft’s list', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.pick.choose(t.reader, { tier: 'premium', locale: 'en-GB' });
+    t.manager.selectVoice('d');
+    expect(t.manager.selectedVoiceID).toBe('a');
+    expect(t.pick.draft(t.reader)).toEqual({ tier: 'premium', locale: 'en-GB' });
+    expect(t.notices.at(-1)).toBe('unavailable:');
+  });
+
+  it.each([[1, 'd'], [-1, 'g']] as const)('the voice key %i picks the %s end of the draft’s list, and the reading stays paused', async (direction, voice) => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.pick.choose(t.reader, { tier: 'premium', locale: 'en-US' });
+    t.pick.step(t.reader, direction);
+    expect(t.manager.selectedVoiceID).toBe(voice);
+    expect(t.pick.draft(t.reader)).toBe(null);
+    expect(t.manager.paused).toBe(true);
+  });
+
+  it('with no language chosen, a voice key only asks for a voice', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.pick.choose(t.reader, { tier: 'premium', locale: null });
+    t.pick.step(t.reader, 1);
+    expect(t.manager.selectedVoiceID).toBe('a');
+    expect(t.pick.draft(t.reader)).toEqual({ tier: 'premium', locale: null });
+    expect(t.notices.at(-1)).toBe('choose:');
+  });
+
+  it('a second pick replaces the draft', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.pick.choose(t.reader, { tier: 'premium', locale: null });
+    t.pick.choose(t.reader, { tier: 'premium', locale: 'en-US' });
+    expect(t.pick.draft(t.reader)).toEqual({ tier: 'premium', locale: 'en-US' });
+    expect(t.notices).toEqual(['paused:']);
+  });
+
+  it('Stop drops the draft and every shadow it put on the manager', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    const names = ['play', 'retry', 'jumpTo', 'repositionTo'];
+    const before = names.map((name) => t.manager[name]);
+    t.pick.choose(t.reader, { tier: 'premium', locale: 'en-GB' });
+    expect(names.map((name) => t.manager[name] === before[names.indexOf(name)])).toEqual(names.map(() => false));
+    t.manager.deactivate();
+    expect(t.manager.active).toBe(false);
+    expect(t.pick.draft(t.reader)).toBe(null);
+    expect(names.map((name) => t.manager[name])).toEqual(before);
+  });
+
+  it('a draft whose entry has left the voice list is dropped', async () => {
+    const t = setup();
+    await t.clock.advance(10);
+    t.pick.choose(t.reader, { tier: 'premium', locale: 'en-GB' });
+    t.manager.allVoices = t.voices;
+    expect(t.pick.draft(t.reader)).toBe(null);
+    expect(t.manager.play.name).toBe('play');
+  });
+
+  it('an idle manager takes the voice through its own pick', () => {
+    const t = setup();
+    t.manager.active = false;
+    t.pick.choose(t.reader, { tier: 'premium', locale: 'en-GB' });
+    expect(t.notices).toEqual([]);
+    t.manager.selectVoice('e');
+    expect(t.manager.selectedVoiceID).toBe('e');
+    expect(t.manager._selectedTier).toBe('premium');
+    expect(t.manager._persistCurrentVoice).toHaveBeenCalledOnce();
+    expect(t.pick.draft(t.reader)).toBe(null);
   });
 });

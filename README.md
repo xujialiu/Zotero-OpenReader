@@ -341,13 +341,14 @@ for a comment. Early in a sentence, the one just finished is annotated
 instead. With no reading open the keys keep their usual meaning.
 
 - **Previous / next voice** — `Shift+,` / `Shift+.` cycle through the
-  player's current voice list, wrapping at either end. Choosing a voice,
-  language or voice mode in the player uses the same switching behavior.
+  player's current voice list, wrapping at either end. Choosing a voice in
+  the player uses the same switching behavior.
 - **While playing**, the old voice reads on only with the audio it already
   has, and asks your provider for nothing more. The new voice takes over at
   a word boundary or between sentences once it is ready; where the old
-  voice runs out first, the reading waits for the new one. A short message
-  names the voice.
+  voice runs out first, the reading waits for the new one. The player shows
+  the new voice at once, and a message names the voice reading and the
+  voice being prepared until the new one takes over.
 - **While paused**, the new voice prepares silently. Press Play to continue
   with it after the paused word if it is ready; otherwise the old voice
   resumes until the new one is ready. Without reliable word alignment,
@@ -359,8 +360,19 @@ instead. With no reading open the keys keep their usual meaning.
 - **While a voice is preparing**, another selection cancels the previous
   request and only the latest choice takes effect. A failed preparation
   keeps the original voice, which reads on, and shows a message. Changing
-  speed or closing the player cancels the pending switch. Preparation may
-  use your provider's quota even if you change your mind.
+  speed or closing the player cancels the pending switch, and a message
+  says so; the player shows the original voice again. Preparation may use
+  your provider's quota even if you change your mind.
+- **Choosing another provider or language** in the player chooses no voice:
+  reading pauses, a message says why, and the voice list opens for you to
+  pick from. A provider keeps the language when it has exactly that one;
+  otherwise the language list opens first. Play stays grayed out until a
+  voice is chosen, and the voice keys pick the first or last voice of the
+  list.
+- **Once you choose the voice**, reading stays paused, and nothing is asked
+  of your provider until you press Play, which reads the sentence you
+  paused in from its start. Close the player before choosing, and the
+  document keeps the voice it had.
 
 ### Voice browser
 

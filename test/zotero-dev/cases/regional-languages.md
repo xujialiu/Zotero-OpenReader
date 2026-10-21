@@ -55,6 +55,14 @@ switch are already on. Never switch a provider on for the run.
 
 ### 3. A Chinese region picked in the Player
 
+Since issue #224 (1.16.13) a language or entry pick in the Player picks no
+voice: the expected voice of items 1-3 and 4.1 is the one chosen through the
+voice menu afterwards, and no `staged … for the language pick` or
+`… for the provider pick` line appears, since the Player no longer calls
+`setLanguage` / `selectTier`. What is still checked here: the Player's
+`state.locale`, and that the voice menu lists that locale's voices only.
+The pick itself is [entry-language-picks](entry-language-picks.md).
+
 1. On the fixture's Player, choose the System entry, then Chinese (China)
    (`staged an exact zh-CN voice for the language pick`), then a `zh-CN`
    voice through the voice dropdown, so that a Mandarin voice is remembered

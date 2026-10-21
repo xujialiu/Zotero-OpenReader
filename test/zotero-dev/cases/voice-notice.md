@@ -21,6 +21,10 @@ must hide it without an additional timed confirmation. Capture the
 diagnostic `handoff.notice` (`preparing` then `selected`), `session.playing`
 and `audio.state`, and DOM opacity. Diagnostics alone are insufficient.
 
+Since issue #225 (1.16.13) the preparing notice names the voice reading
+too, on a line above `Preparing voice: …`; the lifetimes below are
+unchanged. Its text is [pending-voice](pending-voice.md) item 2.
+
 ### 4c.2. Paused readiness
 
 Pause within a known word and change voice. No audio plays during preparation.

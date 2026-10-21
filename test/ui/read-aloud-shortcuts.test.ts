@@ -805,6 +805,17 @@ describe('the smart play key (action startFromSelection)', () => {
     expect(shortcuts.smartPlay(reader)).toBe(false);
     expect(togglePaused).toHaveBeenCalledTimes(1);
   });
+
+  // Issue #224: an entry or language picked in the Player left the voice empty
+  it.each([true, false])('starts nothing while the Player has no voice chosen (session open: %s), and consumes the key', (active) => {
+    const needsVoice = vi.fn(() => true);
+    const { shortcuts, manager, reader, togglePaused, startReadAloud, resolve } = setup({ needsVoice });
+    manager.active = active;
+    expect(shortcuts.handleKeyDown(space(), resolve)).toBe(true);
+    expect(needsVoice).toHaveBeenCalledWith(reader);
+    expect(togglePaused).not.toHaveBeenCalled();
+    expect(startReadAloud).not.toHaveBeenCalled();
+  });
 });
 
 describe('return to spoken position', () => {

@@ -53,7 +53,9 @@ used.
 - **Choosing a language still picks a voice:** the one last used for it,
   else the first, and a reading goes on with it. On the phone, choosing a
   language picks nothing until a voice is chosen. Here that would stop the
-  reading.
+  reading. *Reversed by
+  [design 0020](0020-a-provider-or-language-pick-leaves-the-voice-to-you.md):
+  choosing a language leaves the voice empty and pauses the reading.*
 - **Switching provider keeps the region** where the new provider has it. A
   Hong Kong voice on Azure becomes a Hong Kong voice on the system voices,
   not a Mandarin one.

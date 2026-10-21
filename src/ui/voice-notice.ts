@@ -1,12 +1,16 @@
-import type { VoiceNotice } from '../core/engine/handoff';
 import type { PlaybackNotice } from '../core/engine/session';
+import type { VoicePickNotice } from '../read-aloud/engine/voice-pick';
 import { showToast, type ToastDocument } from './speed-toast';
 import { positionNotice } from './notice-position';
 
 export const VOICE_NOTICE_ID = 'ztts-voice-notice';
 export const PLAYBACK_NOTICE_ID = 'ztts-playback-notice';
 
-type PendingVoice = { kind: 'preparing' | 'failed' | 'unavailable'; label: string };
+/** The notices that stay up: a voice being prepared until its switch ends, the rest for five seconds. */
+const SHOWN = ['preparing', 'failed', 'unavailable', 'called-off', 'paused', 'choose'] as const;
+type ShownNotice = (typeof SHOWN)[number];
+type PendingVoice = { kind: ShownNotice; label: string; reading?: string };
+const lasting = (kind: VoicePickNotice): kind is ShownNotice => (SHOWN as readonly string[]).includes(kind);
 interface Notices {
   voice: PendingVoice | null;
   playback: PlaybackNotice;
@@ -17,10 +21,13 @@ interface Notices {
 }
 
 /** Voice switching takes priority over ordinary playback preparation. Both
- * retain independent lifetimes, separate from short speed/status toasts. */
+ * retain independent lifetimes, separate from short speed/status toasts. A
+ * voice being prepared is named beside the voice reading, a line each
+ * (issue #225). */
 export function createVoiceNotices(deps: {
   document(reader: unknown): ToastDocument | null;
-  message(kind: VoiceNotice, voice: string): string;
+  /** `reading`: with `preparing`, the voice that reads on meanwhile. */
+  message(kind: VoicePickNotice, voice: string, reading?: string): string;
   playbackMessage?(kind: Exclude<PlaybackNotice, 'idle'>): string;
 }) {
   const readers = new Map<unknown, Notices>();
@@ -30,7 +37,7 @@ export function createVoiceNotices(deps: {
     return s;
   }
   function render(reader: unknown, s: Notices) {
-    const text = s.voice ? deps.message(s.voice.kind, s.voice.label)
+    const text = s.voice ? deps.message(s.voice.kind, s.voice.label, s.voice.reading)
       : s.playback !== 'idle' ? deps.playbackMessage?.(s.playback) : undefined;
     const id = s.voice ? VOICE_NOTICE_ID : PLAYBACK_NOTICE_ID;
     const shown = text ? `${id}:${text}` : '';
@@ -45,6 +52,8 @@ export function createVoiceNotices(deps: {
       s.dismiss = showToast(doc, text, undefined, null, id);
       const el = doc.getElementById(id);
       el.style.transition = 'none';
+      // The voice reading and the voice being prepared are a line each
+      el.style.whiteSpace = 'pre-line';
       const dismiss = s.dismiss;
       const stopPositioning = positionNotice(doc, el);
       s.dismiss = () => { stopPositioning(); dismiss(); };
@@ -59,11 +68,10 @@ export function createVoiceNotices(deps: {
     s.dismiss?.(); readers.delete(reader);
   }
   return {
-    notice(reader: unknown, kind: VoiceNotice, voice: string) {
+    notice(reader: unknown, kind: VoicePickNotice, voice: string, reading?: string) {
       const s = state(reader);
       clearTimeout(s.voiceTimer); s.voiceTimer = undefined;
-      s.voice = kind === 'preparing' || kind === 'failed' || kind === 'unavailable'
-        ? { kind, label: voice } : null;
+      s.voice = lasting(kind) ? { kind, label: voice, ...(reading === undefined ? {} : { reading }) } : null;
       if (s.voice && kind !== 'preparing') s.voiceTimer = setTimeout(() => {
         s.voice = null; s.voiceTimer = undefined; render(reader, s);
       }, 5000);

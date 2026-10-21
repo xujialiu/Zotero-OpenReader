@@ -126,6 +126,11 @@ export interface ReadAloudShortcutsDeps {
    */
   togglePaused?(reader: unknown): void;
   /**
+   * Whether Play waits for a voice to be chosen in the Player (issue #224):
+   * true says so over the document, and the play key starts nothing.
+   */
+  needsVoice?(reader: unknown): boolean;
+  /**
    * Make the reader's current view take the next state push as the
    * session's first (read-aloud/return-to-spoken.ts, issue #76). Zotero's
    * EPUB, snapshot and Reading Mode views navigate only on a segment
@@ -371,6 +376,12 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
    */
   function smartPlay(reader: unknown): boolean {
     if (!canSmartPlay(reader)) return false;
+    try {
+      // An entry or language picked with no voice: nothing to read in yet (issue #224)
+      if (deps.needsVoice?.(reader)) return true;
+    } catch (e) {
+      log(e);
+    }
     if (managerOf(reader)?.active) {
       try {
         deps.togglePaused?.(reader);

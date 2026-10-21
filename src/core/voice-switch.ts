@@ -10,6 +10,24 @@ export function playerVoices<T extends MenuVoice>(list: ArrayLike<T> | null | un
   return result.sort((a, b) => (a.creditsPerMinute ?? -1) - (b.creditsPerMinute ?? -1));
 }
 
+/**
+ * An entry's voices, or with `locale` those of exactly that locale under it
+ * (issue #224): what the Player lists for an entry and a language picked
+ * with no voice chosen yet. `null` is no language, and lists nothing. A
+ * reader's list is walked by index.
+ */
+export function entryVoices<T extends { tier?: unknown; language?: unknown }>(
+  list: ArrayLike<T> | null | undefined, tier: string, locale?: string | null,
+): T[] {
+  if (locale === null) return [];
+  const result: T[] = [];
+  for (let i = 0; i < (list?.length ?? 0); i++) {
+    const voice = list![i];
+    if (voice?.tier === tier && (locale === undefined || voice.language === locale)) result.push(voice);
+  }
+  return result;
+}
+
 export function adjacentVoice<T extends MenuVoice>(list: readonly T[], selected: string, direction: -1 | 1): T | null {
   if (list.length < 2) return null;
   const index = list.findIndex(v => v.id === selected);

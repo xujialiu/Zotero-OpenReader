@@ -90,9 +90,10 @@ bundle includes this diagnostic, not just its version string.
     Right after the pick: `selected` is the picked voice, `active: true`,
     `saved` is the picked voice with `manual: true`, and Zotero's
     `reader.readAloudVoices` entry for the language names it. Plant again
-    and pick that provider's Entry in the provider dropdown: it resolves
-    to the voice it remembers, the one just picked, so `selected` and
-    `saved` name that voice again, not the first of its region. An Entry
+    and pick that provider's Entry in the provider dropdown: since issue
+    #224 (1.16.13) it picks no voice, so `saved` stays the planted record
+    and the Player lists the Entry's voices with none chosen; picking one
+    is the voice pick above. An Entry
     pick with Zotero Standard listed (it ended on a Zotero voice) and a
     language pick are unit-only (`test/read-aloud/document-voice-pick.test.ts`):
     live, a regression would spend credits.

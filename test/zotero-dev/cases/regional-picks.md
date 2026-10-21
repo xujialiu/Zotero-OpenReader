@@ -11,6 +11,12 @@ from 1b/1c; do not run the whole plugin checklist.
    auto-upload/settings sync for temporary choices, and avoid propagating
    fixture voice picks into user readers. Restore native voice entries and
    remembered voice before re-enabling global voice propagation.
+*Since issue #224 (1.16.13) items 2-4 are superseded: a language picked in
+the Player picks no voice, and the Player no longer calls `setLanguage`, so
+no `staged …` line appears; see
+[entry-language-picks](entry-language-picks.md). The locale shown after the
+pick is still the one picked.*
+
 2. On each fixture's paused player, start with a listed generic English
    Local voice. Through the actual language dropdown choose English
    (United States), English (United Kingdom), then generic English. Read

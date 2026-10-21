@@ -114,7 +114,7 @@ function fakeReader(options: { frameLoads?: boolean } = {}) {
 function snapshot(opened: boolean): PlayerSnapshot {
   return {
     expandOnOpen: false, opened, active: opened, playing: false, buffering: false,
-    provider: '', locale: '', voice: '', speed: 1, volume: 100, automatic: true,
+    provider: '', locale: '', voice: '', speed: 1, volume: 100, automatic: true, chooseVoice: false,
     providers: [], locales: [], voices: [], favorites: [], error: null,
   };
 }

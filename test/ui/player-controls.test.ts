@@ -92,6 +92,7 @@ function loadPlayer(layout: 'top' | 'A') {
   for (const selector of ['#player-root', '.play', '.options-toggle', '.mode', '.layout-menu', '.status-button', '.player', '.remaining-time', '.voice-group']) fixedEl(selector);
   const pickers = ['provider', 'locale', 'voice'].map((key) => {
     const button = fixedEl(`[data-pick="${key}"]`, 'button');
+    button.dataset.pick = key;
     button.append(make('span', 'value'), make('span', 'time-left'));
     return button;
   });
@@ -147,7 +148,16 @@ function loadPlayer(layout: 'top' | 'A') {
     fire('document', 'focusout', { target: focused, relatedTarget: null });
     fire('window', 'blur');
   };
-  return { sandbox, body, heights, fire, openVoiceList, clickInTheView, isOpen: () => !!body.querySelector('.popover') };
+  const popover = () => body.querySelector('.popover');
+  /** A click on the option labelled `label` in the open menu. */
+  const pick = (label: string) => {
+    const option = body.querySelectorAll('.option').find((el) => (el as unknown as { title: string }).title === label);
+    if (!option) throw new Error(`no option ${label}`);
+    (option.onclick as () => void)();
+  };
+  const openPicker = (key: 'provider' | 'locale' | 'voice') => (pickers[['provider', 'locale', 'voice'].indexOf(key)].onclick as () => void)();
+  return { sandbox, body, heights, fire, update, pick, openPicker, play: fixed.get('.play')!, openVoiceList, clickInTheView,
+    isOpen: () => !!popover(), menu: () => popover()?.getAttribute('aria-label') ?? null };
 }
 
 describe('an open Player menu and a click outside the Player (#213)', () => {
@@ -188,4 +198,67 @@ describe('an open Player menu and a click outside the Player (#213)', () => {
       });
     });
   }
+});
+
+describe('a pick that leaves the Player without a voice (issue #224)', () => {
+  const STATE = {
+    provider: 'p', locale: 'en', voice: 'v1', speed: 1, volume: 100, automatic: true, playing: true, active: true, chooseVoice: false,
+    providers: [{ value: 'p', label: 'P' }, { value: 'q', label: 'Q' }], locales: [{ value: 'en', label: 'English' }, { value: 'fr', label: 'French' }],
+    voices: [{ value: 'v1', label: 'Voice 1' }, { value: 'v2', label: 'Voice 2' }], favorites: [],
+  };
+
+  it('grays Play out while no voice is chosen', () => {
+    const player = loadPlayer('top');
+    player.update(STATE);
+    expect((player.play as unknown as { disabled: boolean }).disabled).toBe(false);
+    player.update({ ...STATE, playing: false, voice: '', chooseVoice: true });
+    expect((player.play as unknown as { disabled: boolean }).disabled).toBe(true);
+  });
+
+  it('opens the voice list after an entry pick that kept the language', () => {
+    const player = loadPlayer('top');
+    player.update(STATE);
+    player.openPicker('provider');
+    player.pick('Q');
+    expect(player.isOpen()).toBe(false);
+    player.update({ ...STATE, provider: 'q', playing: false, voice: '', chooseVoice: true });
+    expect(player.menu()).toBe('Voice');
+  });
+
+  it('opens the language list when the entry has not the language', () => {
+    const player = loadPlayer('top');
+    player.update(STATE);
+    player.openPicker('provider');
+    player.pick('Q');
+    player.update({ ...STATE, provider: 'q', locale: '', voices: [], playing: false, voice: '', chooseVoice: true });
+    expect(player.menu()).toBe('Locale');
+  });
+
+  it('opens the voice list after a language pick', () => {
+    const player = loadPlayer('top');
+    player.update(STATE);
+    player.openPicker('locale');
+    player.pick('French');
+    player.update({ ...STATE, locale: 'fr', playing: false, voice: '', chooseVoice: true });
+    expect(player.menu()).toBe('Voice');
+  });
+
+  it('opens nothing after a pick of what is shown, nor later when the voice empties for another reason', () => {
+    const player = loadPlayer('top');
+    player.update(STATE);
+    player.openPicker('provider');
+    player.pick('P');
+    player.update({ ...STATE, speed: 1.1 });
+    player.update({ ...STATE, voice: '', chooseVoice: true });
+    expect(player.isOpen()).toBe(false);
+  });
+
+  it('opens nothing for a voice pick', () => {
+    const player = loadPlayer('top');
+    player.update(STATE);
+    player.openVoiceList();
+    player.pick('Voice 2');
+    player.update({ ...STATE, voice: 'v2' });
+    expect(player.isOpen()).toBe(false);
+  });
 });

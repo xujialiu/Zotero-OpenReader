@@ -1,24 +1,31 @@
 /**
  * A voice picked while a document is read goes through the Handoff
  * (core/engine/handoff.ts) instead of restarting the sentence: the player's
- * voice dropdown, its provider and language dropdowns while playing, the
- * voice keys (issues #95, #108, #110).
+ * voice dropdown and the voice keys (issues #95, #108). While it is pending
+ * the Player shows the voice it is to (`pendingVoice`, issue #225), and its
+ * notice names the voice reading beside it.
  *
- * The manager's `selectVoice`, `selectTier` and `setLanguage` are shadowed
- * on the manager itself. A pick is first resolved the manager's own way —
- * its fallbacks and the plugin's language memory choose the voice — as a
- * dry run: `_applyVoice`, `_persistCurrentVoice` and `_stateChanged` held
- * back, the choice fields put back after. The voice it comes to is then
- * prepared by the Engine while the old one reads on, and once the new
- * voice has the reading the pick is replayed for real (`commit`): the
- * manager selects the voice, remembers it, and its rebuild of the
- * controller carries on in the Engine. A provider or language pick while
- * paused is left to Zotero as it is: the lists must follow it at once, and
- * Play then starts the sentence over with the new voice (issue #110).
+ * The manager's `selectVoice` is shadowed on the manager itself. A pick is
+ * first resolved the manager's own way as a dry run: `_applyVoice`,
+ * `_persistCurrentVoice` and `_stateChanged` held back, the choice fields
+ * put back after. The voice it comes to is then prepared by the Engine
+ * while the old one reads on, and once the new voice has the reading the
+ * pick is replayed for real (`commit`): the manager selects the voice,
+ * remembers it, and its rebuild of the controller carries on in the Engine.
+ *
+ * An entry or language picked in the Player picks no voice (issue #224):
+ * `choose` keeps it as a draft beside the manager, pauses a reading, and
+ * calls a pending switch off. The manager keeps its voice, paused, and
+ * refuses Play, Retry and a jump until a voice of the draft is picked; that
+ * pick is a fresh selection, not a Handoff, so nothing is asked for before
+ * Play and Play reads the paused sentence from its start. Until #224 those
+ * two picks were `selectTier` and `setLanguage`, shadowed here into the
+ * Handoff too (issue #110).
  *
  * While a switch is pending, the manager's calls that call it off —
  * deactivate, a speed change, the memory re-applied —
- * cancel it first; and its `pause` and `play` go through the Handoff,
+ * cancel it first, and the Player says so; and its `pause` and `play` go
+ * through the Handoff,
  * which decides where the new voice starts on Play. A skip or a jump keeps
  * it: the Engine applies the switch's rule where the reading lands
  * (core/engine/handoff.ts, issue #163; until then a skip took the switch at
@@ -30,18 +37,34 @@
  */
 
 import type { HandoffReport, VoiceNotice } from '../../core/engine/handoff';
-import { adjacentVoice, playerVoices } from '../../core/voice-switch';
+import { adjacentVoice, entryVoices, playerVoices } from '../../core/voice-switch';
+import { baseLanguage } from '../language-dropdown';
 import type { AnyFn } from '../proto-patches';
 import type { Engine } from './index';
 
 export type { VoiceNotice } from '../../core/engine/handoff';
+
+/**
+ * What the Player is told, beyond the Handoff's own: a switch called off by
+ * something other than a pick (`called-off`, issue #225), a reading paused
+ * for a voice to be chosen (`paused`) and Play refused for want of one
+ * (`choose`, issue #224).
+ */
+export type VoicePickNotice = VoiceNotice | 'called-off' | 'paused' | 'choose';
+
+/** An entry and a language picked in the Player, no voice chosen yet (issue #224); `locale` null is no language either. */
+export interface VoiceChoice {
+  tier: string;
+  locale: string | null;
+}
 
 export interface VoicePickDeps {
   engine: Engine;
   exportFunction?(fn: AnyFn, target: object): AnyFn;
   waiveXrays?<T>(value: T): T;
   isDead?(value: unknown): boolean;
-  notice(reader: unknown, kind: VoiceNotice, label: string): void;
+  /** `reading`, with `preparing`: the voice that reads while the new one is prepared. */
+  notice(reader: unknown, kind: VoicePickNotice, label: string, reading?: string): void;
   error(error: unknown): void;
   debug?(message: string): void;
   /** An AbortController of the reader's window: the sandbox has none. */
@@ -50,7 +73,9 @@ export interface VoicePickDeps {
 
 export interface VoicePickReport extends HandoffReport {
   controlsAttached: boolean;
-  notice?: VoiceNotice;
+  notice?: VoicePickNotice;
+  /** The Player's entry and language with no voice chosen (issue #224). */
+  draft?: VoiceChoice | null;
   /** Successful explicit picks that rebuilt an absent or ended session while paused. */
   recoveries?: number;
 }
@@ -67,6 +92,14 @@ export interface VoicePick {
   inspect(reader: unknown): VoicePickReport | null;
   /** The voices a pending switch is between (the reading guard, issue #121). */
   protectedVoices(reader: unknown): string[];
+  /** The voice a pending switch is to, which the Player shows (issue #225); null with none. */
+  pendingVoice(reader: unknown): string | null;
+  /** The Player's entry or language pick (issue #224): no voice, a reading paused; false with no manager. */
+  choose(reader: unknown, choice: VoiceChoice): boolean;
+  /** The entry and language picked with no voice chosen yet, or null. */
+  draft(reader: unknown): VoiceChoice | null;
+  /** Whether Play must wait for a voice to be chosen; true says so over the document. */
+  needsVoice(reader: unknown): boolean;
   dispose(): void;
 }
 
@@ -81,12 +114,23 @@ const CANCELLING = ['deactivate', 'applyPersistedVoices', 'setSpeed'];
 /** The manager fields a dry-run resolution may move, put back after it. */
 const CHOICE_FIELDS = ['_voiceID', '_lang', '_region', '_selectedTier', '_persistedVoices', '_pendingSetVoice'] as const;
 
+/**
+ * The manager's calls that would read in the old voice while the Player has
+ * none chosen (issue #224): refused, with a notice. Not `deactivate`, which
+ * ends the draft (`draftOf`), nor the skips, which move the place paused.
+ */
+const NEED_A_VOICE = ['play', 'retry', 'jumpTo', 'repositionTo'];
+
 export function createVoicePick(deps: VoicePickDeps): VoicePick {
   const reports = new WeakMap<object, VoicePickReport>();
   const attached = new Map<any, { manager: any; undo: (() => void)[] }>();
   /** Per reader, the shadows a pending switch put on the manager. */
   const pendingUndo = new Map<unknown, (() => void)[]>();
   const previewing = new Set<unknown>();
+  /** Per reader, the Player's entry and language with no voice chosen, and the shadows that hold Play back (issue #224). */
+  const drafts = new Map<unknown, { manager: any; choice: VoiceChoice; wasActive: boolean; undo: (() => void)[] }>();
+  /** The switches called off by a pick of the user's, whose cancel the Player is not told of (issue #225). */
+  const quiet = new WeakSet<object>();
   let propagating = 0;
   const select = (fn: () => void) => {
     propagating++;
@@ -105,14 +149,22 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
     return reader && typeof reader === 'object' ? (reports.get(reader) ?? null) : null;
   }
 
-  function notice(reader: unknown, kind: VoiceNotice, text: string): void {
+  function notice(reader: unknown, kind: VoicePickNotice, text: string, reading?: string): void {
     const report = reportOf(reader);
     if (report) report.notice = kind;
     try {
-      deps.notice(reader, kind, text);
+      if (reading === undefined) deps.notice(reader, kind, text);
+      else deps.notice(reader, kind, text, reading);
     } catch (e) {
       deps.error(e);
     }
+  }
+
+  /** A switch called off by the user's own pick: its cancel clears the notice and says nothing more. */
+  function quietly(handoff: { cancel(): void } | null | undefined): void {
+    if (!handoff) return;
+    quiet.add(handoff);
+    handoff.cancel();
   }
 
   function snapshot(manager: any): () => void {
@@ -149,24 +201,18 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
       });
     }
     try {
-      for (const name of ['selectVoice', 'selectTier', 'setLanguage']) {
-        const original = manager[name];
-        if (typeof original !== 'function') continue;
+      const original = manager.selectVoice;
+      if (typeof original === 'function') {
         undo.push(
-          shadow(manager, name, function (this: any, ...args: any[]) {
-            // A provider or language pick while paused goes the native way, so the
-            // player's lists follow it at once (issue #110); on Play the sentence
-            // starts over, as Zotero's own does. A voice pick keeps the paused
-            // handoff of issue #108.
-            if (
-              propagating ||
-              previewing.has(reader) ||
-              !manager.active ||
-              (name === 'setLanguage' && !waive(args[1])?.persist) ||
-              (name !== 'selectVoice' && manager.paused)
-            ) {
-              return Reflect.apply(original, manager, args);
+          shadow(manager, 'selectVoice', function (this: any, ...args: any[]) {
+            if (propagating || previewing.has(reader)) return Reflect.apply(original, manager, args);
+            // A voice for the entry and language picked with none (issue #224)
+            if (draftOf(reader)) {
+              pickFromDraft(reader, args[0]);
+              return;
             }
+            // A pick while paused keeps the paused handoff of issue #108
+            if (!manager.active) return Reflect.apply(original, manager, args);
             const restore = snapshot(manager);
             const suppress: (() => void)[] = [];
             let choice: (() => void) | undefined;
@@ -199,7 +245,7 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
             const session = deps.engine.session(reader);
             if (id === manager.selectedVoiceID && session && !session.ended) {
               // A re-pick of the voice reading calls a pending switch off and restarts nothing
-              deps.engine.session(reader)?.handoff?.cancel();
+              quietly(deps.engine.session(reader)?.handoff);
               select(selection);
               notice(reader, 'selected', label(target));
               return;
@@ -240,18 +286,18 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
     }
     if (!manager?.active) return false;
     if (!manager.segments?.length) {
-      existing?.cancel();
+      quietly(existing);
       notice(reader, 'unavailable', label(target));
       return true;
     }
     if (target.segmentGranularity !== manager.segmentGranularity) {
-      existing?.cancel();
+      quietly(existing);
       deps.error(new Error('OpenReader: pause before switching between different segment granularities'));
       notice(reader, 'failed', label(target));
       return true;
     }
     if (!session || session.ended) {
-      existing?.cancel();
+      quietly(existing);
       unwindPending(reader);
       try {
         // An open player can outlive its session (#149). This is a fresh
@@ -299,9 +345,16 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
       deps.error(e);
     }
     const undo: (() => void)[] = [];
+    // The voice that reads on meanwhile, named beside the new one (issue #225)
+    const reading = label(playerVoices<any>(catalog).find((v) => v.id === originalVoice) ?? { id: originalVoice ?? '' });
+    let committed = false;
+    let self: object | null = null;
+    // The pick it gives way to replaces it: no called-off notice
+    if (existing) quiet.add(existing);
     const handoff = session.prepareHandoff({
       target: deps.engine.voiceOf(target),
       commit: () => {
+        committed = true;
         unwindPending(reader, undo);
         select(selection);
         // A voice the manager does not take (not in the current tier's list) leaves no controller
@@ -310,11 +363,15 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
       valid: () => !deps.isDead?.(manager) && manager.active && manager.selectedVoiceID === originalVoice && manager.allVoices === catalog,
       notice: (kind) => {
         if (kind === 'cancelled' || kind === 'failed') unwindPending(reader, undo);
-        notice(reader, kind, label(target));
+        // Called off by a speed change, Stop, the memory or the voice list, not by a pick: the Player's voice goes back, and says why
+        const calledOff = kind === 'cancelled' && !committed && !(self && quiet.has(self));
+        if (kind === 'preparing') notice(reader, kind, label(target), reading);
+        else notice(reader, calledOff ? 'called-off' : kind, label(target));
       },
       abort,
       report,
     });
+    self = handoff;
     if (!handoff) {
       notice(reader, 'unavailable', label(target));
       return true;
@@ -362,11 +419,148 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
     return true;
   }
 
+  // ---- An entry or language picked with no voice (issue #224) -----------------
+
+  /** The reader's draft while it stands: dropped when its manager went, stopped reading, or lost the entry. */
+  function draftOf(reader: unknown): VoiceChoice | null {
+    const entry = drafts.get(reader);
+    if (!entry) return null;
+    let valid = false;
+    try {
+      const manager = managerOf(reader);
+      if (manager && manager === entry.manager && !deps.isDead?.(manager)) {
+        if (manager.active) entry.wasActive = true;
+        valid = !(entry.wasActive && !manager.active) && entryVoices(manager.allVoices, entry.choice.tier).length > 0;
+      }
+    } catch (e) {
+      deps.error(e);
+    }
+    if (valid) return entry.choice;
+    clearDraft(reader);
+    return null;
+  }
+
+  function clearDraft(reader: unknown): void {
+    const entry = drafts.get(reader);
+    if (!entry) return;
+    drafts.delete(reader);
+    for (const undo of entry.undo.reverse()) {
+      try {
+        undo();
+      } catch (e) {
+        deps.error(e);
+      }
+    }
+    const report = reportOf(reader);
+    if (report) report.draft = null;
+  }
+
+  function choose(reader: unknown, choice: VoiceChoice): boolean {
+    try {
+      attach(reader);
+      const manager = managerOf(reader);
+      if (!manager) return false;
+      // A switch still being prepared gives way, its notice with it
+      quietly(deps.engine.session(reader)?.handoff);
+      unwindPending(reader);
+      if (drafts.get(reader)?.manager !== manager) clearDraft(reader);
+      const playing = !!manager.active && !manager.paused;
+      let entry = drafts.get(reader);
+      if (entry) entry.choice = { ...choice };
+      else {
+        entry = { manager, choice: { ...choice }, wasActive: !!manager.active, undo: [] };
+        drafts.set(reader, entry);
+        for (const name of NEED_A_VOICE) {
+          const original = manager[name];
+          if (typeof original !== 'function') continue;
+          entry.undo.push(
+            shadow(manager, name, function (this: unknown, ...args: unknown[]) {
+              if (!draftOf(reader)) return Reflect.apply(original, this, args);
+              notice(reader, 'choose', '');
+              return undefined;
+            }),
+          );
+        }
+      }
+      const report = reportOf(reader);
+      if (report) report.draft = { ...choice };
+      if (playing) {
+        Reflect.apply(manager.pause, manager, []);
+        notice(reader, 'paused', '');
+      }
+      return true;
+    } catch (e) {
+      deps.error(e);
+      return false;
+    }
+  }
+
+  function pickFromDraft(reader: unknown, id: unknown): void {
+    const choice = draftOf(reader);
+    const manager = managerOf(reader);
+    const target = choice ? entryVoices<any>(manager.allVoices, choice.tier, choice.locale).find((v) => v.id === id) : null;
+    if (!target) {
+      notice(reader, 'unavailable', '');
+      return;
+    }
+    commitDraft(reader, manager, target);
+  }
+
+  /**
+   * A voice of the draft, selected afresh while paused: the entry and the
+   * language go in with it, and `_applyVoice` rebuilds the controller at the
+   * paused sentence, so nothing is asked for before Play and Play reads that
+   * sentence from its start. An idle manager takes it through its own pick.
+   */
+  function commitDraft(reader: unknown, manager: any, target: any): void {
+    clearDraft(reader);
+    const locale = typeof target.language === 'string' ? target.language : '';
+    const base = baseLanguage(locale);
+    const region = locale.length > base.length ? locale.slice(base.length + 1) : null;
+    const selection = () => {
+      if (base) {
+        manager._lang = base;
+        manager._region = region;
+      }
+      if (typeof target.tier === 'string') manager._selectedTier = target.tier;
+      Reflect.apply(manager.selectVoice, manager, [target.id]);
+    };
+    const active = !!manager.active;
+    const session = deps.engine.session(reader);
+    // An open player can outlive its session (#149): its recovery selects and rebuilds, paused
+    if (active && (!session || session.ended)) {
+      begin(reader, target, selection);
+      return;
+    }
+    try {
+      if (active && !manager.paused) Reflect.apply(manager.pause, manager, []);
+      select(selection);
+    } catch (e) {
+      deps.error(e);
+      notice(reader, 'failed', label(target));
+      return;
+    }
+    if (active && (manager.selectedVoiceID !== target.id || !deps.engine.bound(reader))) {
+      notice(reader, 'failed', label(target));
+      return;
+    }
+    notice(reader, 'selected', label(target));
+  }
+
   function step(reader: unknown, direction: -1 | 1): void {
     try {
       attach(reader);
       const manager = managerOf(reader);
       if (!manager?.active) return;
+      const choice = draftOf(reader);
+      if (choice) {
+        // No voice chosen (issue #224): the first or the last of the draft's list
+        const list = playerVoices<any>(entryVoices<any>(manager.allVoices, choice.tier, choice.locale));
+        const voice = direction === 1 ? list[0] : list[list.length - 1];
+        if (voice) commitDraft(reader, manager, voice);
+        else notice(reader, 'choose', '');
+        return;
+      }
       const list = playerVoices<any>(manager.voicesForLanguage);
       const requested = deps.engine.session(reader)?.handoff?.target.id;
       const selected = list.some((v) => v.id === requested) ? requested! : manager.selectedVoiceID;
@@ -376,7 +570,7 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
         return;
       }
       if (voice.id === manager.selectedVoiceID) {
-        deps.engine.session(reader)?.handoff?.cancel();
+        quietly(deps.engine.session(reader)?.handoff);
         notice(reader, 'selected', label(voice));
         return;
       }
@@ -393,8 +587,9 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
 
   function detach(reader: unknown): void {
     const handoff = deps.engine.session(reader)?.handoff;
-    handoff?.cancel();
+    quietly(handoff);
     unwindPending(reader);
+    clearDraft(reader);
     const entry = attached.get(reader);
     if (!entry) return;
     if (!handoff) notice(reader, 'cancelled', '');
@@ -422,14 +617,33 @@ export function createVoicePick(deps: VoicePickDeps): VoicePick {
       const voice = playerVoices<any>(manager.allVoices).find((v) => v.id === voiceID);
       return voice ? begin(reader, voice, selection) : false;
     },
-    inspect: (reader) => reportOf(reader),
+    inspect(reader) {
+      const report = reportOf(reader);
+      if (report) report.draft = draftOf(reader);
+      return report;
+    },
     protectedVoices(reader) {
       const handoff = deps.engine.session(reader)?.handoff;
       return handoff?.pending ? handoff.voices : [];
     },
+    pendingVoice(reader) {
+      const handoff = deps.engine.session(reader)?.handoff;
+      return handoff?.pending ? String(handoff.target.id) : null;
+    },
+    choose,
+    draft: (reader) => {
+      const choice = draftOf(reader);
+      return choice ? { ...choice } : null;
+    },
+    needsVoice(reader) {
+      if (!draftOf(reader)) return false;
+      notice(reader, 'choose', '');
+      return true;
+    },
     dispose() {
       for (const reader of [...attached.keys()]) detach(reader);
       for (const reader of [...pendingUndo.keys()]) unwindPending(reader);
+      for (const reader of [...drafts.keys()]) clearDraft(reader);
     },
   };
 }

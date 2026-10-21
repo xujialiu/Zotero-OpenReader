@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { playerVoices, adjacentVoice, wordHandoff } from '../../src/core/voice-switch';
+import { playerVoices, adjacentVoice, wordHandoff, entryVoices } from '../../src/core/voice-switch';
 import { alignWordsToText } from '../../src/core/align';
 import { readFileSync } from 'node:fs';
 
@@ -22,6 +22,21 @@ describe('voice list and text-aligned handoff', () => {
     expect(adjacentVoice([], 'a', 1)).toBeNull();
     expect(adjacentVoice([{ id: 'a' }], 'a', 1)).toBeNull();
     expect(adjacentVoice([{ id: 'a' }, { id: 'b' }], 'missing', 1)).toBeNull();
+  });
+  // Issue #224: the lists of an entry and a language picked in the Player, no voice chosen yet
+  it('lists an entry’s voices, and only those of exactly one locale under it, walking a reader array by index', () => {
+    const list = Object.assign([
+      { id: 'az-us', tier: 'azure', language: 'en-US' },
+      { id: 'az-gb', tier: 'azure', language: 'en-GB' },
+      { id: 'az-en', tier: 'azure', language: 'en' },
+      { id: 'k-gb', tier: 'kokoro', language: 'en-GB' },
+      { id: 'az-any', tier: 'azure', language: '*' },
+    ], { filter: () => [], find: () => undefined, some: () => false });
+    expect(entryVoices(list, 'azure').map(v => v.id)).toEqual(['az-us', 'az-gb', 'az-en', 'az-any']);
+    expect(entryVoices(list, 'azure', 'en-GB').map(v => v.id)).toEqual(['az-gb']);
+    expect(entryVoices(list, 'kokoro', 'en-US')).toEqual([]);
+    expect(entryVoices(list, 'azure', null)).toEqual([]);
+    expect(entryVoices(null, 'azure')).toEqual([]);
   });
   it('matches text offsets, not equal playback seconds or timestamp indices', () => {
     expect(wordHandoff(text, old, next, 0.15, 2, 4)).toEqual({ end: 0.4, offset: 1, charStart: 4 });

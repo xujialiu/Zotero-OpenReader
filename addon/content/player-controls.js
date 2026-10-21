@@ -1,6 +1,9 @@
 /* The UI receives plain snapshots; only the host adapter can perform actions. */
 let state = { provider: '', locale: '', voice: '', speed: 1, volume: 100, automatic: true, playing: false, active: false, expanded: false,
-  buffering: false, loading: true, error: null, providers: [], locales: [], voices: [], favorites: [] };
+  buffering: false, loading: true, error: null, providers: [], locales: [], voices: [], favorites: [], chooseVoice: false };
+/** When an entry or language was just picked: the next list to choose from opens once the Player has no voice (issue #224). */
+let followUp = 0;
+const FOLLOW_UP_MS = 2000;
 let strings = {};
 let variant = new URLSearchParams(location.search).get('variant') || 'top';
 let popover = null, anchor = null, refreshPopover = null;
@@ -62,7 +65,8 @@ function updateControls() {
   play.setAttribute('aria-label', playingLabel);
   play.setAttribute('aria-pressed', String(state.playing));
   play.dataset.buffering = String(state.buffering);
-  play.disabled = !state.active && !state.voices.length;
+  // No voice chosen after an entry or language pick: nothing to play in yet (issue #224)
+  play.disabled = (!state.active && !state.voices.length) || !!state.chooseVoice;
   for (const button of document.querySelectorAll('[data-navigate]')) {
     button.title = text(button.dataset.navigate); button.setAttribute('aria-label', button.title); button.disabled = !state.active;
   }
@@ -191,7 +195,12 @@ function openPicker(button, key) {
         const label = document.createElement('span'); label.className = 'option-label'; label.textContent = value.label;
         option.classList.add('has-time'); option.append(label, time); option.title = `${value.label} · ${value.time}`;
       } else { option.textContent = value.label; option.title = value.label; }
-      option.onclick = () => { closePopover(); send(key, value.value); button.focus({ preventScroll: true }); };
+      option.onclick = () => {
+        closePopover();
+        // A new entry or language leaves the voice to choose: its list follows
+        if (key !== 'voice' && value.value !== state[key]) followUp = Date.now();
+        send(key, value.value); button.focus({ preventScroll: true });
+      };
       row.append(option); list.append(row);
     }
     if (!values.length) { const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = text('empty'); list.append(empty); }
@@ -240,7 +249,17 @@ function makeDraggable(handle) {
   };
 }
 window.zttsSetLayout = next => { if (!['A', 'B', 'top'].includes(next)) return; variant = next; render(); };
-window.zttsUpdate = json => { const next = JSON.parse(json); strings = next.strings || {}; state = next; updateControls(); refreshPopover?.(); place(); };
+/** After an entry or language pick that left no voice: the voice list, or the language list when that is empty too. */
+function openNextChoice() {
+  if (!followUp) return;
+  if (Date.now() - followUp > FOLLOW_UP_MS) { followUp = 0; return; }
+  if (!state.chooseVoice) return;
+  followUp = 0;
+  const key = state.locale ? 'voice' : 'locale';
+  const button = document.querySelector(`[data-pick="${key}"]`);
+  if (button && !popover && choices(key).length) openPicker(button, key);
+}
+window.zttsUpdate = json => { const next = JSON.parse(json); strings = next.strings || {}; state = next; updateControls(); refreshPopover?.(); place(); openNextChoice(); };
 document.addEventListener('pointerdown', event => { if (popover && !popover.contains(event.target) && !anchor.contains(event.target)) closePopover(); });
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape' && popover) { const previous = anchor; closePopover(); previous?.focus({ preventScroll: true }); event.stopPropagation(); }

@@ -114,9 +114,15 @@ figure: reinstall the wrapper per item with the item's answers.
    true, the player open with the ! and `Playback failed. Check your
    provider connection and try again.` and **Retry**; `last` unchanged
    from item 6.
-8. **A voice being switched to.** Premium on, its provider figure 0 as in
-   item 4. Fixture A reading (playing) with the free plugin voice; pick
-   `Zotero Premium` in the player's first dropdown → the switch fails
+8. *Retired by issue #224 (1.16.13): `Zotero Premium` picked in the first
+   dropdown pauses the reading and picks no voice, so no switch starts; a
+   Premium voice chosen afterwards waits for Play, which is item 4. The
+   switch's refusal is unit-only (`test/read-aloud/engine/engine.test.ts`,
+   "reports at once a voice being switched to", by a voice pick). Kept for
+   its number.* **A voice being switched to.** Premium on, its provider
+   figure 0 as in item 4. Fixture A reading (playing) with the free plugin
+   voice; pick `Zotero Premium` in the player's first dropdown → the
+   switch fails
    (the voice notice), the plugin voice reads on and fixture A's player
    stays open; `getReadAloudAudio` 0 calls; Premium off; the used-up
    reminder in fixture A, no other-tabs line; `last.closed` 0.

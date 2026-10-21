@@ -69,8 +69,11 @@ Expected values below are derived from `src/` (`buildTierOptions`,
    immediately, the lists follow, and Play restarts the sentence. Set
    `zotero-tts.readAloud.sameForAllDocuments` **false** for this item
    (snapshot, restore): on, a pick's voice would spread to every other open
-   tab's session. `manager.selectTier('kokoro')` (the dropdown's own
-   onChange) → at once `manager.selectedTier` `kokoro`, `manager.voices`
+   tab's session. Since issue #224 (1.16.13) the Player's first dropdown no
+   longer calls `selectTier` (it picks no voice,
+   [entry-language-picks](entry-language-picks.md)); the manager's own
+   `selectTier`, called directly as below, is Zotero's, unshadowed, and
+   still applies at once. `manager.selectTier('kokoro')` → at once `manager.selectedTier` `kokoro`, `manager.voices`
    all `local::…` ids, `manager.languages` Kokoro's, `voicesForLanguage`
    only Kokoro voices; `reader.readAloudVoices.<lang>.tierVoices` ends with
    the key `kokoro` naming the voice resolved. Pick a second Kokoro voice

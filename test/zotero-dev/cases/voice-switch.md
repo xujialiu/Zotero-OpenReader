@@ -105,7 +105,13 @@ Do not count that guarded scenario as an ordinary supported Zotero state.
    exact verified XPI hash. Record errors and distinguish unrelated errors.
    Close a fixture while its persistent voice notice is visible. No notice
    or dead-object console error may remain (see case 4c, issue #119).
-9. **Popup, locale and mode parity (#108).** In both PDF and EPUB fixtures,
+9. *Since issue #224 (1.16.13) only `selectVoice` goes through the
+   Handoff: an entry or language pick picks no voice
+   ([entry-language-picks](entry-language-picks.md)), and `selectTier` /
+   `setLanguage` are Zotero's own, unshadowed. The locale and mode parts of
+   this item are retired.* Since issue #225 the Player shows the pending
+   voice at once ([pending-voice](pending-voice.md)).
+   **Popup, locale and mode parity (#108).** In both PDF and EPUB fixtures,
    drive native `selectVoice`, `setLanguage` with `persist: true`, and
    `selectTier` through the plugin's attached methods. Include an actual
    popup selection to prove the UI reaches those methods. Until handoff,

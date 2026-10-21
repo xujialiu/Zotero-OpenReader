@@ -236,8 +236,10 @@ isolation rules, and close only the fixtures opened for this run.
     paused is such a switch, never an instant one: a script that needs a
     plain voice change while paused uses `selectTier`, or waits for the
     switch's `stage: committed` after Play. A provider or
-    language pick while paused applies at once and Play starts the
-    sentence over ([voice-switch](voice-switch.md),
+    language pick in the Player picks no voice and pauses the reading
+    (issue #224, [entry-language-picks](entry-language-picks.md));
+    `manager.selectTier` called directly is Zotero's own and applies at
+    once ([voice-switch](voice-switch.md),
     [voice-notice](voice-notice.md)).
 
 ### 18

@@ -9,12 +9,16 @@ import { parseFavoriteVoices, serializeFavoriteVoices, toggleFavoriteVoice } fro
 import { baseLanguage, languageNames, voiceLanguages } from './language-dropdown';
 import { compareVoiceLabels } from './voice-catalog';
 import { formatTimeLeft, isLowTime } from '../core/time-left';
+import { entryVoices } from '../core/voice-switch';
+import type { VoiceChoice } from './engine/voice-pick';
 
 /** `time` and `low`: a Zotero voice's time left, rounded up, and whether it is under 3 minutes (issue #140). */
 export interface PlayerOption { value: string; label: string; time?: string; low?: boolean }
 export interface PlayerSnapshot {
   expandOnOpen: boolean; opened: boolean; active: boolean; playing: boolean; buffering: boolean;
   provider: string; locale: string; voice: string; speed: number; volume: number; automatic: boolean;
+  /** An entry or language was picked and no voice yet (issue #224): Play waits, and the next list opens. */
+  chooseVoice: boolean;
   providers: PlayerOption[]; locales: PlayerOption[]; voices: PlayerOption[]; favorites: string[];
   error: string | null;
   remaining?: RemainingTimeLine[];
@@ -35,6 +39,14 @@ export interface PlayerControllerDeps {
   affectedTabs?(changes: FlatSettings): string[];
   message(key: string, args?: L10nArgs): string;
   remainingTime?(reader: any): RemainingSnapshot;
+  /** The entry or language picked, which picks no voice (issue #224); false leaves the pick to the manager. */
+  choose?(reader: any, choice: VoiceChoice): boolean;
+  /** The entry and language picked with no voice chosen yet. */
+  draft?(reader: any): VoiceChoice | null;
+  /** Whether Play waits for a voice, said over the document when it does. */
+  needsVoice?(reader: any): boolean;
+  /** The voice a pending switch is to, shown in place of the one reading (issue #225). */
+  pendingVoice?(reader: any): string | null;
 }
 
 /** The reader engine is isolated here; the player consumes only JSON and commands. */
@@ -98,30 +110,49 @@ export function createPlayerController(deps: PlayerControllerDeps) {
     }
     return null;
   }
+  /** An entry's languages, each locale its own (issue #223), Multilingual first. */
+  function localesOf(voices: any): PlayerOption[] {
+    const locales = [...languageNames(voiceLanguages(voices))].map(([value, label]) => ({ value, label }));
+    return locales.sort((a, b) => a.value === 'mul' ? -1 : b.value === 'mul' ? 1 : compareVoiceLabels(a.label, b.label));
+  }
+  function draftOf(reader: any): VoiceChoice | null {
+    try { return deps.draft?.(reader) ?? null; }
+    catch { return null; }
+  }
   function snapshot(reader: any): PlayerSnapshot {
     const m = managerOf(reader);
     const labels = deps.labels();
     const providers: PlayerOption[] = [];
     if (m?.tiers) for (const tier of m.tiers) providers.push({ value: String(tier), label: labels[tier] ?? String(tier) });
     providers.sort((a, b) => compareVoiceLabels(a.label, b.label));
+    // An entry or language picked with no voice (issue #224): the Player shows
+    // the pick, the manager keeps the voice it had until one is chosen
+    const draft = m ? draftOf(reader) : null;
     // The entry's voices' languages, each locale its own (issue #223) — not the
     // manager's `languages`, which Zotero normalizes into one zh for zh-CN,
     // zh-HK and zh-TW (getSupportedLanguages, reader.js 39370)
-    const locales = [...languageNames(voiceLanguages(m?.voices))].map(([value, label]) => ({ value, label }));
-    locales.sort((a, b) => a.value === 'mul' ? -1 : b.value === 'mul' ? 1 : compareVoiceLabels(a.label, b.label));
+    const locales = localesOf(draft ? entryVoices(m.allVoices, draft.tier) : m?.voices);
     // No voice selected, or a wildcard one: the language the manager was asked for
     const region = m?.currentVoiceRegion ?? m?.region;
     const full = m?.lang ? String(m.lang) + (region ? '-' + region : '') : '';
-    const locale = selectedLanguage(m) ?? (locales.some(v => v.value === full) ? full : locales.some(v => v.value === m?.lang) ? String(m.lang) : '');
+    const locale = draft ? draft.locale ?? ''
+      : selectedLanguage(m) ?? (locales.some(v => v.value === full) ? full : locales.some(v => v.value === m?.lang) ? String(m.lang) : '');
+    let pending: string | null = null;
+    try { pending = draft || !m ? null : deps.pendingVoice?.(reader) ?? null; }
+    catch { pending = null; }
     return {
       expandOnOpen: pref('openExpanded') === true,
       remaining: m && pref('remainingTime') !== false && deps.remainingTime ? remainingTimeLines(deps.remainingTime(reader), deps.message) : [],
       opened: popupOpen(reader) || !!m?.active,
       active: !!m?.active, playing: !!m?.active && !m?.paused, buffering: !!m?.buffering,
-      provider: String(m?.selectedTier ?? ''), locale, voice: String(m?.selectedVoiceID ?? ''),
+      provider: draft ? draft.tier : String(m?.selectedTier ?? ''), locale,
+      // A voice being switched to is the Player's at once (issue #225)
+      voice: draft ? '' : pending ?? String(m?.selectedVoiceID ?? ''),
+      chooseVoice: !!draft,
       speed: Number(m?.speed) || 1, volume: clampVolume(deps.prefs.get(VOLUME_PREF)),
       automatic: !!m && deps.automatic(reader), providers, locales,
-      voices: voicesOf(m?.voicesForLanguage), favorites: parseFavoriteVoices(pref('favoriteVoices')),
+      voices: voicesOf(draft ? entryVoices(m.allVoices, draft.tier, draft.locale) : m?.voicesForLanguage),
+      favorites: parseFavoriteVoices(pref('favoriteVoices')),
       error: errorOf(m, labels),
     };
   }
@@ -139,10 +170,12 @@ export function createPlayerController(deps: PlayerControllerDeps) {
     };
     switch (action) {
       case 'open':
+        if (deps.needsVoice?.(reader)) return;
         if (!m.active) deps.start(reader);
         else if (m.paused) deps.togglePaused(reader);
         return;
       case 'play':
+        if (deps.needsVoice?.(reader)) return;
         if (m.active) deps.togglePaused(reader); else deps.start(reader);
         return;
       case 'close': deps.close(reader); return;
@@ -152,9 +185,20 @@ export function createPlayerController(deps: PlayerControllerDeps) {
         if (m.active) deps.navigate(reader, action);
         return;
       }
-      case 'provider': await m.selectTier(requireChoice(state.providers)); return;
+      case 'provider': {
+        const tier = requireChoice(state.providers);
+        // What is shown changes nothing (issue #224)
+        if (tier === state.provider) return;
+        // The language stays where the new entry has exactly it, else none
+        const keep = state.locale && voiceLanguages(entryVoices(m.allVoices, tier)).includes(state.locale) ? state.locale : null;
+        if (deps.choose?.(reader, { tier, locale: keep })) return;
+        await m.selectTier(tier);
+        return;
+      }
       case 'locale': {
         const language = requireChoice(state.locales), base = baseLanguage(language);
+        if (language === state.locale) return;
+        if (deps.choose?.(reader, { tier: state.provider, locale: language })) return;
         await m.setLanguage(base, deps.clone(reader, { region: language.includes('-') ? language.slice(base.length + 1) : null, persist: true }));
         return;
       }

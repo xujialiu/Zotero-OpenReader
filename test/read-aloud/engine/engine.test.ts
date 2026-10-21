@@ -641,7 +641,8 @@ describe('a Zotero voice Zotero will not read for its account (issue #140)', () 
     t.open(0);
     await t.clock.advance(0);
     expect(t.manager.selectedVoiceID).toBe(ALLOY);
-    t.manager.selectTier('premium');
+    // A voice pick: since issue #224 an entry pick picks no voice and switches nothing
+    t.manager.selectVoice(PREMIUM);
     // The switch prepares its voice after the pick's own short wait
     await t.clock.advance(1000);
     expect(pickNotices.at(-1)).toBe('failed');
