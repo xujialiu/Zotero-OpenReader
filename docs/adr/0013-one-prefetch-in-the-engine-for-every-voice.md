@@ -110,7 +110,9 @@ issue: 166
   deduplicated in the interface's `pending` map with every other caller's,
   visible to a later switch's `held` lookups (#163). A handoff still
   prepares as before: the sentence being read, then up to `HANDOFF_AHEAD`
-  (8) ahead when late.
+  (8) ahead when late. *Superseded for the handoff by ADR 0021 (issue
+  #226): it asks for as many at once as `requests at once`, and the
+  takeover releases the runner's slots.*
 - **The interface** (`src/read-aloud/remote-interface.ts`):
   `prefetchAfter`, `warming`, `getPrefetch`, `getUpcomingTexts`,
   `mayPrefetch` and `isReaderLive` are deleted, with the session's and the

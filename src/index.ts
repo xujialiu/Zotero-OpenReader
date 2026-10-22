@@ -2937,6 +2937,7 @@ const diagnostics = {
     }
     // v2: the old voice asks for nothing new while a switch is pending; skips and jumps keep it (issue #163)
     // v3: an entry or language pick is a draft with no voice (issue #224), and the Player shows a pending switch's voice (issue #225)
+    // v4: the preparation asks for requests-at-once sentences at once (`atOnce`, `slowestMs`), and a cut at a word waits until the next sentence can be in time (`wordDecision: 'next-sentence-late'`, issue #226)
     const player = (reader: any) => {
       try {
         const state = playerController.snapshot(reader);
@@ -2945,7 +2946,7 @@ const diagnostics = {
         return String(e);
       }
     };
-    return JSON.stringify({ mechanism: 'engine-handoff-v3', bindings: {
+    return JSON.stringify({ mechanism: 'engine-handoff-v4', bindings: {
       previous: loadSettings(prefs).shortcuts.previousVoice, next: loadSettings(prefs).shortcuts.nextVoice,
     }, readers: readers.map((reader: any, index: number) => ({ index, selected: readAloudManager(reader)?.selectedVoiceID ?? null,
       paused: readAloudManager(reader)?.paused ?? null, player: player(reader),

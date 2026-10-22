@@ -464,6 +464,63 @@ describe('the Engine behind Zotero 10.0.3’s manager', () => {
   });
 });
 
+describe('a voice switch while reading, through Zotero 10.0.3’s manager (issue #226)', () => {
+  /** Ten sentences of 59 characters: 2.95 s each in the old voice, 3.54 s in the new. */
+  const texts = Array.from({ length: 10 }, (_, i) => `Sentence ${i} has words that go on for a while xxxxxxxxxx end.`);
+  const wordsOf = (text: string, slow: number) => {
+    const out: { start: number; end: number; charStart: number; charEnd: number }[] = [];
+    let at = 0;
+    for (const m of text.matchAll(/\S+/g)) {
+      const duration = m[0].length * 0.05 * slow;
+      out.push({ start: at, end: at + duration, charStart: m.index!, charEnd: m.index! + m[0].length });
+      at += duration + 0.05 * slow;
+    }
+    return out;
+  };
+
+  /** Read, pick the new voice at `pickAt`, read to the end: the playback notices shown after the new voice was heard. */
+  async function switchWhileReading(options: { oldMs: number; newMs: number; timed: boolean; pickAt: number }) {
+    const t = await setup({ texts, prefetch: { sentences: 5, requests: 2 } });
+    t.source.getAudio.mockImplementation(async (segment: { text: string }, voice: { id: string }, o?: { held?: boolean }) => {
+      if (o?.held) return { audio: null, error: 'not-held' };
+      await new Promise<void>((resolve) => t.clock.setTimeout(resolve, voice.id === NOVA ? options.newMs : options.oldMs));
+      const slow = voice.id === NOVA ? 1.2 : 1;
+      return { audio: fakeAudio(segment.text.length * 0.05 * slow), timestamps: options.timed ? wordsOf(segment.text, slow) : undefined, voice: voice.id };
+    });
+    let heard: number | null = null;
+    const pick = createVoicePick({
+      engine: t.engine,
+      notice: (_r, kind) => {
+        if (kind === 'selected') heard = t.notices.length;
+      },
+      error: (e) => t.errors.push(e),
+      newAbortController: () => new AbortController(),
+    });
+    t.engine.attach(t.reader);
+    pick.attach(t.reader);
+    t.open(0);
+    await t.clock.advance(options.pickAt);
+    t.manager.selectVoice(NOVA);
+    await t.clock.advance(60_000);
+    expect(heard).not.toBeNull();
+    expect(t.engine.session(t.reader)?.voice?.id).toBe(NOVA);
+    expect(t.errors).toEqual([]);
+    const after = t.notices.slice(heard!);
+    pick.dispose();
+    t.engine.dispose();
+    return after;
+  }
+
+  it('the sentence after a cut at a word does not wait for the new voice', async () => {
+    // The new voice's audio for the sentence being read arrives 0.5 s before its end
+    expect(await switchWhileReading({ oldMs: 1500, newMs: 1500, timed: true, pickAt: 5000 })).not.toContain('preparing');
+  });
+
+  it('the old voice\'s requests still on their way do not hold the new voice\'s prefetch back', async () => {
+    expect(await switchWhileReading({ oldMs: 6000, newMs: 800, timed: false, pickAt: 12_000 })).not.toContain('preparing');
+  });
+});
+
 describe('the Engine across a plugin update', () => {
   it('takes over a reading Read Aloud’s own controller holds: paused at its segment, Play carries on there', async () => {
     const t = await setup();

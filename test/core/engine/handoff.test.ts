@@ -77,7 +77,8 @@ describe('Handoff: at a word', () => {
     await t.clock.advance(119);
     expect(t.fetch.requests.filter((r) => r.voice === nova.id)).toHaveLength(0);
     await t.clock.advance(1);
-    expect(t.fetch.requests.filter((r) => r.voice === nova.id).map((r) => r.text)).toEqual([TEXT]);
+    // The sentence being read and the next, as many at once as the prefetch's requests at once (issue #226)
+    expect(t.fetch.requests.filter((r) => r.voice === nova.id).map((r) => r.text)).toEqual([TEXT, 'Four five.']);
     // Armed on "two": the old voice stops at 0.2 s, where its "One" ends
     expect(t.audio.started[0].cutAt).toBeCloseTo(0.2, 9);
     expect(t.report.stage).toBe('word');
@@ -128,10 +129,14 @@ describe('Handoff: at a word', () => {
     await t.clock.advance(400);
     expect(t.session.voice?.id).toBe(nova.id);
     const novas = t.fetch.requests.filter((r) => r.voice === nova.id);
-    // The preparation's request carried the signal; the prefetch after the takeover does not
-    expect(novas[0]).toEqual({ text: TEXT, voice: nova.id, signal });
-    expect(novas.slice(1).map((r) => r.text)).toEqual(['Four five.', 'Six seven eight.', 'Nine ten.']);
-    expect(novas.slice(1).every((r) => r.signal === undefined)).toBe(true);
+    // The preparation's two requests carried the signal; the prefetch after the takeover does not
+    expect(novas.slice(0, 2)).toEqual([
+      { text: TEXT, voice: nova.id, signal },
+      { text: 'Four five.', voice: nova.id, signal },
+    ]);
+    // The prefetch's three ahead of sentence 0, less the one prepared beside it
+    expect(novas.slice(2).map((r) => r.text)).toEqual(['Six seven eight.', 'Nine ten.']);
+    expect(novas.slice(2).every((r) => r.signal === undefined)).toBe(true);
   });
 
   it('coalesces picks within 120 ms: only the last voice is asked for', async () => {
@@ -141,7 +146,7 @@ describe('Handoff: at a word', () => {
     await t.clock.advance(60);
     t.prepare(nova);
     await t.clock.advance(120);
-    expect(t.fetch.requests.filter((r) => r.voice !== alloy.id).map((r) => r.voice)).toEqual([nova.id]);
+    expect(t.fetch.requests.filter((r) => r.voice !== alloy.id).map((r) => r.voice)).toEqual([nova.id, nova.id]);
     expect(t.notices.slice(0, 3)).toEqual(['preparing', 'cancelled', 'preparing']);
   });
 });
@@ -179,7 +184,8 @@ describe('Handoff: at a sentence', () => {
     await t.clock.advance(25);
     expect(t.session.position).toBe(2);
     const asked = t.fetch.waiting.filter((p) => p.voice.id === nova.id).map((p) => p.segment.text);
-    expect(asked).toEqual(['Nine ten.']);
+    // 'Four five.' was asked beside the first and is still on its way
+    expect(asked).toEqual(['Four five.', 'Nine ten.']);
   });
 });
 
@@ -271,12 +277,13 @@ describe('Handoff: the old voice asks for nothing new (issue #163)', () => {
     expect(t.fetch.of(alloy.id)).toHaveLength(4);
     t.prepare();
     await t.clock.advance(120);
-    expect(t.fetch.of(nova.id)).toEqual([TEXT]);
+    // Two at once: the sentence being read and the next (issue #226)
+    expect(t.fetch.of(nova.id)).toEqual([TEXT, 'Four five.']);
     await t.clock.advance(700);
-    // Too late for sentence 0: the new voice is asked further ahead
+    // Too late for sentence 0: the new voice is asked further ahead, in the slot sentence 0 freed
     t.fetch.respond(TEXT);
     await t.clock.advance(25);
-    expect(t.fetch.of(nova.id)).toEqual([TEXT, 'Nine ten.']);
+    expect(t.fetch.of(nova.id)).toEqual([TEXT, 'Four five.', 'Nine ten.']);
     // Sentences 1-3 from what the old voice has; at sentence 4 it has nothing, and the reading waits
     await t.clock.advance(1700);
     expect(t.session.position).toBe(4);
@@ -286,7 +293,7 @@ describe('Handoff: the old voice asks for nothing new (issue #163)', () => {
     expect(t.fetch.lookups).toEqual([{ text: 'Eleven twelve.', voice: alloy.id }]);
     t.fetch.respond('Nine ten.');
     await t.clock.advance(25);
-    expect(t.fetch.of(nova.id)).toEqual([TEXT, 'Nine ten.', 'Eleven twelve.']);
+    expect(t.fetch.of(nova.id)).toEqual([TEXT, 'Four five.', 'Nine ten.', 'Eleven twelve.']);
     t.fetch.respond('Eleven twelve.');
     await t.clock.advance(1);
     expect(playing(t).map(([name]) => name)).toEqual([
@@ -332,16 +339,16 @@ describe('Handoff: the old voice asks for nothing new (issue #163)', () => {
     const before = t.fetch.of(alloy.id).length;
     t.prepare();
     await t.clock.advance(130);
-    expect(t.fetch.of(nova.id)).toEqual(['Four five.']);
+    expect(t.fetch.of(nova.id)).toEqual(['Four five.', 'Six seven eight.']);
     t.session.skipBack('sentence');
     expect(t.session.handoff?.pending).toBe(true);
     await t.clock.advance(600);
     expect(playing(t).at(-1)).toEqual(['alloy:One two three.', 0]);
     expect(t.commits).toEqual([]);
-    // The preparation starts over where the reading landed
+    // The preparation starts over where the reading landed, once a request is free
     t.fetch.respond('Four five.');
     await t.clock.advance(25);
-    expect(t.fetch.of(nova.id)).toEqual(['Four five.', TEXT]);
+    expect(t.fetch.of(nova.id)).toEqual(['Four five.', 'Six seven eight.', TEXT]);
     t.fetch.respond(TEXT);
     await t.clock.advance(300);
     expect(t.report.last).toMatchObject({ kind: 'word', index: 0 });
@@ -366,7 +373,7 @@ describe('Handoff: the old voice asks for nothing new (issue #163)', () => {
     expect(t.fetch.of(alloy.id)).toHaveLength(before);
     t.fetch.respond(TEXT);
     await t.clock.advance(25);
-    expect(t.fetch.of(nova.id)).toEqual([TEXT, 'Thirteen fourteen.']);
+    expect(t.fetch.of(nova.id)).toEqual([TEXT, 'Four five.', 'Thirteen fourteen.']);
     t.fetch.respond('Thirteen fourteen.');
     await t.clock.advance(1);
     expect(playing(t).at(-1)).toEqual(['nova:Thirteen fourteen.', 0]);

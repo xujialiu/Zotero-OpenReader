@@ -516,6 +516,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     // Its requests are the reading's own from now on, not a preparation's (issue #162)
     store.dropSignal();
     if (old && old !== store) old.close();
+    // The old voice's requests on their way are for a closed store: they hold none of the new voice's slots (issue #226)
+    this.prefetcher.release();
     // A new controller of Read Aloud's knows no failures of the old voice
     this.failed.clear();
   }
@@ -795,7 +797,8 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     return last ? { ...last, order: [...last.order], open: this.prefetcher.open, peak: this.prefetcher.peak } : null;
   }
 
-  private prefetchSettings(): PrefetchSettings {
+  /** The pane's prefetch numbers now; a voice switch's preparation asks for as many at once (handoff.ts, issue #226). */
+  prefetchSettings(): PrefetchSettings {
     try {
       return this.deps.prefetch?.() ?? READ_ALOUD_PREFETCH;
     } catch (e) {

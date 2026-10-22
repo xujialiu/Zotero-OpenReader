@@ -796,3 +796,4 @@ then) and is in the git history before that day.
 - An entry or language pick is a draft beside the manager, and a pending switch is the Player's voice (issues #224, #225)
 - Verified live on 1.16.13-beta4, and a fourth argument the wiring dropped (issues #224, #225)
 - The Player's dropdowns kept their first version's fixed widths (issue #227)
+- The sentence after a voice switch waited, and the old voice's requests held the new one's slots (issue #226)

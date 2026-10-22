@@ -1,6 +1,6 @@
 [Checklist index](../README.md) · [Scripts](../scripts/voice-switch/README.md)
 
-# 4a. Voice switching (issues #95, #108, #154, #163)
+# 4a. Voice switching (issues #95, #108, #154, #163, #226)
 
 Run the [baseline](../baseline.md) first and [cleanup](../cleanup.md) last.
 
@@ -271,3 +271,33 @@ controls through items 9-12 above.
     waiting`), so the failure landed on A's own store, a failure before
     the takeover; that variant is unit-tested
     (`test/core/engine/handoff-late-answer.test.ts`).
+17. **The sentence after the takeover (#226).** `voiceSwitch().mechanism`
+    is `engine-handoff-v4`. On a PDF fixture of at least eight body
+    sentences of two seconds or more, with the prefetch at its defaults
+    (Custom prefetch on, 5 sentences ahead, 2 requests at once; record and
+    restore each with its user-value status), read a word-timed voice A of
+    a free provider (Kokoro; a System voice when no Kokoro server answers)
+    and pick another voice B of the same provider half a second into a
+    sentence. Poll `voiceSwitch()` and `engine()` every 25 ms from the pick
+    until three sentences after the takeover:
+    - Pending: `handoff.atOnce` 2, `handoff.slowestMs` above 0; B's first
+      two `audioReady` entries are, in either order, the sentence being
+      read at the pick and the one after it.
+    - At the takeover (`handoff.last` set, the notice `selected`):
+      `last.kind` `word` or `sentence`. For `word`, either `prepared`
+      holds `last.index + 1`, or B's clip left after the cut was at least
+      `1.25 × slowestMs + 250` ms. A `wordDecision` of
+      `next-sentence-late` seen while polling is the gate holding a cut
+      that came too late in the sentence, not a failure.
+    - After the takeover: `engine()` `session.noticeCounts.shown` does not
+      grow until the reading is three sentences past `last.index` (no
+      "Preparing…"); `session.prefetch.from` is past `last.index`, and its
+      `open` at most 2.
+    Repeat at *Requests at once* 1: `atOnce` 1, and still no "Preparing…"
+    after the takeover. Only the owner can judge whether the takeover still
+    sounds seamless. Unit-tested, not driven live: a server making one
+    request at a time and the old voice's slots released at the takeover
+    (`test/core/engine/handoff-next-sentence.test.ts`,
+    `test/core/engine/parts.test.ts`), both stall scenarios through
+    Zotero's manager (`test/read-aloud/engine/engine.test.ts`), and the
+    simulation of 210 switches on the issue.

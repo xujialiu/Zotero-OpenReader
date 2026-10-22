@@ -34,7 +34,8 @@ manager's voice), `paused`, `player` (`provider`, `locale`, `voice`,
 ### 1. The build
 
 1. `diagnostics.startup()`: the beta's version, every step successful.
-   `diagnostics.voiceSwitch().mechanism` is `engine-handoff-v3`.
+   `diagnostics.voiceSwitch().mechanism` is `engine-handoff-v3`, or
+   `engine-handoff-v4` on a build with issue #226's switch.
 
 ### 2. A language pick while reading
 

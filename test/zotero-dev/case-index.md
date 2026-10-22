@@ -55,7 +55,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [The remembered voice](cases/remembered-voice.md) — 3.2, 3.11, 4.7
 - [A PDF's raw /Lang tag](cases/raw-lang-tag.md) — 3.12–3.14
 - [1d. Regional picks stay selected in PDF and EPUB (issue #91, beta6)](cases/regional-picks.md)
-- [4a. Previous and next voice; a pick after an error or the end, the old voice's late answer (issues #95, #194, #196)](cases/voice-switch.md)
+- [4a. Previous and next voice; a pick after an error or the end, the old voice's late answer, the sentence after the takeover (issues #95, #194, #196, #226)](cases/voice-switch.md)
 - [4c. Voice-switch notice lifetime (issue #119)](cases/voice-notice.md)
 - [An entry or language picked in the Player picks no voice (issue #224)](cases/entry-language-picks.md)
 - [The Player shows the voice being switched to (issue #225)](cases/pending-voice.md)

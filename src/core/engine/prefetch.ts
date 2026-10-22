@@ -19,6 +19,12 @@
  * a pair first, which with more at once would put the next sentence last.
  * The sentence playback waits for is not the runner's: it is asked for at
  * once (session.ts), so for a moment after a skip one more can be open.
+ *
+ * A voice switch's takeover releases the slots (issue #226): the old
+ * voice's requests still on their way are for a store that is closed, and
+ * until they came back the new voice's prefetch could not ask for its next
+ * sentence. For a moment after a takeover, the old voice's requests and
+ * the new voice's together can be more than the setting.
  */
 
 import type { EngineSegment } from './types';
@@ -132,6 +138,8 @@ export class PrefetchRunner {
   open = 0;
   /** The most ever open at once, for the diagnostics. */
   peak = 0;
+  /** Bumped by `release`: an answer to a request sent before it frees no slot. */
+  private epoch = 0;
 
   run(order: readonly number[], job: PrefetchJob): void {
     this.queue = [...order];
@@ -142,6 +150,17 @@ export class PrefetchRunner {
   cancel(): void {
     this.queue = [];
     this.job = null;
+  }
+
+  /**
+   * The requests open now stop holding slots, and their answers free none;
+   * what was left to ask for goes. A takeover closed the store they were
+   * for (session.ts `swapVoice`, issue #226).
+   */
+  release(): void {
+    this.cancel();
+    this.epoch++;
+    this.open = 0;
   }
 
   private fill(): void {
@@ -162,12 +181,14 @@ export class PrefetchRunner {
       } catch (e) {
         request = Promise.reject(e);
       }
-      void request.then(this.answered, this.answered);
+      const epoch = this.epoch;
+      const answered = (): void => this.answered(epoch);
+      void request.then(answered, answered);
     }
   }
 
-  private readonly answered = (): void => {
-    this.open--;
+  private answered(epoch: number): void {
+    if (epoch === this.epoch) this.open--;
     this.fill();
-  };
+  }
 }

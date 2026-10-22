@@ -223,6 +223,28 @@ describe('prefetch', () => {
     expect(second.asked).toEqual([3]);
     expect(runner.open).toBe(1);
   });
+
+  it('releases the slots of requests a takeover left behind: their answers free none of the new voice\'s (issue #226)', async () => {
+    const runner = new PrefetchRunner();
+    const old = manual(2);
+    runner.run([1, 2, 3], old.job);
+    expect(old.asked).toEqual([1, 2]);
+    runner.release();
+    expect(runner.open).toBe(0);
+    const next = manual(2);
+    runner.run([4, 5, 6], next.job);
+    expect(next.asked).toEqual([4, 5]);
+    old.answer(1);
+    old.answer(2, false);
+    await flush();
+    // Still two of the new voice's open, so its third waits; nothing more of the old run's is asked
+    expect(runner.open).toBe(2);
+    expect(next.asked).toEqual([4, 5]);
+    expect(old.asked).toEqual([1, 2]);
+    next.answer(4);
+    await flush();
+    expect(next.asked).toEqual([4, 5, 6]);
+  });
 });
 
 describe('LruMap', () => {

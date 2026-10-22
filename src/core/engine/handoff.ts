@@ -3,11 +3,15 @@
  * stopping (issues #95, #108), inside the Engine (issue #133).
  *
  * A voice picked while a document is read is prepared in the background
- * while the old voice goes on: its audio for the sentence being read, then
- * up to eight sentences ahead when it is late. The new voice takes over at
- * the first word boundary both voices time at least 40 ms ahead (the
- * word-boundary matcher of core/voice-switch.ts), cut on the audio clock;
- * failing that, at the start of the next sentence it has audio for. Picks
+ * while the old voice goes on: its audio for the sentence being read and
+ * the ones after it, as many at once as the prefetch's requests at once
+ * (issue #226), then up to eight sentences ahead when it is late. The new
+ * voice takes over at the first word boundary both voices time at least
+ * 40 ms ahead (the word-boundary matcher of core/voice-switch.ts), cut on
+ * the audio clock, once the next sentence can be in before the new voice's
+ * clip runs out (issue #226: a cut near the end of a sentence left the
+ * next one waiting on "Preparing…"); failing that, at the start of the
+ * next sentence it has audio for. Picks
  * in quick succession coalesce for 120 ms before anything is requested. A
  * request may take 60 s and the whole switch 120 s (the clock stops while
  * paused), then the switch fails and the old voice reads on. A speed
@@ -59,6 +63,13 @@ export const HANDOFF_SWITCH_MS = 120_000;
 export const HANDOFF_LEAD_SECONDS = 0.04;
 /** How many sentences ahead the new voice is prepared when it cannot catch the current one. */
 export const HANDOFF_AHEAD = 8;
+/**
+ * The next sentence is expected within this many times the slowest request
+ * of the preparation, plus the padding (issue #226; the padding is Read
+ * Aloud's `LATENCY_PADDING_MS`, prefetch.ts).
+ */
+export const HANDOFF_NEXT_MARGIN = 1.25;
+export const HANDOFF_NEXT_PADDING_MS = 250;
 /** How long a suspended output may take to run again. */
 export const OUTPUT_OPEN_MS = 3000;
 
@@ -92,6 +103,10 @@ export interface HandoffReport {
   waitedAt?: number | null;
   /** Requests the old voice's clips made since the switch began: none, by issue #163. */
   oldRequests?: number;
+  /** The most requests of the preparation open at once: the prefetch's requests at once (issue #226). */
+  atOnce?: number;
+  /** The longest a request of the preparation took, in ms: what the next sentence is expected in (issue #226). */
+  slowestMs?: number;
 }
 
 export interface HandoffOptions {
@@ -119,7 +134,10 @@ export class Handoff<Clip extends EngineClip> {
   private readonly rate: number;
   private readonly started: number;
   private deadline: number;
-  private loading = false;
+  /** The sentences being asked for now, as many at once as the prefetch's requests at once (issue #226). */
+  private readonly loads = new Set<number>();
+  /** The longest a request of this preparation took, in ms. */
+  private slowest = 0;
   private loadedFirst = false;
   private missed = 0;
   private sentenceOnlyIndex: number | null = null;
@@ -211,28 +229,27 @@ export class Handoff<Clip extends EngineClip> {
         return;
       }
       if (this.waitingAt !== null && this.waitingAt !== this.session.position) this.waitingAt = null;
+      const free = this.loads.size < this.width();
       if (!this.loadedFirst) {
-        // After a skip or a jump too: the sentence where the reading is, once the load on its way is in
-        if (!this.loading) {
+        // After a skip or a jump too: the sentence where the reading is, once a request is free
+        if (free) {
           this.loadedFirst = true;
-          void this.load(this.session.position);
+          this.ask(this.session.position);
         }
       } else if (this.waitingAt !== null) {
         // The reading waits for this voice: its sentence, before anything ahead
-        if (!this.loading && !this.ready.has(this.waitingAt)) void this.load(this.waitingAt);
-      } else if (!this.armWord() && !this.loading) {
+        if (free && !this.ready.has(this.waitingAt) && !this.loads.has(this.waitingAt)) this.ask(this.waitingAt);
+      } else if (!this.armWord() && free) {
         const position = this.session.position;
         let future = false;
         for (const index of this.ready) if (index > position) future = true;
+        for (const index of this.loads) if (index > position) future = true;
         const awaitingTransition = this.ready.has(position) && this.session.currentIndex !== position;
         if (!future && !awaitingTransition) {
-          const last = this.segments.length - 1;
-          const forward = this.session.forwardStopIndex;
-          const end = Math.min(last, forward === null ? last : forward - 1);
-          const index = Math.min(end, position + Math.min(HANDOFF_AHEAD, this.missed + 1));
-          if (index > position && !this.ready.has(index)) {
+          const index = Math.min(this.lastIndex(), position + Math.min(HANDOFF_AHEAD, this.missed + 1));
+          if (index > position && !this.ready.has(index) && !this.loads.has(index)) {
             this.options.report.stage = 'sentence';
-            void this.load(index);
+            this.ask(index);
           }
         }
       }
@@ -242,16 +259,47 @@ export class Handoff<Clip extends EngineClip> {
     }
   }
 
-  private async load(index: number): Promise<void> {
-    if (this.loading || !this.valid()) return;
-    this.loading = true;
+  /** How many sentences the preparation asks for at once: the prefetch's requests at once (issue #226). */
+  private width(): number {
+    const requests = Math.floor(Number(this.session.prefetchSettings().requests));
+    return Number.isFinite(requests) && requests >= 1 ? requests : 1;
+  }
+
+  /** The last sentence the reading reaches. */
+  private lastIndex(): number {
+    const last = this.segments.length - 1;
+    const forward = this.session.forwardStopIndex;
+    return Math.min(last, forward === null ? last : forward - 1);
+  }
+
+  /** Ask for sentence `index`, and for the ones after it while requests are free, up to the width from it (issue #226). */
+  private ask(index: number): void {
+    const width = this.width();
+    const end = Math.min(this.lastIndex(), index + width - 1);
+    for (let i = index; i <= end && this.loads.size < width; i++) {
+      if (!this.ready.has(i) && !this.loads.has(i)) void this.load(i, i !== index);
+    }
+  }
+
+  /**
+   * Prepare sentence `index`. A failure fails the switch, except for a
+   * sentence asked for beside the one needed first (`beside`), which the
+   * prefetch or playback asks for again when the reading gets there.
+   */
+  private async load(index: number, beside = false): Promise<void> {
+    if (this.loads.has(index) || !this.valid()) return;
+    this.loads.add(index);
+    const report = this.options.report;
+    report.atOnce = Math.max(report.atOnce ?? 0, this.loads.size);
+    const asked = this.deps.clock.now();
     try {
       await this.within(this.store.get(index), HANDOFF_REQUEST_MS, 'OpenReader: preparing the next voice timed out');
       if (!this.valid()) return;
+      this.slowest = Math.max(this.slowest, this.deps.clock.now() - asked);
+      report.slowestMs = this.slowest;
       if (!this.session.waitsForPlay) await this.openOutput();
       if (!this.valid()) return;
       this.ready.add(index);
-      const report = this.options.report;
       report.prepared = [...this.ready];
       const observed: AudioReady = {
         index,
@@ -277,9 +325,10 @@ export class Handoff<Clip extends EngineClip> {
       this.armWord();
       this.updatePausedNotice();
     } catch (e) {
-      this.fail(e);
+      if (beside) this.deps.debug?.(`voice audio not prepared: segment ${index}: ${String(e)}`);
+      else this.fail(e);
     } finally {
-      this.loading = false;
+      this.loads.delete(index);
     }
   }
 
@@ -327,12 +376,34 @@ export class Handoff<Clip extends EngineClip> {
       report.wordDecision = 'boundary-too-close';
       return false;
     }
+    if (!this.nextInTime(index, when, boundary.offset)) {
+      report.wordDecision = 'next-sentence-late';
+      return false;
+    }
     let armed: unknown = null;
     armed = s.cutAt(when, () => this.cut(armed, index, boundary));
     if (armed === null) return false;
     this.armed = armed;
     report.stage = 'word';
     return true;
+  }
+
+  /**
+   * Whether the sentence after `index` can be in before the new voice's
+   * clip, cut in at its `offset` at context time `when`, runs out (issue
+   * #226): in hand, or expected by then — a whole request from now when
+   * it is on its way, or from the cut, when the prefetch asks for it. On
+   * its way earns no credit: on a server that makes one at a time it waits
+   * behind the sentence asked with it, and a cut that counted the wait as
+   * progress left the next sentence late (measured, issue #226).
+   */
+  private nextInTime(index: number, when: number, offset: number): boolean {
+    const next = index + 1;
+    if (next > this.lastIndex() || this.ready.has(next)) return true;
+    const untilCut = (when - this.deps.audio.now()) * 1000;
+    const neededIn = untilCut + ((Number(this.store.clips.get(index)?.duration) - offset) / this.rate) * 1000;
+    const expected = this.slowest * HANDOFF_NEXT_MARGIN + HANDOFF_NEXT_PADDING_MS;
+    return (this.loads.has(next) ? expected : untilCut + expected) <= neededIn;
   }
 
   /** The old voice has played up to the boundary. */
@@ -386,7 +457,7 @@ export class Handoff<Clip extends EngineClip> {
     this.waitingAt = index;
     report.stage = 'waiting';
     // Not inside the first 120 ms: a quick run of picks still asks for one voice only
-    if (this.loadedFirst && !this.loading) void this.load(index);
+    if (this.loadedFirst && !this.loads.has(index) && this.loads.size < this.width()) this.ask(index);
   }
 
   // ---- At a skip or a jump --------------------------------------------------
