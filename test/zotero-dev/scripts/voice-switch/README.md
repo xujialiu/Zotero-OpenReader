@@ -1,6 +1,72 @@
-# Scripts: voice switching (issues #95, #108, #149, #154, #163, #194, #196)
+# Scripts: voice switching (issues #95, #108, #149, #154, #163, #194, #196, #226)
 
 [Case](../../cases/voice-switch.md) · [Checklist index](../../README.md) · [Runner](../_shared/README.md)
+
+## Issue #226 kit (added 2026-10-22)
+
+Item 17, "The sentence after the takeover". Voices: two Fish Audio voices of the
+profile's configured FREE model (`fish.model` `s2.1-pro-free`, never switched;
+authorized by the owner within its free allowance) — A `fish::en/9fa4b7a1b67446b48208f2f5d4bcd8da`
+("Dax"), B `fish::en/029f407da0914eab9469a0edbc23efa8` ("Aubrey"), both tagged
+`en-US`. Both must be tagged like the document: the Player's Shift+. cycle filters
+by language, and a generic-`en` voice is not offered for an en-US document (one
+pick was a consumed no-op on a singleton cycle — the 13:05 failure).
+`favoritesOnly` on with `favoriteVoices` [A, B] **before the first popup open of
+every fresh fixture**: the catalog collapses to the favorites, and a memory voice
+outside them is substituted by the fish Local voice (the 12:39/12:45 failures).
+Fresh-prose PDFs per pick under `.tmp/zotero-dev/226-fixture/` (`226-p1a…p2c.pdf`,
+12 sentences of ~23 words, each ≥ 2 s read, no text reused across picks — the
+audio cache is text-keyed for the process life), passed as `params.fixture226.<key>`.
+
+| Script | Checks | Expected | Params/state |
+| --- | --- | --- | --- |
+| `226-00-configure-and-snapshot.js` | Mute, sameForAllDocuments off, pane defaults (Custom on, 5 ahead, 2 at once), favoritesOnly on; folder confirmed off | volume 0; pref values with user flags in `__ztts226.prefSnapshot` | `Zotero.__ztts226` |
+| `226-01-fixture-and-player-seed.js` | Fresh fixture in, favorites [A,B] written pre-popup, seed A paused, audio-device probe | 12 segments; `audio.state` running, playbackTime moves; sentence 0 ≥ 2 s | `params.fixture226.p1a` |
+| `226-10-pass1-pick1-a2b.js` | Item 17 pass 1 (requests 2): trusted Shift+. half a second into the pin sentence, 25 ms polling of `voiceSwitch()`+`engine()` until three sentences past the takeover | mechanism v4; `atOnce` 2; `slowestMs` > 0; first two `audioReady` = {pin, pin+1}; `last` word\|sentence, notice `selected`; no `shown` growth after `last`; `prefetch.from` > `last.index`, `open` ≤ 2 | `params.fixture226.p1a/p1b/p1c`; `__ztts226.voiceA/voiceB` |
+| `226-19-set-requests-1.js` | Requests at once 1 | pref reads back; folder false | — |
+| `226-20-pass2-pick1-a2b.js` | Pass 2 at requests 1: the same rows with `atOnce` 1, still no "Preparing…" after the takeover | as above with `atOnce` 1 | `params.fixture226.p2a/p2b/p2c` |
+| `226-99-cleanup-and-restore.js` | Fixtures out, prefs byte-identical (user flags honored; memory LAST), WebDAV folder switch back, debug store back, host minimized | rows at baseline; folder matches snapshot | `Zotero.__ztts226` |
+
+Runs:
+
+- **2026-10-22, 1.16.14-beta2** (Zotero 11.0-beta.1, macOS): build proven at
+  install and again per chunk after the appearance worktree's 1.16.14-beta
+  replaced it mid-run (reinstalled; startup 28 steps ok, `failed` [], mechanism
+  `engine-handoff-v4`). Item 17: defaults pass A→B **PASS** on all ten rows
+  (pending 11 ms, `atOnce` 2, `slowestMs` 4462, first two ready {2,3}, `last`
+  sentence@5 offset 0 notice selected, `shown` 0 through three past,
+  `prefetch.from` 6 > 5, `open` max 2); requests-1 repeat A→B **PASS** (`atOnce`
+  1, `slowestMs` 3711, first two {2,3}, `last` sentence@4, no "Preparing…"
+  after the takeover; the pre-takeover wait showed the banner, `shown` 3). B→A
+  and the second/third picks per pass NOT REACHED (the run's 90-minute bound).
+  A later pick is a copy of `226-10` / `226-20` with only its `SPEC` line
+  changed (`key` p1b/p1c/p2b/p2c, `readVoice`/`pickVoice` swapped for B→A);
+  the prepared copies never ran and were not kept. Both takeovers were
+  sentence-kind: with Fish's ~3.7–4.5 s answers the gate held the cut at a
+  word, `wordDecision: 'next-sentence-late'` in the saved trace at 4252 ms
+  (pass 1, 0.8 s into sentence 3) and 7453 ms (pass 2, 4.5 s into sentence
+  3), and the new voice took over at a sentence start. A cut at a word that
+  passes the gate was not observed live; it is unit-tested in
+  `test/core/engine/handoff-next-sentence.test.ts`.
+
+Limits:
+
+- The appearance worktree (issue #227) drove this Zotero during the run and
+  left its fixture tab open (item 24933, "ztts 2026-10-22 #227", paused session
+  on Samantha): left open, untouched.
+- `compatible: listing voices failed: Cannot reach http://127.0.0.1:8765` on
+  every voice-list rebuild — the profile's OpenAI Compatible section points at
+  the #194 stub server, which is not running. Not a #226 regression.
+- `226-01` as kept pairs A with B `fish::en/933563…` ("Sarah"), tagged generic
+  `en`, which is not in an en-US document's cycle: the passing picks ran after
+  a one-off call re-paired B to Aubrey (`fish::en/029f40…`, en-US), not in the
+  script. The next run picks B in `226-01` among the voices tagged like the
+  document, and records that it ran. Its voice-inventory block still says
+  "System" from an earlier draft; the filter is `fish::`.
+- Kokoro (`local.baseURL` https://h200-kokoro.xujialiu.top) answers 403 behind
+  Cloudflare Access (the configured headers hold only a client id, no secret);
+  macOS System voices list fine but are sentence-only (`wordTimestamps: false`),
+  so they exercise only the sentence-start path.
 
 ## Issues #194/#196 kit (added 2026-10-18)
 

@@ -301,3 +301,14 @@ controls through items 9-12 above.
     `test/core/engine/parts.test.ts`), both stall scenarios through
     Zotero's manager (`test/read-aloud/engine/engine.test.ts`), and the
     simulation of 210 switches on the issue.
+    The 2026-10-22 run (1.16.14-beta2, Fish Audio's free model; the table
+    is on issue #226's closing comment) passed every row on one A→B pick
+    per pass. Both takeovers came at a sentence start: with answers of
+    about 4 s the gate held each cut (`next-sentence-late` in the trace),
+    so a word cut that passes the gate is still unobserved live. At
+    *Requests at once* 1 the reading waited for B once before the takeover
+    (`shown` up by one before `last`): during a switch the old voice asks
+    for nothing (#163) and had no audio for that sentence. That wait is
+    expected, and outside this item's rows. A and B must carry the
+    document's language tag (`en-US`): a generic `en` voice is not in an
+    `en-US` document's Previous/Next cycle.
