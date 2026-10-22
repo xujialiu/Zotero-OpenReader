@@ -157,10 +157,12 @@ Separate documents under the same library item have separate choices.
 _Avoid_: book voice, tab voice
 
 **Provider**:
-One source of voices and audio the plugin can be pointed at: a service, a
-server of the user's own, or the operating system. Each has a section in
-the settings and, while it has voices, an entry in the player.
-_Avoid_: vendor, engine, backend, tier
+One source of voices and audio: a service, a server of the user's own, the
+operating system, or Zotero Standard or Zotero Premium. Each is switched on
+in the settings and, while it has voices, is listed in the player's first
+dropdown, the provider dropdown.
+_Avoid_: entry, vendor, engine, backend, tier (Zotero's word for its own
+three), voice mode
 
 **Model**:
 What a provider turns text into speech with. One provider can offer
@@ -168,19 +170,14 @@ several, each at its own price, and every voice is spoken by one of them.
 Fish Audio calls a voice a model; here it is a voice.
 _Avoid_: engine (the plugin's own), speech engine, voice model
 
-**Entry**:
-One item of the player's first dropdown: a provider that has voices, or
-one of Zotero's own two.
-_Avoid_: tier (Zotero's word for its own three), voice mode
-
 **Language**:
-One way of speaking that an entry offers voices in: a language and, where
-the entry has it in more than one place, dialect or script, which one.
-The player lists languages between the entry and the voice.
+One way of speaking that a provider offers voices in: a language and, where
+the provider has it in more than one place, dialect or script, which one.
+The player lists languages between the provider and the voice.
 _Avoid_: locale, region, dialect, accent
 
 **Multilingual**:
-The language listed first under an entry, holding the voices that speak
+The language listed first under a provider, holding the voices that speak
 whatever language they are given.
 _Avoid_: Multiple languages, mul
 
