@@ -23,15 +23,21 @@ Evidence comes from the fixture reader's `#ztts-player-frame` and its
 (13 unless Zotero's font size is changed). A dropdown is
 `.voice-group .field`, its name `.picker .value`. Boxes are
 `getBoundingClientRect()` in CSS px. To vary the bar's width, set the
-frame's `style.width` and measure in the same script. The host puts the
-width back at its next layout pass, so there is nothing to restore.
+frame's `style.width`, then wait until the Player page's `innerWidth`
+equals the width set before measuring. The page lays out a frame later,
+and the 2026-10-22 run, which measured in the same script, read every
+row at the previous width. The host puts the width back at its next
+layout pass, so there is nothing to restore. The CSSOM reports the rule's
+`flex` as `1 1 0px`.
 
 ### 1. Equal widths in the bars
 
 For the Top bar, then the Bottom bar (`Shift+P`, or the layout menu):
 
 1. With the frame at 2000 px, the three dropdowns are each 16.5 × `F` px
-   wide (214.5 at 13 px), within 0.5 px. The layout button's right edge
+   wide (214.5 at 13 px), within 0.5 px. The 2026-10-22 run (1.16.14-beta)
+   saw this already at the bar's own 1176 px, with 174.2 px left before
+   the layout button. The layout button's right edge
    is 10 px (the bar's padding) inside the bar's right edge, and the gap
    before it is wider than 8 px.
 2. With the frame at 500 px, the three are each 7.3 × `F` px (94.9 at
@@ -69,4 +75,6 @@ For the Top bar, then the Bottom bar (`Shift+P`, or the layout menu):
 
 On the owner's usual window, Top bar: the three dropdowns look equally
 wide, and English (United States) reads whole. A screenshot of the bar is
-enough.
+enough. Draw it from the reader window: the Player frame's own window
+has no `browsingContext`. The owner accepted 1.16.14-beta by eye on
+2026-10-22.
