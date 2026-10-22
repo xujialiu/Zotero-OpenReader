@@ -11,8 +11,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .layout-top { top: 0; bottom: auto; border-top: 0; border-bottom: 1px solid var(--preview-border, #ddd); }
 .identity { display: none; }
 .voice-group, .controls { display: contents; }
-.field { flex: 0 0 auto; width: 105px; min-width: 0; }
-.field.voice { flex: 0 1 180px; width: 180px; min-width: 95px; }
+/* The provider, language and voice dropdowns share the bar's free room equally, from 95 px up to where Arabic (United Arab Emirates) fits (issue #227) */
+.field { flex: 1 1 0; min-width: 7.3em; max-width: 16.5em; }
 .picker { display: flex; width: 100%; height: 26px; min-width: 0; align-items: center; gap: 6px; padding: 3px 6px; background: var(--preview-control-bg, #fff); border: 1px solid var(--preview-control-border, #ddd); border-radius: 5px; text-align: left; }
 .value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .chevron { display: block; width: 8px; height: 8px; flex: 0 0 8px; align-self: center; background: var(--preview-icon, #888); opacity: .7; mask: url('icons/chevron.svg') center / contain no-repeat; }
@@ -32,7 +32,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .grip { margin-left: auto; opacity: .6; }
 .layout-B > .play { order: 0; justify-self: center; }
 .layout-B .voice-group { display: flex; flex-direction: column; justify-content: center; gap: 4px; }
-.layout-B .field, .layout-B .field.voice { flex: 0 0 auto; width: 100%; }
+.layout-B .field { flex: 0 0 auto; width: 100%; min-width: 0; max-width: none; }
 .layout-B .picker { height: 26px; }
 .layout-B .controls { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 27px minmax(0, 1fr); align-items: center; gap: 6px; padding-inline: 20px; }
 .layout-B .controls [data-adjust="speed"] { justify-self: end; }

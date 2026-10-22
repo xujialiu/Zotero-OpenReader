@@ -84,6 +84,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Player menus, floating controls and speed steps (issue #118)](cases/player-controls.md)
 - [Player A/M follows the current document, web snapshots and Reading Mode included (issues #117, #188)](cases/player-following.md)
 - [The docked bars lie over the document (issues #135, #137, #164)](cases/player-cover.md)
+- [The Player's three dropdowns share the bar's width (issue #227)](cases/player-dropdown-widths.md)
 - [The highlight and its colors](cases/highlight.md) — 3.5, 5.5
 - [The Sentence and Word switches (issue #114, 1.12.11)](cases/highlight-levels.md)
 - [3a. The whole sentence on screen (issue #83, 1.11.7)](cases/whole-sentence.md)
