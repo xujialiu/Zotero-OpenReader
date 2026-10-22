@@ -80,9 +80,13 @@ Four project documents are reached the same way:
   `zotero-tester` carries (`.agents/zotero-tester.md`, "The rules you
   carry") is mirrored there in the same change.
 - Reply in **Chinese**, always, whatever language the input (logs, source,
-  instructions) is in. Everything else is **English only, American
-  spelling** (color, gray, license, -ize) — code, identifiers, comments,
-  commit messages, README, NOTES.md. Verbatim
+  instructions) is in. **Inside that Chinese, proper nouns and technical
+  terms stay English** (settled 2026-10-22): the glossary's terms
+  (`CONTEXT.md`), the names of things in the plugin, Zotero and the
+  providers, and technical words — "the provider dropdown", "Top bar",
+  "issue" — never a Chinese translation of them. Everything else is
+  **English only, American spelling** (color, gray, license, -ize) —
+  code, identifiers, comments, commit messages, README, NOTES.md. Verbatim
   product strings (Azure's "多语言" voice names, the rendered "多语种"
   label) and test fixtures for the Chinese collation are data, not prose,
   and stay as they are.
