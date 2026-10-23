@@ -803,3 +803,4 @@ then) and is in the git history before that day.
 
 - HTML display and Document analysis disagree about attachments and omitted body tags (issue #228)
 - A temporary HTML adapter feeds Zotero a detached normalized copy (issue #228)
+- Verified HTML reading, and why popup opening did not test Resume (issue #228)

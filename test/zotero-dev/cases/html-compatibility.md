@@ -1,6 +1,9 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/html-compatibility/README.md)
 
 # Local HTML reading compatibility (issue #228)
+
+Verified on 1.16.15-beta / Zotero 10.0.6 (macOS), 2026-10-23;
+[accepted results and probe corrections](https://github.com/xujialiu/Zotero-OpenReader/issues/228#issuecomment-6366988228).
 
 The temporary compatibility hook handles local HTML rejected by Zotero's
 snapshot classification and HTML whose native Document analysis contains
@@ -50,14 +53,20 @@ rewritten. Normal nonempty HTML, PDF, and EPUB analysis stays native.
    original, if provided, select a configured voice and start muted
    reading. Verify advancing Engine audio time/source start, active
    segments, and no permanent preparation state. Resolve sentence
-   positions against the displayed document and compare normalized text.
+   positions with `view.toDisplayedRange` against the displayed document
+   and compare the full range text, not a document-wide substring. Report
+   both raw strings if only edge whitespace differs (the authored first
+   paragraph has one trailing space in its range on Zotero 10.0.6).
    For a voice with real word timing also resolve a sampled word position;
    otherwise verify sentence fallback, not invented word timing. Rendering
    requires the fixture tab and window to be restored. Subjective sound
    and moving-highlight quality remain human checks.
 4. **Position.** On the authored fixture pause in the second paragraph,
-   close its Reader normally, reopen the same attachment, and resume. The
-   active sentence/position matches the saved one. Attachment identity,
+   close its Reader normally, reopen the same attachment, and use trusted
+   Shift+Space on the idle Reader, with no selection. Do not open the native
+   popup first: that is not Resume. `diagnostics.position().trace` contains
+   a new `resume item … target …` entry for this attachment, and the active
+   sentence/position matches the saved one. Attachment identity,
    file hash, link mode, and content type remain unchanged. Remove any
    generated position/document-voice records during cleanup.
 5. **Native controls and cache.** An ordinary webpage snapshot reports
