@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:d4746e44e337 -->
+<!-- translated-from: README.md sha256:6ea648f7243f -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -302,6 +302,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 ## 兼容性
 
 - 桌面版 Zotero 10，任何 10.x 版本都行，自己从源码构建的也算。Windows 和 macOS 上都在用；Linux 应该一样，但没测过。
+- **本地 HTML**——兼容性修复帮助朗读能够显示却无法朗读的已导入或链接的 HTML，不修改原文件或附件设置。这些修复适用于不超过 16 MB 的文件，但不保证每个 HTML 页面都能正常朗读。如果准备失败，请关闭并重新打开文档后重试。
 
 ## 开发
 

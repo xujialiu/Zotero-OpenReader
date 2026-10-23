@@ -66,6 +66,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 
 - [The Engine: every voice on the plugin's own engine (issue #133)](cases/engine.md)
 - [Playback on a fixture](cases/playback.md) — 3.4, 3.26
+- [Local HTML reading compatibility (issue #228)](cases/html-compatibility.md)
 - [3l. Playback preparation notice (issue #120)](cases/playback-notice.md)
 - [Invisible text and empty audio](cases/silent-segments.md) — 3.6, 3.7
 - [Prefetch and cache (issue #166)](cases/prefetch-cache.md) — 3.8

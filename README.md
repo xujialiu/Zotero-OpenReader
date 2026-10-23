@@ -650,6 +650,11 @@ password.
 
 - Zotero 10 on the desktop, any 10.x build, source builds included. In use
   on Windows and macOS; Linux should be the same, but is untested.
+- **Local HTML** — compatibility fixes help with imported or linked HTML
+  that displays but cannot be read aloud, without changing the original
+  file or attachment settings. These fixes cover files up to 16 MB, not
+  every HTML page. If preparation fails, close and reopen the document to
+  retry.
 
 ## Development
 

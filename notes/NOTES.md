@@ -798,3 +798,8 @@ then) and is in the git history before that day.
 - The Player's dropdowns kept their first version's fixed widths (issue #227)
 - The sentence after a voice switch waited, and the old voice's requests held the new one's slots (issue #226)
 - Verified live on 1.16.14-beta2, and a build another worktree installed mid-run (issue #226)
+
+### [2026-10-23](NOTES_2026-10-23.md)
+
+- HTML display and Document analysis disagree about attachments and omitted body tags (issue #228)
+- A temporary HTML adapter feeds Zotero a detached normalized copy (issue #228)

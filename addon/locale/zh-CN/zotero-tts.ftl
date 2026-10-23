@@ -657,6 +657,7 @@ ztts-player-unfavorite = 取消收藏
 ztts-player-retry = 重试
 ztts-player-buffering = 正在缓冲…
 ztts-player-unavailable = 此文档无法朗读。
+ztts-html-preparation-failed = 无法准备此 HTML 以供朗读。请关闭并重新打开文档后重试。
 ztts-player-failed = OpenReader 的播放器没能在这里加载。要先用 Zotero 自己的播放器朗读，请在“工具 → 插件”中关闭 OpenReader。
 ztts-player-unavailable-choice = 此声音或语言已不可用，请选择其他选项。
 ztts-player-invalid-value = 不支持所选值。

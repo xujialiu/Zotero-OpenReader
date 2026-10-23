@@ -34,6 +34,7 @@ import {
   type SyncState,
 } from './core/settings-sync';
 import { installHijack, nativeInterfaceOf } from './read-aloud';
+import { installHtmlDocuments, type GetDocumentPack } from './read-aloud/html-document';
 import { createPlayerStop, isPlayerOpen } from './read-aloud/player-stop';
 import { forgetViewReadAloudState, readAloudViewKind, type ReadAloudViewKind } from './read-aloud/return-to-spoken';
 import { redeliverInterfaces, restoreInterfaces } from './read-aloud/interface-redelivery';
@@ -108,6 +109,8 @@ export interface StartupParams {
 }
 
 let uninstallHijack: (() => void) | null = null;
+let htmlDocuments: ReturnType<typeof installHtmlDocuments> | null = null;
+const htmlDocumentFailures = new Set<number>();
 /** Which open readers carry this instance's override — shared by the push hook and the redelivery walk, so one uninstall clears both (issue #38). */
 let hijackPatched = new WeakSet<object>();
 /**
@@ -662,6 +665,119 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
   const iface = windowWrapper.wrap(targetWindow, composite);
   (iface as Record<string, unknown>).__zoteroTTSInstance = interfaceInstanceToken;
   return iface;
+}
+
+/** An HTML file, not a remote URL. Zotero's snapshot predicate excludes imported/linked files (#228). */
+function isHtmlAttachment(itemID: number): boolean {
+  const item = Zotero.Items.get(itemID);
+  return !!item && item.isFileAttachment() && item.attachmentContentType === 'text/html';
+}
+
+/** Forget only an idle HTML reader's failed/empty analysis, never a reading's positions. */
+function clearEmptyHtmlAnalysis(reader: any): void {
+  if (!isHtmlAttachment(reader.itemID)) return;
+  const internal = reader._internalReader;
+  if (!internal || internal._readAloudManager?.active) return;
+  const owner = htmlDocuments;
+  const clear = () => {
+    if (!owner || htmlDocuments !== owner || readerGone(reader, isDeadWrapper) || internal._readAloudManager?.active) return;
+    if (internal._sdt?.structure?.content?.length) return;
+    internal._sdt = null;
+    internal._sdtPromise = null;
+    internal._sdtReaderPromise = null;
+  };
+  // An earlier load must settle before clearing it, or its late empty result
+  // could overwrite the compatibility result after an in-place installation.
+  void withTimeout(Promise.allSettled([internal._sdtPromise, internal._sdtReaderPromise]), 30_000,
+    () => new Error('OpenReader: previous HTML analysis did not finish'))
+    .then(clear).catch(error => Zotero.logError(error));
+}
+
+function startHtmlDocuments(): void {
+  htmlDocuments?.dispose();
+  const maxSourceBytes = 16 * 1024 * 1024;
+  // Use Zotero's bundled pack reader and document worker, not copies of either.
+  // Requiring lazily keeps startup independent of whether a main window exists.
+  const chromeRequire = (name: string): any => {
+    const win = Zotero.getMainWindow();
+    if (!win || typeof win.require !== 'function') throw new Error('OpenReader: Zotero document modules are unavailable');
+    return Reflect.apply(win.require, win, [name]);
+  };
+  htmlDocuments = installHtmlDocuments({
+    host: Zotero.SDT,
+    isHTML: isHtmlAttachment,
+    read: async itemID => {
+      const item = Zotero.Items.get(itemID);
+      const path = await item.getFilePathAsync();
+      if (!path) throw new Error('OpenReader: the HTML file is missing');
+      const bytes: Uint8Array = await IOUtils.read(path, { maxBytes: maxSourceBytes + 1 });
+      if (bytes.byteLength > maxSourceBytes) throw new Error('OpenReader: HTML compatibility is limited to 16 MB');
+      const digest = Components.classes['@mozilla.org/security/hash;1'].createInstance(Components.interfaces.nsICryptoHash);
+      digest.init(digest.MD5);
+      digest.update(bytes, bytes.byteLength);
+      const hash = Array.from(digest.finish(false) as string, ch => ch.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+      // Match Zotero's snapshot worker's UTF-8 decoding. Hash the very bytes
+      // decoded, rather than a second file read that could see a newer version.
+      return { text: new TextDecoder().decode(bytes), hash };
+    },
+    normalize: text => {
+      // Detached and inert: no script evaluation, live Reader overlays, source
+      // rewrite, or attachment conversion. Gecko supplies omitted HTML tags.
+      const doc = new DOMParser().parseFromString(text, 'text/html');
+      return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+    },
+    extract: async (html, hash, options) => {
+      const worker = Zotero.PDFWorker;
+      if (typeof worker?._enqueue !== 'function' || typeof worker?._query !== 'function') {
+        throw new Error('OpenReader: Zotero HTML processing is unavailable');
+      }
+      const win = Zotero.getMainWindow();
+      const encoded = new TextEncoder().encode(html);
+      if (encoded.byteLength > maxSourceBytes) throw new Error('OpenReader: normalized HTML exceeds the 16 MB compatibility limit');
+      const input = Components.utils.cloneInto({ buf: encoded.buffer, contentType: 'text/html', sourceHash: hash }, win);
+      const priority = !!(options as { isPriority?: boolean } | undefined)?.isPriority;
+      const result: any = await worker._enqueue(() => {
+        const transfers = new win.Array();
+        transfers.push(input.buf);
+        return worker._query('getStructuredDocumentText', input, transfers);
+      }, priority);
+      const module = chromeRequire('resource://zotero/document-worker/structured-document-text.js');
+      if (!result?.buf) throw new Error('OpenReader: Zotero returned no HTML analysis');
+      return { ok: true, bytes: result.buf, packVersion: module.SDT_PACK_VERSION, schemaMajorVersion: Number(module.SDT_SCHEMA_VERSION.split('.')[0]) };
+    },
+    blockCount: async pack => {
+      const module = chromeRequire('resource://zotero/document-worker/structured-document-text.js');
+      const pako = chromeRequire('pako');
+      const reader = await module.openStructuredDocumentTextPack(pack.bytes, { inflate: (bytes: Uint8Array) => pako.inflateRaw(bytes) });
+      return reader.getTopLevelBlockCount();
+    },
+    exportFunction: fn => Components.utils.exportFunction((itemID: number, options?: unknown) => {
+      const win = Zotero.getMainWindow();
+      return new win.Promise((resolve: (value: unknown) => void, reject: (error: unknown) => void) => {
+        fn(itemID, options == null ? options : Components.utils.waiveXrays(options))
+          .then(result => resolve(Components.utils.cloneInto(result, win)), reject);
+      });
+    }, Zotero.SDT) as GetDocumentPack,
+    error: (itemID, error) => {
+      Zotero.logError(error);
+      if (htmlDocumentFailures.has(itemID)) return;
+      eachReader(reader => {
+        if (reader.itemID !== itemID) return;
+        const doc = toastDoc(reader);
+        if (doc) {
+          showToast(doc, t('ztts-html-preparation-failed'));
+          htmlDocumentFailures.add(itemID);
+        }
+      });
+    },
+  });
+  eachReader(clearEmptyHtmlAnalysis);
+}
+
+function stopHtmlDocuments(): void {
+  htmlDocuments?.dispose();
+  htmlDocuments = null;
+  htmlDocumentFailures.clear();
 }
 
 function startHijack(): void {
@@ -2746,6 +2862,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
         });
         eachReader((reader) => pluginPlayer?.attach(reader));
       }],
+      ['HTML document compatibility', startHtmlDocuments],
       ['Read Aloud memory', startReadAloudMemory],
       // Awaited: the database rows must be in memory before the sampler and
       // the resume path run; open-failure is handled inside (in-memory mode)
@@ -2840,6 +2957,7 @@ async function shutdown(reason?: number): Promise<void> {
   stopHighlightStyling();
   stopHighlightLevels();
   stopSkippedLines();
+  stopHtmlDocuments();
   selectionStart?.dispose();
   selectionStart = null;
   stopSpeechBackend();
@@ -3133,6 +3251,7 @@ const diagnostics = {
    * "…" (blocks a and b)` debug line per join.
    */
   skippedLines: () => JSON.stringify(readerRows((r) => skippedLines?.inspect(r) ?? null), null, 1),
+  htmlDocuments: () => JSON.stringify(htmlDocuments?.inspect() ?? [], null, 1),
   /**
    * The Engine (issue #133), per open reader: whether its four hooks are in
    * place (the voice's `getController`, the manager's `activeTimestamp`,

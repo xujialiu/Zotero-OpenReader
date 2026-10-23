@@ -727,6 +727,7 @@ ztts-player-unfavorite = Remove favorite
 ztts-player-retry = Retry
 ztts-player-buffering = Buffering…
 ztts-player-unavailable = Read Aloud is unavailable in this document.
+ztts-html-preparation-failed = This HTML could not be prepared for reading. Close and reopen the document to try again.
 # When the player cannot load in a document, Zotero's own player does not stand in (issue #134, ADR 0007)
 ztts-player-failed = The OpenReader player could not load here. To read aloud with Zotero's own player meanwhile, turn OpenReader off under Tools → Plugins.
 ztts-player-unavailable-choice = This voice or language is no longer available. Choose another one.

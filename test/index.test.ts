@@ -179,6 +179,49 @@ afterEach(async () => {
   running = null;
 });
 
+describe('HTML compatibility startup wiring (#228)', () => {
+  it('uses the queued Zotero worker on a copy, preserves the attachment, and restores getPack', async () => {
+    const originalHTML = '<html><head><title>Local</title><p>A sentence.</p>';
+    const normalized = '<html><head><title>Local</title></head><body><p>A sentence.</p></body></html>';
+    const attachment = { attachmentContentType: 'text/html', attachmentLinkMode: 0, isFileAttachment: () => true, getFilePathAsync: async () => '/fixture.html' };
+    const native = vi.fn(async (_itemID: number) => ({ ok: false, reason: 'unavailable' }));
+    const host = { getPack: native };
+    const worker = {
+      _enqueue: vi.fn(async (fn: () => Promise<unknown>) => fn()),
+      _query: vi.fn(async (_action: string, _input: { buf: ArrayBuffer }, _transfers: ArrayBuffer[]) => ({ buf: Uint8Array.of(2).buffer })),
+    };
+    const module = { SDT_PACK_VERSION: 1, SDT_SCHEMA_VERSION: '1.2.0',
+      openStructuredDocumentTextPack: async (bytes: ArrayBuffer) => ({ getTopLevelBlockCount: () => new Uint8Array(bytes)[0] }) };
+    const win = { Promise, Array, require: (name: string) => name === 'pako' ? { inflateRaw: (v: unknown) => v } : module };
+    const { report, diagnostics } = await start([], { zotero: {
+      SDT: host, Items: { get: () => attachment }, PDFWorker: worker, getMainWindow: () => win,
+    } });
+    expect(report.failed).not.toContain('HTML document compatibility');
+    const read = vi.fn(async () => new TextEncoder().encode(originalHTML));
+    IOUtils.read = read;
+    const digest = { MD5: 2, init: vi.fn(), update: vi.fn(), finish: () => 'x'.repeat(16) };
+    Components.classes = { '@mozilla.org/security/hash;1': { createInstance: () => digest } };
+    const parse = vi.fn(() => ({ documentElement: { outerHTML: normalized } }));
+    const previous = globalThis.DOMParser;
+    Object.assign(globalThis, { DOMParser: class { parseFromString = parse; } });
+    try {
+      const result = await host.getPack(1);
+      expect(result.ok).toBe(true);
+      expect(read).toHaveBeenCalledWith('/fixture.html', { maxBytes: 16 * 1024 * 1024 + 1 });
+      expect(parse).toHaveBeenCalledWith(originalHTML, 'text/html');
+      expect(worker._enqueue).toHaveBeenCalledOnce();
+      expect(worker._query).toHaveBeenCalledWith('getStructuredDocumentText', expect.objectContaining({ contentType: 'text/html' }), expect.any(Array));
+      const payload = worker._query.mock.calls[0][1];
+      expect(new TextDecoder().decode(payload.buf)).toBe('<!DOCTYPE html>\n' + normalized);
+      expect(attachment.attachmentLinkMode).toBe(0);
+      expect(JSON.parse(diagnostics.htmlDocuments())).toEqual([expect.objectContaining({ status: 'compatibility', blocks: 2 })]);
+      await running.shutdown(ADDON_UPGRADE);
+      expect(host.getPack).toBe(native);
+      running = null;
+    } finally { Object.assign(globalThis, { DOMParser: previous }); }
+  });
+});
+
 describe('startup with a reader whose window is gone (issue #143)', () => {
   it('starts every step with no reader open: the stand-in is enough for all of them', async () => {
     const { report, listeners } = await start([]);
