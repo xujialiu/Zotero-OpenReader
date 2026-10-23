@@ -400,7 +400,7 @@ ztts-about-email = Email { $email }
 # The line under it, the repository: the link is named, not placed, so the
 # markup's label named github takes the text between the tags wherever a
 # language puts it
-ztts-about-star = If you like OpenReader, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.
+ztts-about-star = If you like Zotero-OpenReader, give it a ⭐ on <label data-l10n-name="github">GitHub</label> — it helps others find it.
 
 
 ## What TypeScript writes into the pane (issue #43)

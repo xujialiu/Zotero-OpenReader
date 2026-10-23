@@ -369,7 +369,7 @@ ztts-about-date = 日期 { $date }
 ztts-about-time = 时间 { $time }
 ztts-about-author = 作者 { $author }
 ztts-about-email = 邮箱 { $email }
-ztts-about-star = 如果你喜欢 OpenReader，欢迎到 <label data-l10n-name="github">GitHub</label> 给它点个 ⭐——让更多人发现它。
+ztts-about-star = 如果你喜欢 Zotero-OpenReader，欢迎到 <label data-l10n-name="github">GitHub</label> 给它点个 ⭐——让更多人发现它。
 
 
 ## What TypeScript writes into the pane (issue #43)

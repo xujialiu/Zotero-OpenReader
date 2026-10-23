@@ -137,7 +137,7 @@ clipped.
     (110 on 2026-09-06: 100 at 1.11.0, plus the volume setting's nine
     and the star line's one). The Build star line retranslates with the
     pane, no reopen needed (1.11.1):
-    `如果你喜欢 OpenReader，欢迎到 GitHub 给它点个 ⭐——让更多人发现它。` (76 ms on
+    `如果你喜欢 Zotero-OpenReader，欢迎到 GitHub 给它点个 ⭐——让更多人发现它。` (76 ms on
     2026-09-06 macOS, 43 ms back), the star followed by `——` (U+2014
     U+2014), the sentence 435.3 px on one line. Fluent replaces the named child with a
     clone, and the clone is upgraded again —

@@ -66,7 +66,7 @@ clipped.
    Under them the star line (1.11.1):
    `description[data-l10n-id="ztts-about-star"]`, in the same groupbox as
    `#ztts-about-author` and after it, `textContent` with whitespace
-   collapsed exactly `If you like OpenReader, give it a ⭐ on GitHub — it
+   collapsed exactly `If you like Zotero-OpenReader, give it a ⭐ on GitHub — it
    helps others find it.`. The clause after the link is a text node of
    its own (`" — it helps others find it."`, the dash U+2014), and the
    three parts sit on one line: the sentence measures 413.78 px inside
