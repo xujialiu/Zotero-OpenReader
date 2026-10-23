@@ -55,10 +55,12 @@ line.
 
 - **The plugin is `OpenReader` inside Zotero** — Tools → Plugins, the
   settings sidebar, its dialogs, the Player, its notices and errors — and
-  `Zotero-OpenReader` in the repository and your reports; the lowercase
-  `zotero-tts` is the identifier (the id `zotero-tts@xujialiu.top`, the
-  prefs `extensions.zotero.zotero-tts.*`, the `[zotero-tts]` log prefix)
-  and is never "fixed". The build is `build/Zotero-OpenReader.xpi`.
+  `Zotero-OpenReader` in the repository, your reports and the About
+  section's GitHub line (GitHub also hosts the phone app `OpenReader`);
+  the lowercase `zotero-tts` is the identifier (the id
+  `zotero-tts@xujialiu.top`, the prefs `extensions.zotero.zotero-tts.*`,
+  the `[zotero-tts]` log prefix) and is never "fixed". The build is
+  `build/Zotero-OpenReader.xpi`.
 - **The bridge is the only route** to the running Zotero. `zotero_ping`
   failing means Zotero needs a restart, which only the user can do: stop
   and report "bridge down". Never hand a check to the user yourself; the

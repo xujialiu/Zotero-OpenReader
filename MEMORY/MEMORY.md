@@ -98,10 +98,13 @@ Four project documents are reached the same way:
   #176, ADR 0016; supersedes #167's full name there): the manifest's
   `name` (which is what Tools → Plugins shows), the settings sidebar,
   dialog titles, the Player, notices and error messages, in every locale.
-  Documented settings paths use `Settings → OpenReader`, and a doc that
-  sends the reader to the plugin inside Zotero names it as Zotero shows
-  it. A bare `OpenReader` in repository prose is the phone app; the
-  plugin's own text in Zotero calls it the OpenReader app on your phone.
+  The About section's GitHub line names it `Zotero-OpenReader` (settled
+  2026-10-23): it sends the reader to GitHub, where `OpenReader` is also
+  the phone app's repository. Documented settings paths use
+  `Settings → OpenReader`, and a doc that sends the reader to the plugin
+  inside Zotero names it as Zotero shows it. A bare `OpenReader` in
+  repository prose is the phone app; the plugin's own text in Zotero
+  calls it the OpenReader app on your phone.
   Never `Zotero TTS`, never bare
   `TTS` — `TTS` names the technology, not this plugin. The lowercase
   `zotero-tts` is a different thing, an identifier, and is never "fixed"
