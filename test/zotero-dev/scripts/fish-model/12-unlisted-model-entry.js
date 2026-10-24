@@ -41,7 +41,8 @@
     Services.obs.addObserver(observer, 'http-on-modify-request');
     return { stop() { try { Services.obs.removeObserver(observer, 'http-on-modify-request'); } catch (_) {} return seen; } };
   };
-  const five = ['s2.1-pro-free — free', 's2.1-pro — $15 per million bytes', 'drama-3 — $50 per million characters', 's2-pro — $15 per million bytes', 's1 — paid'];
+  // The labels lost their prices after the 2026-10-16 beta2 run (the owner): free or paid, never a price.
+  const five = ['s2.1-pro-free — free', 's2.1-pro — paid', 'drama-3 — paid', 's2-pro — paid', 's1 — paid'];
   const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
   const prefState = () => ({ value: Zotero.Prefs.get('zotero-tts.fish.model') ?? null, hasUser: p.prefHasUserValue(modelKey) });
 

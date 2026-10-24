@@ -27,8 +27,9 @@ final scope; the earlier draft's community search is not shipped.
    official+manual: one entry per raw model ID. Turn official off: the
    manual copy stays; turn manual off as well, with own off: only Default.
    A disabled source contributes no cached voices or stale notices.
-4. **The controls.** All three source switches start on in a profile
-   without their prefs. They lock while Fish is enabled and unlock after
+4. **The controls.** The shipped defaults are Official voices on, Your
+   voices off and Manual voices off; stored choices take precedence.
+   The three source switches lock while Fish is enabled and unlock after
    Disable. The three sources occupy one horizontal row with a normal-weight
    caption. Voices (Model IDs) accepts multiple IDs; Model IDs in that
    caption links to discovery, and the neighboring `?` includes

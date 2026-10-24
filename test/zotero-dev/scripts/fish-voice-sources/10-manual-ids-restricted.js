@@ -43,7 +43,15 @@
   };
 
   const out = { mutationsStarted: false };
-  if ((Zotero.Reader._readers || []).length) throw new Error('readers are open; guard path not exercised here');
+  // The case closes only the affected Players (baseline rules): an open reader tab with no active
+  // Read Aloud session cannot fire the guard, so the kit refuses on an ACTIVE session, not on tabs.
+  const activeOn = [];
+  const readersNow = Zotero.Reader._readers || [];
+  for (let i = 0; i < readersNow.length; i++) {
+    if (readersNow[i]?._internalReader?._readAloudManager?.active) activeOn.push(readersNow[i].tabID);
+  }
+  if (activeOn.length) throw new Error('a Read Aloud session is active on tab(s) ' + activeOn.join(', ') + '; close it under the baseline rules first');
+  out.activeSessionsAtStart = 0;
   const ps = JSON.parse(await Zotero.ZoteroTTS.diagnostics.positionSync());
   if (ps.folder !== false) throw new Error('WebDAV folder must be off (run-level isolation) before kit mutations');
 

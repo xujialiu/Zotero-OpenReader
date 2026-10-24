@@ -131,9 +131,16 @@
     const settled = await waitFor(async () => (await idle()).idle, 40000, 300);
     const a = await idle();
     const sync = a.sync.transport || {};
+    // Under a run-level isolation (this run: the folder was already OFF before the kit ran), the
+    // kit restores the folder to ITS snapshot — false — and the owner's original stays owed by the
+    // run-level restore, not by the kit. The gate is therefore "folder matches the restored switch".
+    const expectedFolder = !!read(prefix + 'webdav.enabled').value;
+    const folderNow = { positionSync: a.sync.folder, settingsUpload: a.up.folder, settingsSync: a.set.folder };
     return {
       snapshot: { value: rec.value, hasUser: rec.hasUser }, rewritten: wrote, now: { value: read(prefix + 'webdav.enabled').value, hasUser: read(prefix + 'webdav.enabled').hasUser },
-      folder: { positionSync: a.sync.folder, settingsUpload: a.up.folder, settingsSync: a.set.folder }, transportsIdle: !!settled,
+      expectedFolder, leftOffForRun: expectedFolder === false,
+      folderMatchesSnapshot: folderNow.positionSync === expectedFolder && folderNow.settingsUpload === expectedFolder && folderNow.settingsSync === expectedFolder,
+      folder: folderNow, transportsIdle: !!settled,
       lastSync: { trigger: sync.lastTrigger ?? null, outcome: sync.lastOutcome ?? null, adopted: sync.adopted ?? null, dropped: sync.dropped ?? null, uploaded: sync.uploaded ?? null, shared: { outcome: a.sync.shared?.transport?.lastOutcome ?? null, uploaded: a.sync.shared?.transport?.uploaded ?? null, adopted: a.sync.shared?.transport?.adopted ?? null, dropped: a.sync.shared?.transport?.dropped ?? null } },
       lastErrors: { store: a.pos.store?.lastError ?? null, positions: a.sync.transport?.lastError ?? null, shared: a.sync.shared?.transport?.lastError ?? null, settings: a.set.transport?.lastError ?? null, upload: a.up.autoUpload?.lastError ?? null },
       switches: ['webdav.syncPositions', 'webdav.syncSettings', 'webdav.autoUploadSettings', 'webdav.enabledMigrated'].map(n => ({ n, same: same(snap[n]) })),
@@ -187,9 +194,10 @@
   out.build = version;
   out.errors = errors;
   const f = out.steps;
-  out.status = !errors.length && f.settingsWindow?.closed && f.fixture?.itemGone && f.fixture?.readerGone && f.prefs?.mismatched?.length === 0 && f.snapshotFile?.mismatched?.length === 0 && f.positions?.clean
-    && f.folder?.folder?.positionSync === true && f.folder?.folder?.settingsUpload === true && f.folder?.folder?.settingsSync === true && f.folder?.transportsIdle
-    && f.debugStore?.storingNow === false && f.host?.minimizedNow ? 'PASS' : 'CHECK';
+  // A run with no fixture (state.fixture absent) leaves itemGone/readerGone undefined: not a failure.
+  out.status = !errors.length && f.settingsWindow?.closed && (f.fixture?.itemGone ?? true) && (f.fixture?.readerGone ?? true) && f.prefs?.mismatched?.length === 0 && f.snapshotFile?.mismatched?.length === 0 && f.positions?.clean
+    && f.folder?.folderMatchesSnapshot === true && f.folder?.transportsIdle
+    && f.debugStore?.storingNow === !!state.debugBefore && f.host?.minimizedNow ? 'PASS' : 'CHECK';
   state.cleanup = out;
   return JSON.stringify(out, null, 1);
 })()

@@ -57,7 +57,8 @@
   if (!firstSeen) throw new Error('menulist#ztts-fish-model never appeared');
   const final = snapshot(win);
   const menu = win.document.getElementById('ztts-fish-model');
-  const expected = ['s2.1-pro-free — free', 's2.1-pro — $15 per million bytes', 'drama-3 — $50 per million characters', 's2-pro — $15 per million bytes'];
+  // The labels lost their prices after the 2026-10-16 beta2 run (the owner): free or paid, never a price.
+  const expected = ['s2.1-pro-free — free', 's2.1-pro — paid', 'drama-3 — paid', 's2-pro — paid'];
   const labels = final.items.map(i => i.label);
   const modelKey = prefix + 'fish.model';
   const out = {
