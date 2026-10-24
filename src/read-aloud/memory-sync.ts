@@ -811,6 +811,14 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
           let persist = false;
           try {
             persist = name !== 'setLanguage' || !!waive(args[1])?.persist;
+            // An idle draft pick persisted its voice before Zotero clears the
+            // staged region with setLanguage(lang). Resolve against that fresh
+            // entry, not the one from before the pick (issue #232).
+            if (deps.documentKey && name === 'setLanguage' && !persist && typeof args[0] === 'string' && args[0]) {
+              const target = waive(this);
+              const reader = !target.active && inPick.has(target) ? readerForManager(target) : null;
+              if (reader) loadEntry(reader, target, memoryLangForLocale(args[0]));
+            }
             if (persist && name === 'setLanguage') stageLanguagePick(this, args[0], waive(args[1])?.region);
             if (persist && name === 'selectTier') stageTierPick(this, args[0]);
           } catch (e) {

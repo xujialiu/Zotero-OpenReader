@@ -83,6 +83,46 @@ manager's voice), `paused`, `player` (`provider`, `locale`, `voice`,
    next-voice key → the first voice of the draft's list is selected,
    still paused; again with the previous-voice key → the last.
 
+### 5.4. An idle draft keeps the explicitly chosen voice (issue #232)
+
+Run this item independently with a fresh fixture and baseline section 0;
+run cleanup (item 8) afterward. It does not require the paid or configured
+second provider used by older kit revisions. Only for this item, System
+may be switched on temporarily if needed; snapshot and restore its value
+and user-value flag. Use free System voices of one exact locale, never
+Fish Audio, Azure or Zotero Standard/Premium synthesis. If no suitable
+local voices are available, report NOT TESTABLE rather than changing to a
+paid provider. Volume stays 0 and WebDAV stays off.
+
+1. Privately snapshot the full native voice pref
+   `extensions.zotero.reader.readAloudVoices`, the memory/speed prefs,
+   System's switch, volume and the document-voice pulse, including every
+   user-value flag. Clear only the test's native voice memory while the
+   fixture is prepared; leave Global default voice and the owner's
+   document records unchanged. Do not close or operate the owner's Player.
+2. Plant an unavailable manual Document voice for the fixture's actual
+   identity, then open its Player. Independently confirm the plant through
+   `diagnostics.documentVoices().readers[].saved`, not by reading back the
+   pref name the script just wrote (issue #180). Expected: inactive,
+   no controller reading, saved missing voice retained.
+3. Choose System and a locale through the Player. Expected: the draft is
+   displayed with `voice: ''` and `chooseVoice: true`, while the old saved
+   record remains. Identify the native pool's first voice V before the
+   pick, and choose a listed W of that exact locale that is not V.
+4. Choose W through the Player. Expected: manager `selected`,
+   `player.voice`, the native language entry and the independently read
+   saved Document voice all name W; saved `manual: true`, draft null,
+   `chooseVoice: false`, no selection failure. Never accept a first-row
+   voice as proof: the old path can appear correct when W equals V.
+5. This is the idle native ingress, not item 5.1's paused active session:
+   native activation is unchanged and may request W's local audio. Stop the
+   fixture promptly after the selection/record observation; do not grade
+   pronunciation or claim no request before Play for this idle path.
+6. Restore every touched value and user-value flag, erase only the fixture
+   and its rows/record, verify Global default voice and owner records are
+   unchanged, then restore WebDAV last. Never print the native voice map
+   or a raw preference snapshot.
+
 ### 6. Closing before choosing
 
 1. Make a draft (item 2.1) and close the Player. Reopen it: provider,

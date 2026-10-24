@@ -804,3 +804,7 @@ then) and is in the git history before that day.
 - HTML display and Document analysis disagree about attachments and omitted body tags (issue #228)
 - A temporary HTML adapter feeds Zotero a detached normalized copy (issue #228)
 - Verified HTML reading, and why popup opening did not test Resume (issue #228)
+
+### [2026-10-24](NOTES_2026-10-24.md)
+
+- An idle draft's region reset needs the just-written native voice entry (issue #232)
