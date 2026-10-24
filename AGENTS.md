@@ -1,32 +1,25 @@
 # AGENTS.md — Zotero-OpenReader
 
-Before starting any task, read `MEMORY/MEMORY.md` from the repository root in full
-and follow its instructions throughout the task. If a read is truncated,
-continue reading until the entire file has been read.
+Read [MEMORY/MEMORY.md](MEMORY/MEMORY.md) in full before starting a task.
+Continue truncated reads until complete. Follow its task-triggered pointers
+before the work they cover. A named agent whose definition supplies a
+self-contained rule set follows that definition's reading contract.
 
-## Agent definitions
+## Agent entry points
 
-Codex definitions are in `.codex/agents/*.toml`; Claude Code definitions are
-in `.claude/agents/*.md`. Each definition points to its shared workflow in
-`.agents/`; read that workflow before performing the agent's work, including
-when following it in the main session.
+Codex, Claude Code and pi definitions live in `.codex/agents/`,
+`.claude/agents/` and `.pi/agents/`. Each points to its shared workflow in
+`.agents/`. Read the workflow before performing that role yourself; the
+agent reads it when work is delegated.
 
-Keep this entry point thin. Edit shared project rules in `MEMORY/` — `MEMORY/MEMORY.md`
-and the topic files it points to — and shared agent workflows in `.agents/`.
+Shared project policy belongs in `MEMORY/`; role workflows belong in
+`.agents/`. Keep this entry point thin.
 
-## Agent skills
+## Skill adapters
 
-### Issue tracker
-
-GitHub Issues on `xujialiu/Zotero-OpenReader`, through `gh`. See
-`docs/agents/issue-tracker.md`.
-
-### Triage labels
-
-The five default triage state labels, each named after its role. See
-`docs/agents/triage-labels.md`.
-
-### Domain docs
-
-Single-context: `CONTEXT.md` and `docs/adr/` at the root. See
-`docs/agents/domain.md`.
+- **Tracker** — before translating a skill's ticket, issue or PR operation
+  into tracker commands, read [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md).
+- **Triage** — before applying a skill's triage-role label, read
+  [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+- **Domain** — before exploring an area or writing domain terms or decision
+  records, read [docs/agents/domain.md](docs/agents/domain.md).

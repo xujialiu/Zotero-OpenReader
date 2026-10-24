@@ -1,85 +1,54 @@
 # docs-translator — Zotero-OpenReader
 
-You bring the Chinese pages of this repository up to date with their
-English originals and report what you changed. A session running Fable or Astra
-delegates here; any other model translates in place by this file and
-reports the same way. `MEMORY/docs.md` holds the rules — read it in full
-before acting; its section "The Chinese pages" is binding — and this file
-says how to work them.
+Update Chinese translations and report the delta. Before acting, read
+`MEMORY/MEMORY.md` and `MEMORY/docs.md` in full; its Chinese translations
+section is the policy authority. This workflow supplies the procedure,
+not a second copy of those rules. Work ownership is in `MEMORY/agents.md`.
 
-## What you get
+## Input and write boundary
 
-A brief naming the English pages that changed, usually with the diff or
-the commit range, and anything the session wants said a particular way.
-A brief that names no page means: whatever
-`test/docs-translation.test.ts` reports stale or missing.
+The brief names English pages, usually with a diff/commit range and any
+preferred wording. With no named pages, use the translation check's stale
+or missing list. Eligible pages are README, top-level public docs and
+tutorials; decision records stay untranslated.
 
-## How to work
+Edit **only `.zh.md` files**. Report English-page, locale or code problems
+without changing them. Git is read-only: no staging, commits or stash.
+Keep each file's existing line endings and UTF-8 without BOM; inspect the
+file rather than assuming this checkout is Windows or uses CRLF.
 
-1. `npx vitest run test/docs-translation.test.ts` first: it names every
-   page whose translation follows an older English revision, and every
-   tutorial or `docs/` page without one.
-2. Translate the delta, never the page again. The translation was last
-   pinned in the commit that last touched the `.zh.md`
-   (`git log -1 --format=%H -- README.zh.md`), so
-   `git diff <that commit> -- README.md` is exactly what changed in
-   English since then, the working tree included. Render those hunks
-   and leave every other byte of the Chinese page as it is.
-3. The rules, from MEMORY/docs.md:
-   - One-to-one: the same sections in the same order, the same
-     `<details>` blocks, the same tables, links and images. Nothing added
-     and nothing dropped, with one exception — a `> **国内网络**——…`
-     blockquote in a tutorial where the English would mislead a reader in
-     China (a Docker Hub, ghcr.io or Hugging Face mirror, the
-     global-vs-世纪互联 Azure split); the ones already in
-     `tutorials/*.zh.md` are the shape.
-   - Settings and player wording is quoted, never translated afresh: the
-     plugin's strings from `addon/locale/zh-CN/zotero-tts.ftl`, Zotero's
-     from its own zh-CN locale — 朗读 for Read Aloud, 语音模式, 本地 /
-     标准 / 高级 for the tiers. A third-party site's labels (a tutorial's
-     dashboard steps) come from that site's own Chinese interface, read in
-     the browser; a site without one keeps its English labels. A string you
-     cannot find in any of these stays English and goes in the report,
-     never into a guess.
-   - Product names, voice ids, pref keys, file names, shortcuts and code
-     blocks stay English; the plugin is `Zotero-OpenReader` (`OpenReader` where a
-     page quotes what Zotero shows), never translated or respelled.
-   - **Never hard-wrap.** One paragraph is one line however long, and so
-     is one list item or one blockquote: a line break between two CJK
-     characters renders as a space in Chrome and Safari. This is the
-     opposite of the English files.
-   - Spacing: no space next to `**`, `*` or `[` when both sides are CJK;
-     spaces kept around inline code and Latin words, as the existing pages
-     have them.
-   - The `<!-- translated-from: … -->` marker stays the first line —
-     `npm run docs:pin` rewrites it, you do not — and the language
-     switcher stays where the English page has its own:
-     `<p align="center"><a href="README.md">English</a> · <b>简体中文</b></p>`
-     in the README, `[English](<name>.md) · **简体中文**` under the title
-     of a tutorial or a `docs/` page.
-   - A new tutorial or `docs/` page gets a new `<name>.zh.md` beside it, the whole page
-     translated, its switcher line included. If the English page lacks
-     its own switcher line, the report says so; you do not add it there.
-4. Keep the file's line endings as you found them — this Windows checkout
-   holds the pages as CRLF, others as LF — and its UTF-8 without BOM.
-5. Then, in this order: `npm run docs:pin` (only once the translation is
-   up to date, never before), `npx vitest run test/docs-translation.test.ts`
-   (green), `npm run docs` (the preview; name the `.docs/….html` to open),
-   `git diff --stat`.
+## Translate and finish
 
-## Rules
+1. **Find the delta:** run
+   `npx vitest run test/docs-translation.test.ts` first. Account for each
+   stale/missing page in the brief; an unnamed-page run accounts for all
+   pages the check identifies.
+2. **Locate the source revision:** find the last commit touching the
+   translation, for example `git log -1 --format=%H -- README.zh.md`.
+   `git diff <that commit> -- README.md` includes the uncommitted English
+   delta. Translate those hunks and leave every other Chinese byte intact.
+   A missing translation needs the whole eligible page.
+3. **Apply the translation policy:** follow `MEMORY/docs.md` for one-to-one
+   structure, interface-label sources, 国内网络 exceptions, identifiers and
+   CJK wrapping/spacing. Keep an unsourced label English and name it in
+   the report. Preserve the first-line hash marker for `docs:pin`.
+   Keep the switcher aligned with the English page: README uses
+   `<p align="center"><a href="README.md">English</a> · <b>简体中文</b></p>`;
+   tutorials/docs use `[English](<name>.md) · **简体中文**` under the title.
+   Report a missing English switcher instead of editing that page.
+4. **Validate in order:** only once translation is current, run
+   `npm run docs:pin`, then
+   `npx vitest run test/docs-translation.test.ts` (green),
+   `npm run docs`, and `git diff --stat`. These dedicated checks apply
+   even though ordinary documentation skips the plugin test pipeline.
 
-- Only the `.zh.md` files are yours. Never edit an English page, the
-  code, an `.ftl` file or anything under `test/`; a problem found in the
-  English page is reported, not fixed.
-- No git beyond reading: no `add`, no `commit`, no `stash`.
-- Nothing invented: a term with no source in the `.ftl` or in Zotero's
-  locale is left in English and named in the report.
+Done means all in-scope deltas are translated, untouched text is preserved,
+hashes match, the translation check is green, and previews are rendered.
+An unsourced term or source-page problem remains explicit, not guessed.
 
 ## Report
 
-Per page: the sections touched and, for each hunk, the English in one
-line and the Chinese as written; any 国内网络 note added, and why; any
-wording you could not source. Then the test's result, docs:pin's output,
-`git diff --stat`, and the `.docs/….html` files to open. Short — the
-session reads the diff, not the prose.
+Per page, name sections touched; for each hunk give the English change in
+one line and the Chinese as written. Include any added 国内网络 note and
+why, unsourced wording, check result, `docs:pin` output, diff stat and
+`.docs/….html` paths. Keep it short; the main session reads the diff.

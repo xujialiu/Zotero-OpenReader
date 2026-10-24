@@ -1,10 +1,10 @@
-# zotero-tester — driving notes, by topic
+# zotero-tester — driving reference
 
-The per-topic facts of driving Zotero through the bridge, read on demand
-by the section the task needs (the index is in
-[`zotero-tester.md`](zotero-tester.md), "How to drive", item 6). Every
-entry was paid for by a run that went wrong first; a date names the run.
-
+Read the sections the current operation needs, through the routing table
+in [zotero-tester.md](zotero-tester.md). These are measured driving facts,
+not optional substitutes for the workflow's safety gates. A date identifies
+the run behind a finding. All paths below are repository-root paths unless
+they name installed Zotero files.
 ## §1 The settings pane
 
 An open settings window keeps the OLD pane after a reinstall: close it
@@ -208,3 +208,108 @@ precedence, each rule with `selectorText`, `style.cssText`,
 `parentRule.conditionText`. `(-moz-platform: macos)` there is how Zotero's
 platform-only rules show, and why a margin measured on Windows is not the
 Mac's (issue #56).
+
+## §8 Script transport and runner
+
+Every script returns a JSON string, and every step inside it has its
+own try/catch. A `zotero_execute_js` call comes back as a bare
+`undefined` when the script threw *or* when it outran the bridge's
+30 s timeout (measured 2026-09-14: a 12 s script returned its result,
+a 35 s one did not; the "~8 s window" believed before that day was
+throws): read `zotero_read_errors` straight after an `undefined` — a
+throw is logged there with its message, a timeout is not. Keep a
+single call well under 30 s, or run the work under the kit runner,
+where a script may take as long as it needs. Only a top-level `return`
+is wrapped by the bridge: an `await` inside a nested block fails with
+`SyntaxError: await is only valid in async functions` — make an
+`(async () => { … })()` the last expression of every script.
+
+The scripts of a case are run by Zotero from disk through
+`test/zotero-dev/scripts/_shared/run.js` (its README has the calls): one
+`zotero_execute_js` loads the runner and starts the group, the scripts run
+in the background in order, and later calls collect the results — each
+capped at 2,000 characters, the full result of every script written to
+`.tmp/zotero-dev/<runId>/results/<script>.json`. So a kit's scripts never
+pass through your context: before a run read the kit's README, not its
+scripts, and open a script only when its row failed or you revise it.
+`runId` is `<date>-<build>-<kit>`. A group that outlasts a 7 s `wait`
+is collected after a background `sleep 60` (the Bash tool, run in the
+background — the harness wakes you when it exits), not by polling every
+few seconds: every call re-reads your whole context. `stopOnError` is on:
+a failure stops the pass, as the rules require, and the rows before it
+stand. `one(...)` runs a single quick script inside the call.
+
+A script is an expression whose value is a JSON string or a promise of
+one (the async IIFE every kit script already is). It reads its inputs
+from `Zotero.ZoteroTTSRun.params` — `root`, `fixturesDir`, `tmpDir`,
+`runId`, and whatever the brief had `start` pass (a fixture title, an
+item key) — keeps what later scripts need in `Zotero.ZoteroTTSRun.state`
+(a fixture's item id, a snapshot), and hard-codes no path and no item id;
+a kit whose scripts still do is converted when you next run it. Research
+probes go to `.tmp/zotero-dev/<topic>/` and run the same way with `dir`
+in place of `kit`; nothing of a research run goes under
+`test/zotero-dev/`.
+
+A failed bridge call is retried at most twice, then reported. Keep this
+transport failure separate from a product FAIL. A throw or timeout is not
+a successful script merely because the bridge returned.
+
+## §9 Diagnostics and error evidence
+
+Diagnostics `Zotero.ZoteroTTS.diagnostics.<name>()` are async JSON strings,
+except synchronous `startup()`. Parse results. `highlight()` logs one
+error per call on a reader whose popup never opened (issue #39); use a
+reader with a session or exclude those known probe entries from findings.
+
+`zotero_read_errors` at the end: report anything from the plugin
+(`[zotero-tts]`, `zotero-tts.js` in a stack). Zotero's own noise
+(`selectionRanges`, missing `.ftl` locale resources, two `uncaught
+exception: undefined` per in-place install, Zotero One's
+`NS_ERROR_FILE_UNRECOGNIZED_PATH` when a fixture is erased) is not a
+finding. A burst of `can't access dead object` at an in-place upgrade
+was issue #5, fixed in 1.8.3: from that build on it is a regression —
+report it with its timestamp and count. An entry of ours reading
+`line: 0` is a `Zotero.logError`'d error whose bundle line sits in the
+console message's `columnNumber`: read `Services.console.getMessageArray()`
+(`QueryInterface(Ci.nsIScriptError)`, `timeStamp` dates it; issue #116).
+`Zotero.getErrors()` is a ring
+(26 entries through five runs while its contents rotated) and
+`zotero_clear_logs` does not clear it: find a run's new errors by
+content and timestamp, never by length, and take the debug store
+(`Zotero.Debug.setStore(true)` for the run, `Zotero.Debug.storing` read
+first and restored after) as the record for dead-object bursts and
+`[zotero-tts]` lines; `Zotero.Debug.get()` is async — `await` it, or the
+string holds nothing. Reading a `MediaError.message` from chrome logs
+Gecko's `privacy.resistFingerprinting` warning: those lines are yours.
+
+## §10 Script realms, installed source and test servers
+
+**Script pitfalls** (carried from the verified Zotero reference): a
+reader-realm array's `find` / `some` / `filter` given a chrome callback
+calls nothing and answers `undefined` / `false` / `[]`; `map` / `every`
+answer wrong the same way (2026-09-15). Walk such arrays by index.
+An options object built in chrome reads as empty across the compartment:
+`Cu.cloneInto` it or pass positional arguments. Assignments through an
+Xray land on the wrapper: `Components.utils.waiveXrays` first.
+
+`Zotero.Prefs.get('zotero-tts.x')` is relative to `extensions.zotero.`;
+a full name needs the second argument `true`, while the relative name
+with `true` reads `undefined`. `Zotero.Prefs.set` writes through the
+declared type: an int pref cannot hold a fraction. Setting an unchanged
+value notifies no observer.
+
+**Installed source and platform:**
+
+- Windows `omni.ja`: `C:\Program Files\Zotero\app\omni.ja`.
+  Prefs: `%APPDATA%\Zotero\Zotero\Profiles\*\prefs.js`.
+  Bash is Git Bash; long heredocs have failed. Use Write or a Python
+  heredoc for long file content.
+- macOS `omni.ja`:
+  `/Applications/Zotero.app/Contents/Resources/app/omni.ja`.
+  Prefs: `~/Library/Application Support/Zotero/Profiles/*/prefs.js`.
+- Unpack into scratch with `unzip -q` or Python `zipfile`. Reader bundle:
+  `resource/reader/reader.js`; chrome side:
+  `chrome/content/zotero/xpcom/reader.js`; sandbox: `xpcom/plugins.js`;
+  document worker: `resource/document-worker/worker.js`.
+- Discover a Kokoro server through the plugin's `local.baseURL` pref,
+  rather than assuming an address.

@@ -1,165 +1,104 @@
 # Git workflow — Zotero-OpenReader
 
-The main session performs Git housekeeping — commits, pulls, branch
-cleanup, tags, pushes, fast-forward merges — and releases directly, within
-the user-authorized scope, and delegates none of it to an agent. Commit
-and push still require the user's instruction. Read `MEMORY/MEMORY.md`
-before following this workflow.
+The main session owns Git housekeeping and releases. Read
+`MEMORY/MEMORY.md` for commit/push authorization, including the standing
+pre-tester commit exception. Work only within the user's authorized scope.
 
-- Commit messages: `feat: …` / `fix: …` / `docs: …` / `chore: …`, as short
-  as possible — usually the subject alone; a body of a line or two only
-  when the why is not obvious. English, American spelling. No
-  `Co-Authored-By` trailer, ever.
-- Commit only what the brief names. Look at the diff of every file before
-  staging it (`git diff -- <file>`): a file the brief did not mention, or a
-  hunk that does not belong to the described change, stays in the working
-  tree and is reported. When one file mixes hunks, stage only the right
-  ones — `git diff -- <file>` into a patch, keep the hunks that belong,
-  `git apply --cached` it. Never `git add -A`, `git add .`, or `commit -a`.
-- Before any push: `git fetch --prune`; push only when the branch is ahead
-  and not behind (`git status -sb`). Scan what will be pushed for keys —
-  `git log -p origin/main..main | grep -nE 'sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|\b[0-9a-f]{32}\b'`
-  — and stop on any hit, naming the commit and the file but never quoting
-  the key. Never force-push.
-- Merges are `git merge --ff-only`. **A `main` that moved on is the
-  merge's to handle** (settled 2026-10-18, by the user's request after
-  #187's merge stopped on another session's commit): when the user says
-  "merge" (or "finish worktree", below) and the branch cannot
-  fast-forward, bring it up to the current `origin/main` without asking —
-  `git rebase origin/main` for a branch that was never pushed;
-  `git merge origin/main` into the branch for one that was, since a
-  pushed branch is never rewritten. Resolve every conflict so that both
-  sides' changes survive, rerun `npm test`, `npm run typecheck` and
-  `npm run build` on the result, and only then `git merge --ff-only`
-  into `main`. Report the conflicts and how each was resolved. Only a
-  conflict where keeping one side undoes the other's purpose — a product
-  decision, not a textual one — stops the merge and goes to the user. A
-  rebase renames the branch's commits: a closed issue whose closing
-  comment names them gets a one-line comment with the new hashes after
-  the push.
-- **"finish worktree"** (settled 2026-10-18) means: confirm the branch's
-  committed work is tested — the checks `MEMORY/testing.md` requires for
-  it have passed, and `npm test`, `npm run typecheck` and `npm run build`
-  are green on the final tree — then merge it into `main` as above and
-  push `main` (the push checks above apply). It is the instruction to
-  merge and to push. A failing check stops it before the merge;
-  uncommitted files in the worktree are not part of it and are reported.
-- Branch deletion: only branches already merged into `main`
-  (`git branch --merged main`, `git branch -r --merged origin/main`);
-  `git branch -d` (never `-D`) locally, `git push origin --delete <branch>`
-  on the remote. `main` is never deleted. Run `git worktree list` first: a
-  branch checked out in another worktree is left alone and reported.
-- Nothing interactive (`-i`), and no history rewriting — `rebase`,
-  `commit --amend`, `reset --hard` — unless the brief says so explicitly;
-  the merge's rebase of a never-pushed branch, above, is the one standing
-  exception.
-- Windows: the Bash tool is Git Bash (`$HOME/Works/...` paths); heredocs
-  fail — commit messages go through `-m`, one `-m` per paragraph.
+## Prepare a commit
 
-## Outside contributions — the terms come first
+- **Branch scope:** simple docs, wording and one-line work goes directly
+  on `main`; hard bug fixes/features use `fix/...` / `feat/...`, merged
+  into `main` with `--ff-only` when told.
+- **Message:** short `feat: …`, `fix: …`, `docs: …` or `chore: …` subject,
+  usually with no body; add a line or two only when the why is unclear.
+  English and American spelling; no `Co-Authored-By` trailer.
+- **Staging:** review every file's diff before staging. Include only the
+  brief's files and hunks; report unrelated work and leave it untouched.
+  For mixed hunks, keep the relevant hunks in a patch and apply it with
+  `git apply --cached`. Use explicit paths, never `git add -A`,
+  `git add .` or `commit -a`.
+- **Windows:** Git Bash uses `$HOME/Works/...` paths. Heredocs have failed;
+  pass commit paragraphs through separate `-m` arguments.
 
-Part of the plugin is copied into OpenReader, which ships on the App Store,
-and AGPL-3.0 alone does not allow that for code the owner does not own
-(settled 2026-10-10, issue #178, ADR 0018). So every line that enters the
-repository is the owner's own, or given under the terms in `CONTRIBUTING.md`.
+## Push safely
 
-- **A pull request someone else opened**: merge it only when its author has
-  ticked the "Contribution terms" box in its description; the description's
-  edit history shows who ticked it. While the box is empty, ask for the tick
-  in a comment and leave the pull request open.
-- **Lines from a pull request without the tick**, and code pasted into an
-  issue from outside, stay out of every commit, the owner's included. Fix the
-  problem they point at in new code, written from the problem rather than
-  from their diff (#169 once took seven lines of #168's; ADR 0018).
-- **Code marked "Submitted on behalf of a third party"**: put it to the owner
-  with its source and license before merging.
-- **Code that goes from here into OpenReader** holds nothing from Zotero or
-  anyone else. `git log --format='%an' -- <path>` cannot show that: the
-  Zotero copies of ADR 0006, which carry the Corporation for Digital
-  Scholarship's notice, were committed by the owner.
+1. `git fetch --prune`, then inspect `git status -sb`. Push only when
+   ahead and not behind.
+2. Scan the history being pushed for keys. For the usual main range,
+   inspect `git log -p origin/main..main` for
+   `sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{30,}|\b[0-9a-f]{32}\b`.
+   Suppress matched text before it reaches output. Any hit stops the
+   push; report its commit and file, never the key.
+3. Push only within the authorized scope. Never force-push.
+
+## Merge and finish a worktree
+
+Merges into `main` use `git merge --ff-only`. When the user says "merge"
+or "finish worktree" and `main` moved on, bring the branch to current
+`origin/main` without another permission round (2026-10-18, issue #187):
+
+- Never-pushed branch: `git rebase origin/main`.
+- Pushed branch: `git merge origin/main`; preserve its published history.
+- Resolve textual conflicts so both sides survive. A product conflict
+  where one purpose undoes the other goes to the user.
+- Rerun `npm test`, `npm run typecheck`, `npm run build` after resolution;
+  only then fast-forward `main`. Report every conflict and resolution.
+- After pushing a rebase, add new hashes in a one-line comment to closed
+  issues whose closing comments named the replaced hashes.
+
+**"finish worktree"** authorizes **commit, merge and push** (commit added
+2026-10-24, issue #229; merge/push settled 2026-10-18). Complete it in order:
+
+1. Review the current task's diff, stage only its files/hunks and commit
+   any uncommitted task work. Keep unrelated uncommitted changes intact,
+   exclude them from the commit and report them.
+2. Verify the committed tree against its `MEMORY/testing.md` requirements.
+   `npm test`, `npm run typecheck` and `npm run build` must be green on
+   the final integration tree, including for documentation work. Unrelated
+   local edits are not verification input; use a clean checkout if needed.
+3. Bring the branch up to current `origin/main` as above, repeat checks if
+   integration changed the tree, then fast-forward `main` and apply the
+   push checks.
+
+A failing check stops before merge or push. Existing task commits need no
+replacement commit; the request includes committing pending task work,
+not sweeping unrelated files into a clean working tree.
+
+Use noninteractive operations. History rewriting — `rebase`,
+`commit --amend`, `reset --hard` — needs explicit authorization except for
+the never-pushed-branch merge adaptation above.
+
+## Delete merged branches
+
+Run `git worktree list` first. Leave a branch checked out in another
+worktree alone and report it. Only delete branches already merged into
+`main` / `origin/main`, verified with `git branch --merged main` and
+`git branch -r --merged origin/main`. Use local `git branch -d`, never
+`-D`, and remote `git push origin --delete <branch>`. Preserve `main`.
+
+## Outside contributions — terms first
+
+Part of this plugin is copied into the App Store app OpenReader.
+AGPL-3.0 alone does not permit that for code the owner does not own
+(2026-10-10, issue #178, ADR 0018). Every incoming line is the owner's or
+given under `CONTRIBUTING.md`:
+
+- Merge an external PR only after its author ticks "Contribution terms"
+  in the description; confirm who ticked it in edit history. Until then,
+  ask for the tick and leave the PR open.
+- Keep unticked PR lines and externally pasted issue code out of all
+  commits, including the owner's. Solve the reported problem in new code,
+  written from the problem rather than the diff (#169 once took seven
+  lines from #168; ADR 0018).
+- Put code marked "Submitted on behalf of a third party" to the owner
+  with source and license before merging.
+- Code copied from here into OpenReader contains nothing from Zotero or
+  others. Author history alone cannot establish provenance: ADR 0006's
+  Zotero copies carry the Corporation for Digital Scholarship's notice
+  even though the owner committed them.
 
 ## Releasing
 
-Installed copies auto-update through the manifest's `update_url`, which
-points at `update.json` on `main`: until step 6 points it at the new
-release, every installed copy stays on the old version. X.Y.Z is the
-patch bump of `MEMORY/testing.md` unless the user names the version.
-
-"Release X.Y.Z", with a line or two of release notes, runs the whole
-release on a tree whose fix commits are already in — anything
-uncommitted is not the release's, and stops the run as above. In order,
-each step's output in the report:
-
-1. `git fetch --prune`, `git status -sb`, `git worktree list`,
-   `git log origin/main --oneline -5`: `git tag -l vX.Y.Z` must print
-   nothing and no `chore: release X.Y.Z` may already sit on
-   `origin/main` — another worktree may have shipped that number the
-   same morning (2026-09-06); then the number is wrong, and the run
-   stops.
-2. `node scripts/release-prepare.mjs X.Y.Z` — the two version lines (a
-   test build's `-betaN` dropped), the lock file, tests, typecheck, build,
-   the xpi's manifest checked.
-   It refuses a dirty tree, a version that is not newer and an existing
-   tag, and a failed check ends it; any refusal ends the run, reported
-   verbatim. It touches nothing but the three files it names.
-3. Commit exactly `package.json`, `package-lock.json` and
-   `addon/manifest.json` as `chore: release X.Y.Z`; `git tag vX.Y.Z`
-   (lightweight, no `-a`).
-4. Bring `main` up and push: on a branch, `git merge --ff-only` into
-   `main` in the primary checkout (`~/Works/zotero_plugin_tts`); when
-   that checkout is busy — another session's uncommitted files there —
-   push the branch straight to the remote main from here,
-   `git push origin <branch>:main`. The key scan over what goes up, as
-   above; then `git push origin main` (or the `<branch>:main` form) and
-   `git push origin vX.Y.Z`. A `main` that does not fast-forward is not
-   yours: stop and report.
-5. `gh release create vX.Y.Z build/Zotero-OpenReader.xpi --title vX.Y.Z --notes "<the brief's notes>"`
-   — the asset must be named `Zotero-OpenReader.xpi`, which `build/` gives
-   and `update.json` names (ADR 0017).
-   When the brief has no notes, the subjects of
-   `git log <previous tag>..vX.Y.Z --oneline` are the notes.
-6. `node scripts/release-point.mjs X.Y.Z` — it checks the asset answers
-   200 and rewrites `update.json`; commit `update.json` alone as
-   `chore: point update.json at X.Y.Z`, and push as in step 4.
-7. `node scripts/release-point.mjs X.Y.Z --verify` — the raw
-   `update.json` on `main` must serve X.Y.Z and the link answer 200.
-   raw.githubusercontent.com caches for up to five minutes: exit code 2
-   names the wait; wait it out and retry, up to three times, before
-   calling it a failure.
-8. The installed copy is offered the update — the one bridge run a
-   release does itself (everything else in Zotero is the tester's). Load
-   `mcp__zotero-dev__zotero_ping` and `mcp__zotero-dev__zotero_execute_js`
-   with ToolSearch, ping, then run this verbatim:
-
-   ```js
-   (async () => {
-     const { AddonManager } = ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs');
-     const addon = await AddonManager.getAddonByID('zotero-tts@xujialiu.top');
-     const result = await new Promise((resolve) => {
-       let offered = null;
-       addon.findUpdates({
-         onUpdateAvailable: (a, install) => {
-           offered = { version: install.version, from: install.sourceURI.spec, state: install.state };
-           install.cancel();
-           offered.after = install.state;
-         },
-         onNoUpdateAvailable: () => {},
-         onUpdateFinished: (a, status) => resolve({ installed: addon.version, offered, status }),
-       }, AddonManager.UPDATE_WHEN_USER_REQUESTED);
-     });
-     return JSON.stringify(result);
-   })()
-   ```
-
-   Expected: `installed` the beta this machine runs, `offered.version`
-   X.Y.Z, `offered.from` the release asset, `status` 0, and the install
-   cancelled — `state` 0 (available) then `after` 12 (cancelled), the
-   beta left installed; the gear menu would install, this does not.
-   `offered` null within five minutes of step 6 is the cache of step 7,
-   not a failure: wait and run it again. A bridge that does not answer
-   is reported, and the release stands.
-
-Report: every command with its output, then `git log --oneline -8` and
-`git status -sb`, and anything left undone and why. For a release,
-also the tag, the release URL, what `--verify` printed and what the
-`findUpdates` script returned.
+Only on a release request, read [MEMORY/releases.md](releases.md) in full
+and follow its numbered steps. It owns release preparation, tags/assets,
+update publication and the main session's release-only bridge check.

@@ -1,146 +1,143 @@
 # Docs — Zotero-OpenReader
 
-The rules for the repository's Markdown: where a thing gets written down,
-the README and the public site, the Chinese pages, and the notes log. Part
-of the project rule book, whose core is `MEMORY/MEMORY.md`.
+Read before editing repository Markdown or the public site, or recording a
+decision. Shared policy comes from `MEMORY/MEMORY.md`. Choose the document's
+reader first; then follow only the writing branches that apply.
 
-## Where a thing gets written down
+## Put each kind of knowledge in its home
 
-Five places (settled 2026-09-23, ADR 0004; the shape is OpenReader's).
-Putting something in the wrong one is how it stops being read.
+Settled 2026-09-23, ADR 0004, following OpenReader's organization:
 
-|                | Who reads it                          | What it holds                                          |
-| -------------- | ------------------------------------- | ------------------------------------------------------ |
-| `docs/design/` | Someone who does not read code        | The trade-off: what was chosen, what was given up      |
-| `docs/adr/`    | Engineers and AI agents               | The technical decision, and the facts that forced it   |
-| `notes/`       | A later session                       | What was measured and when: `NOTES.md`, the dated log  |
-| `CONTEXT.md`   | Everyone                              | The glossary, and nothing else                         |
-| GitHub issues  | Whoever works the change              | The running log of one piece of work (`issues.md`)     |
+| Home | Reader | Content |
+| --- | --- | --- |
+| `docs/design/` | The owner, without reading code | Product choice, rejected alternative and cost |
+| `docs/adr/` | Engineers and agents | Technical decision and the facts that forced it |
+| `notes/` | A later session | Verified findings, measurements and dated incidents |
+| `CONTEXT.md` | Everyone | Terms, definitions and words to avoid |
+| GitHub issues | Whoever works the change | The running log of one piece of work; policy in `MEMORY/issues.md` |
 
-- **`docs/design/` — the product argument.** A reader who does not know
-  the code — the owner, reading as a product manager — reads any file end
-  to end and knows what was decided and what it costs. The alternative
-  that was turned down is written in the user's terms: what they would
-  have seen, what would have gone wrong, what they would have had to do
-  instead. **Never here**: an API name, a file path,
-  a type, a library, a version number, a code fence, a stack trace. The
-  test is mechanical — strip those from a sentence, and if it stops making
-  sense it is an ADR sentence. A design file is new writing, not a
-  translation of its ADR, and has no front matter: the status is recorded
-  once, in the ADR. `docs/design/README.md` is the reader's way in.
-- **`docs/adr/` — the engineering record.** What was actually done and
-  the facts that forced it, the Zotero internals cited by file and line.
-  Front matter: `status` (`proposed`, `accepted`, `superseded by NNNN`),
-  `date`, and `issue` when there is one. A measured detail is the most
-  valuable sentence in it — that Zotero's compressor turns a +6 dB boost
-  into +3 dB, that a Kokoro-FastAPI server returns the words of a text it
-  rewrote — and is **never paraphrased away**, when the record is split,
-  moved or rewritten. A sentence that reads like a pointless caveat is
-  usually a scar.
-- **Paired by number.** Four digits: `docs/design/0005-…` and
-  `docs/adr/0005-…` are one decision written for two readers, with the
-  same slug where it reads naturally; each opens with an italic line
-  pointing to the other half. Not every decision has both: a purely
-  technical one has only an ADR, a purely product one only a design file.
-  The number is spent on the decision either way — a gap is not a
-  mistake, and a number never means two decisions. The next number is the
-  highest in either folder plus one. `notes/DECISIONS.md` is retired; its
-  three entries are records 0001–0003.
-- **What earns a record**: reversing it would be costly, a later reader
-  would wonder why, and there really was a choice — all three. A finding
-  with no choice in it is a note; a choice missing one of the three is
-  neither.
-- **`CONTEXT.md` — the glossary.** A term, what it means, and the words
-  to avoid for it. No implementation, no decisions, no scratch notes: a
-  definition that needs a sentence about how something works is too long,
-  and that sentence belongs in an ADR. Its words are used strictly — in
-  the code, the issues and every file above.
-- **Written down the moment it settles** — in a grill, an issue's plan or
-  plain chat — in the file it belongs in, never batched for a later sweep.
-  A decision is not a note even when a measurement forced it: the note
-  says what was seen, the ADR what was then chosen.
-- These files are **English only** and hard-wrapped like the rest of the
-  repo's Markdown. They are not translated (`test/docs-translation.test.ts`
-  covers only docs/'s top-level pages) and not on the public site;
-  `npm run docs` renders them with everything else.
+Write a settled term, finding or qualifying decision in its home when it
+settles, whether in a grill, an issue plan or chat. A finding is not a
+decision: the note says what was seen; the ADR says what was chosen.
 
-## README, tutorials and the site
+### Decision records
 
-- `README.md` — user-facing docs, kept short and scannable (header with
-  badges, a GIF, emoji feature list, install, providers table, settings;
-  long detail goes into `<details>` blocks or `tutorials/`, never into the
-  body). **It says the effect, never the mechanism** (settled 2026-09-07,
-  the same rule as the settings pane's in `MEMORY/code.md`): every line answers what the
-  reader gets, or what they have to do — how it is done stays out. Not
-  which Zotero API is patched or hooked, not what a fallback path cannot
-  deliver and why, not the internal numbers behind a default, not a color's
-  hex or an endpoint's path, not the reasoning behind a refusal. A limit
-  the reader will actually meet is an effect and stays: a key stored in
-  plain text, a cache a restart empties, one WebDAV folder per computer,
-  a voice that sounds different at speed. The mechanism goes to
-  `notes/NOTES.md`, which is where a later session reads it.
-  **Facts go in points, not paragraphs** (settled 2026-09-07): where a
-  section states more than one thing, each is its own bullet, and what it
-  is about — the field, the case, the setting — leads it in bold or
-  italics. Prose is for a single thought: a section's lead sentence, one
-  caveat, a pointer to a tutorial. A paragraph a reader has to comb
-  through for the one line that applies to them is the shape this
-  replaces.
-- **After editing any `.md` under the repo, run `npm run docs`** — it
-  renders every doc to `.docs/` (gitignored), the source tree mirrored;
-  tell the user which `.docs/….html` to open. `docs/` holds pages of the
-  repo (issue #109). The README and `docs/PHILOSOPHY.md` in both languages,
-  and `tutorials/`, are also the public site
-  https://xujialiu.github.io/Zotero-OpenReader/ — `npm run site` builds it into
-  `site/` (gitignored), `.github/workflows/pages.yml` deploys it on every
-  push to `main` that touches them (issue #57); `notes/` and the test
-  checklist stay off it, and its links to them go to GitHub.
-- `tutorials/` — Azure's free tier, Kokoro-FastAPI and Chatterbox-TTS-Server
-  in Docker, remote access through Cloudflare. Provider and server how-tos
-  go there, not into the README.
+A choice earns a record only when all three hold: reversing it would be
+costly, a future reader would wonder why, and there was a real alternative.
+A finding with no choice is a note; a choice missing a criterion needs
+neither record.
 
-## The Chinese pages
+- **Design:** new writing for a person who does not know the code, not an
+  ADR translation. Explain what each alternative would make them see,
+  lose or do. Keep API names, paths, types, libraries, version numbers,
+  code fences and stack traces in the ADR. Strip those from a sentence:
+  if it stops making sense, it is an ADR sentence. Start readers at
+  `docs/design/README.md`. Design files have no front matter; status
+  lives once, in the ADR.
+- **ADR:** record what was done and the forcing facts, citing Zotero
+  internals by file and line. Front matter has `status` (`proposed`,
+  `accepted`, `superseded by NNNN`), `date`, and `issue` when applicable.
+  Preserve measured details when moving or rewriting records: Zotero's
+  compressor turns a +6 dB boost into +3 dB; a Kokoro-FastAPI server
+  returns the words of a text it rewrote. An apparently needless caveat
+  may be the record's most valuable scar.
+- **Pairing:** four-digit decision numbers shared by `docs/design/NNNN-…`
+  and `docs/adr/NNNN-…`, with the same slug where natural. Each paired
+  half opens with an italic pointer to the other. Purely technical or
+  product decisions may have one half; gaps are valid. Use the highest
+  number in either folder plus one. One number never names two decisions.
+  Retired `notes/DECISIONS.md` became records 0001–0003.
+- **Publication:** records are English, hard-wrapped, untranslated and
+  off the public site. `npm run docs` previews them. Translation checks
+  cover docs/'s top-level pages, not its decision-record subfolders.
 
-- **The Chinese pages** (issue #29): `README.zh.md`,
-  `docs/PHILOSOPHY.zh.md` (issue #109) and `tutorials/<name>.zh.md`,
-  siblings of the English files, with a switcher line at the top of both.
-  They are one-to-one translations — the same
-  sections, the same `<details>` blocks, the same tables — and the only thing
-  they add is a `> **国内网络**` blockquote in a tutorial where the English
-  would mislead a reader in China (a Docker Hub or Hugging Face mirror, the
-  global-vs-世纪互联 Azure split). Settings and player wording is quoted from
-  the plugin's own `addon/locale/zh-CN/zotero-tts.ftl` and from Zotero's zh-CN
-  files in `omni.ja` — 朗读, 语音模式, 本地 / 标准 / 高级 — never freshly
-  translated. A third-party site's buttons and menus are quoted the same
-  way, from the site's own Chinese interface where it has one, read in the
-  browser — Fish Audio's 开发者 → API 密钥 → 创建 API 密钥, not a fresh
-  rendering of the English (settled 2026-10-09); a site with no Chinese
-  interface keeps its English labels. Product names, voice ids, pref keys,
-  file names and code blocks stay English. **A Chinese page is never
-  hard-wrapped**: a line break between two CJK characters renders as a space in Chrome and Safari (measured
-  2026-09-04: 164.45px wrapped, exactly the width with an explicit space,
-  against 160px on one line), so one paragraph is one line, however long —
-  the opposite of the English files. For the same reason a space next to
-  `**`, `*` or `[` is dropped when both sides are CJK, and kept around inline
-  code and Latin.
-- **The translation ships in the commit that changes the English page.**
-  Every `.zh.md` opens with `<!-- translated-from: X.md sha256:… -->` and
-  `test/docs-translation.test.ts` fails when that hash has moved or a page has
-  no translation at all; `npm run docs:pin` records the new hashes once the
-  translation is up to date. A stale Chinese page therefore cannot be built
-  or released. **The translating is `docs-translator`'s** (settled
-  2026-09-06, issue #58): a session running Fable or Astra hands it the English
-  pages that changed and their diff, and checks the diff that comes back;
-  any other model translates in place by
-  `.agents/docs-translator.md`.
+### Glossary
 
-## The notes log
+`CONTEXT.md` holds a term, its meaning and words to avoid: no implementation,
+decisions or scratch notes. Move a sentence explaining how something works
+into an ADR. Use the glossary's terms strictly in code, issues and docs.
 
-- The log is `notes/NOTES_<date>.md`, one file per day. **Append to today's
-  file** (a new day starts from the shape the others have: the `#` title and
-  the `←/index/→` line), never rewrite a past day, and **stamp every heading
-  with the date and the time it was written** — `## The voice list is a per-tab
-  snapshot (2026-08-30 14:32, issue #11)`, 24-hour local time. The time is what
-  orders a day's entries and ties one to the session that produced it; entries
-  from before 2026-08-30 carry a date only and stay that way. When a day gains
-  an entry, add it to NOTES.md's index under that day.
+### Findings log
+
+Append to `notes/NOTES_<date>.md`, one file per day; preserve past days.
+Start a new day with the existing `#` title and `←/index/→` shape. Stamp
+**every heading** with the date and local 24-hour time, for example
+`## The voice list is a per-tab snapshot (2026-08-30 14:32, issue #11)`.
+Older entries from before 2026-08-30 keep their date-only headings. Add each
+new entry to that day's index in `notes/NOTES.md`.
+
+## User-facing text: effect first
+
+Say what the reader gets or must do, and the cost or limit they will meet;
+keep the mechanism out. This rule also governs settings-pane text through
+`MEMORY/code.md`. A key stored in plaintext, a cache a restart empties, one
+WebDAV folder per computer, or a voice sounding different at speed is a
+user-visible limit and belongs. Patched APIs, fallback internals, numbers
+behind a default, color hex values, endpoint paths and internal refusal
+reasons belong in `notes/NOTES.md` (settled 2026-09-07).
+
+### README, tutorials and public site
+
+- **README:** short and scannable — badges, GIF, emoji feature list,
+  install, providers table, settings. Put long detail in `<details>` or
+  `tutorials/`. State multiple facts as separate bullets led by their
+  field, case or setting in bold or italics. Prose carries one thought:
+  a lead, caveat or tutorial pointer, not several facts to comb through.
+- **Tutorials:** provider/server how-tos belong here, including Azure's
+  free tier, Kokoro-FastAPI and Chatterbox-TTS-Server in Docker, and
+  Cloudflare remote access.
+- **Site:** README, `docs/PHILOSOPHY.md` and `tutorials/`, in both
+  languages, publish at https://xujialiu.github.io/Zotero-OpenReader/.
+  `npm run site` builds `site/`; the Pages workflow deploys relevant
+  `main` pushes (issue #57). Notes and the test checklist stay off-site;
+  public links to them go to GitHub.
+
+## Chinese translations
+
+`README.zh.md`, `docs/PHILOSOPHY.zh.md` and `tutorials/<name>.zh.md` are
+siblings of their English sources (issues #29, #109). Follow this section
+when translating; `.agents/docs-translator.md` supplies the procedure.
+Delegation ownership is defined in `MEMORY/agents.md`.
+
+- **One-to-one:** preserve sections, order, `<details>`, tables, links
+  and images. Both languages have a switcher at the top. The only added
+  content is a `> **国内网络**` tutorial blockquote where the English would
+  mislead a reader in China: Docker Hub, ghcr.io or Hugging Face mirrors,
+  or global Azure versus 世纪互联.
+- **Quote interface labels:** use the plugin's
+  `addon/locale/zh-CN/zotero-tts.ftl` and Zotero's zh-CN locale in
+  `omni.ja`: 朗读, 语音模式, 本地 / 标准 / 高级. For third-party steps,
+  read that site's own Chinese interface where available — Fish Audio's
+  开发者 → API 密钥 → 创建 API 密钥, not a fresh translation
+  (2026-10-09). Keep English labels if the site has no Chinese interface.
+  Leave an unsourced label in English and report it.
+- **Keep identifiers:** product names, voice ids, pref keys, file names,
+  shortcuts and code blocks stay English. Product naming follows
+  `CONTEXT.md`; naming changes also trigger `MEMORY/identity.md`.
+- **No hard wrapping:** one paragraph, list item or blockquote per line.
+  A break between CJK characters renders as a space in Chrome and Safari
+  (2026-09-04: 164.45px wrapped, exactly the width with an explicit space,
+  against 160px on one line). Drop a space next to `**`, `*` or `[` when
+  both sides are CJK; keep spaces around inline code and Latin.
+- **Pin after translating:** the first line is
+  `<!-- translated-from: X.md sha256:… -->`. `npm run docs:pin` writes
+  it only once the translation is current. The translation ships in the
+  same commit as its English change; `test/docs-translation.test.ts`
+  detects stale or missing pages, preventing a stale build or release.
+
+## Finish a Markdown change
+
+1. Review the diff for the applicable audience, rule coverage, wrapping
+   and working pointers. English Markdown is hard-wrapped; Chinese pages
+   follow their exception above. GitHub bodies have their separate rule
+   in `MEMORY/issues.md`.
+2. Run `npm run docs` after repository Markdown changes. It renders the
+   configured default set into gitignored `.docs/`. Pass additional paths
+   with `npm run docs -- <files...>` for entry points or hidden agent
+   workflows outside that set; previews mirror source paths.
+3. Report which `.docs/….html` files to open. For translated pages, also
+   complete the dedicated translation checks in their workflow.
+
+A preview render is not a plugin build. Ordinary documentation changes
+stop here; full verification, `finish worktree` and release keep their
+explicit checks under `MEMORY/MEMORY.md` and `MEMORY/git-workflow.md`.

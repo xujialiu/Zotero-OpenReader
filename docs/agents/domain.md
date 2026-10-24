@@ -1,44 +1,23 @@
-# Domain Docs
+# Domain docs
 
-How the engineering skills consume this repo's domain documentation when
-exploring the codebase. This repo is single-context.
+Read before exploring an area, naming a domain concept or writing a
+decision record. This repository has one context.
 
-## Before exploring, read these
+1. Read `CONTEXT.md`, the glossary.
+2. Read the area's `docs/adr/` records and their numbered product-side
+   partners in `docs/design/`, where present.
+3. Use the glossary's term in issues, hypotheses, proposals, code and
+   test names. If a needed concept is missing, distinguish a real gap
+   from an invented synonym; raise real gaps for domain modeling.
+4. Surface a conflict with an existing ADR explicitly, for example:
+   _Contradicts ADR-0007 (Zotero's own player stays in the page, hidden),
+   but worth reopening because…_
 
-- **`CONTEXT.md`** at the repo root: the glossary.
-- **`docs/adr/`**: the ADRs that touch the area you are about to work in.
-  An ADR may be paired by number with a product-side record in
-  `docs/design/`.
+Before writing a term or decision, follow `MEMORY/docs.md` for the
+destination, record criteria, numbering, front matter and design/ADR
+pairing. `CONTEXT.md` is this repo's glossary; use it when a generic skill
+calls that document `GLOSSARY.md`. It holds definitions, not plans or
+implementation notes.
 
-What goes in each of these, and how a record is written (numbering, front
-matter, the design/ADR pairing), is in `MEMORY/docs.md`; follow it
-whenever a skill, `/domain-modeling` among them, writes one.
-
-## File structure
-
-```
-/
-├── CONTEXT.md
-├── docs/
-│   ├── adr/        ← engineering records, 0001-…
-│   └── design/     ← product records, paired with adr/ by number
-└── src/
-```
-
-## Use the glossary's vocabulary
-
-When your output names a domain concept (in an issue title, a refactor
-proposal, a hypothesis, a test name), use the term as defined in
-`CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
-
-If the concept you need isn't in the glossary yet, that's a signal: either
-you're inventing language the project doesn't use (reconsider) or there's
-a real gap (note it for `/domain-modeling`).
-
-## Flag ADR conflicts
-
-If your output contradicts an existing ADR, surface it explicitly rather
-than silently overriding:
-
-> _Contradicts ADR-0007 (Zotero's own player stays in the page, hidden),
-> but worth reopening because…_
+Exploration is ready when the area's vocabulary and binding decisions
+are read, and any conflict is explicit rather than silently overridden.

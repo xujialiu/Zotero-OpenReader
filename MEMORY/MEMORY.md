@@ -1,185 +1,101 @@
 # Project rules — Zotero-OpenReader
 
-This file is the core of the shared project rule book, maintained in
-version control: the rules every session needs, and a pointer to each
-topic file under `MEMORY/` that holds the rest. All paths are relative to
-the repository root unless stated otherwise. `AGENTS.md` is the shared
-entry point for Codex and Claude Code; edit shared rules here and in the
-topic files.
-This is not an automatically maintained session memory file.
+This is the version-controlled project rule book, not session memory.
+Read it in full every session. Paths are relative to the repository root
+unless a pointer says otherwise. Zotero-OpenReader is a Zotero 10 plugin;
+current capabilities and provider setup are documented in `README.md` and
+`tutorials/`.
 
-Zotero 10 plugin that adds voices to Zotero's built-in **Read Aloud**: OpenAI
-(or any OpenAI-compatible server), Azure Speech, Cloudflare Workers AI,
-Speechify, Fish Audio (its cloud and a Fish Speech server of the user's
-own), and a local Kokoro-FastAPI.
-Zotero's own Standard/Premium voices keep working; each of our providers is
-an entry of the player's first dropdown beside them, its voices under their
-own names (`af_bella` under Kokoro; issue #110 retired the Local tier and
-the `Kokoro-` prefix, as issue #9 had retired `TTS-`). Also: shortcuts for the speed (Shift+Z/X/C), for skipping by
-sentence / paragraph (arrows / Shift+arrows), for the word highlight on
-or off (Shift+W), for highlighting or underlining the sentence being
-read (Shift+H/U) and for stopping Read Aloud in every tab (Shift+S), one
-voice and speed across documents, settings backup/restore (file or
-WebDAV), highlight colors.
+## Read by task
 
-## Topic files
+Read each triggered topic in full **before** doing its work. Its rules bind
+that work as much as this file's do. A pointer to a named reference section
+loads that section, not unrelated reference material.
 
-Read a topic file in full when its trigger fires, before the work it
-covers — its rules bind that work as much as this file's do:
+| Trigger | Read |
+| --- | --- |
+| Edit repository Markdown or the public site; record a decision | [Docs](docs.md) |
+| Find a bug; start a feature needing a design decision; start or resume issue work, including research/verification; operate on an issue | [Issues](issues.md) |
+| Change `src/`, `addon/` or `test/`; inspect Zotero source or its profile | [Code](code.md) |
+| Build a test xpi; verify a change; drive Zotero through zotero-dev, including research | [Testing](testing.md) |
+| Delegate; perform an agent's role yourself; edit a definition or workflow | [Agents](agents.md) |
+| Commit, merge, push, tag or release; merge an external PR; copy code into this repo or into OpenReader | [Git](git-workflow.md) |
+| Change product/provider/voice display names, installed identifiers, repository addresses or release asset names | [Identity](identity.md) |
 
-- **Docs** — `MEMORY/docs.md`: before editing any `.md` in the repo
-  (README, `CONTEXT.md`, `docs/` with its `design/` and `adr/` records,
-  `tutorials/`, a Chinese page, `notes/`) or the public site, and before
-  recording a decision.
-- **Issues** — `MEMORY/issues.md`: whenever you find a bug or start a
-  feature that needs a design decision; before starting or resuming any
-  GitHub issue work (research and verification included); and before
-  opening, commenting on, labeling or closing an issue.
-- **Code** — `MEMORY/code.md`: before changing `src/`, `addon/` or
-  `test/`, and before reading Zotero's source or its profile.
-- **Testing** — `MEMORY/testing.md`: before building an xpi to test,
-  verifying a change, or driving the running Zotero through the zotero-dev
-  bridge, research included. Its test WebDAV isolation and restoration
-  requirements apply to `zotero-tester` runs, not every bridge operation.
-- **Agents** — `MEMORY/agents.md`: before delegating to an agent or doing
-  its work yourself, and before editing an agent definition or workflow.
-- **Git** — `MEMORY/git-workflow.md`: before any commit, merge, push, tag
-  or release, before merging a pull request someone else opened, and
-  before copying code into the repository or out of it into OpenReader.
+Domain references have their own branches:
 
-Four project documents are reached the same way:
+- **Explore or name** — use `docs/agents/domain.md`: read `CONTEXT.md`,
+  the glossary, and the area's decision records. Use its terms in code,
+  issues and docs.
+- **Read Aloud internals** — read `notes/NOTES.md` before touching them.
+  It holds verified Zotero knowledge, open questions and the dated log's
+  index. Record non-obvious findings and production incidents by
+  `MEMORY/docs.md`.
+- **New feature** — apply `docs/PHILOSOPHY.md`, the owner's yardstick:
+  move off Read Aloud piece by piece; Zotero keeps document analysis
+  (issue #109). Ask the user where it does not settle the feature.
+- **Area change** — read that area's `docs/design/` and `docs/adr/`
+  records before changing it. Their audiences and pairing are defined in
+  `MEMORY/docs.md`.
 
-- `notes/NOTES.md` — the standing reference: what the plugin is, the Zotero
-  internals verified by reading its source, what is still open, and an index
-  of the log. **Read it before touching Read Aloud internals.** The log itself
-  is `notes/NOTES_<date>.md`, one file per day — every production incident and
-  everything non-obvious learned or broken, in English; how an entry is
-  written is in `MEMORY/docs.md`.
-- `docs/PHILOSOPHY.md` — the plugin is built to the owner's own preference
-  and moves off Read Aloud step by step, leaving document analysis to
-  Zotero (settled 2026-09-15, issue #109); its rules are the yardstick for
-  new features, and a feature they do not settle is put to the user.
-- `CONTEXT.md` — the glossary: each piece of reading aloud and the things
-  around it, and the words to avoid. Code, issues and docs use its terms
-  strictly; read it before naming a thing.
-- `docs/design/` and `docs/adr/` — the decision records, paired by number:
-  the product argument for the owner, the engineering for engineers and
-  agents (ADR 0004). Read an area's records before changing that area.
+## Work with the user
 
-## Working with the user
+- **Language.** Reply in Chinese. Keep proper nouns, glossary terms,
+  product names and technical terms in English inside those replies.
+  Repository prose, code, identifiers, comments, commits and notes use
+  English and American spelling. Localized product strings, Chinese
+  collation fixtures and the translations governed by `MEMORY/docs.md`
+  retain their language (language policy settled 2026-10-22).
+- **Decisions.** For an architecture-level fork, present options, concrete
+  costs and a recommendation, then wait. Pick a sane implementation
+  default, state it in one line and proceed.
+- **Plain words.** A solution put to the user says what it gives them,
+  what it costs and what they must decide. A person who does not read
+  code must be able to accept or reject it. Keep internals, identifiers,
+  jargon and file/line references out of that proposal; put the mechanism
+  in the issue's plan and durable findings in notes (issue #62).
+- **Research means research.** When asked to research, report findings;
+  leave code unchanged.
+- **Authorization.** Commit only when told; push only when told. The sole
+  standing commit exception is a finished branch going to `zotero-tester`:
+  tests, typecheck, build, docs and notes must be complete, then commit
+  before sending its verification brief. Fixes from that run get their
+  own commits; the push still waits (issue #113). Apply `MEMORY/git-workflow.md`
+  before any such operation.
+- **Secrets.** Keep credentials out of conversation, files and tool
+  results. Zotero's `prefs.js` contains plaintext keys: read only the
+  exact pref needed, mask secret values before output, and never print
+  whole matching lines. The pre-push history scan is in the Git topic.
+- **Session boundary.** One session works one issue and ends when that
+  issue closes. Batch everything needed for the current step into one
+  read round. Material only a delegated agent needs stays with it; read
+  its workflow yourself only when performing or editing that role
+  (issue #58).
 
-- **Maintain one source for shared instructions** (settled 2026-09-12,
-  split into topic files 2026-09-22): `MEMORY/` holds the shared project
-  rules — this file, which every session reads, and the topic files it
-  points to — and each rule lives in exactly one of them. A rule every
-  session needs belongs here; one that only some work needs belongs in
-  that work's topic file, whose trigger above names the work, not the
-  content. `AGENTS.md` is the thin shared entry point; do
-  not copy the shared rules into it, and never `@`-import a topic file,
-  which would load it into every session. A change to a rule that
-  `zotero-tester` carries (`.agents/zotero-tester.md`, "The rules you
-  carry") is mirrored there in the same change.
-- Reply in **Chinese**, always, whatever language the input (logs, source,
-  instructions) is in. **Inside that Chinese, proper nouns and technical
-  terms stay English** (settled 2026-10-22): the glossary's terms
-  (`CONTEXT.md`), the names of things in the plugin, Zotero and the
-  providers, and technical words — "the provider dropdown", "Top bar",
-  "issue" — never a Chinese translation of them. Everything else is
-  **English only, American spelling** (color, gray, license, -ize) —
-  code, identifiers, comments, commit messages, README, NOTES.md. Verbatim
-  product strings (Azure's "多语言" voice names, the rendered "多语种"
-  label) and test fixtures for the Chinese collation are data, not prose,
-  and stay as they are.
-- **The plugin is called `Zotero-OpenReader`** (settled 2026-10-05,
-  issue #167, ADR 0014; supersedes issue #20's display name):
-  that hyphen, that capitalization, everywhere a person reads it outside
-  Zotero — the README and tutorials, the rule book, NOTES.md, commits and
-  issues. **Inside Zotero it is `OpenReader`** (settled 2026-10-07, issue
-  #176, ADR 0016; supersedes #167's full name there): the manifest's
-  `name` (which is what Tools → Plugins shows), the settings sidebar,
-  dialog titles, the Player, notices and error messages, in every locale.
-  The About section's GitHub line names it `Zotero-OpenReader` (settled
-  2026-10-23): it sends the reader to GitHub, where `OpenReader` is also
-  the phone app's repository. Documented settings paths use
-  `Settings → OpenReader`, and a doc that sends the reader to the plugin
-  inside Zotero names it as Zotero shows it. A bare `OpenReader` in
-  repository prose is the phone app; the plugin's own text in Zotero
-  calls it the OpenReader app on your phone.
-  Never `Zotero TTS`, never bare
-  `TTS` — `TTS` names the technology, not this plugin. The lowercase
-  `zotero-tts` is a different thing, an identifier, and is never "fixed"
-  to match: the plugin id `zotero-tts@xujialiu.top`, the
-  `extensions.zotero.zotero-tts.*` prefs, the bundle, the `[zotero-tts]`
-  log prefix, the `zotero-tts-pane` id, the `zotero-tts-settings` backup
-  format, `package.json`'s npm name. Renaming any of those throws away
-  every user's settings or breaks the update flow, so a sweep for the
-  display name leaves them alone. The release download is not one of them
-  (settled 2026-10-09, issue #177, ADR 0017): from the release after
-  1.16.8 it is `Zotero-OpenReader.xpi`, and the published releases keep
-  `zotero-tts.xpi`. The name in the plugin store at zotero-chinese.com is
-  scraped from a release's `manifest.json` and needs no submission of its
-  own; its repository address comes from the plugin's entry under
-  `addons/` in `syt2/zotero-addons-scraper`. Keep the old
-  `xujialiu/Zotero-TTS` repository name unused forever: existing installed
-  copies depend on its redirect for updates. Historical records, fixture
-  content, local paths, and the test-secret directory retain their old names.
-- Architecture-level forks: present the options with concrete costs and a
-  recommendation, then wait. Implementation details: pick the sane default,
-  state it in one line, move on.
-- **A solution put to the user is said in plain words** (settled
-  2026-09-06, issue #62): what it does for them, what it costs, and what
-  they have to decide, in everyday language — no internals, no
-  identifiers, no jargon, no file or line. A reader who does not know the
-  code must be able to say yes or no to it. The mechanism, the Zotero
-  internals and the files it touches go on the issue's plan comment and
-  into NOTES.md, which is where a later session reads them.
-- Research first when asked to: report findings, do not change code.
-- Commit only when told ("commit"); push only when told. Simple work
-  (docs, wording, one-liners) goes directly on `main`; only hard work
-  (bug fixes, features) gets a `feat/...`/`fix/...` branch, merged into
-  `main` with `--ff-only` when told. **One standing exception** (settled
-  2026-09-16, issue #113): a change that is done — tests, typecheck and
-  build green, docs and notes written — is committed on its branch
-  before its verification brief goes to `zotero-tester`, without a
-  separate "commit": the tester then verifies a committed state, the
-  closing comment names that commit, and whatever the run turns up is
-  fixed in a commit of its own. The push still waits for the word. No
-  `Co-Authored-By` trailer; the message format is in `MEMORY/git-workflow.md`.
-- Before any push: scan the history for keys (`sk-…`, 32-hex, `ghp_…`).
-  Never echo an API key into the conversation or a file. Zotero's
-  `prefs.js` holds the user's keys in plaintext — grep it only for the exact
-  pref you need, never print whole lines.
-- **A session is one issue, and it reads in batches** (measured
-  2026-09-06 over the transcripts since 08-28, issue #58): a session's
-  cost is its context times its calls — some 60k tokens of harness and
-  rules on every call, plus its own thinking, which stays in the context
-  until the next user message. So the session that closed an issue ends
-  there; the next chore gets a fresh one, not a 300k context (the
-  2026-08-31 session's second day cost six times what a fresh one would
-  have). Everything a step needs is read in one call — never one file
-  per call — and what only the agent needs (its rulebook, the checklist
-  case it will run) is not read at all.
+## Maintain the rule book
 
-## Commands (Node 22, ESM)
+`MEMORY/` is authoritative for shared project policy. Give each rule one
+home: universal rules here, conditional rules behind task triggers.
+`AGENTS.md` is only the router; keep topic files behind pointers rather
+than always-loaded imports. Role procedures live in `.agents/`.
 
-```
-npm test              # vitest, ~340 tests, includes test/build.test.ts which runs the build
-npm run typecheck     # tsc --noEmit
-npm run build         # esbuild → addon/content/zotero-tts.js, zip → build/Zotero-OpenReader.xpi
-npm run docs          # pandoc → .docs/*.html, the Markdown rendered for the browser
-npm run site          # the public docs site → site/, what .github/workflows/pages.yml deploys
-npm run docs:pin      # record which English revision each .zh.md follows
-```
+The tester's carried rules are the intentional distribution exception:
+it does not load `MEMORY/`. A change to a rule it carries must update its
+corresponding `.agents/zotero-tester*.md` text in the same change. Definition
+synchronization and the source/mirror contract are in `MEMORY/agents.md`.
+This organization was settled on 2026-09-12 and split on 2026-09-22.
 
-**Simple requests do not need testing** (settled 2026-09-13): for small,
-straightforward changes such as settings labels, help text, documentation,
-or formatting, review the diff and finish. Do not run tests, typecheck,
-builds, or live Zotero verification, or delegate testing, unless the user
-explicitly asks. When a commit is requested, commit after reviewing the diff.
-Every other change is built and verified by `MEMORY/testing.md`.
+## Choose the verification tier
 
-Platform notes:
-- Windows: the Bash tool is Git Bash; long `cat <<'EOF'` heredocs have failed
-  with "unexpected EOF" — write files with the Write tool or a Python
-  heredoc. Paths: `$HOME/Works/...` in Bash, `C:\Users\...` for tools that need it.
-- macOS: zsh; same npm commands; no Git Bash quirks.
+- **Ordinary docs, or small, straightforward label/help/format changes:**
+  review the diff and finish without tests, typecheck, plugin builds,
+  live verification or delegated testing unless explicitly requested.
+  Markdown edits also
+  require the preview render in `MEMORY/docs.md`; that is not a plugin
+  build. Translations retain their dedicated workflow checks.
+- **Other implementation changes:** follow `MEMORY/testing.md`.
+- **Explicit full verification, `finish worktree`, or release:** keep the
+  checks required by that request and its Git workflow.
+
+Find command definitions in `package.json` rather than maintaining a
+second command list here. Use Node 22 for the project commands.

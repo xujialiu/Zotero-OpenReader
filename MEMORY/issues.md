@@ -1,140 +1,121 @@
 # Issues — Zotero-OpenReader
 
-The rules for GitHub issues: when one is due, how it is written, worked,
-labeled and closed, and how its reporter is answered. Part of the project
-rule book, whose core is `MEMORY/MEMORY.md`.
+Read when finding a bug, starting a feature needing a design decision,
+starting/resuming issue work (research and verification included), or
+operating on an issue. Use GitHub through the adapter in
+`docs/agents/issue-tracker.md`; this file owns policy.
 
-- **Issues** (settled 2026-08-29): a bug always gets a GitHub issue, even
-  one fixed in ten minutes — the issue is the public record of a
-  production incident, and NOTES.md still gets its entry. A feature gets
-  one when it needs a design decision or spans more than one session
-  (what used to be a README TODO step; issues have replaced it). **None
-  is opened without the user's yes** (settled 2026-09-08): a session
-  that finds one due — bug, feature or chore — proposes the title and
-  the one-line why, and waits; the one opened unasked on 2026-09-08
-  was deleted. Such an
-  issue is written **before** the fix and holds the bug and its impact —
-  what goes wrong, when, and what it costs the user — plus the evidence,
-  the Zotero internals dug out and cited by file and line (`#6` is the
-  shape). **It proposes no solution**: the fix is not known yet when the
-  issue is written, and guessing at one there buries the problem under an
-  approach nobody has weighed. The plan comes later, as the comment
-  below. NOTES.md, afterwards, holds what was learned and what broke, and
-  names the issue number. Neither copies the other.
-- **Issue work starts with the list** (settled 2026-09-06): before opening
-  one, and before touching one the user asks for, read every title with
-  `gh issue list --state all` — closed as much as open, since a closed
-  issue holds the evidence and the plan that already settled the same
-  ground. When one looks related, open it, read it with its comments, and
-  say so before doing anything else: the number, how it relates, and
-  whether it makes a new issue a duplicate. A second issue over ground an
-  old one covers splits the record in two, and the work then starts
-  without the reasoning that was already written down.
-- **An issue the user asks for is written from what they want, and its
-  gaps are asked about before it is written** (settled 2026-09-09, issue
-  #81): "提 issue" / "创建 issue" hands the session a requirement, not a
-  subject to research — it reads the list as above, writes that
-  requirement down, and stops there: no reading of the code for how it
-  would be done, no approach, no files. Where the description leaves
-  something the issue cannot state without guessing — what exactly a
-  word of it points at, when the new behavior applies, what happens when
-  the user undoes it by hand — the session asks before writing, in one
-  round of concrete alternatives with the one it recommends marked;
-  never as open questions parked in the issue for later. The body is the
-  user's side of it and no more: what happens today, what that costs
-  them, and what is asked, behavior by behavior. A product default their
-  answers do not settle — a new switch off by default, so nothing
-  changes for anyone who does not want it — the session picks itself,
-  says so in one line when it hands the issue over, and says it can be
-  overruled.
-- Everything that leaves the plugin's behavior alone — docs, the settings
-  pane's wording and layout, refactors, housekeeping — gets a `chore`
-  issue instead, when the change is worth a public record: a couple of
-  lines saying what and why, no evidence section, no NOTES.md entry. A
-  one-line tweak still gets nothing. Labels are `bug`, `enhancement` and
-  `chore`, plus exactly one severity label on every `bug` (settled
-  2026-08-31): `severity: critical` — spends the user's money, loses
-  data they cannot get back, or takes Zotero down (a crash, a hang, the
-  plugin not starting); fixed before anything else and shipped as a
-  patch release. `severity: major` — a documented feature does not do
-  what it says in an ordinary setup, or a setting is silently changed;
-  the next release. `severity: minor` — cosmetic, an edge case few will
-  meet, or a diagnostic that reports wrongly; when convenient. It is
-  decided from the impact on the user when the issue is written, never
-  from the size of the fix, and moved when the evidence changes.
-  `enhancement` and `chore` carry none. The other allowed labels are
-  `working` (below) and the skills' (settled 2026-10-04): the five triage
-  state labels of `docs/agents/triage-labels.md` and wayfinder's
-  `wayfinder:*`; no milestones.
-- **Active issue work carries `working`** (settled 2026-10-18): once a
-  session takes on an issue, add `working` before investigating, discussing
-  a plan, implementing or verifying it:
-  `gh issue edit <number> --add-label working`. Merely browsing issues or
-  organizing the issue list does not count. Keep the label while waiting
-  for the user's decision, test results or permission to commit. Remove
-  it when the issue closes or work is explicitly paused or abandoned:
-  `gh issue edit <number> --remove-label working`. Add it again before
-  resuming work. Adding or removing `working` leaves all other labels
-  unchanged; it tracks ongoing work independently of the triage state.
-- **An issue closes at the commit that finishes it** (settled 2026-09-23,
-  issue #133): that commit carries the number in its subject
-  (`fix: … (#5)`), and `gh issue close 5` runs right after it, the
-  closing comment already up — not after the merge, the push or the
-  release. The number in a subject only links the commit on GitHub; it
-  closes nothing, so the close by hand is the only close.
-- Open an issue because writing it clarifies the problem, not to defer
-  it — on a public repo an issue left open is a promise to strangers, and
-  a backlog of stale enhancements reads as an abandoned project.
-- **The issue is the running log of the work** (settled 2026-08-30): when
-  the research settles on a plan, that plan goes on the issue as a comment
-  **before** any of it is implemented — the approach, the files it
-  touches, the steps in order, and what was weighed and rejected, so the
-  record holds the decision and not only its result. While the work runs,
-  anything that departs from that plan gets a comment as it happens — a
-  step that turned out wrong, a constraint found late, a change of
-  approach — rather than a silent correction at the end. When it is
-  finished, a closing comment summarizes the whole thing: what was
-  actually built, how it was verified, and anything left open. It goes up
-  before the commit that closes the issue, and it is about this change —
-  NOTES.md still gets the durable Zotero knowledge, and neither copies the
-  other.
-- **Every issue research ends with a recommendation** (settled
-  2026-09-08, issue #71): once an issue has been researched — a new one
-  written, or an existing one read up for a session — the reply closes
-  with the solution the session recommends, in the plain words of the
-  rule in `MEMORY/MEMORY.md`: which option it would take and why, what the user gets,
-  what it costs, and what is left for them to decide; an option it
-  rejects gets a line. Findings alone hand the decision to someone who
-  has not read the evidence. The recommendation is what the user says yes
-  or no to; the plan comment on the issue, with the mechanism and the
-  files, follows once they have.
-- **An issue opened by someone outside the project gets a reply once its
-  fix is released** (settled 2026-09-06, issue #50): a couple of plain
-  lines that read like a person wrote them — thanks for the report or
-  suggestion, it is done, the released version it is in — in the
-  reporter's language, posted once that version is actually released so
-  they can install it. **No request for a star** (settled 2026-10-05):
-  "If you like the plugin, a star would mean a lot." goes into a reply
-  only when the user explicitly asks for it there. The issue itself
-  closed at its commit (above), so the reply goes on the closed issue. It
-  sits beside the closing summary, not instead of it, and nothing in it
-  reads like a generated changelog.
-- **One that was investigated gets two comments, in this order** (settled
-  2026-09-07, issue #73): first the evidence, in the project's own shape —
-  what goes wrong, what it costs, the measurements and the Zotero
-  internals cited by file and line, no solution; then, as a comment of its
-  own, the reply to the reporter: it opens `@<reporter> Thanks for the
-  report, …`, says in plain words what was found, what to use meanwhile
-  and the one thing still to confirm — no star request, by the rule
-  above. The evidence is for the record and the
-  next session, the reply is for a person, and the two never share a
-  comment. The labels follow the cause, not the report: a fault that turns
-  out to be the docs' is `chore`, whatever the title says. The closing
-  reply above still follows once the fix is out.
-- **Never hard-wrap an issue or comment body** (settled 2026-08-30):
-  GitHub renders issue, PR and comment Markdown with `breaks: true`, so
-  every single newline becomes a `<br>` and a paragraph wrapped at 80
-  columns comes out as a ragged narrow column instead of reflowing with
-  the window. One paragraph is one line, however long; blank lines
-  separate blocks. This is the opposite of the repo's `.md` files, where
-  the wrapping is right and stays.
+## Decide whether an issue is due
+
+- **Bug:** always an issue, even a ten-minute fix. It is the public
+  production-incident record; notes still retain durable findings
+  (2026-08-29).
+- **Feature:** an issue when a design decision or more than one session
+  is needed. Issues replaced README TODO steps.
+- **Chore:** docs, wording/layout, refactors or housekeeping that leave
+  behavior alone get a short public record when worthwhile; a one-line
+  tweak needs none. A chore body is a couple of what/why lines, with no
+  evidence section or NOTES entry.
+
+**Permission first:** propose a title and one-line reason, then wait for
+explicit approval before opening any bug, feature or chore (2026-09-08).
+The issue opened unasked that day was deleted. Open to clarify a current
+problem, not to defer it: an open issue is a promise to strangers, and
+stale enhancements make a public project look abandoned.
+
+## Read the existing record first
+
+Before opening an issue or touching one the user names, read **every open
+and closed title** with `gh issue list --state all`, using enough results
+to cover the repository. Read related issues with all comments, then state
+their numbers, relevance and whether a new issue would duplicate them
+before proceeding (2026-09-06). Closed issues may already settle the
+problem, evidence and plan.
+
+Once taking an issue on, add `working` **before** investigating, discussing
+a plan, implementing or verifying (2026-10-18). Keep it while awaiting
+user decisions, results or commit permission. Remove it on closure or
+explicit pause/abandonment; restore it before resuming. Browsing or
+organizing the list is not active issue work. Change this label without
+altering the other labels; it is independent of triage state.
+
+## Write the problem, then the plan
+
+### An issue requested by the user
+
+"提 issue" / "创建 issue" is a requirement-writing task, not code research
+(2026-09-09, issue #81). Read the list, ask about requirements you would
+otherwise have to invent, write the user's side and stop: current behavior,
+its cost and the requested behavior. Leave implementation, files and
+approach out. Ask gaps in one round of concrete alternatives, marking the
+recommendation; settle them before writing instead of parking questions
+in the issue. For an unsettled product default, choose a new switch off
+so existing users are unchanged; state that default and that it can be
+overruled in the handoff.
+
+### Bug or feature investigation
+
+Write the issue **before the fix**: what goes wrong, when, the user impact,
+evidence and Zotero internals cited by file/line (#6 is the shape). Keep
+solutions out of this problem record; the approach is not known yet.
+
+Every issue research ends with a plain-language recommendation, not just
+findings (2026-09-08, issue #71): choice, reason, user benefit, cost and
+remaining decision, plus a line on a rejected option. Apply the user
+proposal rule in `MEMORY/MEMORY.md`.
+
+Once the user accepts the approach, post a **plan comment before
+implementation**: mechanism, files, ordered steps, alternatives and why
+they lost. While working, comment as soon as a step proves wrong, a late
+constraint appears or the approach changes. Keep the issue as the running
+log; notes retain reusable knowledge, not a duplicate of the issue.
+
+## Label by cause and user impact
+
+Use `bug`, `enhancement` or `chore`. Every bug gets exactly one severity;
+features and chores get none (2026-08-31):
+
+| Severity | User impact | Scheduling |
+| --- | --- | --- |
+| `severity: critical` | Spends money, loses unrecoverable data, or takes Zotero down: crash, hang, plugin not starting | Before other work; patch release |
+| `severity: major` | A documented feature fails in an ordinary setup or a setting changes silently | Next release |
+| `severity: minor` | Cosmetic, uncommon edge case, or wrong diagnostic | When convenient |
+
+Choose severity from impact, not fix size; update it when evidence changes.
+Label the cause, not the report title: a docs fault is `chore`. Other allowed
+labels are `working`, the five roles in `docs/agents/triage-labels.md`, and
+`wayfinder:*` (2026-10-04). Use no milestones.
+
+## Finish at the finishing commit
+
+1. Post a closing comment describing what was built, how verified and
+   what remains open. It is about this change; keep durable Zotero
+   knowledge in notes. Post it **before** the finishing commit.
+2. The authorized commit subject names the issue, for example
+   `fix: … (#5)`.
+3. Run `gh issue close 5` immediately after that commit, not after merge,
+   push or release (2026-09-23, issue #133). A subject's number links a
+   commit but does not close the issue. Remove `working` on closure.
+
+## Reply to outside reporters
+
+For an investigated report, post two separate comments in order
+(2026-09-07, issue #73):
+
+1. Evidence: failure, user cost, measurements and Zotero internals cited
+   by file/line, no solution.
+2. Human reply: open `@<reporter> Thanks for the report, …`, explain the
+   finding, workaround and the one thing still to confirm in plain words.
+
+After the fix is **released**, reply on the closed issue in the reporter's
+language: thanks, completion and the version they can install (2026-09-06,
+issue #50). Keep it separate from the closing summary and write like a
+person, not a changelog. Ask for a star only when the user explicitly asks
+for that request in that reply (2026-10-05).
+
+## GitHub Markdown
+
+One paragraph per line in issue, PR and comment bodies; separate blocks
+with blank lines. GitHub renders single newlines as `<br>` (`breaks: true`),
+so 80-column wrapping creates a ragged narrow column (2026-08-30).
+Repository English Markdown keeps its different hard-wrapping convention.
