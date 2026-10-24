@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:6ea648f7243f -->
+<!-- translated-from: README.md sha256:9294a5580c81 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -42,6 +42,8 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 1. 到[最新发行版](https://github.com/xujialiu/Zotero-OpenReader/releases/latest)下载 `.xpi` 文件——Firefox 里右键 → *链接另存为…*
 2. **工具 → 插件 → ⚙ → Install Plugin From File…**（插件窗口没有中文），然后重启 Zotero。插件在 Zotero 里显示为 **OpenReader**。
 3. 到**编辑 → 设置 → OpenReader** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
+
+> **更新提醒：**插件更新后可能出现运行异常，建议更新后重启 Zotero。
 
 <p align="center"><img src="assets/player.png" width="720" alt="顶部栏的播放器，正在用 Fish Audio 的语音朗读：正在读的词是蓝色，它所在的句子是黄色"></p>
 
