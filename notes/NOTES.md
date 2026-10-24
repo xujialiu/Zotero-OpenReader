@@ -808,3 +808,4 @@ then) and is in the git history before that day.
 ### [2026-10-24](NOTES_2026-10-24.md)
 
 - An idle draft's region reset needs the just-written native voice entry (issue #232)
+- A trailing dot names another pref; type and user flags do not prove restoration (issue #232)

@@ -89,7 +89,7 @@ Run this item independently with a fresh fixture and baseline section 0;
 run cleanup (item 8) afterward. It does not require the paid or configured
 second provider used by older kit revisions. Only for this item, System
 may be switched on temporarily if needed; snapshot and restore its value
-and user-value flag. Use free System voices of one exact locale, never
+and user-value flag. Use free System voices of exactly `en-US`, never
 Fish Audio, Azure or Zotero Standard/Premium synthesis. If no suitable
 local voices are available, report NOT TESTABLE rather than changing to a
 paid provider. Volume stays 0 and WebDAV stays off.
@@ -97,15 +97,16 @@ paid provider. Volume stays 0 and WebDAV stays off.
 1. Privately snapshot the full native voice pref
    `extensions.zotero.reader.readAloudVoices`, the memory/speed prefs,
    System's switch, volume and the document-voice pulse, including every
-   user-value flag. Clear only the test's native voice memory while the
-   fixture is prepared; leave Global default voice and the owner's
+   user-value flag. Temporarily clear only the native `en` lane while the
+   fixture is prepared; retain the whole original pref for exact rollback.
+   Leave Global default voice and the owner's
    document records unchanged. Do not close or operate the owner's Player.
 2. Plant an unavailable manual Document voice for the fixture's actual
    identity, then open its Player. Independently confirm the plant through
    `diagnostics.documentVoices().readers[].saved`, not by reading back the
    pref name the script just wrote (issue #180). Expected: inactive,
    no controller reading, saved missing voice retained.
-3. Choose System and a locale through the Player. Expected: the draft is
+3. Choose System and `en-US` through the Player. Expected: the draft is
    displayed with `voice: ''` and `chooseVoice: true`, while the old saved
    record remains. Identify the native pool's first voice V before the
    pick, and choose a listed W of that exact locale that is not V.
@@ -120,8 +121,15 @@ paid provider. Volume stays 0 and WebDAV stays off.
    pronunciation or claim no request before Play for this idle path.
 6. Restore every touched value and user-value flag, erase only the fixture
    and its rows/record, verify Global default voice and owner records are
-   unchanged, then restore WebDAV last. Never print the native voice map
-   or a raw preference snapshot.
+   unchanged. The driver restores its pre-install WebDAV/debug baseline
+   after kit cleanup, WebDAV last; the 232 scripts only verify isolation.
+   Never print the native voice map or a raw preference snapshot.
+
+The 2026-10-24 run's trailing-dot snapshot defect required explicit owner
+adoption of a new final settings baseline; it did not establish exact
+pre-run restoration. Current kit repairs have offline execution coverage,
+not a new live replay. The incident, limits and final settings are recorded
+on [issue #232](https://github.com/xujialiu/Zotero-OpenReader/issues/232).
 
 ### 6. Closing before choosing
 

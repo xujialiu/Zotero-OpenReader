@@ -1,87 +1,96 @@
-# Kit: entry-language-picks (issue #224)
+# Kit: entry-language-picks
 
-Case: `test/zotero-dev/cases/entry-language-picks.md`. An entry or language
-picked in the Player picks no voice: the reading pauses, a draft stands beside
-the manager (`read-aloud/engine/voice-pick.ts`), nothing is asked of the
-provider until a voice of the draft is chosen and played.
+[Case](../../cases/entry-language-picks.md) · [Runner](../_shared/README.md)
 
-| script | what it checks | what it expects | params |
+| Script | Check | Expected measured values | Params |
 | --- | --- | --- | --- |
-| `224-00-setup.js` | Private pref/user-value snapshot into `Zotero.ZoteroTTSRun.state.ep224`, WebDAV folder off, mute, fixture-a.pdf in, player open and playing on the memory's System en-US voice, audio probe | `webdavFolder: false`, memory a `system::` voice, `seededPlaying` true, `audio.advancing` true, `selectedVoice` = memory voice | `fixtureA` (ABSOLUTE path — a relative one fails the import), `fixtureTitle` |
-| `224-01-build.js` | Item 1: the build | `startup()` version the kit's expected beta (1.16.13-beta4 since 2026-10-22), every step ok; `voiceSwitch().mechanism` `engine-handoff-v3` | — |
-| `224-02-language-pick.js` | Item 2.1: language en-GB picked while playing | within 1 s: `paused` true, `selected` V, player `{system, en-GB, '', chooseVoice}`, draft `{system, en-GB}`; notice "Paused. Choose a voice to continue." opacity 1, `pre-line`, gone after 5 s | — |
-| `224-03-menu-and-quiet.js` | Items 2.2 + 2.3: the voice menu opens by itself; nothing reads meanwhile | popover aria `Voice`, exactly the System entry's en-GB rows, none `chosen`; `.play` disabled; engine voice V, `store.requests` flat, paused | — |
-| `224-04-entry-pick-keep.js` | Item 3.3 (language half) + 3.1: repicking the shown language changes nothing; the Fish entry pick keeps en-GB | draft and notice unchanged, no menu; then player `{fish, en-GB, '', chooseVoice}`, voice menu opens with exactly the entry's en-GB rows | — |
-| `224-05-entry-pick-empty.js` | Item 3.2: an entry pick that leaves the language empty | draft → fish en-NZ, a voice committed paused, fish reading; the System pick → `locale ''`, draft `{system, null}`, the LANGUAGE menu opens by itself, `.play` disabled | — |
-| `224-06-repick-noop.js` | Item 3.3 (entry half): picking the entry the Player shows changes nothing | draft `{system, null}` and notice as they were, no menu opens | — |
-| `224-07-refusals.js` | Items 4.1 + 4.2: Play refused under a draft; the next-sentence key | trusted Shift+Space and the Player's `.play`: notice "Choose a voice in the player first.", paused stays, `selected` V; trusted ArrowRight moves `session.position` +1, paused, requests flat | — |
-| `224-08-choose-and-play.js` | Items 5.1 + 5.2: a draft voice chosen, then Play | `selected` W, paused, draft null, `chooseVoice` false; document record W `manual: true`; no request until Play; the first clip is W's at the paused sentence from offset 0 | — |
-| `224-09-voice-keys-draft.js` | Item 5.3: the voice keys under a draft | next-voice key → the FIRST of the draft's list, paused; previous-voice key → the LAST | — |
-| `224-10-close-restores.js` | Item 6.1: close the Player under a draft, reopen | provider/language/voice are the ones before the pick; the document record byte-identical; ends paused, no draft | — |
-| `224-11-paused-pick.js` | Item 7.1: a language pick while already paused | `chooseVoice` true, the voice menu opens, and NO "Paused" notice (the rendered element stays opacity 0; the diagnostic's `handoff.notice` only lingers the last kind) | — |
-| `224-99-cleanup.js` | Cleanup | every saved pref and user-value flag restored byte-identically (memory last), document record and pulse restored, fixture tab closed (`Zotero_Tabs.close`) and erased (`Zotero.Items.erase`), owner tab back, WebDAV still off, host minimized | — |
+| `232-00-baseline.js` | Read-only build/owner gate | exact expected version, startup failed `[]`, no owner session, minimized host; no writes | `expectedVersion` |
+| `232-01-isolate.js` | Freeze exact-leaf snapshots before mutation | seven pref snapshots including defaults/user flags, owner-record set and row baseline; folder already false; mute 0, only native `en` isolated | — |
+| `232-02-fixture.js` | Import one fresh owned PDF | no duplicate title, frozen item/key identity | absolute `fixtureA`, `fixtureTitle` |
+| `232-03-plant.js` | Enable only System, plant missing voice | controlled native `en`, fresh fixture key, missing manual record, pulse unchanged | — |
+| `232-04-open.js` | Independent plant and idle observation | saved missing ID/manual via sandbox diagnostic, inactive, no reading, no available remembered System target | — |
+| `232-05-draft.js` | Actual Player Provider/Language commands | `{system, en-US, '', chooseVoice:true}`, missing record retained, W distinct from first native voice V | — |
+| `232-06-choose.js` | Actual Player voice commit | selected/Player/native `en`/saved record all W, manual true, no draft; immediate fixture pause; console changes reported, not treated as failure by themselves | — |
+| `232-99-cleanup.js` | Exact generic rollback | owned fixture only; value/type/user equality, owner set unchanged, rows at baseline; memory last; folder still isolated | — |
 
-## Before you start
+Historical 224 scripts are unchanged. Do not mix the two sequences or run
+this entire folder: some historical scripts select Fish Audio.
 
-- Build and bridge: `zotero_ping`, `zotero_plugin_list` at the manifest's
-  `-betaN` (1.16.13-beta4 on 2026-10-22), `diagnostics.startup()` all ok,
-  `voiceSwitch().mechanism` `engine-handoff-v3`. WebDAV off before 224-00 and
-  re-confirmed after any install.
-- Fixture: `fixture-a.pdf` imported by 224-00 (17 segments); its reader index
-  and item key live in `Zotero.ZoteroTTSRun.state.ep224` — scripts read them
-  from there, nothing is hard-coded.
-- State touched: `readAloud.volume` (0 for the run), the memory voice, the
-  System/Fish entries through the Player, `readAloud.speed` (224-99 restores),
-  the fixture's document voice record. System voices and the Fish entry only;
-  never a Zotero Standard/Premium voice.
-- Zotero 11 (Firefox 153) gates the AudioContext: `notifyUserGestureActivation()`
-  on the reader iframe's document before any scripted Play, or nothing advances.
-- Trusted keys go through `nsITextInputProcessor` on the reader's iframe window
-  (driving §6); the top layout renders no skip buttons, the next-sentence KEY
-  is ArrowRight. From the document's last sentence a forward skip cannot move —
-  224-07 steps back two paused sentences first.
-- The Player frame is reached through `frame.contentWindow` — `contentDocument`
-  is null in this Firefox state (fixed in this kit 2026-10-22).
-- Cleanup: 224-99, then `test/zotero-dev/cleanup.md`.
+| Script | Check | Expected measured values | Params |
+| --- | --- | --- | --- |
+| `224-00-setup.js` | Historical System/Fish setup | muted, fixture open, moving System audio; snapshot in `state.ep224` | absolute `fixtureA`, `fixtureTitle` |
+| `224-01-build.js` | Historical build | 1.16.13-beta4, startup ok, `engine-handoff-v3` | — |
+| `224-02-language-pick.js` | Language while playing | paused, old voice kept, empty en-GB draft, 5 s notice | — |
+| `224-03-menu-and-quiet.js` | Draft menu and requests | exact en-GB rows, none chosen, Play disabled, requests flat | — |
+| `224-04-entry-pick-keep.js` | Entry keeps exact locale | Fish en-GB draft, voice empty | — |
+| `224-05-entry-pick-empty.js` | Entry lacks locale | locale/voice empty, language menu opens | — |
+| `224-06-repick-noop.js` | Shown entry repick | no draft/notice/menu change | — |
+| `224-07-refusals.js` | Play/Skip under draft | Play refused; Skip moves one, paused, requests flat | — |
+| `224-08-choose-and-play.js` | Active draft commit/Play | W manual/paused, no request until Play, sentence from offset 0 | — |
+| `224-09-voice-keys-draft.js` | Voice keys | first/last draft voice, paused | — |
+| `224-10-close-restores.js` | Close draft/reopen | original choice, document record unchanged | — |
+| `224-11-paused-pick.js` | Already-paused language pick | menu opens, no new Paused notice | — |
+| `224-99-cleanup.js` | Historical cleanup | snapshot equality, fixture removed, owner tab/minimized | — |
 
-## Limits
+## Before starting the 232 sequence
 
-- A paused language pick shows no notice and the diagnostic's
-  `handoff.notice` keeps the last kind recorded: only the rendered
-  `#ztts-voice-notice` opacity is evidence (224-11).
-- 224-11 settles any notice the PREVIOUS script left (same text, 5 s life)
-  to hidden before its pick (revised 2026-10-22, executed); and it must run
-  on a state WITHOUT a standing draft — a repick of the shown language is a
-  no-op (item 3.3) and opens no voice menu. Reset via the player's
-  close/reopen first, then a trusted Shift+Space if the reopen came back
-  playing (both measured 2026-10-22).
-- The audio probe samples three overlapping 500 ms pairs and passes on any
-  moving pair (revised 2026-10-22, executed): a single pair can land on a
-  clip boundary — measured `playbackTime` 2.9928 twice, `state` `running`,
-  with the same session advancing minutes later.
-- When the machine's output device is gone, a FRESH fixture session comes up
-  `audio.state` `suspended` at 0 (measured 2026-10-22 twice, window restored
-  and minimized alike; no MEDIASINK error, the engine synthesizes normally):
-  224-00 then FAILs `advancing` — a machine condition, not a product one.
-  The session that is already open keeps working until its player closes.
-- 224-08's voice menu is auto-opened by the pick's followUp: use it when it is
-  open — a click on the voice button toggles that very menu closed.
+- The driver snapshots and isolates WebDAV **before install**, proves the
+  supplied XPI/bundle identity, and owns restoration of its original
+  WebDAV/debug state after the case. These scripts require folder=false
+  and never write the folder switch or debug flag.
+- Use `_shared/run.js` with explicit script names, fresh runner state and
+  `params.expectedVersion`. Inspect each returned `ok` before dispatching
+  the next step; a JSON failure is not necessarily a thrown runner error.
+  Never resnapshot after mutation or reuse legacy `ep232` state.
+- Only free local System voices and one new `test/fixtures/fixture-a.pdf`;
+  no owner Player/document operation, paid voice, dialog or restart.
+- Snapshots remain private in `state.ep232`; do not print maps. Cleanup
+  requires the complete schema and restores captured values, not guesses.
+  Registered defaults without user values are valid snapshots.
+- Case mutations: System switch, volume, native en memory, memory/speed
+  and fixture record/pulse. Global default and owner records are read-only.
+- Chinese-region and Global-speed permutations are unit coverage. The
+  idle ingress retains native activation; it is not the paused-active
+  no-audio-before-Play path. Pronunciation/motion remain human judgments.
+
+## Limits and execution status
+
+- Current 232 baseline/cleanup revisions executed **offline** in
+  `test/idle-draft-kit.test.ts`: exact keys, defaults/user flags, immutable
+  baseline, wrong-build/missing-snapshot gates, no owner erasure, observer
+  overwrite detection and actual native-entry reads. Other repaired guards
+  and plant/commit paths have bounded offline tests and syntax checks.
+  No complete live replay of these repaired revisions is claimed.
+- The original live 232-01 and native-entry reads appended a dot to leaf
+  names. Their snapshots and initial cleanup PASS were invalid. The
+  one-off recovery's hardcoded values were removed from reusable scripts.
+- Earlier checks assumed no native map because of that bad read; this was
+  not a fresh profile. The repaired setup snapshots the real map and
+  temporarily clears only en. Cleanup restores its exact original bytes.
+- A timestamp increase is not error attribution. Scripted picks produced
+  autoplay-gate warnings; source-less installation exceptions remain
+  unattributed. The driver reviews bounded safe source/line evidence.
+- System listing lands on popup open; `m.tiers` is a Set. Reader iframe
+  access uses `contentWindow`. Erasure is `item.eraseTx()`.
 
 ## Runs
 
-- 2026-10-22, build 1.16.13-beta3, run `2026-10-22-1.16.13-beta3-entry-language-picks`
-  (items 1, 2.1) and `-2` (2.2–2.3, 3.1–3.3): PASS. `-3` and `one()` reruns
-  (4.1–4.2, 5.1–5.3, 6.1, 7.1): PASS. Script revisions of the continuation run
-  (contentWindow frame access; trusted keys in 224-07; the followUp menu in
-  224-08; the en-US landing and en-GB draft in 224-10; the rendered-notice
-  check in 224-11; Zotero 11 close/erase in 224-99) are the ones in this kit.
-- 2026-10-22, build 1.16.13-beta4 (the #224/#225 notice-wiring fix), run
-  `2026-10-22-1.16.13-beta4-entry-language-picks`: items 1, 2.1–7.1 PASS
-  (224-01…224-10, plus 224-11 after the settle revision, executed via `one()`).
-  224-00 FAIL `audio.advancing` — one pair frozen at a clip boundary (above);
-  the revised probe executed twice more (runs `-2`, `-3`) with the device gone:
-  `suspended` at 0, FAIL (machine). Setup's other steps held every time
-  (`webdavFolder` false, memory the System voice, `seededPlaying` true,
-  `selectedVoice` = memory). Expected build in 224-01 updated to beta4.
-- Issue comment holding the full table: the run report of 2026-10-22
-  (issues #224/#225 verification re-run).
+- 2026-10-22, 1.16.13-beta3/beta4: historical 224 items 1–7 passed after
+  executed harness revisions. Setup's initial single audio probe was
+  insensitive at a clip edge; later suspended-device probes were machine
+  limits. Reports: [#224](https://github.com/xujialiu/Zotero-OpenReader/issues/224#issuecomment-6323563404),
+  [#225](https://github.com/xujialiu/Zotero-OpenReader/issues/225#issuecomment-6323564014).
+- 2026-10-24, 1.16.16-beta2, #232: nonfirst System Ava selected/displayed/
+  saved manual, no draft; correct-leaf recovery observation confirmed
+  native en=Ava. V was Albert. An earlier pass accidentally ran the old
+  beta before installation; it was not an authorized planned comparison.
+  The tester timed out; original volume/native-en values were lost because
+  of the snapshot defect. Two fixtures were removed, 79 owner records
+  matched, Position rows returned to 78. Paused-active control was not live.
+- Owner explicitly adopted a **new** final baseline: volume 19/user,
+  System true/user, native en=Ava and pulse 208 retained. The bounded
+  adoption operation verified unchanged native-map/owner/default hashes,
+  79 records, 78 rows, two inactive owner readers and folder=false. This
+  does not establish exact pre-run restoration. Source remains 5096319;
+  offline kit repair did not reinstall or repeat synthesis.
+- Full incident/recovery and closing record: [#232](https://github.com/xujialiu/Zotero-OpenReader/issues/232#issuecomment-6385282454).
