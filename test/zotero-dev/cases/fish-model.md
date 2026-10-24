@@ -26,6 +26,21 @@ Save every pref named above first and restore it at the end.
    locks the dropdown with the other fields, and a pick is impossible
    until Disable.
 
+   For issue #230, verify the Model and source controls through the real
+   settings pane, together with [voice sources item 10](fish-voice-sources.md).
+   An external Model/source pref write must repaint the selected Model and
+   Manual voices restriction without running another connection check.
+   Account refresh keeps those choices and restrictions. No synthesis is
+   needed: keep Fish off with an empty key for connection checks, and
+   restore its original settings privately at the end.
+
+   Unit-only: a Model list arriving during a held check adds entries without
+   changing the stored choice or unlocking fields; the same list and check
+   arriving after the group is disposed must change nothing. Covered through
+   the pane's Provider settings module in `test/ui/fish-provider-state.test.ts`,
+   including a stored Model neither list offers. Do not manufacture network
+   stalls against Fish to repeat these deterministic interleavings live.
+
 ### 1c.2
 
 2. **The upgrade.** With the previous release installed, set

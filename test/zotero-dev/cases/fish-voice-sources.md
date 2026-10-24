@@ -87,8 +87,12 @@ final scope; the earlier draft's community search is not shipped.
     commands are covered by `test/ui/fish-provider-state.test.ts`, without
     a live Fish request. A source refresh during a check may never unlock
     any field. Once a failed check ends, the Manual voices restriction must
-    be reapplied. The real pane wiring is also exercised by
-    `test/ui/prefs-pane-state.test.ts`.
+    be reapplied. For issue #230, this test initializes only the Provider
+    settings module used by the pane: no caller-supplied Fish lock, unlock
+    callback, follow-up repaint or separate cleanup. External source/Model
+    writes, restore verification and disposal of the whole group are tested
+    there too. The real pane wiring is also exercised by
+    `test/ui/prefs-pane-state.test.ts`; do not initialize the pane twice.
     Verified on 2026-10-20, 1.16.13-beta / Zotero 11.0-beta.1: all item-10
     expectations passed without a paid request. The revised script closed
     Settings before its finally-based restore, verified values and

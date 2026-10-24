@@ -5,6 +5,7 @@ import { createZoteroRefusals } from '../../src/read-aloud/zotero-refusals';
 import { onPaneLoad } from '../../src/ui/prefs-pane';
 import { providerRowIds } from '../../src/ui/provider-rows';
 import { FISH_SOURCE_IDS } from '../../src/ui/fish-voice-sources';
+import { FISH_MODEL_MENU_ID, FISH_MODEL_PREF } from '../../src/ui/fish-model-rows';
 
 class Element {
   disabled = false;
@@ -15,6 +16,9 @@ class Element {
   attrs = new Map<string, string>();
   listeners = new Map<string, Set<() => unknown>>();
   fields: Element[] = [];
+  entries: Array<{ label: string; value: string }> = [];
+  appendItem(label: string, value: string) { this.entries.push({ label, value }); }
+  removeAllItems() { this.entries.length = 0; }
   setAttribute(name: string, value: string) { this.attrs.set(name, String(value)); }
   getAttribute(name: string) { return this.attrs.get(name) ?? null; }
   removeAttribute(name: string) { this.attrs.delete(name); }
@@ -98,8 +102,8 @@ function pane(initial: Record<string, unknown> = {}) {
   }
   const baseURL = new Element();
   elements.get(providerRowIds('compatible').section)!.fields = [baseURL];
-  for (const id of Object.values(FISH_SOURCE_IDS)) elements.set(id, new Element());
-  elements.get(providerRowIds('fish').section)!.fields = (['official', 'own', 'manual', 'modelIds'] as const).map(key => elements.get(FISH_SOURCE_IDS[key])!);
+  for (const id of [...Object.values(FISH_SOURCE_IDS), FISH_MODEL_MENU_ID]) elements.set(id, new Element());
+  elements.get(providerRowIds('fish').section)!.fields = [FISH_SOURCE_IDS.official, FISH_SOURCE_IDS.own, FISH_SOURCE_IDS.manual, FISH_SOURCE_IDS.modelIds, FISH_MODEL_MENU_ID].map(id => elements.get(id)!);
   const win = new Element();
   const doc = {
     defaultView: win,
@@ -193,6 +197,36 @@ describe('external tier changes in the real pane (#215)', () => {
 });
 
 describe('Fish source restrictions across pane refreshes (#216)', () => {
+  it('owns Model and source choices through the same Provider settings group (#230)', async () => {
+    const p = pane({ 'fish.includeManual': false });
+    const model = p.elements.get(FISH_MODEL_MENU_ID)!;
+    const manual = p.elements.get(FISH_SOURCE_IDS.manual)!;
+    const ids = p.elements.get(FISH_SOURCE_IDS.modelIds)!;
+    expect(model.entries.map(entry => entry.value)).toEqual(['s2.1-pro-free', 's2.1-pro', 'drama-3', 's2-pro']);
+    expect(ids.disabled).toBe(true);
+    model.value = 's2-pro';
+    await model.fire();
+    expect(p.prefs.get(FISH_MODEL_PREF)).toBe('s2-pro');
+    manual.checked = true;
+    await manual.fire();
+    expect(p.prefs.get(PREF_PREFIX + 'fish.includeManual')).toBe(true);
+    expect(ids.disabled).toBe(false);
+    p.prefs.set(PREF_PREFIX + 'fish.enabled', true);
+    expect([model.disabled, manual.disabled, ids.disabled]).toEqual([true, true, true]);
+    model.value = 'drama-3';
+    await model.fire();
+    expect(p.prefs.get(FISH_MODEL_PREF)).toBe('s2-pro');
+    expect(model.value).toBe('s2-pro');
+    p.prefs.set(PREF_PREFIX + 'fish.enabled', false);
+    p.prefs.set(PREF_PREFIX + 'fish.includeManual', false);
+    p.accountChanged();
+    expect([model.disabled, manual.disabled, ids.disabled]).toEqual([false, false, true]);
+    await p.win.fire('unload');
+    p.prefs.set(FISH_MODEL_PREF, 'drama-3');
+    expect(model.value).toBe('s2-pro');
+    expect(p.observers.size).toBe(0);
+  });
+
   it.each(['test', 'failed enable', 'account change'] as const)('retains the Manual voices restriction after %s', async action => {
     const p = pane({ 'fish.includeManual': false, 'fish.voices': 'saved-reference' });
     const ids = p.elements.get(FISH_SOURCE_IDS.modelIds)!;

@@ -40,8 +40,6 @@ import { renderSectionHeading, type HeadingDoc } from './section-heading';
 import { checkZoteroTier } from './zotero-tier-check';
 import { initZoteroCreditRows } from './zotero-credit-rows';
 import { createSamplePlayer, initVoiceBrowserRows } from './voice-browser-rows';
-import { initFishModelRows } from './fish-model-rows';
-import { initFishVoiceSources } from './fish-voice-sources';
 import { initVoiceListSwitches } from './voice-list-switches';
 import { GLOBAL_SPEED_OBSERVER } from '../read-aloud/default-speed';
 import { SAME_VOICE_OBSERVER } from '../read-aloud/default-voice';
@@ -668,27 +666,6 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
   });
   let providerRows: ReturnType<typeof initProviderRows> | null = null;
   let paneClosed = false;
-  const fishLocked = () => providerRows?.locked('fish') ?? loadSettings(prefs).fish.enabled;
-  const fishVoiceSources = initFishVoiceSources(doc, {
-    prefs,
-    locked: fishLocked,
-    watch: (name, onChange) => {
-      const token = Zotero.Prefs.registerObserver(name, onChange);
-      return () => Zotero.Prefs.unregisterObserver(token);
-    },
-  });
-  // The Model dropdown (issue #182): the known models at once, Fish's own list when it arrives
-  const fishModelRows = initFishModelRows(doc, {
-    prefs,
-    t,
-    loadList: () => fishModelList(providerDeps().fetch),
-    locked: fishLocked,
-    watch: (name, onChange) => {
-      const token = Zotero.Prefs.registerObserver(name, onChange);
-      return () => Zotero.Prefs.unregisterObserver(token);
-    },
-  });
-  void fishModelRows.load();
   // The observers must not outlive the pane: the window closing is their end
   win?.addEventListener(
     'unload',
@@ -696,8 +673,6 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       paneClosed = true;
       providerRows?.dispose();
       followChoice.dispose();
-      fishModelRows.dispose();
-      fishVoiceSources.dispose();
       voiceBrowserRows.dispose();
       prefetchRows.dispose();
       voiceListSwitches.dispose();
@@ -749,15 +724,10 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       const token = Zotero.Prefs.registerObserver(name, changed);
       return () => Zotero.Prefs.unregisterObserver(token);
     },
-    onUnlocked: (id) => {
-      if (id === 'fish') fishVoiceSources.refresh();
-    },
     onExternalSwitch: refreshExternalSwitch,
     check: (id) => checkProvider(doc, prefs, id, providerDeps()),
-    onVoicesChanged: () => {
-      fishVoiceSources.refresh();
-      void voiceBrowserRows.load();
-    },
+    loadFishModels: () => fishModelList(providerDeps().fetch),
+    onVoicesChanged: () => { void voiceBrowserRows.load(); },
     onSwitched: (id, on) => {
       if (id === 'system' && on) void adoptSystemVoices(prefs, providerDeps(), hooks);
     },
@@ -793,9 +763,6 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     },
     { once: true },
   );
-  // ProviderRows paints its fields once during construction; apply the
-  // Manual voices source lock after that first paint too.
-  fishVoiceSources.refresh();
   // The local engine's heading, named and linked from the registry (issue #112)
   const localHeading = doc.getElementById('ztts-local-heading');
   if (localHeading) {
@@ -819,12 +786,8 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       voiceListSwitches.refresh();
       bracketRows.refresh();
       voiceBrowserRows.refresh();
-      // The restored prefs may switch providers on or off: the switches and
-      // locks follow (after the preset rows, which gray their fields
-      // first), and the voices are listed again
+      // Provider settings refresh their switches and nested controls together.
       providerRows?.refresh();
-      fishVoiceSources.refresh();
-      fishModelRows.refresh();
       void voiceBrowserRows.load();
       webdavRows?.refresh();
     },

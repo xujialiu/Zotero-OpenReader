@@ -1,11 +1,18 @@
 import { sentences, t } from '../core/l10n';
+import type { FishModelList } from '../core/providers/fish';
 import { loadSettings, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from '../core/settings';
 import { providerNaming } from '../read-aloud/catalog';
 import { switchLabel } from '../read-aloud/voice-catalog';
 import { refuseWhileReading, type ReadingGuardDeps } from './reading-guard';
 import { isSecretField, setSecretLocked } from './secret-rows';
+import { initFishVoiceSources } from './fish-voice-sources';
+import { initFishModelRows } from './fish-model-rows';
 
 /**
+ * Provider settings own the enabled/checking lock and the nested Fish
+ * Model and voice-source controls. Callers refresh and dispose the group;
+ * field restrictions and repaint order stay inside this module (issue #230).
+ *
  * The switch of each provider section, and of Zotero's two tiers (issue
  * #111, rows of the Zotero section wired the same way, with no fields to
  * lock): one button, "Enable" or "Disable".
@@ -52,8 +59,8 @@ export interface ProviderRowsDeps extends ReadingGuardDeps {
    * (ui/prefs-pane.ts).
    */
   onSwitched?(id: SwitchId, on: boolean): void;
-  /** Reapply a field's own restriction after the section unlocks (Manual voices, for example). */
-  onUnlocked?(id: SwitchId): void;
+  /** The existing bounded, cached Fish Model list; reading it requests no synthesis. */
+  loadFishModels(): Promise<FishModelList>;
   /** Pref names are relative to extensions.zotero, as in Zotero.Prefs.registerObserver. */
   watch?(name: string, changed: () => void): () => void;
   /** A switch changed outside these rows: refresh the pane's catalog and account information. */
@@ -67,8 +74,6 @@ export interface ProviderRowsDeps extends ReadingGuardDeps {
 export interface ProviderRows {
   refresh(): void;
   verifyEnabled(): Promise<string>;
-  /** Shared by nested controls: an enabled or checking section accepts no edits. */
-  locked(id: SwitchId): boolean;
   dispose(): void;
 }
 
@@ -152,7 +157,9 @@ export function initProviderRows(
       // secrets cannot be read at all.
       if (isSecretField(field)) setSecretLocked(field, locked(id));
     }
-    if (!locked(id)) deps.onUnlocked?.(id);
+    // The generic field lock and Fish's Manual voices restriction are one
+    // paint, including checks and external switch/account changes.
+    if (id === 'fish') fishVoiceSources.refresh();
   }
 
   function hold(id: SwitchId): void {
@@ -231,6 +238,19 @@ export function initProviderRows(
     if (outcome.ok && enabled(id)) deps.onVoicesChanged();
   }
 
+  const fishVoiceSources = initFishVoiceSources(doc, {
+    prefs: deps.prefs,
+    locked: () => locked('fish'),
+    watch: deps.watch,
+  });
+  const fishModelRows = initFishModelRows(doc, {
+    prefs: deps.prefs,
+    t,
+    loadList: deps.loadFishModels,
+    locked: () => locked('fish'),
+    watch: deps.watch,
+  });
+
   for (const id of SWITCH_IDS) {
     const { toggle, test } = elements(id);
     const toggleCommand = () => onToggle(id);
@@ -251,9 +271,16 @@ export function initProviderRows(
     paint(id);
   }
 
-  /** After a settings restore: every switch and lock as the prefs say now; a section mid-check is left to its check. */
+  // The known Model entries are already painted; its bounded list only
+  // adds entries and preserves the section's lock when it arrives.
+  void fishModelRows.load();
+
+  /** Refresh the whole group after a restore or account change without releasing a checking section. */
   function refresh(): void {
+    if (disposed) return;
     for (const id of SWITCH_IDS) if (!busy.has(id)) paint(id);
+    fishVoiceSources.refresh();
+    fishModelRows.refresh();
   }
 
   /**
@@ -312,8 +339,10 @@ export function initProviderRows(
     if (disposed) return;
     disposed = true;
     for (const stop of stops.splice(0)) stop();
+    fishVoiceSources.dispose();
+    fishModelRows.dispose();
     busy.clear();
   }
 
-  return { refresh, verifyEnabled, locked, dispose };
+  return { refresh, verifyEnabled, dispose };
 }

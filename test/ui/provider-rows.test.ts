@@ -114,7 +114,6 @@ function setup(
   const prefs = fakePrefs(options.prefs);
   const check = vi.fn(options.check ?? (async (_id: SwitchId) => CONNECTED));
   const onVoicesChanged = vi.fn();
-  const onUnlocked = vi.fn((_id: SwitchId) => {});
   const warn = vi.fn((_message: string) => {});
   const onChecked = vi.fn((_id: SwitchId) => {});
   const onExternalSwitch = vi.fn((_id: SwitchId) => {});
@@ -123,7 +122,7 @@ function setup(
     prefs,
     check,
     onVoicesChanged,
-    onUnlocked,
+    loadFishModels: async () => ({ ok: false, reason: 'Not needed' }),
     onChecked,
     onExternalSwitch,
     ...(options.observe ? { watch: prefs.watch } : {}),
@@ -149,7 +148,7 @@ function setup(
       enabled: () => prefs.store[enabledPref(id)],
     };
   };
-  return { prefs, rows, check, onVoicesChanged, onUnlocked, onChecked, onExternalSwitch, warn, of };
+  return { prefs, rows, check, onVoicesChanged, onChecked, onExternalSwitch, warn, of };
 }
 
 describe('initProviderRows', () => {
@@ -193,8 +192,6 @@ describe('initProviderRows', () => {
     expect(t.of('azure').label()).toBe('Disable');
     expect(t.of('azure').locked()).toEqual([true, true]);
     expect(t.of('local').label()).toBe('Enable');
-    // Painting open fields hands them back to the preset rows, which gray out theirs
-    expect(t.onUnlocked.mock.calls.map(([id]) => id)).toEqual(['openai-official', 'mimo', 'compatible', 'cloudflare', 'speechify', 'fish', 'fishspeech', 'local', 'system', 'zotero-standard', 'zotero-premium']);
     expect(t.check).not.toHaveBeenCalled();
     expect(t.onVoicesChanged).not.toHaveBeenCalled();
   });
@@ -263,7 +260,6 @@ describe('initProviderRows', () => {
     expect(openai.locked()).toEqual([true, true]);
     await openai.test.fire('command');
     expect(openai.result()).toBe('Connected. 3 voices available.');
-    t.onUnlocked.mockClear();
     t.onVoicesChanged.mockClear();
     await openai.toggle.fire('command');
     expect(openai.enabled()).toBe(false);
@@ -271,7 +267,6 @@ describe('initProviderRows', () => {
     expect(openai.locked()).toEqual([false, false]);
     // The last check's outcome no longer holds
     expect(openai.result()).toBe('');
-    expect(t.onUnlocked).toHaveBeenCalledWith('openai-official');
     expect(t.onVoicesChanged).toHaveBeenCalledTimes(1);
     expect(t.check).toHaveBeenCalledTimes(1);
     expect(t.warn).not.toHaveBeenCalled();
@@ -682,7 +677,7 @@ describe('initProviderRows', () => {
 
   it('tolerates a pane without the sections', () => {
     const doc = { getElementById: () => null };
-    const deps = { prefs: fakePrefs(), check: vi.fn(async () => CONNECTED), onVoicesChanged: vi.fn(), readingTabs: () => [], warn: vi.fn() };
+    const deps = { prefs: fakePrefs(), check: vi.fn(async () => CONNECTED), loadFishModels: async () => ({ ok: false as const, reason: 'Not needed' }), onVoicesChanged: vi.fn(), readingTabs: () => [], warn: vi.fn() };
     expect(() => initProviderRows(doc, deps).refresh()).not.toThrow();
   });
 });
