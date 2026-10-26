@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
+import { createReadAloudMemorySync } from '../src/read-aloud/memory-sync';
 
 const kit = new URL('./zotero-dev/scripts/entry-language-picks/', import.meta.url);
 const P = 'extensions.zotero.zotero-tts.';
@@ -25,12 +26,25 @@ function environment(options: { systemUser?: boolean; defaultOnly?: boolean; ver
   const get = (n: string, fallback?: unknown) => users.get(n) ?? defaults.get(n) ?? fallback;
   const writes: string[] = [];
   let refuseVolumeRestore = false;
-  const set = (n: string, v: Value) => { writes.push(n); users.set(n, refuseVolumeRestore && n === P + 'readAloud.volume' && v === 37 ? 99 : v); };
+  const observers = new Map<string, Set<() => void>>();
+  const watch = (name: string, changed: () => void) => {
+    const listeners = observers.get(name) ?? new Set<() => void>();
+    listeners.add(changed); observers.set(name, listeners);
+    return () => { listeners.delete(changed); };
+  };
+  const notify = (name: string, before: unknown) => {
+    if (get(name) !== before) for (const changed of observers.get(name) ?? []) changed();
+  };
+  const set = (n: string, v: Value) => {
+    const before = get(n);
+    writes.push(n); users.set(n, refuseVolumeRestore && n === P + 'readAloud.volume' && v === 37 ? 99 : v);
+    notify(n, before);
+  };
   const prefs = {
     getPrefType: (n: string) => ({ string: 32, number: 64, boolean: 128 }[typeof get(n) as 'string' | 'number' | 'boolean'] ?? 0),
     getStringPref: get, getIntPref: get, getBoolPref: get, prefHasUserValue: (n: string) => users.has(n),
     setStringPref: set, setIntPref: set, setBoolPref: set,
-    clearUserPref: (n: string) => { writes.push(n); users.delete(n); },
+    clearUserPref: (n: string) => { const before = get(n); writes.push(n); users.delete(n); notify(n, before); },
     getChildList: (prefix: string) => [...new Set([...defaults.keys(), ...users.keys()])].filter(n => n.startsWith(prefix)).sort(),
     getBranch(prefix: string): any {
       return Object.fromEntries(Object.entries(prefs).filter(([k]) => k !== 'getBranch').map(([k, fn]) => [k,
@@ -63,6 +77,7 @@ function environment(options: { systemUser?: boolean; defaultOnly?: boolean; ver
         startup: () => JSON.stringify({ version: options.version ?? '1.16.16-beta2', failed: [], steps: [] }),
         positionSync: () => JSON.stringify({ folder: get(P + 'webdav.enabled'), transport: { pending: 0 } }),
         position: () => JSON.stringify({ database: { rows: 78 + items.size }, legacyPref: null }),
+        liveVoiceList: () => JSON.stringify([]),
       } },
     },
     Services: { prefs, console: { getMessageArray: () => consoleRows }, wm: { getMostRecentWindow: () => null } },
@@ -85,7 +100,7 @@ function environment(options: { systemUser?: boolean; defaultOnly?: boolean; ver
     users.set(P + 'readAloud.memory', 'FIXTURE_MEMORY'); users.set(P + 'readAloud.speedPercent', 200);
     users.set(P + 'system.enabled', true); users.set(P + 'documentVoiceChanged', '42');
   };
-  return { users, defaults, get, writes, state, readers, ownerManager, debug, win, closed, run, baseline, fixture, context, consoleRows,
+  return { users, defaults, get, writes, watch, set, state, readers, ownerManager, debug, win, closed, run, baseline, fixture, context, consoleRows,
     refuseRestore: () => { refuseVolumeRestore = true; } };
 }
 
@@ -226,6 +241,95 @@ describe('idle-draft kit exact-leaf snapshots and cleanup', () => {
     expect(e.closed).toEqual([]);
     expect(e.readers.map(r => r.itemID)).toEqual([1]);
     expect(e.writes).toEqual([]);
+  });
+
+  it.each([
+    { name: 'one native entry, no fixture', fixture: false, globalSpeed: true, defaultOnly: false, native: '{"en":{"voice":"owner-native"}}' },
+    { name: 'original fixture and native map', fixture: true, globalSpeed: true, defaultOnly: false, native: OWNER_NATIVE },
+    { name: 'Global speed off control', fixture: true, globalSpeed: false, defaultOnly: false, native: OWNER_NATIVE },
+    { name: 'default-only native map and memory', fixture: true, globalSpeed: true, defaultOnly: true, native: OWNER_NATIVE },
+  ])('restores the final native map with real memory observers: $name', async ({ fixture, globalSpeed, defaultOnly, native }) => {
+    const e = environment({ defaultOnly });
+    const values = defaultOnly ? e.defaults : e.users;
+    values.set(NATIVE, native);
+    values.set(P + 'readAloud.memory', JSON.stringify({ voice: null }));
+    const memory = createReadAloudMemorySync({
+      prefs: { get: e.get, set: e.set }, documentKey: () => null,
+      sameVoice: () => false, globalSpeed: () => globalSpeed, readers: () => e.readers,
+      registerObserver: (name, handler) => e.watch('extensions.zotero.' + name, handler),
+      unregisterObserver: token => { if (typeof token === 'function') token(); },
+      error: error => { throw error; },
+    });
+    try {
+      expect((await e.baseline()).ok).toBe(true);
+      const snapshot = JSON.stringify(e.state.ep232.prefs);
+      if (fixture) e.fixture();
+      e.set(P + 'readAloud.speedPercent', 201);
+      const result = await e.run('232-99-cleanup.js');
+      expect(result.ok).toBe(true);
+      expect(e.get(NATIVE)).toBe(native);
+      expect(e.users.has(NATIVE)).toBe(!defaultOnly);
+      expect(e.get(P + 'readAloud.speedPercent')).toBe(157);
+      expect(e.state.ep232.cleaned).toBe(true);
+      expect(JSON.stringify(e.state.ep232.prefs)).toBe(snapshot);
+    } finally { memory.dispose(); }
+  });
+
+  it('audits every snapshot after the final awaited diagnostic, not after each write', async () => {
+    const e = environment(); await e.baseline(); e.fixture();
+    const snapshot = e.state.ep232.prefs;
+    // A previously successful marker must not survive a failed cleanup retry.
+    e.state.ep232.cleaned = true;
+    e.context.Zotero.ZoteroTTS.diagnostics.positionSync = () => {
+      e.users.set(NATIVE, '{"en":{"voice":"late-voice"}}');
+      e.users.set(P + 'readAloud.speedPercent', 203);
+      e.users.set(P + 'system.enabled', true);
+      e.users.set(P + 'readAloud.volume', 'wrong-type');
+      e.users.set(P + 'documentVoiceChanged', 'late-pulse');
+      e.users.delete(P + 'readAloud.memory'); // Same effective value, different user flag.
+      e.users.set(P + 'readAloud.defaultVoice', 'LATE_DEFAULT');
+      return JSON.stringify({ folder: false });
+    };
+    const result = await e.run('232-99-cleanup.js');
+    expect(result.ok).toBe(false);
+    expect(e.state.ep232.cleaned).not.toBe(true);
+    expect(e.state.ep232.prefs).toBe(snapshot);
+    expect(result.restored).toMatchObject({
+      nativeVoices: { valueEqual: false }, speedPercent: { valueEqual: false }, systemEnabled: { valueEqual: false },
+      volume: { typeEqual: false, valueEqual: false }, pulse: { valueEqual: false },
+      memory: { valueEqual: true, userEqual: false }, defaultVoice: { valueEqual: false },
+    });
+  });
+
+  it('waits for already-triggered voice-list refreshes before restoring the native map', async () => {
+    const e = environment(); await e.baseline(); e.fixture();
+    let reads = 0;
+    e.context.Zotero.ZoteroTTS.diagnostics.liveVoiceList = () => {
+      if (++reads === 2) e.users.set(NATIVE, '{"en":{"voice":"late-list"}}');
+      return JSON.stringify([{ loading: reads === 2 ? 1 : 0 }]);
+    };
+    const result = await e.run('232-99-cleanup.js');
+    expect(result.ok).toBe(true);
+    expect(reads).toBeGreaterThanOrEqual(4);
+    expect(e.get(NATIVE)).toBe(OWNER_NATIVE);
+  });
+
+  it.each(['loading', 'malformed', 'missing'])('keeps isolation and recovery evidence when voice-list status is %s', async status => {
+    const e = environment(); await e.baseline(); e.fixture();
+    const snapshot = e.state.ep232.prefs;
+    let reads = 0;
+    e.context.Zotero.ZoteroTTS.diagnostics.liveVoiceList = () => {
+      reads++;
+      return status === 'loading' ? JSON.stringify([{ loading: 1 }]) : status === 'missing' ? 'null' : JSON.stringify([{}]);
+    };
+    const result = await e.run('232-99-cleanup.js');
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/voice.list/i);
+    expect(reads).toBeGreaterThan(0);
+    expect(reads).toBeLessThanOrEqual(50);
+    expect(e.state.ep232.cleaned).not.toBe(true);
+    expect(e.state.ep232.prefs).toBe(snapshot);
+    expect(e.get(P + 'webdav.enabled')).toBe(false);
   });
 
   it('detects a value overwritten by an observer even when type and user flag still match', async () => {

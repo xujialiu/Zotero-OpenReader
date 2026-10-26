@@ -24,7 +24,31 @@
     for (const key of branch.getChildList('').sort()) if (key.startsWith('documentVoices.')) values[key] = read(P + key);
     return values;
   };
+  const restore = slot => {
+    const n = names[slot], saved = state.prefs[slot];
+    if (saved.hasUser) {
+      if (saved.type === 'string') S.setStringPref(n, saved.value);
+      else if (saved.type === 'int') S.setIntPref(n, saved.value);
+      else if (saved.type === 'bool') S.setBoolPref(n, saved.value);
+    } else if (S.prefHasUserValue(n)) S.clearUserPref(n);
+  };
+  // Switching System can queue a refresh. Observe it, never request another
+  // list. Two quiet samples allow queued work to start; five seconds is a
+  // recovery bound, not permission to accept an unfinished or unknown load.
+  const settleVoiceLists = async () => {
+    let quiet = 0;
+    for (let attempt = 0; attempt < 50; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const lists = JSON.parse(await Z.ZoteroTTS.diagnostics.liveVoiceList());
+      if (!Array.isArray(lists) || lists.some(row => row !== null &&
+        (!Number.isInteger(row?.loading) || row.loading < 0))) throw new Error('Unknown voice-list refresh state; keep isolation');
+      quiet = lists.every(row => row === null || row.loading === 0) ? quiet + 1 : 0;
+      if (quiet === 2) return;
+    }
+    throw new Error('Voice-list refresh did not settle; keep isolation and retry cleanup after it finishes');
+  };
   try {
+    if (state?.schema === 2) state.cleaned = false;
     if (state?.schema !== 2 || !state.snapshotComplete || !state.window || !state.docVoiceRecords
       || !Array.isArray(state.readersBaseline) || typeof state.debugStoring !== 'boolean' || !Number.isInteger(state.rowsBaseline)) {
       throw new Error('Validated baseline missing; keep isolation and request recovery');
@@ -61,18 +85,13 @@
     const ownerEqual = JSON.stringify(records()) === JSON.stringify(state.docVoiceRecords);
     check('owner-records-equal', ownerEqual);
     if (!ownerEqual || !same(read(names.defaultVoice), state.prefs.defaultVoice)) throw new Error('Owner data changed; do not overwrite it with the baseline');
-    // Memory last; restoring the native entry can synchronously notify readers.
-    for (const slot of ['nativeVoices', 'speedPercent', 'systemEnabled', 'volume', 'pulse', 'memory']) {
-      const n = names[slot], saved = state.prefs[slot];
-      if (saved.hasUser) {
-        if (saved.type === 'string') S.setStringPref(n, saved.value);
-        else if (saved.type === 'int') S.setIntPref(n, saved.value);
-        else if (saved.type === 'bool') S.setBoolPref(n, saved.value);
-      } else if (S.prefHasUserValue(n)) S.clearUserPref(n);
-      const now = read(n);
-      out.restored[slot] = { typeEqual: now.type === saved.type, valueEqual: now.value === saved.value, userEqual: now.hasUser === saved.hasUser };
-      check('pref-' + slot, same(now, saved));
-    }
+    // Global speed rewrites native entries synchronously; System can refresh
+    // them asynchronously. Finish both before restoring the exact native map.
+    for (const slot of ['systemEnabled', 'speedPercent', 'volume']) restore(slot);
+    await settleVoiceLists();
+    check('voice-lists-settled', true);
+    // Native restore can notify memory observers, so memory remains last.
+    for (const slot of ['nativeVoices', 'pulse', 'memory']) restore(slot);
     const win = Z.getMainWindow();
     if (state.window.selectedTab && win.Zotero_Tabs.selectedID !== state.window.selectedTab) win.Zotero_Tabs.select(state.window.selectedTab);
     check('owner-tab', win.Zotero_Tabs.selectedID === state.window.selectedTab);
@@ -82,10 +101,16 @@
       && win.outerWidth === state.window.w && win.outerHeight === state.window.h);
     check('debug-unchanged', !!Z.Debug.storing === state.debugStoring);
     check('rows-at-baseline', JSON.parse(await Z.ZoteroTTS.diagnostics.position()).database?.rows === state.rowsBaseline);
-    check('default-unchanged', same(read(names.defaultVoice), state.prefs.defaultVoice));
-    check('owner-records-still-equal', JSON.stringify(records()) === JSON.stringify(state.docVoiceRecords));
     // No WebDAV write: the driver restores its original switch only after all case gates pass.
     check('folder-still-isolated', JSON.parse(await Z.ZoteroTTS.diagnostics.positionSync()).folder === false);
+    // Final synchronous audit AFTER every write and await. An earlier pref's
+    // successful write/readback is not evidence after a later observer runs.
+    for (const [slot, n] of Object.entries(names)) {
+      const saved = state.prefs[slot], now = read(n);
+      out.restored[slot] = { typeEqual: now.type === saved.type, valueEqual: now.value === saved.value, userEqual: now.hasUser === saved.hasUser };
+      check('pref-' + slot, same(now, saved));
+    }
+    check('owner-records-still-equal', JSON.stringify(records()) === JSON.stringify(state.docVoiceRecords));
     out.ok = out.steps.every(s => s.ok);
     if (out.ok) state.cleaned = true;
   } catch (e) { out.ok = false; out.error = String(e); }

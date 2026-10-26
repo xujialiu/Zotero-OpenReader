@@ -11,7 +11,7 @@
 | `232-04-open.js` | Independent plant and idle observation | saved missing ID/manual via sandbox diagnostic, inactive, no reading, no available remembered System target | — |
 | `232-05-draft.js` | Actual Player Provider/Language commands | `{system, en-US, '', chooseVoice:true}`, missing record retained, W distinct from first native voice V | — |
 | `232-06-choose.js` | Actual Player voice commit | selected/Player/native `en`/saved record all W, manual true, no draft; immediate fixture pause; console changes reported, not treated as failure by themselves | — |
-| `232-99-cleanup.js` | Exact generic rollback | owned fixture only; value/type/user equality, owner set unchanged, rows at baseline; memory last; folder still isolated | — |
+| `232-99-cleanup.js` | Exact generic rollback | owned fixture only; System/speed restored before native map; voice-list refreshes settled within 5 s; final value/type/user audit after every write/await; owner set unchanged, rows at baseline, memory last, folder isolated | — |
 
 Historical 224 scripts are unchanged. Do not mix the two sequences or run
 this entire folder: some historical scripts select Fish Audio.
@@ -46,7 +46,10 @@ this entire folder: some historical scripts select Fish Audio.
   no owner Player/document operation, paid voice, dialog or restart.
 - Snapshots remain private in `state.ep232`; do not print maps. Cleanup
   requires the complete schema and restores captured values, not guesses.
-  Registered defaults without user values are valid snapshots.
+  Registered defaults without user values are valid snapshots. A late
+  mismatch, unknown voice-list status or 5 s settling timeout leaves
+  `cleaned` false and retains the snapshot; keep WebDAV isolated and
+  resolve the reported recovery before starting another run.
 - Case mutations: System switch, volume, native en memory, memory/speed
   and fixture record/pulse. Global default and owner records are read-only.
 - Chinese-region and Global-speed permutations are unit coverage. The
@@ -58,7 +61,11 @@ this entire folder: some historical scripts select Fish Audio.
 - Current 232 baseline/cleanup revisions executed **offline** in
   `test/idle-draft-kit.test.ts`: exact keys, defaults/user flags, immutable
   baseline, wrong-build/missing-snapshot gates, no owner erasure, observer
-  overwrite detection and actual native-entry reads. Other repaired guards
+  overwrite detection and actual native-entry reads. The 2026-10-26 cleanup
+  revision also exercises the real memory-sync observer (Global speed
+  on/off, original/minimal fixture, default-only values), a queued list
+  refresh, unknown/loading status, final-audit drift and a stale successful
+  marker. Other repaired guards
   and plant/commit paths have bounded offline tests and syntax checks.
   No complete live replay of these repaired revisions is claimed.
 - The original live 232-01 and native-entry reads appended a dot to leaf
@@ -67,6 +74,12 @@ this entire folder: some historical scripts select Fish Audio.
 - Earlier checks assumed no native map because of that bad read; this was
   not a fresh profile. The repaired setup snapshots the real map and
   temporarily clears only en. Cleanup restores its exact original bytes.
+- A per-pref write/readback is not final restoration evidence: the
+  2026-10-26 review reproduced a later Global speed restore rewriting an
+  already-checked native map while cleanup still returned PASS. Cleanup
+  now orders those writes and audits all seven snapshots after its last
+  await. The bounded list wait observes existing work only; it cannot
+  promise that an unrelated future action will never change a preference.
 - A timestamp increase is not error attribution. Scripted picks produced
   autoplay-gate warnings; source-less installation exceptions remain
   unattributed. The driver reviews bounded safe source/line evidence.
@@ -75,6 +88,10 @@ this entire folder: some historical scripts select Fish Audio.
 
 ## Runs
 
+- 2026-10-26, offline cleanup follow-up, #232: the original and minimized
+  reproductions failed before the repair; final-map restoration, final
+  audit and pending-list guards pass afterwards. No production code,
+  installed build or live profile changed. [Plan and evidence](https://github.com/xujialiu/Zotero-OpenReader/issues/232#issuecomment-6409657112).
 - 2026-10-22, 1.16.13-beta3/beta4: historical 224 items 1–7 passed after
   executed harness revisions. Setup's initial single audio probe was
   insensitive at a clip edge; later suspended-device probes were machine

@@ -121,9 +121,17 @@ paid provider. Volume stays 0 and WebDAV stays off.
    pronunciation or claim no request before Play for this idle path.
 6. Restore every touched value and user-value flag, erase only the fixture
    and its rows/record, verify Global default voice and owner records are
-   unchanged. The driver restores its pre-install WebDAV/debug baseline
-   after kit cleanup, WebDAV last; the 232 scripts only verify isolation.
-   Never print the native voice map or a raw preference snapshot.
+   unchanged. Restore System and Global speed before the native voice map:
+   their observers can rewrite it. Observe already-triggered voice-list
+   refreshes until two consecutive samples are idle, bounded to five
+   seconds; unknown or still-loading status fails cleanup and preserves
+   the snapshot for recovery. Do not start a new listing to test this.
+   After all writes and awaited diagnostics, reread every captured pref
+   together: value, type and user-value presence must match. A mismatch
+   must leave `cleaned` false, even on a retry after an earlier PASS.
+   The driver restores its pre-install WebDAV/debug baseline after kit
+   cleanup, WebDAV last; the 232 scripts only verify isolation. Never print
+   the native voice map or a raw preference snapshot.
 
 The 2026-10-24 run's trailing-dot snapshot defect required explicit owner
 adoption of a new final settings baseline; it did not establish exact

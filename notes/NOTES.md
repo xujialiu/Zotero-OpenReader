@@ -809,3 +809,7 @@ then) and is in the git history before that day.
 
 - An idle draft's region reset needs the just-written native voice entry (issue #232)
 - A trailing dot names another pref; type and user flags do not prove restoration (issue #232)
+
+### [2026-10-26](NOTES_2026-10-26.md)
+
+- Cleanup checks must follow the last observer-triggering write (issue #232)
