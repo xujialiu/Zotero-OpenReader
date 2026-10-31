@@ -1,10 +1,12 @@
 // Before the install: (1) gate — the profile still holds the build the brief
 // names as the "before" state (bundle hash), else stop with nothing touched;
-// (2) record the owner's reader (tab, paused session, voice, saved position,
-// document voice); (3) close its Read Aloud session the one permitted way,
-// reader._internalReader.toggleReadAloudPopup(false) (never manager.deactivate()),
-// leaving the tab open and never reopening the session; (4) record the same
-// again, then minimize the window for the bridge-only install steps.
+// (2) record the owner's reader (tab, session, voice, saved position, document
+// voice) and stop, touching nothing, if its session is PLAYING (active and not
+// paused: the owner is listening); (3) close a PAUSED session the one permitted
+// way, reader._internalReader.toggleReadAloudPopup(false) (never
+// manager.deactivate()), leaving the tab open and never reopening the session —
+// a manager that is not active gets no call at all; (4) record the same again,
+// then minimize the window for the bridge-only install steps.
 // params: ownerItemID, expectedBefore (bundle sha256). state: reads baseline; writes owner.
 (async () => {
   const state = Zotero.ZoteroTTSRun.state;
@@ -62,10 +64,16 @@
   };
   out.before = await snap();
 
-  // (3) Close the session: the popup, nothing else.
-  internal.toggleReadAloudPopup(false);
-  for (let i = 0; i < 24 && m.active; i++) await sleep(250);
-  await sleep(600);
+  // The owner is listening: stop, nothing touched.
+  if (out.before.active && !out.before.paused) { out.ok = false; out.stop = 'the owner session is PLAYING (active, not paused); nothing touched'; return JSON.stringify(out, null, 1); }
+
+  // (3) Close a paused session: the popup, nothing else. No session open, no call.
+  out.hadSession = out.before.active;
+  if (m.active) {
+    internal.toggleReadAloudPopup(false);
+    for (let i = 0; i < 24 && m.active; i++) await sleep(250);
+    await sleep(600);
+  }
   out.after = await snap();
   out.sessionClosed = !m.active;
   out.tabStillOpen = !!find() && out.after.tabs.includes(reader.tabID);

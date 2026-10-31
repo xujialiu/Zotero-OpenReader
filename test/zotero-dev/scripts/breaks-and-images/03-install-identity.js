@@ -1,9 +1,13 @@
 // Right after zotero_plugin_install, before anything else is driven (case item 1):
 // startup() first (synchronous; every step ok, failed empty), then the installed
-// bundle's SHA-256 against the build under test (never the version alone), the
-// segmentTextOf marker, the add-on's version, the WebDAV folder still off, and
-// the owner's saved position against what 02 recorded before the session closed.
-// params: expectedBundle (sha256), expectedXpi (sha256, optional), expectedVersion, ownerItemID.
+// bundle's SHA-256 against the build under test (never the version alone), two
+// source markers in that bundle (one that must be there, one that must be gone),
+// the add-on's version, the WebDAV folder still off, and the owner's saved
+// position against what 02 recorded before the session closed.
+// params: expectedBundle (sha256), expectedXpi (sha256, optional), expectedVersion, ownerItemID,
+//   marker (text the bundle must hold; default 'function rangeSpells', 1.16.16-beta5),
+//   absentMarker (text it must not hold; default 'function segmentTextOf', which beta4 held;
+//   '' skips the check).
 // state: reads owner, webdav.
 (async () => {
   const state = Zotero.ZoteroTTSRun.state;
@@ -41,7 +45,11 @@
   out.bundleSha256 = sha256Hex(bytes);
   out.bundleBytes = bytes.byteLength;
   out.bundleMatches = out.bundleSha256 === p.expectedBundle;
-  out.hasSegmentTextOf = new TextDecoder().decode(bytes).includes('function segmentTextOf');
+  const bundleText = new TextDecoder().decode(bytes);
+  const marker = p.marker ?? 'function rangeSpells';
+  const absentMarker = p.absentMarker ?? 'function segmentTextOf';
+  out.marker = { text: marker, found: bundleText.includes(marker) };
+  out.absentMarker = absentMarker ? { text: absentMarker, found: bundleText.includes(absentMarker) } : null;
   const AM = (typeof AddonManager !== 'undefined' && AddonManager.getAddonByID) ? AddonManager : ChromeUtils.importESModule('resource://gre/modules/AddonManager.sys.mjs').AddonManager;
   const addon = await AM.getAddonByID('zotero-tts@xujialiu.top');
   out.addon = { version: addon?.version ?? null, active: addon?.isActive ?? null };
@@ -65,7 +73,7 @@
   const dv = JSON.parse(Zotero.ZoteroTTS.diagnostics.documentVoices());
   out.owner.documentVoice = (dv.readers || []).find((r) => r.key === 'user/' + Zotero.Items.get(p.ownerItemID).key) ?? null;
 
-  out.ok = out.startupOk && out.bundleMatches && out.hasSegmentTextOf && out.addon.version === p.expectedVersion && out.folder === false
+  out.ok = out.startupOk && out.bundleMatches && out.marker.found && (!out.absentMarker || !out.absentMarker.found) && out.addon.version === p.expectedVersion && out.folder === false
     && out.owner.readerOpen && out.owner.active === false && out.owner.storedSame;
   return JSON.stringify(out, null, 1);
 })()

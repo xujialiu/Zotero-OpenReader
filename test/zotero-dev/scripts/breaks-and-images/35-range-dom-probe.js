@@ -1,15 +1,17 @@
-// What each sentence's DOM range holds in the live reader, and what the walk of
-// src/read-aloud/range-text.ts (segmentTextOf) makes of it. For each segment index:
-// the Segment text Zotero spells, range.toString(), the range's boundary nodes,
-// every child of its common ancestor with intersectsNode and — for an element —
-// its alt, aria-label, class and the first characters of src, then a chrome-side
-// replay of the same walk (same rules, same image-text rule) and whether its
-// normalized result equals the normalized Segment text. A difference between the
-// replay and the Segment text names the node that causes it. A second replay,
-// `walkIgnoringReaderLabel`, skips the aria-label of an image the EPUB view has
-// decorated (class clickable-image, aria-label "Zoom In": reader.js 55593-55600 of
-// Zotero 10.0.6) and reads its alt instead — it shows what the live DOM can still
-// give back and what it cannot. Read-only.
+// What each sentence's DOM range holds in the live reader, and what the rule of
+// src/read-aloud/range-text.ts (rangeParts / rangeSpells, 1.16.16-beta5) makes of
+// it. For each segment index: the Segment text Zotero spells, range.toString()
+// and whether it alone equals the Segment (normalized), the range's nodes (every
+// child of its common ancestor with intersectsNode and — for an <img> — its alt,
+// aria-label, class and the first characters of src), then a chrome-side replay
+// of the rule: the range's parts in document order (each covered text slice, '\n'
+// for a <br>, a gap for an <img>), the text pieces between the gaps, each
+// normalized (NFC, white space collapsed, trimmed), and whether the pieces appear
+// in the normalized Segment text in order, the first at its start and the last at
+// its end, anything in the gaps; a range with no text outside its gaps matches
+// nothing. `replayMatches` is that verdict; compare it with what the plugin drew
+// (30's primaryShown / sentencePieces). A segment whose selector resolves to nothing is listed under
+// `unresolved` and left out of `allReplayMatch`. Read-only.
 // params: which, indices. state: reads readers[which].
 (async () => {
   const state = Zotero.ZoteroTTSRun.state;
@@ -24,58 +26,65 @@
   const view = waive(internal._activePrimaryView || internal._primaryView);
   const segs = waive(internal._readAloudSegments.segments);
 
-  // The walk and the image-text rule of range-text.ts, replayed.
-  const imageText = (img) => {
-    const label = String(img.getAttribute('aria-label') ?? '').trim();
-    if (label) return label;
-    const alt = String(img.getAttribute('alt') ?? '').trim();
-    if (!alt) return '';
-    const pathLike = !/\s/.test(alt) && (/^(?:https?|file|data):/i.test(alt) || /[\\/]/.test(alt) || /\.(?:png|jpe?g|gif|svg|webp|bmp|tiff?|avif)$/i.test(alt));
-    return pathLike ? '' : alt;
-  };
-  const imageTextIgnoringReaderLabel = (img) => {
-    const decorated = /(^|\s)clickable-image(\s|$)/.test(String(img.getAttribute('class') ?? '')) && String(img.getAttribute('aria-label') ?? '').trim() === 'Zoom In';
-    if (!decorated) return imageText(img);
-    const alt = String(img.getAttribute('alt') ?? '').trim();
-    if (!alt) return '';
-    const pathLike = !/\s/.test(alt) && (/^(?:https?|file|data):/i.test(alt) || /[\\/]/.test(alt) || /\.(?:png|jpe?g|gif|svg|webp|bmp|tiff?|avif)$/i.test(alt));
-    return pathLike ? '' : alt;
-  };
-  const walk = (range, imgText = imageText) => {
+  // rangeParts, replayed: strings for text and <br>, null for an <img>.
+  const IMAGE = null;
+  const partsOf = (range) => {
     const start = range.startContainer, end = range.endContainer;
-    let acc = '';
+    const parts = [];
     const visit = (node) => {
       const type = node?.nodeType;
       if (type === 3) {
         if (node !== start && node !== end && !range.intersectsNode(node)) return;
         const data = String(node.data ?? '');
-        acc += data.slice(node === start ? range.startOffset : 0, node === end ? range.endOffset : data.length);
+        parts.push(data.slice(node === start ? range.startOffset : 0, node === end ? range.endOffset : data.length));
         return;
       }
       if (type !== 1 || !range.intersectsNode(node)) return;
       const name = String(node.localName ?? '').toLowerCase();
-      if (name === 'br') { acc += '\n'; return; }
-      if (name === 'img') { acc += imgText(node); return; }
+      if (name === 'br') { parts.push('\n'); return; }
+      if (name === 'img') { parts.push(IMAGE); return; }
       const kids = node.childNodes;
       for (let i = 0; i < (kids?.length ?? 0); i++) visit(kids[i]);
     };
     visit(range.commonAncestorContainer);
-    return acc;
+    return parts;
+  };
+  // The text pieces between the gaps, normalized.
+  const piecesOf = (parts) => {
+    const pieces = [''];
+    for (const part of parts) { if (part === IMAGE) pieces.push(''); else pieces[pieces.length - 1] += part; }
+    return pieces.map(normText);
+  };
+  // rangeSpells, replayed: first piece at the start, last at the end, the others in order between, anything in the gaps.
+  const spells = (texts, expected) => {
+    if (texts.length === 1) return texts[0] === expected;
+    if (!texts.some((t) => t)) return false;
+    const first = texts[0], last = texts[texts.length - 1];
+    const end = expected.length - last.length;
+    if (!expected.startsWith(first) || !expected.endsWith(last) || end < first.length) return false;
+    let at = first.length;
+    for (let i = 1; i < texts.length - 1; i++) {
+      const found = expected.indexOf(texts[i], at);
+      if (found < 0 || found + texts[i].length > end) return false;
+      at = found + texts[i].length;
+    }
+    return true;
   };
 
   for (const idx of p.indices) {
     const seg = waive(segs[idx]);
+    const expected = normText(seg.text);
     const info = { index: idx, segment: String(seg.text) };
     try {
       const range = waive(view.toDisplayedRange(seg.sourcePosition));
+      if (!range) { info.unresolved = true; out.segments.push(info); continue; } // e.g. the snapshot's last <p>: the selector resolves to nothing
       info.toString = String(range.toString());
-      info.toStringEqualsSegment = normText(info.toString) === normText(info.segment);
-      const walked = walk(range);
-      info.walk = walked;
-      info.walkEqualsSegment = normText(walked) === normText(info.segment);
-      const walked2 = walk(range, imageTextIgnoringReaderLabel);
-      info.walkIgnoringReaderLabel = walked2;
-      info.walkIgnoringReaderLabelEqualsSegment = normText(walked2) === normText(info.segment);
+      info.toStringEqualsSegment = normText(info.toString) === expected;
+      const parts = partsOf(range);
+      info.parts = parts.map((x) => (x === IMAGE ? '[IMG]' : x));
+      info.imageGaps = parts.filter((x) => x === IMAGE).length;
+      info.pieces = piecesOf(parts);
+      info.replayMatches = spells(info.pieces, expected);
       const root = range.commonAncestorContainer;
       info.commonAncestor = String(root.localName ?? root.nodeName);
       info.children = [];
@@ -100,5 +109,7 @@
     }
     out.segments.push(info);
   }
+  out.unresolved = out.segments.filter((s) => s.unresolved).map((s) => s.index);
+  out.allReplayMatch = out.segments.filter((s) => !s.unresolved).every((s) => s.replayMatches === true);
   return JSON.stringify(out, null, 1);
 })()

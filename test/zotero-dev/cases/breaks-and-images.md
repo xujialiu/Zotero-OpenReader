@@ -103,13 +103,21 @@ paragraph is being read. The plugin's sentence and word colors are
 
 ### 7
 
-7. **Nothing in the logs.** Across items 2 to 6, `zotero_read_logs` holds
-   no `highlight: word position shows the wrong text and no rewrite fixes
-   it` and no `highlight: sentence selector does not resolve to the
-   sentence and no rewrite does`, and `zotero_read_errors` holds no error
-   from the plugin (a Permission denied or dead-object line from the walk
-   over the page would be one). Each named line is written once per plugin
-   lifetime, so judge the whole log since the install, not one block.
+7. **Nothing in the logs for the sentences under test.** Across items 2
+   to 6, `zotero_read_logs` holds no `highlight: sentence selector does not
+   resolve to the sentence and no rewrite does`, no `highlight: word
+   position shows the wrong text and no rewrite fixes it` in the blocks of
+   paragraphs 2, 4 and 5, and `zotero_read_errors` holds no error from the
+   plugin (a Permission denied or dead-object line from the walk over the
+   page would be one). Each named line is written once per plugin
+   lifetime, so a later identical failure is silent: items 2 to 4's
+   per-sample values, not this line, are the evidence for each paragraph.
+   The word-position line once in the EPUB's paragraph 6 with a word-timed
+   voice is expected and not this case's: its first word "A" is one
+   character, for which Zotero's EPUB mapper writes a point CFI
+   (`epubcfi(…/1:0)`, Zotero 10.0.6 `reader.js:62321-62353`) that resolves
+   to an empty range, so the plugin paints the primary transparent for
+   that word, before the fix as after it (1.16.16-beta5 run).
 
 The snapshot's paragraph 7 (`body > p:last-child`) is not drawn with or
 without the fix: the reader appends two `<div>`s to the body, so the
