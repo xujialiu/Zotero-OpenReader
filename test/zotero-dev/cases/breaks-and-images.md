@@ -2,7 +2,7 @@
 
 # A sentence holding a line break or an inline image keeps its highlight (issue #209)
 
-Written for 1.16.16-beta3, before its first live run. Every build stamps
+Written for 1.16.16-beta4, before its first live run. Every build stamps
 its own time into the bundle, so the brief names the hashes to expect.
 
 In an EPUB or a web snapshot, Zotero spells a Segment's text with a newline
