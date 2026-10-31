@@ -94,6 +94,7 @@
 import { createProtoPatches } from './proto-patches';
 import type { WordTiming } from '../core/highlight-level';
 import { WHOLE_SEGMENT_END_SECONDS } from './remote-interface';
+import { segmentTextOf } from './range-text';
 
 export interface HighlightStyle {
   /** '#rrggbb' */
@@ -552,7 +553,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
    * resolver cannot find, and Zotero's own primary goes dark with it
    * (issue #3). When the sentence selector does not resolve, rewrite the
    * final text step through the resolver's own convention and keep the
-   * first rewrite whose displayed text is exactly the segment's text.
+   * first rewrite that shows exactly the segment's text (`showsText`).
    */
   // NFC first: Zotero hands the segment text NFC-normalized while
   // toDisplayedRange() returns the document's own form, so a document stored
@@ -567,6 +568,25 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     } catch (e) {
       deps.error(e);
       return null;
+    }
+  };
+  /**
+   * Whether the selector shows `text` (normalized, non-empty): its displayed
+   * text is it, or the same range spelled as Zotero spells a Segment is — a
+   * newline for a `<br>`, the alt text for an inline image, which the page
+   * does not hold (issue #209). A selector on the wrong node shows the wrong
+   * text either way (issues #3/#4).
+   */
+  const showsText = (view: any, sel: any, text: string): boolean => {
+    try {
+      const range = sel != null ? view.toDisplayedRange(sel) : null;
+      if (!range) return false;
+      if (normText(range.toString()) === text) return true;
+      const spelled = segmentTextOf(range);
+      return spelled !== null && normText(spelled) === text;
+    } catch (e) {
+      deps.error(e);
+      return false;
     }
   };
   /** The parent's spec-to-legacy text-step map, from its real child list: spec numbers a text step by elements-before (2k+1), the resolver by its position in the text-node list. */
@@ -613,7 +633,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
       for (const step of [1, 3, 5, 7, 9]) {
         if (String(step) === single[2]) continue;
         const candidate = mk(`epubcfi(${single[1]}/${step}${single[3] ?? ''})`);
-        if (displayedText(view, candidate) === text) return candidate;
+        if (showsText(view, candidate, text)) return candidate;
       }
       return null;
     }
@@ -634,7 +654,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
       const end = map?.get(Number(cross[4]));
       if (!start || !end) return null;
       const candidate = mk(`epubcfi(${cross[1]},/${start}${cross[3]},/${end}${cross[5]})`);
-      if (displayedText(view, candidate) === text) return candidate;
+      if (showsText(view, candidate, text)) return candidate;
     }
     return null;
   }
@@ -645,8 +665,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     // legacy numbering reads the spec's /3 as the second of them (issue #4).
     // So a resolved range only counts when its text is the sentence.
     const text = normText(segment?.text);
-    const shown = displayedText(view, selector);
-    if (shown !== null && (!text || shown === text)) return selector;
+    if (text ? showsText(view, selector, text) : displayedText(view, selector) !== null) return selector;
     const repaired = repairSelectorForText(reader, view, selector, text);
     if (repaired) {
       logChange('sentence-repair', 'highlight: sentence selector repaired');
@@ -688,7 +707,7 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     const wholeText = String(segment.text ?? '');
     const expected = normText(kind === 'real' && timestamp ? wholeText.slice(timestamp.charStart, timestamp.charEnd) : wholeText);
     if (!expected) return;
-    if (displayedText(view, selector) === expected) {
+    if (showsText(view, selector, expected)) {
       hiddenPrimary.set(helper, false);
       return;
     }

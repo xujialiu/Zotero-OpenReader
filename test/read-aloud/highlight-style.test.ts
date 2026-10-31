@@ -9,6 +9,7 @@ import {
   type HighlightStylingDeps,
 } from '../../src/read-aloud/highlight-style';
 import { WHOLE_SEGMENT_END_SECONDS } from '../../src/read-aloud/remote-interface';
+import { BR, paragraph, type Child } from './fake-dom';
 
 const STYLE: HighlightStyle = { wordColor: '#ff0000', wordAlpha: 50, sentenceColor: '#00ff00', sentenceAlpha: 20, sentence: true };
 const WORD = '#ff000080';
@@ -1466,5 +1467,122 @@ describe('a sentence spanning two text nodes (range endpoints in different nodes
     styling(clone).styling.attach(dom.reader);
     dom.helper.setState({ popupOpen: true, activeSegment: SEG, activeWordSourcePosition: null });
     expect(dom.view._spotlights.get('ReadAloudActiveSentence')).toBeUndefined();
+  });
+});
+
+// ---- A <br> or an inline image inside the sentence (issue #209) -------------------
+
+describe('a sentence holding an unspaced <br/> or an inline image with alt text (issue #209)', () => {
+  const HEAD_KEY = 'ZoteroTTSSentenceHead';
+
+  /**
+   * Zotero's Segment text for a paragraph: the document worker keeps a <br>
+   * as a '\n' text node and an inline <img> as its alt text, neither with a
+   * place in the document (Zotero 10.0.6 worker.js 165321-165329), and
+   * addSegment collapses white space and trims.
+   */
+  const segmentTextOf = (children: Child[]) =>
+    children
+      .map((c) => (typeof c === 'string' ? c : 'br' in c ? '\n' : 'img' in c ? (c.img['aria-label'] ?? c.img.alt ?? '') : ''))
+      .join('')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  /**
+   * A DOM view over one paragraph. Selectors are the CFI ranges Zotero
+   * writes for a sentence, `epubcfi(P,/a:x,/b:y)`, resolved as its resolver
+   * does: text step n is the (n-1)/2-th text node. The range Zotero hands
+   * over runs from the first to the last text node and holds nothing for a
+   * <br> or an <img> (reader.js EPUBPositionMapper / SnapshotPositionMapper).
+   */
+  function reading(children: Child[], timestamp: Record<string, unknown>) {
+    const p = paragraph(children);
+    const selector = (a: number, x: number, b: number, y: number) => ({ value: `epubcfi(/6/2!/4/2,/${a}:${x},/${b}:${y})` });
+    class DOMView {
+      _spotlights = new Map<string, unknown>();
+      _readAloud: any;
+      setSpotlight(key: string, sel: unknown) {
+        if (sel) this._spotlights.set(key, sel);
+        else this._spotlights.delete(key);
+      }
+      _getSpotlightColor(key: string) {
+        if (key === 'ReadAloudActiveSegment') return ZOTERO_SEGMENT;
+        throw new Error('Unknown highlight key: ' + key);
+      }
+      toDisplayedRange(sel: any) {
+        const m = /^epubcfi\([^,]*,\/(\d+):(\d+),\/(\d+):(\d+)\)$/.exec(String(sel?.value ?? ''));
+        const start = m ? p.texts[(Number(m[1]) - 1) / 2] : undefined;
+        const end = m ? p.texts[(Number(m[3]) - 1) / 2] : undefined;
+        return m && start && end ? p.range(start, Number(m[2]), end, Number(m[4])) : null;
+      }
+    }
+    class ReadAloud {
+      state: any = { popupOpen: false };
+      constructor(public _view: DOMView) {}
+      _effectivePrimaryGranularity() {
+        return 'word';
+      }
+      _resolveSegmentSelector(state: any) {
+        return state.activeSegment?.selector ?? null;
+      }
+      setState(state: any) {
+        this.state = state;
+        if (!state.popupOpen || !state.activeSegment) return null;
+        this._view.setSpotlight('ReadAloudActiveSegment', state.activeWordSourcePosition);
+        return null;
+      }
+    }
+    const view = new DOMView();
+    view._readAloud = new ReadAloud(view);
+    const error = vi.fn();
+    const s = createHighlightStyling({ style: () => STYLE, error });
+    s.attach({ _internalReader: { _primaryView: view, _readAloudManager: { activeTimestamp: timestamp } } });
+    const last = p.texts.length - 1;
+    const whole = selector(1, 0, 2 * last + 1, p.texts[last].data.length);
+    /** Zotero pushes the Segment (first to last text node) and the active word's position. */
+    const read = (word: 'whole sentence' | { from: number; to: number }, segment = { selector: whole, text: segmentTextOf(children) }) =>
+      view._readAloud.setState({
+        popupOpen: true,
+        activeSegment: segment,
+        activeWordSourcePosition: word === 'whole sentence' ? segment.selector : selector(1, word.from, 1, word.to),
+      });
+    /** What the view would draw for a slot of ours, as text. */
+    const drawn = (key: string) => {
+      const sel = view._spotlights.get(key);
+      return sel === undefined ? undefined : String(view.toDisplayedRange(sel));
+    };
+    return { view, error, read, drawn, selector, segmentText: segmentTextOf(children) };
+  }
+
+  const standIn = (children: Child[]) => ({ start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: segmentTextOf(children).length });
+
+  describe.each([
+    ['an unspaced <br/>', ['Roses are red,', BR, 'Violets are blue.']],
+    ['an inline <img> with alt text', ['Roses are red, ', { img: { alt: 'violets' } }, ' are blue.']],
+    ['an inline <img> with an aria-label', ['Roses are red, ', { img: { 'aria-label': 'violets', alt: 'v.png' } }, ' are blue.']],
+    ['(control) a <br/> followed by a newline', ['Roses are red,', BR, '\nViolets are blue.']],
+  ] as Array<[string, Child[]]>)('%s, at the default highlight levels', (_name, children) => {
+    it('a voice without word timing: the sentence is highlighted, not painted transparent', () => {
+      const r = reading(children, standIn(children));
+      r.read('whole sentence');
+      expect(r.view._getSpotlightColor('ReadAloudActiveSegment')).toBe(SENTENCE);
+      expect(r.error).not.toHaveBeenCalled();
+    });
+
+    it('a voice with word timings: the sentence is drawn around the word', () => {
+      // "are", characters 6-9 of "Roses are red, ..."
+      const r = reading(children, { start: 0.1, end: 0.4, charStart: 6, charEnd: 9 });
+      r.read({ from: 6, to: 9 });
+      expect(r.drawn(HEAD_KEY)).toBe('Roses ');
+      expect(r.error).not.toHaveBeenCalled();
+    });
+  });
+
+  it('still refuses a sentence position on the wrong text beside a <br/> (issue #4)', () => {
+    const children: Child[] = ['Roses are red,', BR, 'Violets are blue.'];
+    const r = reading(children, { start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: 17 });
+    // The Segment is the second line, but its position lands on the first
+    r.read('whole sentence', { selector: r.selector(1, 0, 1, 14), text: 'Violets are blue.' });
+    expect(r.view._getSpotlightColor('ReadAloudActiveSegment')).toBe('#00000000');
   });
 });
