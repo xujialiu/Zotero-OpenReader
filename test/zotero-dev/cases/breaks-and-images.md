@@ -112,13 +112,12 @@ paragraph is being read. The plugin's sentence and word colors are
    page would be one). Each named line is written once per plugin
    lifetime, so a later identical failure is silent: items 2 to 4's
    per-sample values, not this line, are the evidence for each paragraph.
-   The word-position line once in the EPUB's paragraph 6 with a word-timed
-   voice is expected and not this case's: its first word "A" is one
-   character, for which Zotero's EPUB mapper writes a point CFI
-   (`epubcfi(…/1:0)`, Zotero 10.0.6 `reader.js:62321-62353`) that resolves
-   to an empty range, so the plugin paints the primary transparent for
-   that word, before the fix as after it (1.16.16-beta5 run).
+   The word-position line in the EPUB's paragraph 6 with a word-timed
+   voice is not expected either since 1.16.16-beta6: its first word "A",
+   one character, was written as a point CFI and painted transparent
+   through 1.16.16-beta5 (issue #235, case
+   [one-letter-words-and-last-blocks](one-letter-words-and-last-blocks.md)).
 
-The snapshot's paragraph 7 (`body > p:last-child`) is not drawn with or
-without the fix: the reader appends two `<div>`s to the body, so the
-selector resolves to nothing. It is not part of this case.
+The snapshot's paragraph 7 (`body > p:last-child`), which the reader's two
+appended `<div>`s left undrawn through 1.16.16-beta5, is that case's too
+(issue #236).

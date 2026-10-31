@@ -57,7 +57,7 @@ return Zotero.ZoteroTTSRun.api.wait('2026-09-14-1.12.8-beta-voice-switch', 7000,
 | `start({ root, kit \| dir, scripts, runId?, params?, stopOnError? })` | Starts the scripts in order, in the background; refuses while another run is busy | `{ started, runId, total, dir }` |
 | `wait(runId, ms = 7000, from = 0)` | Waits up to `ms` for the run to finish, then answers | `{ done, stopped, index, total, dir, results[from…] }`, each result `{ index, name, ms, error, result }` with `result` capped at 2,000 characters |
 | `one({ root, kit \| dir, script, params? })` | Runs one script inside the call — only for one that finishes well under the window | that script's entry |
-| `status()` | Every run this Zotero process has seen, the shared params, the state keys | summary |
+| `status()` | Every run this Zotero process has seen, the shared params, the state keys. The params outlive runs and can hold an earlier kit's voice id (a `preferId`): do not call it into a transcript; read the one field you need instead (2026-11-01) | summary |
 | `reset()` | Forgets finished runs and clears `state`; `params` and a run in progress are left alone | `{ busy, runs }` |
 
 - **A long group.** `wait` returns `done: false` with what has finished;

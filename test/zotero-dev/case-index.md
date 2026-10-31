@@ -89,6 +89,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [The highlight and its colors](cases/highlight.md) — 3.5, 5.5
 - [The Sentence and Word switches (issue #114, 1.12.11)](cases/highlight-levels.md)
 - [A sentence holding a line break or an inline image keeps its highlight (issue #209)](cases/breaks-and-images.md)
+- [A one-letter word in an EPUB and a snapshot's last block keep their highlight (issues #235, #236)](cases/one-letter-words-and-last-blocks.md)
 - [3a. The whole sentence on screen (issue #83, 1.11.7)](cases/whole-sentence.md)
 - [3c. The colors follow the first page (issue #88, 1.11.7)](cases/page-colors.md)
 - [3d. Plugin-owned PDF following (issue #90, 1.12.1-beta3)](cases/pdf-follow.md)
