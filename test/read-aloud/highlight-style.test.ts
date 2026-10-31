@@ -1589,3 +1589,206 @@ describe('a sentence holding an unspaced <br/> or an inline image with alt text 
     expect(r.view._getSpotlightColor('ReadAloudActiveSegment')).toBe('#00000000');
   });
 });
+
+/**
+ * A DOM view for positions Zotero names but the page does not show as
+ * written. Zotero's helper draws the word position as the primary, the
+ * plugin keeps the sentence around it.
+ */
+function positionsView(toDisplayedRange: (sel: any) => unknown, timestamp: Record<string, unknown>) {
+  class DOMView {
+    _spotlights = new Map<string, unknown>();
+    _readAloud: any;
+    setSpotlight(key: string, sel: unknown) {
+      if (sel) this._spotlights.set(key, sel);
+      else this._spotlights.delete(key);
+    }
+    _getSpotlightColor(key: string) {
+      if (key === 'ReadAloudActiveSegment') return ZOTERO_SEGMENT;
+      throw new Error('Unknown highlight key: ' + key);
+    }
+    toDisplayedRange(sel: any) {
+      return toDisplayedRange(sel);
+    }
+  }
+  class ReadAloud {
+    state: any = { popupOpen: false };
+    constructor(public _view: DOMView) {}
+    _effectivePrimaryGranularity() {
+      return 'word';
+    }
+    _resolveSegmentSelector(state: any) {
+      return state.activeSegment?.selector ?? null;
+    }
+    setState(state: any) {
+      this.state = state;
+      if (!state.popupOpen || !state.activeSegment) return null;
+      this._view.setSpotlight('ReadAloudActiveSegment', state.activeWordSourcePosition);
+      return null;
+    }
+  }
+  const view = new DOMView();
+  view._readAloud = new ReadAloud(view);
+  const error = vi.fn();
+  const cloneIntoReader = vi.fn((_reader: unknown, value: unknown) => value);
+  createHighlightStyling({ style: () => STYLE, error, cloneIntoReader }).attach({
+    _internalReader: { _primaryView: view, _readAloudManager: { activeTimestamp: timestamp } },
+  });
+  const read = (segment: { selector: unknown; text: string }, word: unknown) =>
+    view._readAloud.setState({ popupOpen: true, activeSegment: segment, activeWordSourcePosition: word });
+  /** What the view draws for a slot, as text; null when it resolves to nothing. */
+  const drawn = (key: string) => {
+    const sel = view._spotlights.get(key);
+    if (sel === undefined) return undefined;
+    const range = view.toDisplayedRange(sel);
+    return range == null ? null : String(range);
+  };
+  const primary = () => ({ color: view._getSpotlightColor('ReadAloudActiveSegment'), text: drawn('ReadAloudActiveSegment') });
+  return { view, error, cloneIntoReader, read, drawn, primary };
+}
+
+const wholeOf = (text: string) => ({ start: 0, end: WHOLE_SEGMENT_END_SECONDS, charStart: 0, charEnd: text.length });
+
+describe('a one-character span in an EPUB, which Zotero writes as a point CFI (issue #235)', () => {
+  // Zotero writes `epubcfi(P:o)` when a span is one character and
+  // `epubcfi(P,:o,:e)` otherwise (Zotero 10.0.6 reader.js:62321-62353); the
+  // view resolves a point to an empty range (EpubCFI.toRange sets no end,
+  // reader.js:47006-47054). The Segment's own position comes from the same
+  // mapper, so a one-character Segment is a point too.
+  const PATH = '/6/2!/4/14';
+  const TEXT = 'A plain sentence follows.';
+  const cfi = (value: string) => ({ type: 'FragmentSelector', conformsTo: 'cfi', value });
+  /** One paragraph whose only text node is text step /1, resolved as the EPUB view does. */
+  function epub(text: string) {
+    const p = paragraph([text]);
+    const node = p.texts[0];
+    const at = `epubcfi(${PATH}/1`;
+    return (sel: any) => {
+      const v = String(sel?.value ?? '');
+      if (!v.startsWith(at)) return null;
+      const range = /^,:(\d+),:(\d+)\)$/.exec(v.slice(at.length));
+      if (range) return p.range(node, Number(range[1]), node, Number(range[2]));
+      const point = /^:(\d+)\)$/.exec(v.slice(at.length));
+      return point ? p.range(node, Number(point[1]), node, Number(point[1])) : null;
+    };
+  }
+  const sentence = { selector: cfi(`epubcfi(${PATH}/1,:0,:${TEXT.length})`), text: TEXT };
+
+  it('(control) a word of several characters, a range CFI, is drawn in the word color inside the sentence', () => {
+    const r = positionsView(epub(TEXT), { start: 0.1, end: 0.4, charStart: 2, charEnd: 7 });
+    r.read(sentence, cfi(`epubcfi(${PATH}/1,:2,:7)`));
+    expect(r.primary()).toEqual({ color: WORD, text: 'plain' });
+    expect(r.drawn(HEAD)).toBe('A ');
+  });
+
+  it('draws the word "A" in the word color, the sentence around it', () => {
+    const r = positionsView(epub(TEXT), { start: 0, end: 0.1, charStart: 0, charEnd: 1 });
+    r.read(sentence, cfi(`epubcfi(${PATH}/1:0)`));
+    expect(r.primary()).toEqual({ color: WORD, text: 'A' });
+    expect((r.view._spotlights.get('ReadAloudActiveSegment') as any).value).toBe(`epubcfi(${PATH}/1,:0,:1)`);
+    expect(r.drawn(TAIL)).toBe(' plain sentence follows.');
+    expect(r.cloneIntoReader).toHaveBeenCalled();
+    expect(r.error).not.toHaveBeenCalled();
+  });
+
+  it('draws a one-character Segment, a heading "7", in the sentence color with a voice without word timing', () => {
+    const r = positionsView(epub('7'), wholeOf('7'));
+    const seven = { selector: cfi(`epubcfi(${PATH}/1:0)`), text: '7' };
+    r.read(seven, seven.selector);
+    expect(r.primary()).toEqual({ color: SENTENCE, text: '7' });
+  });
+
+  it('repairs a point that also names the wrong text step, through the text-step rewrites (issue #4)', () => {
+    const r = positionsView(epub(TEXT), { start: 0, end: 0.1, charStart: 0, charEnd: 1 });
+    r.read(sentence, cfi(`epubcfi(${PATH}/3:0)`));
+    expect(r.primary()).toEqual({ color: WORD, text: 'A' });
+  });
+
+  it('still paints the primary transparent when the character at the point is not the word', () => {
+    const r = positionsView(epub(TEXT), { start: 0, end: 0.1, charStart: 0, charEnd: 1 });
+    // "A" is being read, but the point is at "p"
+    r.read(sentence, cfi(`epubcfi(${PATH}/1:2)`));
+    expect(r.primary().color).toBe('#00000000');
+  });
+});
+
+describe("the last block of a web snapshot, named from the source while the view appends its own elements (issue #236)", () => {
+  // Zotero names a block `:last-child` / `:last-of-type` from the source
+  // file (reader.js:62854-62872, worker.js:166654-166687), and resolves it
+  // with `body.querySelector` on the live page (reader.js:60569-60609),
+  // whose body ends with the view's annotation overlay and Read Aloud's
+  // jump button, two `<div>`s (reader.js:53721-53734, 44897).
+  const LAST = 'The last paragraph ends here.';
+  /** The live body: the source's children, then the view's two `<div>`s. */
+  function snapshot(source: Array<{ tag: string; text: string }>) {
+    const live = [...source, { tag: 'div', text: '' }, { tag: 'div', text: '' }].map((el) => ({ ...el, p: paragraph([el.text]) }));
+    /** `body > tag:pseudo`, as querySelector answers on the live body. */
+    const select = (value: string) => {
+      const m = /^body > (\w+)(?::([\w-]+)(?:\((\d+)\))?)?$/.exec(value);
+      if (!m) return null;
+      const [, tag, pseudo, nArg] = m;
+      const n = Number(nArg);
+      const of = live.filter((e) => e.tag === tag);
+      const pick = {
+        undefined: of[0],
+        'last-child': live[live.length - 1],
+        'last-of-type': of[of.length - 1],
+        'nth-child': live[n - 1],
+        'nth-last-child': live[live.length - n],
+        'nth-last-of-type': of[of.length - n],
+      }[String(pseudo)];
+      return pick && pick.tag === tag ? pick : null;
+    };
+    return (sel: any) => {
+      if (sel?.type !== 'CssSelector') return null;
+      const el = select(String(sel.value));
+      if (!el) return null;
+      const node = el.p.texts[0];
+      const ref = sel.refinedBy;
+      return ref ? el.p.range(node, ref.start, node, ref.end) : el.p.range(node, 0, node, node.data.length);
+    };
+  }
+  const SOURCE = [{ tag: 'h1', text: 'Title.' }, { tag: 'p', text: 'One.' }, { tag: 'p', text: 'Two.' }, { tag: 'p', text: LAST }];
+  const css = (value: string, refinedBy?: { start: number; end: number }) => ({
+    type: 'CssSelector',
+    value,
+    ...(refinedBy ? { refinedBy: { type: 'TextPositionSelector', ...refinedBy } } : {}),
+  });
+
+  it('(control) a block named by its index is drawn: the word, the sentence around it', () => {
+    const r = positionsView(snapshot(SOURCE), { start: 0.1, end: 0.4, charStart: 0, charEnd: 3 });
+    r.read({ selector: css('body > p:nth-child(3)'), text: 'Two.' }, css('body > p:nth-child(3)', { start: 0, end: 3 }));
+    expect(r.primary()).toEqual({ color: WORD, text: 'Two' });
+  });
+
+  it('draws the word of the last paragraph in the word color, and the sentence around it', () => {
+    const r = positionsView(snapshot(SOURCE), { start: 0.1, end: 0.4, charStart: 4, charEnd: 8 });
+    r.read({ selector: css('body > p:last-child'), text: LAST }, css('body > p:last-child', { start: 4, end: 8 }));
+    expect(r.primary()).toEqual({ color: WORD, text: 'last' });
+    expect((r.view._spotlights.get('ReadAloudActiveSegment') as any).refinedBy).toEqual({ type: 'TextPositionSelector', start: 4, end: 8 });
+    expect([r.drawn(HEAD), r.drawn(TAIL)]).toEqual(['The ', ' paragraph ends here.']);
+    expect(r.error).not.toHaveBeenCalled();
+  });
+
+  it('draws the last paragraph in the sentence color with a voice without word timing', () => {
+    const r = positionsView(snapshot(SOURCE), wholeOf(LAST));
+    const seg = { selector: css('body > p:last-child'), text: LAST };
+    r.read(seg, seg.selector);
+    expect(r.primary()).toEqual({ color: SENTENCE, text: LAST });
+  });
+
+  it('finds the last <div> of the source, which `div:last-of-type` no longer names', () => {
+    const source = [{ tag: 'div', text: 'Nav.' }, { tag: 'p', text: 'Body.' }, { tag: 'div', text: LAST }, { tag: 'p', text: 'Footer.' }];
+    const r = positionsView(snapshot(source), wholeOf(LAST));
+    const seg = { selector: css('body > div:last-of-type'), text: LAST };
+    r.read(seg, seg.selector);
+    expect(r.primary()).toEqual({ color: SENTENCE, text: LAST });
+  });
+
+  it('still paints the primary transparent when no block counted back shows the text being read', () => {
+    const r = positionsView(snapshot(SOURCE), wholeOf('Not on this page.'));
+    const seg = { selector: css('body > p:last-child'), text: 'Not on this page.' };
+    r.read(seg, seg.selector);
+    expect(r.primary().color).toBe('#00000000');
+  });
+});

@@ -825,3 +825,4 @@ then) and is in the git history before that day.
 ### [2026-11-01](NOTES_2026-11-01.md)
 
 - A one-letter word gets a point CFI in an EPUB, so its word position shows no text (issue #209)
+- Zotero's EPUB resolver gives a point no end, and the snapshot view appends two `<div>`s after the page's last block (issues #235, #236)

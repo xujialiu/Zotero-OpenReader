@@ -245,6 +245,15 @@ interface SentencePiece {
  */
 const PIECES_READY = '_zoteroTTSSentencePieces';
 
+/**
+ * How many elements of its own a snapshot view may have appended after the
+ * page's last block, counted back over when a `:last-child` no longer
+ * resolves (issue #236). Zotero 10.0.6 appends two; the margin covers a
+ * later Zotero adding one or two more, and each candidate is still checked
+ * against the text being read.
+ */
+const MAX_APPENDED_TO_BODY = 4;
+
 const isGranularity = (g: unknown): g is Granularity => g === 'word' || g === 'sentence' || g === 'paragraph';
 
 /** The prototype in `obj`'s chain that owns the method, so the patch lands where Zotero defined it. */
@@ -613,21 +622,51 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
     }
   }
   /**
-   * Rewrite the selector's text steps through the resolver's own convention;
-   * only a rewrite whose displayed text equals `text` counts. Two shapes: a
-   * path ending in a text step (offsets bare, one text node) is retried with
-   * the candidate steps; a range whose endpoints sit in different text nodes
-   * of the same parent (`,/3:64,/5:130`) is rewritten through the parent's
-   * real child structure, discovered with a one-character probe. Candidates
-   * are cloned before probing — reader code cannot read a sandbox object.
+   * Rewrite the selector into one that shows `text`; only a rewrite whose
+   * displayed text equals `text` counts. The shapes:
+   *
+   * - A point CFI, `epubcfi(P:o)`: Zotero writes a span of one character
+   *   that way (a word "A", a heading "7"), and the EPUB view resolves a
+   *   point to an empty range (issue #235). It is the range `P,:o,:o+1`,
+   *   which then goes through the text-step rewrites below as well.
+   * - A path ending in a text step (offsets bare, one text node) is retried
+   *   with the candidate steps (issues #3/#4).
+   * - A range whose endpoints sit in different text nodes of the same
+   *   parent (`,/3:64,/5:130`) is rewritten through the parent's real child
+   *   structure, discovered with a one-character probe.
+   * - A snapshot's `body > x:last-child` or `:last-of-type`: Zotero names
+   *   the block from the source file, while the view has appended elements
+   *   of its own to the live `<body>` (issue #236). It is counted back over
+   *   them as `:nth-last-child(k)` / `:nth-last-of-type(k)`.
+   *
+   * Candidates are cloned before probing — reader code cannot read a
+   * sandbox object — and keep the selector's TextPositionSelector refinement.
    */
   function repairSelectorForText(reader: unknown, view: any, selector: any, text: string): any {
-    const value = typeof selector?.value === 'string' ? selector.value : '';
+    let value = typeof selector?.value === 'string' ? selector.value : '';
     if (!text) return null;
     const mk = (v: string) => {
-      const raw = { type: selector.type, conformsTo: selector.conformsTo, value: v };
+      const ref = selector.refinedBy;
+      const raw: Record<string, unknown> = { type: selector.type, conformsTo: selector.conformsTo, value: v };
+      if (ref) raw.refinedBy = { type: ref.type, start: ref.start, end: ref.end };
       return deps.cloneIntoReader ? deps.cloneIntoReader(reader, raw) : raw;
     };
+    if (selector?.type === 'CssSelector') {
+      const last = /^(body > [^\s>]+?):last-(child|of-type)(?=$|\s)/.exec(value);
+      if (!last) return null;
+      // The view appends two today: the annotation overlay and Read Aloud's jump button
+      for (let k = 2; k <= MAX_APPENDED_TO_BODY + 1; k++) {
+        const candidate = mk(`${last[1]}:nth-last-${last[2]}(${k})${value.slice(last[0].length)}`);
+        if (showsText(view, candidate, text)) return candidate;
+      }
+      return null;
+    }
+    const point = /^epubcfi\(([^,[\]]+):(\d+)\)$/.exec(value);
+    if (point) {
+      value = `epubcfi(${point[1]},:${point[2]},:${Number(point[2]) + 1})`;
+      const candidate = mk(value);
+      if (showsText(view, candidate, text)) return candidate;
+    }
     const single = /^epubcfi\(([^,[\]]*)\/(\d*[13579])(,[^,[\]]*,[^,[\]]*)?\)$/.exec(value);
     if (single) {
       for (const step of [1, 3, 5, 7, 9]) {
