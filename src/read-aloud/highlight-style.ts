@@ -94,7 +94,7 @@
 import { createProtoPatches } from './proto-patches';
 import type { WordTiming } from '../core/highlight-level';
 import { WHOLE_SEGMENT_END_SECONDS } from './remote-interface';
-import { segmentTextOf } from './range-text';
+import { rangeParts, rangeSpells } from './range-text';
 
 export interface HighlightStyle {
   /** '#rrggbb' */
@@ -572,18 +572,18 @@ export function createHighlightStyling(deps: HighlightStylingDeps): HighlightSty
   };
   /**
    * Whether the selector shows `text` (normalized, non-empty): its displayed
-   * text is it, or the same range spelled as Zotero spells a Segment is — a
-   * newline for a `<br>`, the alt text for an inline image, which the page
-   * does not hold (issue #209). A selector on the wrong node shows the wrong
-   * text either way (issues #3/#4).
+   * text is it, or its range does once a `<br>` counts as the newline Zotero
+   * read and an inline image as a gap for whatever Zotero read for it — the
+   * page holds neither (issue #209, range-text.ts). A selector on the wrong
+   * node shows the wrong text around the gaps too (issues #3/#4).
    */
   const showsText = (view: any, sel: any, text: string): boolean => {
     try {
       const range = sel != null ? view.toDisplayedRange(sel) : null;
       if (!range) return false;
       if (normText(range.toString()) === text) return true;
-      const spelled = segmentTextOf(range);
-      return spelled !== null && normText(spelled) === text;
+      const parts = rangeParts(range);
+      return parts !== null && rangeSpells(parts, text, normText);
     } catch (e) {
       deps.error(e);
       return false;

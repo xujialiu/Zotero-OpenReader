@@ -7,7 +7,12 @@
  * resolved EPUB CFI or snapshot selector does.
  */
 
-export type Child = string | { br: true } | { img: Record<string, string> } | { span: Child[] };
+/**
+ * An `img` holds the attributes the page has; `source` is the text Zotero's
+ * document worker read for it from the file, when the reader's page no
+ * longer says it (the EPUB view relabels every image "Zoom In").
+ */
+export type Child = string | { br: true } | { img: Record<string, string>; source?: string } | { span: Child[] };
 
 export const BR = { br: true } as const;
 

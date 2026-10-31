@@ -1,55 +1,74 @@
 import { describe, expect, it } from 'vitest';
-import { segmentTextOf } from '../../src/read-aloud/range-text';
+import { IMAGE, rangeParts, rangeSpells } from '../../src/read-aloud/range-text';
 import { BR, paragraph, type Child } from './fake-dom';
 
-/** The text of a range from the start of the paragraph's first text node to the end of its last. */
+/** NFC, white space collapsed and trimmed: what highlight-style compares. */
+const norm = (s: string) => s.normalize('NFC').replace(/\s+/g, ' ').trim();
+
+/** A range from the start of the paragraph's first text node to the end of its last. */
 function whole(children: Child[]) {
   const p = paragraph(children);
   const last = p.texts[p.texts.length - 1];
-  return segmentTextOf(p.range(p.texts[0], 0, last, last.data.length));
+  return p.range(p.texts[0], 0, last, last.data.length);
 }
 
-describe('segmentTextOf: a range spelled as Read Aloud spells its Segment (issue #209)', () => {
+const spells = (children: Child[], segment: string) => rangeSpells(rangeParts(whole(children))!, norm(segment), norm);
+
+describe('rangeParts: what a range covers (issue #209)', () => {
   it('is the covered slice of one text node', () => {
     const p = paragraph(['Roses are red.']);
-    expect(segmentTextOf(p.range(p.texts[0], 6, p.texts[0], 9))).toBe('are');
+    expect(rangeParts(p.range(p.texts[0], 6, p.texts[0], 9))).toEqual(['are']);
   });
 
-  it('puts a newline where a <br> sits inside the range', () => {
-    expect(whole(['Roses are red,', BR, 'Violets are blue.'])).toBe('Roses are red,\nViolets are blue.');
+  it('gives a newline for a <br> inside the range and a gap for an <img>', () => {
+    expect(rangeParts(whole(['Roses are red,', BR, 'Violets ', { img: { alt: 'x' } }, ' blue.']))).toEqual(['Roses are red,', '\n', 'Violets ', IMAGE, ' blue.']);
   });
 
   it('leaves out a <br> right after the range ends', () => {
     const p = paragraph(['Roses are red,', BR, 'Violets are blue.']);
-    expect(segmentTextOf(p.range(p.texts[0], 0, p.texts[0], 14))).toBe('Roses are red,');
+    expect(rangeParts(p.range(p.texts[0], 0, p.texts[0], 14))).toEqual(['Roses are red,']);
   });
 
-  it('puts an inline image’s alt text where the image sits', () => {
-    expect(whole(['Roses are red, ', { img: { alt: 'violets' } }, ' are blue.'])).toBe('Roses are red, violets are blue.');
-  });
-
-  it('prefers an image’s aria-label to its alt', () => {
-    expect(whole(['Let ', { img: { 'aria-label': 'x sub i', alt: 'x_i' } }, ' be given.'])).toBe('Let x sub i be given.');
-  });
-
-  it('gives nothing for an image with no alt, an empty one or a path-like one', () => {
-    expect(whole(['A ', { img: {} }, ' b.'])).toBe('A  b.');
-    expect(whole(['A ', { img: { alt: '  ' } }, ' b.'])).toBe('A  b.');
-    expect(whole(['A ', { img: { alt: 'images/fig1.png' } }, ' b.'])).toBe('A  b.');
-    expect(whole(['A ', { img: { alt: 'fig1.png' } }, ' b.'])).toBe('A  b.');
-    expect(whole(['A ', { img: { alt: 'https://example.org/x' } }, ' b.'])).toBe('A  b.');
-  });
-
-  it('reads an alt with white space as prose, even when it names a file', () => {
-    expect(whole(['A ', { img: { alt: 'see fig1.png' } }, ' b.'])).toBe('A see fig1.png b.');
-  });
-
-  it('reads text inside an inline element and a <br> inside it', () => {
-    expect(whole(['One ', { span: ['two', BR, 'three'] }, ' four.'])).toBe('One two\nthree four.');
+  it('reads text and a <br> inside an inline element', () => {
+    expect(rangeParts(whole(['One ', { span: ['two', BR, 'three'] }, ' four.']))).toEqual(['One ', 'two', '\n', 'three', ' four.']);
   });
 
   it('answers null for a range it cannot walk', () => {
-    expect(segmentTextOf({ toString: () => 'anything' })).toBeNull();
-    expect(segmentTextOf(null)).toBeNull();
+    expect(rangeParts({ toString: () => 'anything' })).toBeNull();
+    expect(rangeParts(null)).toBeNull();
+  });
+});
+
+describe('rangeSpells: the Segment around the images (issue #209)', () => {
+  it('matches an unspaced <br>, which Zotero spells as a space', () => {
+    expect(spells(['Roses are red,', BR, 'Violets are blue.'], 'Roses are red, Violets are blue.')).toBe(true);
+  });
+
+  it('takes whatever Zotero read for an image, whatever the page says about it', () => {
+    // The EPUB view relabels the image; Zotero read "x over y" from the file
+    const relabeled: Child[] = ['The ratio ', { img: { alt: 'x over y', 'aria-label': 'Zoom In' } }, ' stays fixed.'];
+    expect(spells(relabeled, 'The ratio x over y stays fixed.')).toBe(true);
+    expect(spells(['Let ', { img: { 'aria-label': 'Zoom In', alt: 'xi.png' } }, ' be given.'], 'Let x sub i be given.')).toBe(true);
+  });
+
+  it('matches an image Zotero gave no text', () => {
+    expect(spells(['A small figure ', { img: { alt: 'figure-1.png' } }, ' sits here.'], 'A small figure sits here.')).toBe(true);
+  });
+
+  it('matches two images, and text after the last', () => {
+    expect(spells(['If ', { img: {} }, ' and ', { img: {} }, ' hold, stop.'], 'If a > b and b > c hold, stop.')).toBe(true);
+  });
+
+  it('refuses text that differs outside the gaps (the wrong node, issue #4)', () => {
+    expect(spells(['The ratio ', { img: {} }, ' stays fixed.'], 'The ratio x over y moves.')).toBe(false);
+    expect(spells(['Roses are red,'], 'Violets are blue.')).toBe(false);
+    expect(spells(['If ', { img: {} }, ' and ', { img: {} }, ' hold.'], 'If a and b and c fail.')).toBe(false);
+  });
+
+  it('refuses a range that is only an image, which would match anything', () => {
+    const p = paragraph(['a', { img: { alt: 'x' } }, 'b']);
+    const onlyImage = rangeParts(p.range(p.texts[0], 1, p.texts[1], 0))!;
+    expect(onlyImage).toEqual(['', IMAGE, '']);
+    expect(rangeSpells(onlyImage, 'Any sentence at all.', norm)).toBe(false);
   });
 });

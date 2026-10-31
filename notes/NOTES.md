@@ -820,3 +820,4 @@ then) and is in the git history before that day.
 - Fish Audio reads both stats bare now, and its `language` field reads 2/50 as a fraction (issue #99)
 - No request-level lever steadies Fish Speech across stats; some stats loop for a minute (issue #99)
 - Zotero spells a Segment with a newline per `<br>` and an image's text per `<img>`, which the page does not hold (issue #209)
+- The EPUB view relabels every image "Zoom In", so an image's Segment text cannot be read back from the page (issue #209)

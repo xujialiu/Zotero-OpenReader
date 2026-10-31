@@ -1483,7 +1483,7 @@ describe('a sentence holding an unspaced <br/> or an inline image with alt text 
    */
   const segmentTextOf = (children: Child[]) =>
     children
-      .map((c) => (typeof c === 'string' ? c : 'br' in c ? '\n' : 'img' in c ? (c.img['aria-label'] ?? c.img.alt ?? '') : ''))
+      .map((c) => (typeof c === 'string' ? c : 'br' in c ? '\n' : 'img' in c ? (c.source ?? c.img['aria-label'] ?? c.img.alt ?? '') : ''))
       .join('')
       .replace(/\s+/g, ' ')
       .trim();
@@ -1560,6 +1560,9 @@ describe('a sentence holding an unspaced <br/> or an inline image with alt text 
     ['an unspaced <br/>', ['Roses are red,', BR, 'Violets are blue.']],
     ['an inline <img> with alt text', ['Roses are red, ', { img: { alt: 'violets' } }, ' are blue.']],
     ['an inline <img> with an aria-label', ['Roses are red, ', { img: { 'aria-label': 'violets', alt: 'v.png' } }, ' are blue.']],
+    // The EPUB view relabels every image "Zoom In" (reader.js 55590-55601); Zotero read the file's alt
+    ['an EPUB image the reader relabeled', ['Roses are red, ', { img: { 'aria-label': 'Zoom In', alt: 'violets' }, source: 'violets' }, ' are blue.']],
+    ['an EPUB image whose own aria-label the reader replaced', ['Roses are red, ', { img: { 'aria-label': 'Zoom In', alt: 'v.png' }, source: 'violets' }, ' are blue.']],
     ['(control) a <br/> followed by a newline', ['Roses are red,', BR, '\nViolets are blue.']],
   ] as Array<[string, Child[]]>)('%s, at the default highlight levels', (_name, children) => {
     it('a voice without word timing: the sentence is highlighted, not painted transparent', () => {

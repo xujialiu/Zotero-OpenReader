@@ -2,16 +2,21 @@
 
 # A sentence holding a line break or an inline image keeps its highlight (issue #209)
 
-Written for 1.16.16-beta4, before its first live run. Every build stamps
-its own time into the bundle, so the brief names the hashes to expect.
+First run 2026-10-31 on 1.16.16-beta4 (items 3, 4 and 7 failed on the
+EPUB, [#209 comment](https://github.com/xujialiu/Zotero-OpenReader/issues/209#issuecomment-6545425233));
+the expected outputs below are corrected from its table for 1.16.16-beta5.
+Every build stamps its own time into the bundle, so the brief names the
+hashes to expect.
 
 In an EPUB or a web snapshot, Zotero spells a Segment's text with a newline
 for an unspaced `<br/>` and with an inline image's `aria-label` or prose
-`alt`, while the page holds neither. Before the fix the plugin took that
-for a sentence on the wrong text: at Word, a voice without word timing
-showed nothing for the sentence, and a voice with word timings showed the
-word without the sentence around it. Expected outputs below come from the
-unit tests and the design; the first run corrects them from its table.
+`alt`, read from the source file, while the page holds neither. Before the
+fix the plugin took that for a sentence on the wrong text: at Word, a voice
+without word timing showed nothing for the sentence, and a voice with word
+timings showed the word without the sentence around it. The EPUB view
+also relabels every image not inside a link `aria-label="Zoom In"`
+(Zotero 10.0.6 `reader.js:55590-55601`), so the image's text cannot be read
+back from the page; the fix leaves a gap there instead.
 
 ## Prerequisites and permitted state
 
@@ -49,32 +54,40 @@ paragraph is being read. The plugin's sentence and word colors are
 ### 1
 
 1. **The beta is the one installed.** The installed bundle holds
-   `function segmentTextOf` and hashes to the bundle hash the brief names,
-   and `diagnostics.startup()` lists no failed step.
+   `function rangeSpells` (1.16.16-beta4 held `function segmentTextOf`
+   instead) and hashes to the bundle hash the brief names, and
+   `diagnostics.startup()` lists no failed step.
 
 ### 2
 
 2. **A stanza with unspaced line breaks, a voice without word timing
    (EPUB).** Read paragraph 2. Expected: the primary's color is the
-   plugin's sentence color, not `#00000000`; `diagnostics.highlight()`
-   shows `primaryShown: true` on the DOM view; a screenshot shows the
-   whole stanza highlighted. Was: `#00000000`, nothing drawn while the
-   stanza was read.
+   plugin's sentence color (`#ffff00b3` at the defaults), not
+   `#00000000`; `diagnostics.highlight()` shows `primaryShown: true` on
+   the DOM view; a screenshot shows the whole stanza highlighted, all four
+   lines. `toString()` alone disagrees with the Segment here, which is
+   what makes the pass mean something. Was: `#00000000`, nothing drawn
+   while the stanza was read.
 
 ### 3
 
 3. **Inline images with alt text or an aria-label, a voice without word
    timing (EPUB).** Read paragraphs 4 and 5. Expected as in item 2 for
-   each sentence.
+   each sentence, though every image on the page reads
+   `aria-label="Zoom In"`. 1.16.16-beta4 failed here: `#00000000`,
+   `sentencePieces: false`.
 
 ### 4
 
 4. **The same paragraphs with a voice with word timings (EPUB).** Read
-   paragraphs 2, 4 and 5. Expected, sampled mid-sentence:
+   paragraphs 2, 4 and 5. Expected, sampled mid-sentence on a word that is
+   on the page (a sample on the image's own text, "y" of "x over y", has
+   no place on the page: `primaryShown` false there is not a failure):
    `diagnostics.highlight()` `sentencePieces` is an object, not `false`,
-   its `head` and `tail` together holding the sentence's page text around
-   the current word; the primary's color is the plugin's word color; a
-   screenshot shows the word inside the highlighted sentence. Was:
+   its `head`, the word and its `tail` together the sentence's page text
+   (read uncut; the diagnostic cuts at 40 characters); the primary's color
+   is the plugin's word color (`#3478f6b3` at the defaults); a screenshot
+   shows the word inside the highlighted sentence. Was:
    `sentencePieces: false`, the word alone.
 
 ### 5
@@ -93,6 +106,11 @@ paragraph is being read. The plugin's sentence and word colors are
 7. **Nothing in the logs.** Across items 2 to 6, `zotero_read_logs` holds
    no `highlight: word position shows the wrong text and no rewrite fixes
    it` and no `highlight: sentence selector does not resolve to the
-   sentence and no rewrite does` for paragraphs 2, 4 and 5, and
-   `zotero_read_errors` holds no error from the plugin (a Permission
-   denied or dead-object line from the walk over the page would be one).
+   sentence and no rewrite does`, and `zotero_read_errors` holds no error
+   from the plugin (a Permission denied or dead-object line from the walk
+   over the page would be one). Each named line is written once per plugin
+   lifetime, so judge the whole log since the install, not one block.
+
+The snapshot's paragraph 7 (`body > p:last-child`) is not drawn with or
+without the fix: the reader appends two `<div>`s to the body, so the
+selector resolves to nothing. It is not part of this case.
