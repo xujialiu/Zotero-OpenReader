@@ -2,19 +2,20 @@
 
 # A one-letter word in an EPUB and a snapshot's last block keep their highlight (issues #235, #236)
 
-Written for 1.16.16-beta6. Zotero writes the position of a span of one
-character in an EPUB as a point CFI, `epubcfi(<path>:<o>)`, which the EPUB
-view resolves to an empty range (`EpubCFI.toRange` sets no end, Zotero
-10.0.6 `reader.js:47006-47054`): the word "A", "I" or "a", and a
-one-character Segment such as a heading "7". In a web snapshot, Zotero
-names a block from the source file, so the page's last block is
-`body > p:last-child`, while the view has appended two `<div>`s of its own
-to the live body (the annotation overlay and Read Aloud's jump button,
-`reader.js:53721-53734`, `44897`), and the name resolves to nothing. Before
-the fix the plugin painted the primary transparent for both. The fix
-rewrites the point as the one-character range and counts a `:last-child`
-back over the appended elements, keeping a rewrite only when it shows the
-text being read.
+First run 2026-11-01 on 1.16.16-beta6, all six items PASS
+([#235 closing comment](https://github.com/xujialiu/Zotero-OpenReader/issues/235#issuecomment-6546535080)).
+Zotero writes the position of a span of one character in an EPUB as a
+point CFI, `epubcfi(<path>:<o>)`, which the EPUB view resolves to an empty
+range (`EpubCFI.toRange` sets no end, Zotero 10.0.6
+`reader.js:47006-47054`): the word "A", "I" or "a", and a one-character
+Segment such as a heading "7". In a web snapshot, Zotero names a block
+from the source file, so the page's last block is `body > p:last-child`,
+while the view has appended two `<div>`s of its own to the live body (the
+annotation overlay and Read Aloud's jump button, `reader.js:53721-53734`,
+`44897`), and the name resolves to nothing. Before the fix the plugin
+painted the primary transparent for both. The fix rewrites the point as
+the one-character range and counts a `:last-child` back over the appended
+elements, keeping a rewrite only when it shows the text being read.
 
 Only Word, the default level, is changed. At Sentence only, Zotero draws
 its own Segment position and the plugin leaves it alone: the snapshot's
@@ -83,8 +84,9 @@ gives them.
    Read paragraph 7 with the System voice. Expected: the primary's color
    is the sentence color; its selector is `body > p:nth-last-child(3)` and
    draws the paragraph's whole text; `primaryShown: true`; the log holds
-   `highlight: sentence selector repaired` and `highlight: word position
-   repaired before drawing` if this is the first repair since the install.
+   `highlight: sentence selector repaired`. The word-position line is
+   written once per plugin lifetime, at item 2's "A" when the items run
+   in order, so it is not in this block.
    Was: `#00000000`, nothing drawn (the selector resolved to null).
 
 ### 4

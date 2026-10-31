@@ -1785,6 +1785,20 @@ describe("the last block of a web snapshot, named from the source while the view
     expect(r.primary()).toEqual({ color: SENTENCE, text: LAST });
   });
 
+  it('keeps the rest of the name when the last block is a wrapper: `body > div:last-child > p:nth-child(2)`', () => {
+    // The article sits in the source's last <div>; on the live page that name points at the view's last <div>
+    const second = paragraph(['Second paragraph of the article.']);
+    const r = positionsView((sel: any) => {
+      if (sel?.value !== 'body > div:nth-last-child(3) > p:nth-child(2)') return null;
+      const node = second.texts[0];
+      return second.range(node, 0, node, node.data.length);
+    }, wholeOf('Second paragraph of the article.'));
+    const seg = { selector: css('body > div:last-child > p:nth-child(2)'), text: 'Second paragraph of the article.' };
+    r.read(seg, seg.selector);
+    expect(r.primary()).toEqual({ color: SENTENCE, text: 'Second paragraph of the article.' });
+    expect((r.view._spotlights.get('ReadAloudActiveSegment') as any).value).toBe('body > div:nth-last-child(3) > p:nth-child(2)');
+  });
+
   it('still paints the primary transparent when no block counted back shows the text being read', () => {
     const r = positionsView(snapshot(SOURCE), wholeOf('Not on this page.'));
     const seg = { selector: css('body > p:last-child'), text: 'Not on this page.' };
