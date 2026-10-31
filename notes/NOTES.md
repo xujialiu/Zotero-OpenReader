@@ -813,3 +813,9 @@ then) and is in the git history before that day.
 ### [2026-10-26](NOTES_2026-10-26.md)
 
 - Cleanup checks must follow the last observer-triggering write (issue #232)
+
+### [2026-10-31](NOTES_2026-10-31.md)
+
+- A language cue does not steady Fish Speech on a slash; a delivery cue does (issue #99)
+- Fish Audio reads both stats bare now, and its `language` field reads 2/50 as a fraction (issue #99)
+- No request-level lever steadies Fish Speech across stats; some stats loop for a minute (issue #99)

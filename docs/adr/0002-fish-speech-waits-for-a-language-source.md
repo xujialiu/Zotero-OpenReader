@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by 0022
 date: 2026-09-13
 issue: 99
 ---
@@ -8,6 +8,10 @@ issue: 99
 
 *The product argument — what this is for and what it gives up — is
 [design 0002](../design/0002-fish-speech-waits-for-a-language-source.md).*
+
+*Superseded by [ADR 0022](0022-fish-speech-gets-no-short-text-cue.md)
+(2026-10-31): measured over many readings, a language cue does not help
+Fish Speech, so the question below no longer decides anything.*
 
 ADR 0001's language hint is applied to Fish Audio (provider id `fish`) only.
 Fish Speech, the same model on a server of the user's own, gets no hint and

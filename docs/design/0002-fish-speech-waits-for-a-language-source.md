@@ -3,6 +3,9 @@
 *The engineering half of this decision is
 [ADR 0002](../adr/0002-fish-speech-waits-for-a-language-source.md).*
 
+*Replaced by [design 0022](0022-short-stats-on-your-own-fish-speech-server-stay-as-they-are.md):
+telling a Fish Speech voice its language turned out not to help.*
+
 Design 0001 fixed short phrases for Fish Audio's voices by telling Fish which
 language to speak. The same model running on a server of the owner's own —
 Fish Speech — does not get that help yet, on purpose.
