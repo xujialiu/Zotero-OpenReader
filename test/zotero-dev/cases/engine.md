@@ -186,9 +186,13 @@ isolation rules, and close only the fixtures opened for this run.
 13. **Errors.** A failed request (a server stopped, a wrong key): the
     highlight lands on the segment, `error` is one of `network`,
     `quota-exceeded`, `unknown` (a provider's 429 is `quota-exceeded`), the
-    manager pauses and the Player shows "!" with the message; Play fails
-    again at once without a request; Retry asks again. A Zotero voice's
-    `daily-limit-exceeded` passes through (item 21).
+    manager pauses and the Player shows "!" with the message; Retry asks
+    again. Play asks again too on Zotero 10.0.7 and later (its `play()`
+    clears the failures first, issue #238): one more request
+    (`store.requests` up one), `manager.error` null at once, and the error
+    back only if the server still fails. Before 10.0.7 Play failed again at
+    once without a request. A Zotero voice's `daily-limit-exceeded` passes
+    through (item 21).
 
 ### 14
 
@@ -307,3 +311,22 @@ isolation rules, and close only the fixtures opened for this run.
     `stats.adopted` 1 in the new instance, `controller.ours` true,
     `session.paused` true at the same `position`; Play goes on from that
     sentence. Under a paused session the same, without a sound.
+
+### 25
+
+25. **Play after a pause on Zotero 10.0.7** (issue #238). Zotero 10.0.7's
+    `play()` calls the controller's `clearFailures()` before unpausing
+    (reader.js 82616); before 1.16.16-beta7 the Engine's controller had
+    none, the call threw, and no paused reading resumed. A plugin voice
+    playing `fixture-a.pdf` for a few seconds, then paused, then resumed
+    by each route in turn: a trusted Shift+Space into the reader, and the
+    Player's Play button (`button.play`), pausing again between them.
+    Expected for each, read ~2.5 s and ~3 s after the resume:
+    `manager.paused` false; `session.paused` false and `playing` true;
+    `playbackTime` larger at the second read; `audio.state` `running`;
+    the Play button's `aria-label` "Pause"; no `clearFailures is not a
+    function` in the console from the run (`Services.console`, by
+    timestamp). Was, on 1.16.16-beta6: `manager.paused` false while
+    `session.paused` true, `playing` false, `playbackTime` unchanged, and
+    the TypeError at `reader.js:82616` once per press. A pause shorter than
+    5 s resumes at the exact place (item 11).
