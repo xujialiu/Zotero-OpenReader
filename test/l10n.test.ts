@@ -59,7 +59,9 @@ const attribute = (m: Message, name: string) => m.attributes.find((a: Attribute)
 
 /** The ids the pane's markup asks for, with the custom attributes each element names in data-l10n-attrs. */
 function markupIds(): Map<string, string[]> {
-  const markup = readFileSync(join(root, 'addon', 'content', 'preferences.xhtml'), 'utf8');
+  // The pane, and the windows the plugin opens (the replacements window, issue #237)
+  const content = join(root, 'addon', 'content');
+  const markup = readdirSync(content).filter((name) => name.endsWith('.xhtml')).map((name) => readFileSync(join(content, name), 'utf8')).join('\n');
   const out = new Map<string, string[]>();
   for (const tag of markup.match(/<[^>]*\sdata-l10n-id="[^"]+"[^>]*>/g) ?? []) {
     const id = /data-l10n-id="([^"]+)"/.exec(tag)![1];

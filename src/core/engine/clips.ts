@@ -57,6 +57,10 @@ export class ClipStore<Clip extends EngineClip> {
   readonly clips = new LruMap<number, Clip>(CLIP_CACHE_CAPACITY);
   readonly timings = new LruMap<number, ArrayLike<WordTiming>>(CLIP_CACHE_CAPACITY);
   readonly inflight = new Map<number, Promise<Clip>>();
+  /** The text each kept clip was made from, replacements applied (issue #237): an edit asks again only where it differs. */
+  readonly speech = new Map<number, string>();
+  /** Bumped per segment by `forget`: an answer asked for before it is handed to its caller but not kept. */
+  private readonly epochs = new Map<number, number>();
   readonly timer = new FetchTimer();
   /** Fetches issued, for the diagnostics and the tests. */
   requests = 0;
@@ -90,7 +94,10 @@ export class ClipStore<Clip extends EngineClip> {
     const inflight = this.inflight.get(index);
     if (inflight) return inflight;
     const segment = this.deps.segments[index];
-    const job = this.fetchAndDecode(index, segment).finally(() => this.inflight.delete(index));
+    // A request `forget` let go of must not take a newer one's place with it
+    const job: Promise<Clip> = this.fetchAndDecode(index, segment).finally(() => {
+      if (this.inflight.get(index) === job) this.inflight.delete(index);
+    });
     this.inflight.set(index, job);
     return job;
   }
@@ -132,12 +139,44 @@ export class ClipStore<Clip extends EngineClip> {
     this.deps.signal = undefined;
   }
 
+  /**
+   * A replacement edit changed these segments' text (issue #237): their
+   * clips go, and an answer on its way for one of them is not kept, so the
+   * next ask reaches the interface with the new text.
+   */
+  forget(indices: Iterable<number>): void {
+    for (const index of indices) {
+      this.clips.delete(index);
+      this.timings.delete(index);
+      this.speech.delete(index);
+      this.durations.delete(index);
+      this.inflight.delete(index);
+      this.epochs.set(index, (this.epochs.get(index) ?? 0) + 1);
+    }
+    this.timeModel = null;
+  }
+
+  /** Take over another store's kept clips of the same voice and sentences, except `except` (issue #237). */
+  seed(from: ClipStore<Clip>, except: ReadonlySet<number>): void {
+    for (const [index, clip] of from.clips) {
+      if (except.has(index)) continue;
+      this.clips.set(index, clip);
+      const timings = from.timings.get(index);
+      if (timings) this.timings.set(index, timings);
+      const speech = from.speech.get(index);
+      if (speech !== undefined) this.speech.set(index, speech);
+      this.durations.set(index, clip.duration);
+    }
+    this.timeModel = null;
+  }
+
   /** Stop keeping anything; answers on their way are decoded no more. */
   close(): void {
     this.closed = true;
     this.clips.clear();
     this.timings.clear();
     this.inflight.clear();
+    this.speech.clear();
     this.durations.clear();
     this.timeModel = null;
   }
@@ -150,6 +189,7 @@ export class ClipStore<Clip extends EngineClip> {
   /** Get a segment's audio from `source`, decode it and keep it; `timed` feeds the fetch timer (a lookup is not a fetch). */
   private async decodeInto(index: number, segment: EngineSegment, source: () => Promise<FetchResult>, timed: boolean): Promise<Clip> {
     const started = this.deps.clock.now();
+    const epoch = this.epochs.get(index) ?? 0;
     let result: FetchResult;
     try {
       result = await source();
@@ -172,10 +212,15 @@ export class ClipStore<Clip extends EngineClip> {
       throw new ClipError('unknown', 'decode', e);
     }
     if (this.closed) throw new ClipError('unknown', 'closed');
+    // Asked for before an edit changed its text: its caller has it, the store does not keep it
+    if ((this.epochs.get(index) ?? 0) !== epoch) return clip;
     this.clips.set(index, clip);
     this.durations.set(index, clip.duration);
     this.timeModel?.record(index, clip.duration);
     if (result.timestamps) this.timings.set(index, result.timestamps);
+    const speech = (result as { speechText?: unknown }).speechText;
+    if (typeof speech === 'string') this.speech.set(index, speech);
+    else this.speech.delete(index);
     return clip;
   }
 }

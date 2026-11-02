@@ -132,6 +132,8 @@ export interface Settings {
     /** Remove configured enclosing brackets from speech text at the next reading session. */
     stripAngleBrackets: boolean;
     bracketPairs: string;
+    /** The global replacements (issue #237), a JSON list read through core/replacements.ts; travels whole. */
+    replacements: string;
     /** JSON voice choice copied once to newly opened documents. */
     defaultVoice: string;
     /** Retained for old backups; document voices replace this switch. */
@@ -332,6 +334,7 @@ export const DEFAULTS: Settings = {
     remainingTime: true,
     stripAngleBrackets: true,
     bracketPairs: '<> []',
+    replacements: '[]',
     prefetchCustom: true,
     prefetchSentences: 5,
     prefetchRequests: 2,
@@ -477,6 +480,7 @@ export function loadSettings(prefs: PrefsBackend): Settings {
       remainingTime: bool(prefs, 'readAloud.remainingTime', DEFAULTS.readAloud.remainingTime),
       stripAngleBrackets: bool(prefs, 'readAloud.stripAngleBrackets', DEFAULTS.readAloud.stripAngleBrackets),
       bracketPairs: str(prefs, 'readAloud.bracketPairs', DEFAULTS.readAloud.bracketPairs),
+      replacements: str(prefs, 'readAloud.replacements', DEFAULTS.readAloud.replacements),
       prefetchCustom: bool(prefs, 'readAloud.prefetchCustom', DEFAULTS.readAloud.prefetchCustom),
       prefetchSentences: num(prefs, 'readAloud.prefetchSentences', DEFAULTS.readAloud.prefetchSentences, PREFETCH_SENTENCES_MIN, PREFETCH_SENTENCES_MAX),
       prefetchRequests: num(prefs, 'readAloud.prefetchRequests', DEFAULTS.readAloud.prefetchRequests, PREFETCH_REQUESTS_MIN, PREFETCH_REQUESTS_MAX),

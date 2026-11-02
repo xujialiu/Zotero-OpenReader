@@ -8,7 +8,7 @@ let strings = {};
 let variant = new URLSearchParams(location.search).get('variant') || 'top';
 let popover = null, anchor = null, refreshPopover = null;
 const $ = selector => document.querySelector(selector);
-const text = key => strings[key] || ({ play: 'Play', pause: 'Pause', provider: 'Provider', locale: 'Locale', voice: 'Voice', speed: 'Speed', volume: 'Volume', layout: 'Layout', options: 'Options', previousParagraph: 'Skip to Previous Paragraph', previousSentence: 'Skip to Previous Sentence', nextSentence: 'Skip to Next Sentence', nextParagraph: 'Skip to Next Paragraph', automatic: 'Automatic scroll', manual: 'Manual scroll', bottom: 'Bottom bar', floating: 'Floating panel', top: 'Top bar', search: 'Search', empty: 'No matches', loading: 'Loading voices…', 'no-voices': 'No voices available', favorite: 'Favorite', unfavorite: 'Unfavorite', retry: 'Retry', buffering: 'Buffering…' }[key] || key);
+const text = key => strings[key] || ({ play: 'Play', pause: 'Pause', provider: 'Provider', locale: 'Locale', voice: 'Voice', speed: 'Speed', volume: 'Volume', layout: 'Layout', replacements: 'Replacements', options: 'Options', previousParagraph: 'Skip to Previous Paragraph', previousSentence: 'Skip to Previous Sentence', nextSentence: 'Skip to Next Sentence', nextParagraph: 'Skip to Next Paragraph', automatic: 'Automatic scroll', manual: 'Manual scroll', bottom: 'Bottom bar', floating: 'Floating panel', top: 'Top bar', search: 'Search', empty: 'No matches', loading: 'Loading voices…', 'no-voices': 'No voices available', favorite: 'Favorite', unfavorite: 'Unfavorite', retry: 'Retry', buffering: 'Buffering…' }[key] || key);
 const formatSpeed = value => Number(value).toFixed(2) + '×';
 const escapeHTML = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const choices = key => state[key === 'provider' ? 'providers' : key === 'locale' ? 'locales' : 'voices'];
@@ -31,6 +31,8 @@ function field(key) {
   return `<div class="field ${key === 'voice' ? 'voice' : ''}"><button class="picker" data-pick="${key}" aria-haspopup="dialog" aria-expanded="false"><span class="value">${escapeHTML(selectedLabel(key))}</span>${key === 'voice' ? '<span class="time-left" hidden></span>' : ''}<span class="chevron" aria-hidden="true"></span></button></div>`;
 }
 const layoutControl = `<button class="adjust layout-menu" aria-haspopup="dialog" aria-expanded="false"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="1" stroke="currentColor" stroke-width="1.25"/><path d="M3 7h14M3 13h14" stroke="currentColor" stroke-width="1.25"/></svg></button>`;
+// Replacements (issue #237): "A→B", drawn in the Player's own 20 px line style
+const replacementsControl = '<button class="adjust replacements" type="button"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.75 14.5 4.75 5.5l3 9M2.85 11.25h3.8"/><path d="M9 10h3.5M11 8.25 12.75 10 11 11.75"/><path d="M14.25 5.5v9M14.25 5.5h2.1a2.25 2.25 0 0 1 0 4.5h-2.1M14.25 10h2.5a2.25 2.25 0 0 1 0 4.5h-2.5"/></svg></button>';
 const remainingControl = '<div class="remaining-time" hidden></div>';
 const playControl = '<button class="play" type="button"></button>';
 const skipControl = action => `<button class="skip" data-navigate="${action}" type="button">${nativeNavigation[action]}</button>`;
@@ -42,7 +44,7 @@ function render() {
     ${variant === 'B' ? `<div class="transport">${skipControl('previousParagraph')}${skipControl('previousSentence')}${playControl}${skipControl('nextSentence')}${skipControl('nextParagraph')}</div>` : playControl}
     <div class="voice-group" id="player-choices">${field('provider')}${field('locale')}${field('voice')}</div>
     ${variant === 'B' ? remainingControl : ''}
-    <div class="controls"><button class="adjust" data-adjust="speed" aria-haspopup="dialog">${speedIcon}<span class="adjust-value"></span></button><button class="adjust mode"></button><button class="adjust" data-adjust="volume" aria-haspopup="dialog">${volumeIcon}<span class="adjust-value"></span></button>${variant === 'B' ? '' : remainingControl}<button class="status-button" hidden>!</button>${variant === 'B' ? '' : layoutControl}</div>
+    <div class="controls"><button class="adjust" data-adjust="speed" aria-haspopup="dialog">${speedIcon}<span class="adjust-value"></span></button><button class="adjust mode"></button><button class="adjust" data-adjust="volume" aria-haspopup="dialog">${volumeIcon}<span class="adjust-value"></span></button>${variant === 'B' ? '' : remainingControl}<button class="status-button" hidden>!</button>${replacementsControl}${variant === 'B' ? '' : layoutControl}</div>
   </section>`;
   document.querySelectorAll('[data-pick]').forEach(button => { button.onclick = () => openPicker(button, button.dataset.pick); });
   document.querySelectorAll('[data-adjust]').forEach(button => { button.onclick = () => openRange(button, button.dataset.adjust); });
@@ -51,6 +53,7 @@ function render() {
   document.querySelectorAll('[data-navigate]').forEach(button => { button.onclick = () => send('navigate', button.dataset.navigate); });
   $('.mode').onclick = () => send('automatic', !state.automatic);
   $('.layout-menu').onclick = () => openLayoutMenu($('.layout-menu'));
+  $('.replacements').onclick = () => { closePopover(); send('replacements'); };
   $('.status-button').onclick = () => openStatus($('.status-button'));
   if (variant === 'B') makeDraggable($('.grip'));
   updateControls();
@@ -116,10 +119,13 @@ function updateControls() {
   mode.classList.toggle('automatic', state.automatic); mode.title = text(state.automatic ? 'automatic' : 'manual');
   mode.setAttribute('aria-label', mode.title); mode.setAttribute('aria-pressed', String(state.automatic));
   $('.layout-menu').title = text('layout'); $('.layout-menu').setAttribute('aria-label', text('layout'));
+  $('.replacements').title = text('replacements'); $('.replacements').setAttribute('aria-label', text('replacements'));
   const status = $('.status-button');
-  status.hidden = !state.error && !!state.voices.length;
-  status.textContent = state.error ? '!' : '…';
-  status.title = state.error || text(state.loading ? 'loading' : 'no-voices');
+  // A replacement skipped for taking too long (issue #237) shows here too, after any error
+  const problem = state.error || state.warning;
+  status.hidden = !problem && !!state.voices.length;
+  status.textContent = problem ? '!' : '…';
+  status.title = problem || text(state.loading ? 'loading' : 'no-voices');
   status.setAttribute('aria-label', status.title);
 }
 let placing = false;
@@ -236,7 +242,7 @@ function openLayoutMenu(button) {
 function openStatus(button) {
   if (!createPopover(button, 'OpenReader')) return;
   const message = document.createElement('div'); message.className = 'error-message';
-  message.textContent = state.error || text(state.loading ? 'loading' : 'no-voices'); popover.append(message);
+  message.textContent = state.error || state.warning || text(state.loading ? 'loading' : 'no-voices'); popover.append(message);
   if (state.error || (!state.loading && !state.voices.length)) { const retry = document.createElement('button'); retry.className = 'retry'; retry.textContent = text('retry'); retry.onclick = () => { closePopover(); send('retry'); }; popover.append(retry); }
   place();
 }

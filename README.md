@@ -34,6 +34,7 @@ is built for the way its author reads —
 - 🎧 **A voice browser** in the settings: every voice by provider and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting**, each behind a switch of its own, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts** for speed, volume, skipping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, highlighting or underlining the sentence being read, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
+- 🔤 **Replacements** — have the voice say an abbreviation in full or a name the way it sounds, in every document or in one; exact words, wildcards or regular expressions, while the highlight stays on the text. [→ Tutorial](tutorials/replacements.md)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
 - 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your settings and bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)
@@ -225,6 +226,10 @@ for every document you have listened to.
 - **Provider, language, voice, speed and volume** use the same choices as
   the voice browser and keyboard shortcuts. Hearts on the left mark the
   same favorites as Settings.
+- **Replacements** — the **A→B** button, left of the layout button in a
+  bar and at the bottom-left corner of the floating panel, opens this
+  document's replacements and the global ones.
+  [Tutorial](tutorials/replacements.md).
 - **Floating controls** include four sentence/paragraph skip buttons around
   Play/Pause. **Options** at the upper left, or **Shift+O**, hides or shows
   the provider, language and voice rows; **Layout** is at the upper right.
@@ -448,7 +453,7 @@ provider (or Zotero's Standard / Premium), language, voice.
 ### Reading
 
 <details>
-<summary><b>Expanded player, document voices, pauses, prefetch, cache, a page's first line, a sentence split in two</b></summary>
+<summary><b>Expanded player, document voices, pauses, brackets, replacements, prefetch, cache, a page's first line, a sentence split in two</b></summary>
 
 - *Open the player expanded* — show the floating panel's provider, language
   and voice rows whenever it opens. On by default. Options or Shift+O
@@ -482,6 +487,10 @@ provider (or Zotero's Standard / Premium), language, voice.
   then check it to validate and enable. Invalid input offers a choice to
   use the defaults or keep editing. The document is unchanged. Stop and
   reopen Read Aloud after a change.
+- *Replacements* — **Edit…** opens the global replacements: text the voice
+  says differently in every document. A document's own are edited from the
+  player. An edit reaches a reading in progress at once; both lists travel
+  with backups and sync. [Tutorial](tutorials/replacements.md).
 - *Custom prefetch* — the sentences ahead are fetched while the current one
   plays, for every voice, so playback does not wait for the server. On, you
   set *Prefetch … sentences ahead* (3 to 20) and *Send … requests at once*

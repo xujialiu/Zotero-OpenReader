@@ -337,6 +337,8 @@ export function createEngine(deps: EngineDeps): Engine {
       // The manager reads them in its own window (activeTimestamp): cloned in once, here
       timestamps: timestamps ? deps.cloneInto(timestamps, tab.window) : null,
       error: result?.error ?? null,
+      // The text the voice was given (issue #237): a replacement edit asks again only where it differs
+      speechText: typeof result?.speechText === 'string' ? result.speechText : null,
     } as FetchResult;
   }
 

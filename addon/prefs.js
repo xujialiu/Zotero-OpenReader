@@ -98,6 +98,7 @@ pref('extensions.zotero.zotero-tts.shortcuts.underlineSentence', 'Shift+U');
 
 pref('extensions.zotero.zotero-tts.readAloud.stripAngleBrackets', true);
 pref('extensions.zotero.zotero-tts.readAloud.bracketPairs', '<> []');
+pref('extensions.zotero.zotero-tts.readAloud.replacements', '[]');
 
 pref('extensions.zotero.zotero-tts.readAloud.prefetchCustom', true);
 pref('extensions.zotero.zotero-tts.readAloud.prefetchSentences', 5);

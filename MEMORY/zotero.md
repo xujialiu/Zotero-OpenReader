@@ -12,8 +12,11 @@ source-tree inventory. Preserve the dated observations when revising it.
   `Services`, `ChromeUtils`, `IOUtils`, `PathUtils`, `Localization` (the
   Fluent constructor; `core/l10n.ts` formats through a sync instance of it),
   `setTimeout`, `fetch`, `atob`/`btoa`, `TextEncoder`/`TextDecoder`, `URL`,
-  `DOMParser`, `crypto`, `XMLHttpRequest` (the list: `wantGlobalProperties`
-  and the `Object.assign` after it in `xpcom/plugins.js` `_loadScope`).
+  `DOMParser`, `crypto`, `XMLHttpRequest`, `Worker`, `ChromeWorker` (the
+  list: `wantGlobalProperties` and the `Object.assign` after it in
+  `xpcom/plugins.js` `_loadScope`). Chrome code is never interrupted
+  (`dom.max_chrome_script_run_time` 0): anything unbounded goes to a
+  worker (issue #237, ADR 0024).
 - **Compartments**: the reader iframe may not call a bare sandbox function
   (export it with `Components.utils.exportFunction`) nor read a sandbox object
   ("Permission denied to access property …"). Hand reader code primitives

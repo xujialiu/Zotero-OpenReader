@@ -26,6 +26,24 @@ _Avoid_: sentence splitting, chunking
 One unit of reading: a sentence, with its place in the document.
 _Avoid_: chunk
 
+**Replacement**:
+A rule that has the voice say other text in place of a piece of the
+document's text, such as an abbreviation written out or a word spelled the
+way it sounds. The highlight stays on the document's text. Replacements
+apply one after another in their listed order, each only to the text the
+earlier ones left unchanged.
+_Avoid_: dictionary, pronunciation, text normalization, substitution
+
+**Global replacements**:
+The replacements set in the settings, for every document.
+_Avoid_: global table, default replacements
+
+**Document replacements**:
+The replacements of one document. They come before the global
+replacements in the order. Separate documents under the same library item
+have separate ones.
+_Avoid_: per-book table, book replacements, file replacements
+
 **Engine**:
 Everything between the segments and the highlight: fetching a segment's
 audio, prefetch, decoding, changing speed, the pause between sentences,

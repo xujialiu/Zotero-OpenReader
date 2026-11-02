@@ -71,11 +71,12 @@ export interface PaneElement {
 /**
  * The attributes the pane's messages set, besides `value` — `aria-label`
  * the name of a field that shows no text of its own, which the diagnostic
- * reported blank until issue #103. test/l10n.test.ts runs every message
+ * reported blank until issue #103, and `title` a window's (the replacements
+ * window, issue #237). test/l10n.test.ts runs every message
  * through paneElementBlank, so a message carrying only a kind this list
  * lacks fails there, not in a live pass.
  */
-const STRING_ATTRIBUTES = ['label', 'placeholder', 'tooltiptext', 'help', 'aria-label'];
+const STRING_ATTRIBUTES = ['label', 'placeholder', 'tooltiptext', 'help', 'aria-label', 'title'];
 
 /**
  * Whether Fluent left a settings pane element without its string — what

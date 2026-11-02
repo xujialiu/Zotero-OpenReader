@@ -491,6 +491,8 @@ export interface PaneHooks {
   };
   /** A prod at settings-autoupload (src/index.ts): the machine-id rename should reach the server soon. */
   settingsUploadSoon?(): void;
+  /** The replacements window with the global rows alone (issue #237, ui/replacements-dialog.ts), over the settings window. */
+  openReplacements?(parent: Window): void;
   /** The Sync group's two status lines (src/index.ts, #68): each transport's stats, a listener per completed sync, and a poke of both when the pane opens. */
   sync?: {
     settings: { stats(): SettingsSyncStats | null; watch(onSynced: (report: SettingsSyncApplied | null) => void): () => void };
@@ -573,6 +575,10 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
         return ps.confirmEx(win, 'OpenReader', text, flags, t('ztts-bracket-use-defaults'), null, null, null, { value: false }) === 0;
       }),
   });
+  // Replacements (issue #237): the global rows, in a window of their own
+  const replacementsButton = doc.getElementById('ztts-replacements-open');
+  const openReplacements = () => { if (win) hooks.openReplacements?.(win); };
+  replacementsButton?.addEventListener('command', openReplacements);
   // The two checkboxes that edit what the Read Aloud player lists: unbound,
   // written here, and refused while a tab is reading (ui/voice-list-switches.ts)
   const voiceListSwitches = initVoiceListSwitches(doc, {
@@ -677,6 +683,7 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
       prefetchRows.dispose();
       voiceListSwitches.dispose();
       bracketRows.dispose();
+      replacementsButton?.removeEventListener('command', openReplacements);
       highlightRows.dispose();
     },
     { once: true },

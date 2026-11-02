@@ -89,7 +89,7 @@ function loadPlayer(layout: 'top' | 'A') {
     fixed.set(selector, el);
     return el;
   };
-  for (const selector of ['#player-root', '.play', '.options-toggle', '.mode', '.layout-menu', '.status-button', '.player', '.remaining-time', '.voice-group']) fixedEl(selector);
+  for (const selector of ['#player-root', '.play', '.options-toggle', '.mode', '.layout-menu', '.replacements', '.status-button', '.player', '.remaining-time', '.voice-group']) fixedEl(selector);
   const pickers = ['provider', 'locale', 'voice'].map((key) => {
     const button = fixedEl(`[data-pick="${key}"]`, 'button');
     button.dataset.pick = key;
@@ -156,7 +156,8 @@ function loadPlayer(layout: 'top' | 'A') {
     (option.onclick as () => void)();
   };
   const openPicker = (key: 'provider' | 'locale' | 'voice') => (pickers[['provider', 'locale', 'voice'].indexOf(key)].onclick as () => void)();
-  return { sandbox, body, heights, fire, update, pick, openPicker, play: fixed.get('.play')!, openVoiceList, clickInTheView,
+  return { sandbox, body, heights, fire, update, pick, openPicker, play: fixed.get('.play')!, replacements: fixed.get('.replacements')!,
+    status: fixed.get('.status-button')!, openVoiceList, clickInTheView,
     isOpen: () => !!popover(), menu: () => popover()?.getAttribute('aria-label') ?? null };
 }
 
@@ -260,5 +261,33 @@ describe('a pick that leaves the Player without a voice (issue #224)', () => {
     player.pick('Voice 2');
     player.update({ ...STATE, voice: 'v2' });
     expect(player.isOpen()).toBe(false);
+  });
+});
+
+describe('the Replacements button (issue #237)', () => {
+  it('closes an open menu and asks the host for the replacements window', () => {
+    const player = loadPlayer('top');
+    const sent: unknown[][] = [];
+    player.sandbox.zttsCommand = (...args: unknown[]) => sent.push(args);
+    player.openVoiceList();
+    (player.replacements.onclick as () => void)();
+    expect(player.isOpen()).toBe(false);
+    expect(sent).toEqual([['replacements', undefined]]);
+    expect(player.replacements.getAttribute('aria-label')).toBe('Replacements');
+  });
+
+  it('shows a skipped replacement on the ! after any error', () => {
+    const player = loadPlayer('top');
+    const status = player.status as unknown as { hidden: boolean; title: string };
+    const base = {
+      provider: 'p', locale: 'en', voice: 'v1', speed: 1, volume: 100, automatic: true, playing: true, active: true,
+      providers: [{ value: 'p', label: 'P' }], locales: [{ value: 'en', label: 'English' }], voices: [{ value: 'v1', label: 'Voice 1' }], favorites: [],
+    };
+    player.update(base);
+    expect(status.hidden).toBe(true);
+    player.update({ ...base, warning: 'slow row' });
+    expect([status.hidden, status.title]).toEqual([false, 'slow row']);
+    player.update({ ...base, warning: 'slow row', error: 'failed' });
+    expect(status.title).toBe('failed');
   });
 });

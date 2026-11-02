@@ -1,4 +1,6 @@
+import { compareDocumentReplacements, isDocumentReplacementsKey } from './document-replacements';
 import { compareDocumentVoices, isDocumentVoiceKey, parseDocumentVoice } from './document-voices';
+import { parseDocumentReplacements, serializeDocumentReplacements } from './replacements';
 import { convertLegacyItems } from './openai-split';
 import { DEFAULTS, fishModelOfFreeOnly, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from './settings';
 import { coerceSetting, FISH_FREE_ONLY_KEY, flattenSettings, type FlatSettings, type SettingValue } from './settings-backup';
@@ -388,16 +390,25 @@ export function mergeSharedSettings(local: MergeInput, remote: readonly SharedIt
 
   // Document records carry their own intent and timestamp; sync bookkeeping
   // must never turn a downloaded or inherited choice into a manual edit.
-  const documentKeys = new Set([...Object.keys(local.values), ...remoteByKey.keys()].filter(isDocumentVoiceKey));
+  // Document replacements (issue #237) are such records too: the newer list wins whole.
+  const kinds = [
+    { is: isDocumentVoiceKey, parse: parseDocumentVoice, compare: compareDocumentVoices, write: (r: unknown) => JSON.stringify(r) },
+    { is: isDocumentReplacementsKey, parse: parseDocumentReplacements, compare: compareDocumentReplacements, write: serializeDocumentReplacements },
+  ] as const;
+  const documentKeys = new Set([...Object.keys(local.values), ...remoteByKey.keys()].filter((key) => kinds.some((kind) => kind.is(key))));
   for (const key of documentKeys) {
-    const mine = parseDocumentVoice(local.values[key]);
+    const kind = kinds.find((k) => k.is(key))!;
+    const parse = kind.parse as (value: unknown) => ({ ts: number } | null);
+    const compare = kind.compare as (a: unknown, b: unknown) => number;
+    const write = kind.write as (record: unknown) => string;
+    const mine = parse(local.values[key]);
     const theirs = remoteByKey.get(key);
-    const other = parseDocumentVoice(theirs?.value);
-    if (mine && (!other || compareDocumentVoices(mine, other) > 0)) {
-      next.set(key, { key, value: JSON.stringify(mine), ts: mine.ts, by: local.machine });
+    const other = parse(theirs?.value);
+    if (mine && (!other || compare(mine, other) > 0)) {
+      next.set(key, { key, value: write(mine), ts: mine.ts, by: local.machine });
       pushed.push(key);
-    } else if (other && (!mine || compareDocumentVoices(other, mine) > 0)) {
-      adopt.push({ key, value: JSON.stringify(other), ts: other.ts, by: theirs!.by });
+    } else if (other && (!mine || compare(other, mine) > 0)) {
+      adopt.push({ key, value: write(other), ts: other.ts, by: theirs!.by });
     }
   }
 

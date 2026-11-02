@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!-- The replacements window (issue #237): ui/replacements-dialog.ts fills it.
+     Zotero's own dialog form: a modal window like Read Aloud's Manage voices,
+     Zotero's table, Edit on the left and − + on the right below it, as
+     Settings → Export → Site-Specific Settings has them. -->
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://zotero/skin/preferences.css"?>
+<?xml-stylesheet href="chrome://zotero-platform/content/zotero.css"?>
+<?xml-stylesheet href="preferences.css"?>
+<?xml-stylesheet href="replacements.css"?>
+<window
+	xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+	xmlns:html="http://www.w3.org/1999/xhtml"
+	id="ztts-replacements-window"
+	class="zotero-dialog ztts-replacements"
+	data-l10n-id="ztts-replacements-window"
+	width="640"
+	height="420"
+	onload="window.arguments[0].init(window)">
+<dialog id="ztts-replacements-dialog" buttons="cancel,accept">
+	<linkset>
+		<html:link rel="localization" href="zotero-tts.ftl"/>
+	</linkset>
+	<script src="chrome://zotero/content/include.js"/>
+	<description id="ztts-replacements-intro"/>
+	<hbox class="virtualized-table-container" flex="1">
+		<html:div id="ztts-replacements-table"/>
+	</hbox>
+	<hbox class="ztts-replacements-buttons" align="center">
+		<button id="ztts-replacements-edit" data-l10n-id="ztts-replacements-edit" disabled="true"/>
+		<spacer flex="1"/>
+		<button id="ztts-replacements-remove" class="ztts-sign" data-l10n-id="ztts-replacements-remove" disabled="true"/>
+		<button id="ztts-replacements-add" class="ztts-sign" data-l10n-id="ztts-replacements-add"/>
+	</hbox>
+</dialog>
+</window>

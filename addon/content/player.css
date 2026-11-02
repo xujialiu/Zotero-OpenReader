@@ -25,6 +25,10 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .mode { min-width: 27px; width: 27px; }
 .mode.automatic { background: color-mix(in srgb, var(--preview-accent, #356dc2) 24%, transparent); }
 .layout-menu { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; padding: 4px; margin-left: auto; color: var(--preview-icon, #777); }
+/* Replacements (issue #237): in the bars just left of Layout, in the Floating panel at the bottom-left corner */
+.replacements { display: grid; place-items: center; width: 28px; min-width: 28px; height: 28px; padding: 4px; color: var(--preview-icon, #777); }
+.layout-A .replacements { margin-left: auto; }
+.layout-A .replacements + .layout-menu { margin-left: 0; }
 .status-button { color: #d84444; font-weight: 700; padding: 2px 5px; }
 .status-button[hidden] { display: none; }
 .layout-B { top: 0; left: 0; width: 100%; height: 202px; padding: 8px; display: grid; grid-template-rows: 28px 28px 1fr 26px; gap: 4px; border: 1px solid var(--preview-border, #ddd); border-radius: 6px; }
@@ -38,6 +42,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--preview-acc
 .layout-B .controls [data-adjust="speed"] { justify-self: end; }
 .layout-B .controls [data-adjust="volume"] { justify-self: start; }
 .layout-B .controls .status-button { position: absolute; right: 0; width: 20px; }
+.layout-B .controls .replacements { position: absolute; left: 0; width: 20px; min-width: 20px; height: 26px; padding: 0; }
 .popover { position: fixed; z-index: 10; width: 285px; max-height: 290px; overflow: auto; padding: 4px; background: var(--preview-bg, #fafafa); color: var(--preview-fg, #303137); border: 1px solid var(--preview-border, #ddd); border-radius: 6px; box-shadow: 0 9px 30px #0003; }
 .popover input[type="search"] { width: 100%; padding: 4px 6px; margin-bottom: 4px; background: var(--preview-control-bg, #fff); border: 1px solid var(--preview-control-border, #ddd); border-radius: 4px; }
 .option-row { display: flex; align-items: center; }

@@ -333,3 +333,20 @@ describe('a Zotero voice’s time left and its account errors (issue #140)', () 
     expect(g.controller.snapshot(g.reader).error).toBe('ztts-player-playback-error');
   });
 });
+
+describe('the Player and the replacements (issue #237)', () => {
+  it('opens the window for the reader, touching nothing of the reading', async () => {
+    const openReplacements = vi.fn();
+    const f = fixture({ openReplacements });
+    f.manager.active = true;
+    await f.controller.command(f.reader, 'replacements');
+    expect(openReplacements).toHaveBeenCalledWith(f.reader);
+    expect(f.togglePaused).not.toHaveBeenCalled();
+  });
+
+  it('carries a skipped replacement to the Player as a warning', () => {
+    const f = fixture({ warning: () => 'slow' });
+    expect(f.controller.snapshot(f.reader).warning).toBe('slow');
+    expect(fixture().controller.snapshot(fixture().reader).warning).toBeNull();
+  });
+});

@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<!-- One replacement row (issue #237): ui/replacements-dialog.ts fills it. -->
+<?xml-stylesheet href="chrome://global/skin/" type="text/css"?>
+<?xml-stylesheet href="chrome://zotero/skin/preferences.css"?>
+<?xml-stylesheet href="chrome://zotero-platform/content/zotero.css"?>
+<?xml-stylesheet href="preferences.css"?>
+<?xml-stylesheet href="replacements.css"?>
+<window
+	xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+	xmlns:html="http://www.w3.org/1999/xhtml"
+	id="ztts-replacement-row-window"
+	class="zotero-dialog ztts-replacement-row"
+	onload="window.arguments[0].init(window); sizeToContent()">
+<dialog id="ztts-replacement-row-dialog" buttons="cancel,accept">
+	<linkset>
+		<html:link rel="localization" href="zotero-tts.ftl"/>
+	</linkset>
+	<popupset id="ztts-popupset"/>
+	<vbox class="ztts-row-form">
+		<label data-l10n-id="ztts-replacement-text-label" control="ztts-replacement-text"/>
+		<html:input id="ztts-replacement-text" type="text"/>
+		<label data-l10n-id="ztts-replacement-read-as-label" control="ztts-replacement-read-as"/>
+		<html:input id="ztts-replacement-read-as" type="text"/>
+		<hbox align="center" class="ztts-row-option">
+			<label data-l10n-id="ztts-replacement-mode-label" control="ztts-replacement-mode"/>
+			<menulist id="ztts-replacement-mode" native="true">
+				<menupopup>
+					<menuitem value="exact" data-l10n-id="ztts-replacement-mode-exact-item"/>
+					<menuitem value="wildcard" data-l10n-id="ztts-replacement-mode-wildcard-item"/>
+					<menuitem value="regex" data-l10n-id="ztts-replacement-mode-regex-item"/>
+				</menupopup>
+			</menulist>
+			<label class="ztts-help" value="?" data-l10n-id="ztts-help-replacement-mode" data-l10n-attrs="help"/>
+		</hbox>
+		<hbox align="center" class="ztts-row-option">
+			<checkbox id="ztts-replacement-match-case" data-l10n-id="ztts-replacement-match-case" native="true"/>
+			<label class="ztts-help" value="?" data-l10n-id="ztts-help-replacement-match-case" data-l10n-attrs="help"/>
+		</hbox>
+		<hbox align="center" class="ztts-row-option" id="ztts-replacement-scope-row">
+			<label data-l10n-id="ztts-replacement-scope-label" control="ztts-replacement-scope"/>
+			<radiogroup id="ztts-replacement-scope" orient="horizontal">
+				<radio value="document" data-l10n-id="ztts-replacement-scope-document-item"/>
+				<radio value="global" data-l10n-id="ztts-replacement-scope-global-item"/>
+			</radiogroup>
+			<label class="ztts-help" value="?" data-l10n-id="ztts-help-replacement-scope" data-l10n-attrs="help"/>
+		</hbox>
+		<description id="ztts-replacement-error" class="ztts-replacement-error" hidden="true"/>
+	</vbox>
+</dialog>
+</window>

@@ -35,7 +35,8 @@ export interface EngineVoice {
 
 /** What a fetch answers: audio with its word timings, or one of Zotero's three error words (or a Zotero voice's own, passed through). */
 export type FetchResult<Audio = unknown> =
-  | { audio: Audio; timestamps?: ArrayLike<WordTiming> | null; error?: undefined }
+  /** `speechText`: the text the voice was given, replacements applied (issue #237); what an edit is compared with. */
+  | { audio: Audio; timestamps?: ArrayLike<WordTiming> | null; error?: undefined; speechText?: string | null }
   | { audio?: null; timestamps?: undefined; error?: string | null };
 
 /** The events Read Aloud's manager listens for on its controller (reader.js 82675-82711). */

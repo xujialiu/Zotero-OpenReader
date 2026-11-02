@@ -1,4 +1,6 @@
+import { documentReplacementSettings, isDocumentReplacementsKey } from './document-replacements';
 import { documentVoiceSettings, isDocumentVoiceKey, parseDocumentVoice } from './document-voices';
+import { parseDocumentReplacements, serializeDocumentReplacements } from './replacements';
 import { convertLegacySettings } from './openai-split';
 import { DEFAULTS, fishModelOfFreeOnly, loadSettings, PREF_PREFIX, type PrefsBackend, type Settings } from './settings';
 
@@ -64,7 +66,7 @@ export function flattenSettings(s: Settings): FlatSettings {
 const KNOWN = flattenSettings(DEFAULTS);
 
 export function createBackup(prefs: PrefsBackend, meta: { pluginVersion?: string; exportedAt?: string; machine?: string } = {}): SettingsBackup {
-  return { format: BACKUP_FORMAT, version: BACKUP_VERSION, ...meta, settings: { ...flattenSettings(loadSettings(prefs)), ...documentVoiceSettings(prefs) } };
+  return { format: BACKUP_FORMAT, version: BACKUP_VERSION, ...meta, settings: { ...flattenSettings(loadSettings(prefs)), ...documentVoiceSettings(prefs), ...documentReplacementSettings(prefs) } };
 }
 
 export function serializeBackup(backup: SettingsBackup): string {
@@ -122,6 +124,12 @@ export function parseBackup(text: string): ParsedBackup {
       else ignored.push(key);
       continue;
     }
+    if (isDocumentReplacementsKey(key)) {
+      const record = parseDocumentReplacements(raw);
+      if (record) settings[key] = serializeDocumentReplacements(record);
+      else ignored.push(key);
+      continue;
+    }
     const like = KNOWN[key];
     const value = like === undefined ? undefined : coerceSetting(raw, like);
     if (value === undefined) ignored.push(key);
@@ -158,9 +166,16 @@ export function parseBackup(text: string): ParsedBackup {
  */
 export function applyBackup(prefs: PrefsBackend, parsed: ParsedBackup): number {
   let applied = 0;
+  let replacements = false;
   for (const [key, value] of Object.entries(parsed.settings)) {
     prefs.set(PREF_PREFIX + key, key === 'webdav.enabled' ? false : value);
+    if (isDocumentReplacementsKey(key)) replacements = true;
     applied++;
+  }
+  // Documents' replacements have keys of their own, which nothing observes: the pulse tells a reading (issue #237)
+  if (replacements) {
+    const pulse = PREF_PREFIX + 'documentReplacementsChanged';
+    prefs.set(pulse, String(Number(prefs.get(pulse) || 0) + 1));
   }
   return applied;
 }

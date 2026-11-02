@@ -446,6 +446,14 @@
     <hbox align="center">
       <html:input id="ztts-bracket-pairs" type="text" size="24" data-l10n-id="ztts-bracket-pairs"/>
     </hbox>
+    <!-- Replacements (issue #237): the global rows, in a window of their own
+         (ui/replacements-dialog.ts). An edit reaches a reading at once, as a
+         voice switch would (core/engine/session.ts refreshText): no reading guard -->
+    <hbox align="center">
+      <label data-l10n-id="ztts-replacements-label" control="ztts-replacements-open"/>
+      <button id="ztts-replacements-open" data-l10n-id="ztts-replacements-open"/>
+      <label class="ztts-help" value="?" data-l10n-id="ztts-help-replacements" data-l10n-attrs="help"/>
+    </hbox>
     <!-- Prefetch, for every voice (issue #166, ADR 0013): the switch is bound;
          the two numbers are not, so that while it is off they show the
          defaults the reading uses, grayed (ui/prefetch-rows.ts). Read at every

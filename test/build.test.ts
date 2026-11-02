@@ -19,6 +19,7 @@ describe('build', () => {
     expect(names).toContain('manifest.json');
     expect(names).toContain('bootstrap.js');
     expect(names).toContain('content/zotero-tts.js');
+    expect(names).toContain('content/replacements-worker.js');
   });
 
   it('declares the plugin id', () => {

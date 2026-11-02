@@ -5,6 +5,21 @@ import type { FlatSettings } from './core/settings-backup';
 import { createPluginPlayer } from './ui/player';
 import { createPlayerController } from './read-aloud/player-controller';
 import { createTextSettings } from './read-aloud/text-settings';
+import {
+  createDocumentReplacements,
+  DOCUMENT_REPLACEMENTS_CHANGED,
+  documentReplacementSettings,
+  GLOBAL_REPLACEMENTS_KEY,
+  isDocumentReplacementsKey,
+  readGlobalReplacements,
+  writeGlobalReplacements,
+} from './core/document-replacements';
+import { composeSpeechText, sameReplacement, type Replacement } from './core/replacements';
+import { prepareSpeechText } from './core/speech-text';
+import { createReplacementRunner, type ReplacementRunner, type RunResult, type WorkerLike } from './read-aloud/replacement-runner';
+import { createReplacementRefresh, type ReplacementRefresh } from './read-aloud/replacement-refresh';
+import { openReplacementsDialog } from './ui/replacements-dialog';
+import type { ReplacementScope } from './ui/replacements-model';
 import { getChromeWebSocket, newRequestId } from './core/providers/azure';
 import { createProvider, getFishVoiceCacheStats } from './core/providers/factory';
 import type { SpeechBackend } from './core/providers/system/backend';
@@ -258,6 +273,20 @@ const playerController = createPlayerController({
   needsVoice: reader => voicePick?.needsVoice(reader) ?? false,
   // The voice a pending switch is to is the Player's at once (issue #225)
   pendingVoice: reader => voicePick?.pendingVoice(reader) ?? null,
+  // The replacements window for this document (issue #237): opened a moment later, so the Player's click returns first
+  openReplacements: (reader) => {
+    setTimeout(() => {
+      try {
+        openReplacements(reader?._window ?? Zotero.getMainWindow(), reader);
+      } catch (e) {
+        Zotero.logError(e);
+      }
+    }, 0);
+  },
+  warning: (reader) => {
+    const slow = reader && typeof reader === 'object' ? replacementSlow.get(reader)?.[0] : undefined;
+    return slow ? t('ztts-player-replacement-slow', { text: slow.row.text }) : null;
+  },
 });
 /** Whether a reader's player reads with, or has selected, a voice of one of Zotero's tiers; a voice being switched to does not count. */
 function readerUsesTier(reader: any, tier: string): boolean {
@@ -335,6 +364,7 @@ function playerStrings(): Record<string, string> {
     'nextSentence': t('ztts-player-next-sentence'),
     'nextParagraph': t('ztts-player-next-paragraph'),
     'layout': t('ztts-player-layout'),
+    'replacements': t('ztts-player-replacements'),
     'bottom': t('ztts-player-bottom'),
     'floating': t('ztts-player-floating'),
     'top': t('ztts-player-top'),
@@ -634,6 +664,8 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
     signedIn: () => readerSignedIn(reader),
     getBracketPairs: () => textSettings?.pairs(reader) ?? loadSettings(prefs).readAloud.bracketPairs,
     getStripAngleBrackets: () => textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets,
+    // The document's rows, then the global ones, at every request (issue #237)
+    replacements: (text) => replacementsFor(reader, text),
     // Built from the voice id, not from the enabled flags: Zotero
     // remembers the last-selected voice, which may belong to a provider
     // the user has since switched off, and a cached or in-flight segment
@@ -2180,11 +2212,15 @@ function startSettingsSync(): void {
   const transport = createSettingsSyncTransport({
     enabled: () => webdavSwitchOn(loadSettings(prefs).webdav, 'syncSettings'),
     client: () => createWebDAVClient(loadSettings(prefs).webdav, webdavDeps()),
-    values: () => ({ ...flattenSettings(loadSettings(prefs)), ...documentVoiceSettings(prefs) }),
+    values: () => ({ ...flattenSettings(loadSettings(prefs)), ...documentVoiceSettings(prefs), ...documentReplacementSettings(prefs) }),
     machine: () => machineId(prefs, defaultMachineName),
     readState: () => readSyncState(prefs),
     writeState: (state) => writeSyncState(prefs, state),
-    write: (key, value) => prefs.set(PREF_PREFIX + key, value),
+    write: (key, value) => {
+      prefs.set(PREF_PREFIX + key, value);
+      // A document's replacements from another computer: a reading of it hears them (issue #237)
+      if (isDocumentReplacementsKey(key)) scheduleReplacementRefresh();
+    },
     // Any open player, paused included: the list-editing settings wait for it
     readingTabs: () => playerStop.open().map((reader: any) => String(safe(() => reader?.itemID) ?? 'reader')),
     affectedTabs: readingImpact.affectedTabs,
@@ -2199,7 +2235,8 @@ function startSettingsSync(): void {
         }
       }
     },
-    keys: [...SYNCABLE_KEYS.map((key) => ({ key, observer: 'zotero-tts.' + key })), { key: 'documentVoiceChanged', observer: DOCUMENT_VOICE_CHANGED }],
+    keys: [...SYNCABLE_KEYS.map((key) => ({ key, observer: 'zotero-tts.' + key })), { key: 'documentVoiceChanged', observer: DOCUMENT_VOICE_CHANGED },
+      { key: 'documentReplacementsChanged', observer: DOCUMENT_REPLACEMENTS_CHANGED }],
     registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
     unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
     setTimeout: (fn, ms) => setTimeout(fn, ms),
@@ -2697,6 +2734,175 @@ function stopTextSettings(): void {
   textSettings = null;
 }
 
+// ---- Replacements (issue #237) ----------------------------------------------
+//
+// Text the voice says in place of a document's text: the document's rows,
+// then the global ones, each in order (core/replacements.ts, ADR 0023). A
+// list with a wildcard or a pattern runs in a worker under a time limit
+// (read-aloud/replacement-runner.ts, ADR 0024). An edit reaches a reading
+// in progress as a voice switch would (read-aloud/replacement-refresh.ts).
+// The two windows are chrome documents of a package registered per
+// instance, as the Player's resource name is, so an in-place upgrade never
+// opens the old build's markup.
+
+const documentReplacements = createDocumentReplacements(prefs);
+let replacementRunner: ReplacementRunner | null = null;
+let replacementRefresh: ReplacementRefresh | null = null;
+let replacementChrome: { destruct(): void } | null = null;
+let replacementWindows = '';
+let replacementObservers: symbol[] = [];
+let replacementRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+/** Per reader, the rows that last ran out of time on a sentence: the Player's ! and the window's red rows, until the next edit. */
+let replacementSlow = new WeakMap<object, { scope: ReplacementScope; row: Replacement }[]>();
+
+const TUTORIAL_URL = 'https://xujialiu.github.io/Zotero-OpenReader/tutorials/replacements';
+
+/** The reader's rows in the order they apply, and how many of them are the document's. */
+function readerReplacements(reader: any): { rows: Replacement[]; documentCount: number } {
+  let key: string | null = null;
+  try {
+    key = documentVoiceKey(reader);
+  } catch {
+    key = null;
+  }
+  const mine = documentReplacements.rows(key);
+  return { rows: [...mine, ...readGlobalReplacements(prefs)], documentCount: mine.length };
+}
+
+/** The replaced spans of a Segment's text for this reader; a row that ran out of time is remembered for the Player. */
+function replacementsFor(reader: any, text: string): RunResult | Promise<RunResult> {
+  const runner = replacementRunner;
+  const { rows, documentCount } = readerReplacements(reader);
+  if (!runner || !rows.length) return { spans: [], skipped: [] };
+  const note = (result: RunResult): RunResult => {
+    if (result.timedOut?.length && reader && typeof reader === 'object') {
+      const slow = replacementSlow.get(reader) ?? [];
+      for (const index of result.timedOut) {
+        const entry = { scope: (index < documentCount ? 'document' : 'global') as ReplacementScope, row: rows[index] };
+        if (entry.row && !slow.some((s) => s.scope === entry.scope && sameReplacement(s.row, entry.row))) slow.push(entry);
+      }
+      replacementSlow.set(reader, slow);
+    }
+    return result;
+  };
+  const result = runner.run(text, rows);
+  return result instanceof Promise ? result.then(note) : note(result);
+}
+
+/** The text a voice would be given now for `text`, as remote-interface prepares it: replacements, then bracket removal around them. */
+async function replacementSpeechText(reader: any, text: string): Promise<string> {
+  const { spans } = await replacementsFor(reader, text);
+  const strip = textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets;
+  const pairs = textSettings?.pairs(reader) ?? loadSettings(prefs).readAloud.bracketPairs;
+  return composeSpeechText(text, spans, prepareSpeechText(text, strip, pairs).removed).text;
+}
+
+/** An edit, a restore or the sync changed the rows: every reading compares what it holds, a moment later. */
+function scheduleReplacementRefresh(): void {
+  replacementSlow = new WeakMap();
+  if (replacementRefreshTimer !== undefined) clearTimeout(replacementRefreshTimer);
+  replacementRefreshTimer = setTimeout(() => {
+    replacementRefreshTimer = undefined;
+    eachReader((reader) => {
+      void replacementRefresh?.refresh(reader).catch((e) => Zotero.logError(e));
+    });
+  }, 50);
+}
+
+function startReplacements(rootURI: string): void {
+  stopReplacements();
+  const startup = Components.classes['@mozilla.org/addons/addon-manager-startup;1'].getService(Components.interfaces.amIAddonManagerStartup);
+  const name = 'zotero-tts-' + interfaceInstanceToken;
+  replacementChrome = startup.registerChrome(Services.io.newURI(rootURI + 'manifest.json'), [['content', name, 'content/']]);
+  replacementWindows = `chrome://${name}/content/`;
+  replacementRunner = createReplacementRunner({
+    // The Player's resource substitution serves the worker's script (ADR 0024)
+    createWorker: () => new Worker(`resource://${playerResourceName}/replacements-worker.js`) as unknown as WorkerLike,
+    setTimeout: (fn, ms) => setTimeout(fn, ms),
+    clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
+    log: (e) => Zotero.logError(e instanceof Error ? e : new Error(String((e as any)?.message ?? e))),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  replacementRefresh = createReplacementRefresh({
+    session: (reader) => engine?.session(reader) ?? null,
+    speechText: replacementSpeechText,
+    log: (e) => Zotero.logError(e),
+    debug: (message) => Zotero.debug('[zotero-tts] ' + message),
+  });
+  replacementObservers = ['zotero-tts.' + GLOBAL_REPLACEMENTS_KEY, DOCUMENT_REPLACEMENTS_CHANGED].map((name) =>
+    Zotero.Prefs.registerObserver(name, scheduleReplacementRefresh));
+}
+
+function stopReplacements(): void {
+  for (const token of replacementObservers) Zotero.Prefs.unregisterObserver(token);
+  replacementObservers = [];
+  if (replacementRefreshTimer !== undefined) clearTimeout(replacementRefreshTimer);
+  replacementRefreshTimer = undefined;
+  replacementRunner?.dispose();
+  replacementRunner = null;
+  replacementRefresh = null;
+  try {
+    replacementChrome?.destruct();
+  } catch (e) {
+    Zotero.logError(e);
+  }
+  replacementChrome = null;
+  replacementWindows = '';
+}
+
+/** The selected text of a reader's view, if any: a new row's text. */
+function readerSelectionText(reader: any): string {
+  try {
+    const state = reader?._internalReader?._state;
+    const popup = state?.primaryViewSelectionPopup ?? state?.secondaryViewSelectionPopup;
+    const text = popup?.annotation?.text;
+    return typeof text === 'string' ? text.trim().slice(0, 200) : '';
+  } catch {
+    return '';
+  }
+}
+
+/** The title the window names a reader's document by. */
+function readerDocumentTitle(reader: any): string {
+  try {
+    const item = reader?.itemID ? Zotero.Items.get(reader.itemID) : null;
+    const parent = item?.parentItem;
+    return String((parent ?? item)?.getDisplayTitle?.() ?? reader?.title ?? '');
+  } catch {
+    return '';
+  }
+}
+
+/** The replacements window over `parent`: a reader's document and the global rows, or (no reader) the global rows alone. */
+function openReplacements(parent: any, reader: any | null): void {
+  if (!replacementWindows) return;
+  let key: string | null = null;
+  if (reader) {
+    try {
+      key = documentVoiceKey(reader);
+    } catch {
+      key = null;
+    }
+    // A document the plugin cannot name keeps no rows of its own: the global ones only
+    if (!key) reader = null;
+  }
+  const zh = String(Zotero.locale ?? '').toLowerCase().startsWith('zh');
+  const result = openReplacementsDialog(parent, {
+    base: replacementWindows,
+    launchURL: (url) => Zotero.launchURL(url),
+    log: (e) => Zotero.logError(e),
+  }, {
+    document: reader && key ? { title: readerDocumentTitle(reader), rows: documentReplacements.rows(key) } : null,
+    global: readGlobalReplacements(prefs),
+    prefill: reader ? readerSelectionText(reader) : '',
+    slow: reader ? replacementSlow.get(reader) ?? [] : [],
+    tutorialURL: TUTORIAL_URL + (zh ? '.zh.html' : '.html'),
+  });
+  if (!result) return;
+  if (result.changed.global) writeGlobalReplacements(prefs, result.global);
+  if (result.changed.document && key && result.document) documentReplacements.save(key, result.document);
+}
+
 /**
  * Gecko's Fluent globals — L10nRegistry and L10nFileSource — from the scope
  * Zotero's own modules run in (issue #64): the plugin sandbox is handed
@@ -2862,6 +3068,8 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
         });
         eachReader((reader) => pluginPlayer?.attach(reader));
       }],
+      // After the Player: its resource name serves the worker's script (ADR 0024)
+      ['replacements', () => startReplacements(rootURI)],
       ['HTML document compatibility', startHtmlDocuments],
       ['Read Aloud memory', startReadAloudMemory],
       // Awaited: the database rows must be in memory before the sampler and
@@ -2965,6 +3173,8 @@ async function shutdown(reason?: number): Promise<void> {
   stopProviderTiers();
   stopSystemVoiceHiding();
   stopTextSettings();
+  // The worker stops and the windows' chrome package goes with this instance (issue #237)
+  stopReplacements();
   // The plugin's copy of its strings leaves with it; a reload's successor
   // registers its own (issue #64)
   removeOwnStrings();
@@ -3358,6 +3568,54 @@ const diagnostics = {
     return JSON.stringify({ lang, keys: k, preferred: p, key: resolveVoiceLang(lang, k, p) });
   },
   textSettings: () => JSON.stringify(readerRows((r) => textSettings?.inspect(r) ?? null), null, 1),
+  /**
+   * Replacements (issue #237): the windows' package, the runner (workers
+   * started, sentences run, rows that ran out of time, ADR 0024), and per
+   * reader its document, how many rows apply, the rows skipped lately, the
+   * last edit's effect on its reading and the speech text of the clips held.
+   */
+  replacements: () => JSON.stringify({
+    windows: replacementWindows || null,
+    global: readGlobalReplacements(prefs).length,
+    runner: replacementRunner?.report() ?? null,
+    readers: readerRows((r) => {
+      const { rows, documentCount } = readerReplacements(r);
+      const store = engine?.session(r)?.store ?? null;
+      return {
+        document: safe(() => documentVoiceKey(r)) ?? null,
+        rows: rows.length,
+        documentRows: documentCount,
+        slow: replacementSlow.get(r) ?? [],
+        lastEdit: replacementRefresh?.last(r) ?? null,
+        held: store ? Object.fromEntries([...store.speech.entries()].slice(0, 12)) : null,
+      };
+    }),
+  }, null, 1),
+  /**
+   * Open the replacements window without waiting for it (it is modal): over
+   * the reader at `index` of Zotero's reader list with its document's rows,
+   * or with no index over the main window with the global rows alone, as the
+   * settings open it. For a live check, which then finds the window by its
+   * id, `ztts-replacements-window`.
+   */
+  openReplacementsWindow: (index?: number) => {
+    const reader = index === undefined ? null : (Zotero.Reader._readers ?? [])[index] ?? null;
+    setTimeout(() => {
+      try {
+        openReplacements(reader?._window ?? Zotero.getMainWindow(), reader);
+      } catch (e) {
+        Zotero.logError(e);
+      }
+    }, 0);
+    return JSON.stringify({ opening: true, reader: index ?? null, windows: replacementWindows || null });
+  },
+  /** What the voice would be given for `text` in the reader at `index` of Zotero's reader list now: replacements and brackets applied. */
+  replacementsPreview: async (text: string, index = 0) => {
+    const reader = (Zotero.Reader._readers ?? [])[index] ?? null;
+    const started = Date.now();
+    const found = await replacementsFor(reader, String(text));
+    return JSON.stringify({ speech: await replacementSpeechText(reader, String(text)), spans: found.spans, skipped: found.skipped, timedOut: found.timedOut ?? [], ms: Date.now() - started });
+  },
   /**
    * The player's voice list rebuilt on the side (issue #121), per open
    * reader, null for one not hooked: `applied`, `loading`, `retained` and
@@ -4174,6 +4432,8 @@ Zotero.ZoteroTTS = {
       pluginPlayer?.initSettings(doc);
       return onPaneLoad(doc, {
         affectedTabs: readingImpact.affectedTabs,
+        // The global rows, in their window over the settings (issue #237)
+        openReplacements: (parent) => openReplacements(parent, null),
         // Each affected tab with the close of its own player, the headphone
         // button's: the guard's Close and continue closes exactly the tabs
         // it listed (issue #160)

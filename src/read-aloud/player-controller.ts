@@ -21,6 +21,8 @@ export interface PlayerSnapshot {
   chooseVoice: boolean;
   providers: PlayerOption[]; locales: PlayerOption[]; voices: PlayerOption[]; favorites: string[];
   error: string | null;
+  /** A replacement skipped on a sentence for taking too long (issue #237, ADR 0024): shown by the Player's ! after any error. */
+  warning?: string | null;
   remaining?: RemainingTimeLine[];
 }
 export interface PlayerControllerDeps {
@@ -47,6 +49,10 @@ export interface PlayerControllerDeps {
   needsVoice?(reader: any): boolean;
   /** The voice a pending switch is to, shown in place of the one reading (issue #225). */
   pendingVoice?(reader: any): string | null;
+  /** The replacements window for the reader's document (issue #237). */
+  openReplacements?(reader: any): void;
+  /** What the Player's ! says of a replacement skipped for taking too long, or null. */
+  warning?(reader: any): string | null;
 }
 
 /** The reader engine is isolated here; the player consumes only JSON and commands. */
@@ -154,6 +160,7 @@ export function createPlayerController(deps: PlayerControllerDeps) {
       voices: voicesOf(draft ? entryVoices(m.allVoices, draft.tier, draft.locale) : m?.voicesForLanguage),
       favorites: parseFavoriteVoices(pref('favoriteVoices')),
       error: errorOf(m, labels),
+      warning: deps.warning?.(reader) ?? null,
     };
   }
   async function command(reader: any, action: string, value?: unknown): Promise<void> {
@@ -179,6 +186,7 @@ export function createPlayerController(deps: PlayerControllerDeps) {
         if (m.active) deps.togglePaused(reader); else deps.start(reader);
         return;
       case 'close': deps.close(reader); return;
+      case 'replacements': deps.openReplacements?.(reader); return;
       case 'navigate': {
         const action = NAVIGATION_ACTIONS.find(action => action === value);
         if (!action) throw new Error(deps.message('ztts-player-invalid-value'));

@@ -48,7 +48,7 @@
 
 import { ClipError, ClipStore } from './clips';
 import { gapBefore, type PauseSettings } from './gap';
-import { Handoff, type HandoffOptions } from './handoff';
+import { Handoff, type HandoffOptions, type HandoffReport } from './handoff';
 import { prefetchOrder, PrefetchRunner, READ_ALOUD_PREFETCH, type PrefetchSettings } from './prefetch';
 import { RemainingTimeDisplay } from './remaining-time';
 import { skipAheadTarget, skipBackTarget } from './skip';
@@ -476,6 +476,48 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.handoff = handoff;
     handoff.begin();
     return handoff;
+  }
+
+  /**
+   * A replacement edit changed the speech text of the sentences in
+   * `changed` (issue #237). The one being read, if among them, hands over
+   * the way a voice switch does, to the same voice with the new text: at a
+   * word both versions time, else at the start of the next sentence; the
+   * new store starts with every clip the edit left alone. Otherwise the
+   * changed clips go and the prefetch asks for them again. A voice switch
+   * already pending keeps its course; the old voice's changed clips ahead
+   * go. Answers what it did.
+   */
+  refreshText(changed: ReadonlySet<number>, report: HandoffReport): 'none' | 'dropped' | 'handoff' {
+    const store = this.store;
+    const voice = this.voice;
+    if (this.ended || !store || !voice || !this.segments || !changed.size) return 'none';
+    const position = this.position;
+    const ahead = [...changed].filter((index) => index !== position);
+    const started = this.currentIndex === position && this.clip !== null;
+    if (this.handoff?.pending || !changed.has(position) || !started) {
+      store.forget(this.handoff?.pending || started ? ahead : changed);
+      if (!this.handoff && !this.paused && this.isPlaying) this.prefetchFrom(position + 1);
+      return 'dropped';
+    }
+    report.pending = voice.id;
+    report.stage = 'preparing';
+    const handoff = this.prepareHandoff({
+      target: voice,
+      // The same voice: nothing for the manager to select
+      commit: () => true,
+      notice: (kind) => {
+        // Called off or failed: the old clips ahead still go, so the new text is read from the next sentence
+        if ((kind === 'cancelled' || kind === 'failed') && this.store === store && !this.ended) {
+          store.forget(ahead);
+          if (!this.handoff && !this.paused && this.isPlaying) this.prefetchFrom(this.position + 1);
+        }
+      },
+      report,
+    });
+    if (!handoff) return 'none';
+    handoff.store.seed(store, changed);
+    return 'handoff';
   }
 
   /**

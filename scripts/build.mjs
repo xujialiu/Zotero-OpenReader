@@ -26,6 +26,17 @@ await esbuild.build({
   logLevel: 'warning',
 });
 
+// The replacement passes' worker (ADR 0024, read-aloud/replacement-runner.ts)
+await esbuild.build({
+  entryPoints: [join(root, 'src', 'workers', 'replacements-worker.ts')],
+  outfile: join(addonDir, 'content', 'replacements-worker.js'),
+  bundle: true,
+  format: 'iife',
+  target: 'es2022',
+  platform: 'browser',
+  logLevel: 'warning',
+});
+
 rmSync(buildDir, { recursive: true, force: true });
 mkdirSync(buildDir, { recursive: true });
 
