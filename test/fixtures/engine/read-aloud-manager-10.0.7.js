@@ -1,4 +1,4 @@
-// Verbatim from Zotero 10.0.3's reader bundle, resource/reader/reader.js
+// Verbatim from Zotero 10.0.7's reader bundle, resource/reader/reader.js
 // (omni.ja; zotero/reader, AGPL-3.0, Copyright © Corporation for Digital
 // Scholarship): Read Aloud's manager, the remote voice and provider it
 // builds, and the language helpers they use. test/read-aloud/engine/
@@ -8,7 +8,7 @@
 // BrowserReadAloudProvider and navigator. Nothing below the markers is
 // edited.
 
-// ---- reader.js 37975-38099 ----
+// ---- reader.js 37967-38091 ----
 ;// ./src/common/read-aloud/lang.ts
 // Equivalents for nonstandard language codes
 const LANGUAGE_EQUIVALENTS = {
@@ -134,7 +134,7 @@ function resolveLanguage(lang, langs) {
   }
   return candidates[0];
 }
-// ---- reader.js 39247-39295 ----
+// ---- reader.js 39268-39316 ----
 ;// ./src/common/read-aloud/voice.ts
 
 class ReadAloudVoice {
@@ -184,7 +184,7 @@ function getVoiceRegion(voice) {
   let base = getBaseLanguage(normalized);
   return normalized.includes('-') ? normalized.substring(base.length + 1) : null;
 }
-// ---- reader.js 40442-40554 ----
+// ---- reader.js 40478-40590 ----
 ;// ./src/common/read-aloud/remote/voice.ts
 
 
@@ -298,7 +298,7 @@ function parseVoicesResponse(response) {
   }
   return voices;
 }
-// ---- reader.js 82154-82753 ----
+// ---- reader.js 82204-82805 ----
 ;// ./src/common/read-aloud/manager.ts
 
 
@@ -710,6 +710,8 @@ class ReadAloudManager {
     }
     this._paused = false;
     if (this._controller) {
+      // Refetch segments that previously failed
+      this._controller.clearFailures();
       this._controller.paused = false;
     }
     this._stateChanged();

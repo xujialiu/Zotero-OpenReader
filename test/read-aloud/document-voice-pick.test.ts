@@ -31,7 +31,7 @@ const config = (locales: Record<string, string[]>) => ({
 });
 
 /**
- * One reader tab with its Player open: Zotero 10.0.3's own ReadAloudManager
+ * One reader tab with its Player open: Zotero 10.0.7's own ReadAloudManager
  * (the verbatim excerpt the Engine's tests run), the reader-side methods
  * around it as reader.js has them (`_setReadAloudVoice` with the xpcom pref
  * write, `_syncPersistedVoicesToManager`, the auto-activation of

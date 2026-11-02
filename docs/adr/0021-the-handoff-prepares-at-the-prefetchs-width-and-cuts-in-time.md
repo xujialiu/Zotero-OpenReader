@@ -30,7 +30,8 @@ issue: 226
   (`swapVoice` closes it).
 
 Measured on 2026-10-22 (issue #226) with Zotero 10.0.3's own manager (the
-excerpt in `test/fixtures/engine/read-aloud-manager-10.0.3.js`), the
+excerpt in `test/fixtures/engine/read-aloud-manager-10.0.3.js`, since
+#238 the 10.0.7 excerpt `read-aloud-manager-10.0.7.js`), the
 Engine and the voice pick on virtual time, every sentence of the
 document read to its end:
 

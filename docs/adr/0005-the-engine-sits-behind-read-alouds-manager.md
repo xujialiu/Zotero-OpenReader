@@ -41,6 +41,14 @@ Player a `RemoteReadAloudVoice`, whose `getController` (40476) returns a new
   hands to a Zotero voice as Read Aloud's classes do and answers with
   nothing for a plugin voice.
 
+Zotero 10.0.7 added one call (zotero/reader 7e50c4622, 2026-10-28):
+`play()` calls `clearFailures()` before it writes `paused = false`
+(10.0.7 reader.js 82616), unguarded, so a controller without it throws
+and no paused reading resumes (#238). The Engine's controller answers it
+as `RemoteReadAloudController` does (40287-40293): every failed segment
+is forgotten, and a set error is cleared with `ErrorCleared`. The Engine's
+tests have run 10.0.7's manager since.
+
 One gate is not part of that contract. The manager's `activeTimestamp`
 getter (82229) returns null unless `this._controller instanceof
 RemoteReadAloudController` (82230), and the word highlight is drawn from it

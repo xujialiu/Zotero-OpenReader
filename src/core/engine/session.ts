@@ -409,6 +409,19 @@ export class EngineSession<Clip extends EngineClip = EngineClip> {
     this.speak();
   }
 
+  /**
+   * `clearFailures()` (10.0.7 reader.js 40287-40293), which Zotero 10.0.7's
+   * Play calls before it unpauses (82616): every failed segment is asked for
+   * again, and a set error goes (issue #238).
+   */
+  clearFailures(): void {
+    this.failed.clear();
+    if (this.error) {
+      this.error = null;
+      this.deps.emit('ErrorCleared', this.currentSegment);
+    }
+  }
+
   /** The word timings of a segment's clip, if it has any (reader.js 40381-40385). */
   getTimestampsForSegment(segment: unknown): ArrayLike<WordTiming> | null {
     const index = this.indexOf(segment);

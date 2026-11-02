@@ -17,7 +17,7 @@ const WORDS = [
 ];
 
 /**
- * One reader tab with Zotero 10.0.3's own manager, the Engine attached the
+ * One reader tab with Zotero 10.0.7's own manager, the Engine attached the
  * way the plugin attaches it, and a source answering every segment with
  * 0.05 s of audio per character.
  */
@@ -109,7 +109,7 @@ async function setup(options: {
   };
 }
 
-describe('the Engine behind Zotero 10.0.3’s manager', () => {
+describe('the Engine behind Zotero 10.0.7’s manager', () => {
   it.each([
     { paused: true, sameVoice: false, detach: false },
     { paused: false, sameVoice: false, detach: false },
@@ -376,6 +376,36 @@ describe('the Engine behind Zotero 10.0.3’s manager', () => {
     expect(last.buffer.length).toBe(Math.round(t.sources()[0].buffer.length / 2));
   });
 
+  it('resumes a paused reading through Zotero 10.0.7’s Play, which asks the controller to clear failures first (issue #238)', async () => {
+    const t = await setup();
+    t.engine.attach(t.reader);
+    t.open(0);
+    await t.clock.advance(200);
+    t.manager.pause();
+    expect(() => t.manager.play()).not.toThrow();
+    await t.clock.advance(0);
+    expect(t.manager.paused).toBe(false);
+    expect(t.engine.session(t.reader)?.paused).toBe(false);
+    expect(t.sources()).toHaveLength(2);
+    expect(t.sources()[1].offset).toBeCloseTo(0.2, 9);
+  });
+
+  it('asks again for a failed segment on Play, as Zotero 10.0.7’s manager expects (issue #238)', async () => {
+    let fail = true;
+    const t = await setup({ fail: () => (fail ? 'network' : null) });
+    t.engine.attach(t.reader);
+    t.open(0);
+    await t.clock.advance(0);
+    expect(t.manager.error).toBe('network');
+    expect(t.manager.paused).toBe(true);
+    fail = false;
+    t.manager.play();
+    expect(t.manager.error).toBe(null);
+    await t.clock.advance(0);
+    expect(t.sources()).toHaveLength(1);
+    expect(t.manager.paused).toBe(false);
+  });
+
   it('reports a failed segment to the manager, and Retry asks again', async () => {
     let fail = true;
     const t = await setup({ fail: () => (fail ? 'network' : null) });
@@ -464,7 +494,7 @@ describe('the Engine behind Zotero 10.0.3’s manager', () => {
   });
 });
 
-describe('a voice switch while reading, through Zotero 10.0.3’s manager (issue #226)', () => {
+describe('a voice switch while reading, through Zotero 10.0.7’s manager (issue #226)', () => {
   /** Ten sentences of 59 characters: 2.95 s each in the old voice, 3.54 s in the new. */
   const texts = Array.from({ length: 10 }, (_, i) => `Sentence ${i} has words that go on for a while xxxxxxxxxx end.`);
   const wordsOf = (text: string, slow: number) => {

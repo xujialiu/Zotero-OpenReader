@@ -8,7 +8,7 @@ const ALLOY = 'openai-official::alloy';
 const NOVA = 'openai-official::nova';
 
 /**
- * Issue #194: one reader tab with Zotero 10.0.3's own manager (verbatim
+ * Issue #194: one reader tab with Zotero 10.0.7's own manager (verbatim
  * excerpt), the real Engine and the real voice pick. `failAlloy` makes
  * ALLOY's audio for that text fail; NOVA always answers.
  */

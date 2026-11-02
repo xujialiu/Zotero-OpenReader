@@ -476,6 +476,27 @@ describe('EngineSession: errors and Retry', () => {
     expect(t.fetch.requests).toHaveLength(2 + 3);
   });
 
+  it('forgets every failure on clearFailures, with ErrorCleared only while an error is set (issue #238)', async () => {
+    const t = setup();
+    let fail = true;
+    const answer = t.fetch.answer;
+    t.fetch.answer = (s, v) => (fail ? { audio: null, error: 'network' } : answer(s, v));
+    t.open(0);
+    await t.clock.advance(0);
+    expect(t.session.error).toBe('network');
+    fail = false;
+    t.log.clear();
+    t.session.clearFailures();
+    expect(t.session.error).toBe(null);
+    expect(t.log.list()).toEqual(['ErrorCleared:One two three.']);
+    t.session.clearFailures();
+    expect(t.log.list()).toHaveLength(1);
+    expect(t.audio.started).toHaveLength(0);
+    t.session.setPaused(false);
+    await t.clock.advance(0);
+    expect(t.audio.started.map((s) => s.clip.name)).toEqual(['openai-official::alloy:One two three.']);
+  });
+
   it('reports audio that will not decode as unknown, so the error shows and Retry works', async () => {
     const t = setup();
     let bad = true;

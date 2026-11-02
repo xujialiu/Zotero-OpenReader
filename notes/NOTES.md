@@ -101,7 +101,11 @@ Verified by reading the unpacked `omni.ja` of both `10.0-beta.26` and
   stretch (39747-39820), the word onset (39821-39894) and the filter chain of
   `_initAudioContext` (39942-39963) — is 10.0.3's, pinned by the fixtures in
   `test/fixtures/engine/`; a later Zotero reaches it only when it is copied
-  again on purpose (ADR 0006).
+  again on purpose (ADR 0006). The manager is another matter: the Engine's
+  tests run it from an excerpt of the Zotero users have, 10.0.7's since
+  #238, whose `play()` calls the controller's `clearFailures()` (82616)
+  ([2026-11-02](NOTES_2026-11-02.md)). Diff that excerpt against each new
+  Zotero's bundle.
 - **Zotero's own player, hidden** (issue #134, verified against
   10.0.3-beta.3, [2026-09-24](NOTES_2026-09-24.md)): the Player hides
   `.read-aloud-popup` and `#read-aloud` with one stylesheet rule and never
@@ -826,3 +830,7 @@ then) and is in the git history before that day.
 
 - A one-letter word gets a point CFI in an EPUB, so its word position shows no text (issue #209)
 - Zotero's EPUB resolver gives a point no end, and the snapshot view appends two `<div>`s after the page's last block (issues #235, #236)
+
+### [2026-11-02](NOTES_2026-11-02.md)
+
+- Zotero 10.0.7's Play calls the controller's `clearFailures()`, which the Engine lacked, so no paused reading resumed (issue #238)

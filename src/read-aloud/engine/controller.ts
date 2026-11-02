@@ -115,6 +115,10 @@ export function createEngineController(binding: ControllerBinding, deps: Control
   method('retry', () => {
     if (live) session.retry();
   });
+  // Zotero 10.0.7's Play calls it unguarded (82616); without it, no resume (issue #238)
+  method('clearFailures', () => {
+    if (live) session.clearFailures();
+  });
   method('getTimestampsForSegment', (segment: unknown) => session.getTimestampsForSegment(segment ? deps.waiveXrays(segment) : segment) ?? null);
   method('getSegmentToAnnotate', () => session.getSegmentToAnnotate() ?? null);
   method('syncActiveWordToPlayback', () => {

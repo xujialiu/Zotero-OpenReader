@@ -1,6 +1,6 @@
 /**
- * Zotero 10.0.3's own Read Aloud manager, run from the verbatim excerpt in
- * test/fixtures/engine/read-aloud-manager-10.0.3.js, and a reader window as
+ * Zotero 10.0.7's own Read Aloud manager, run from the verbatim excerpt in
+ * test/fixtures/engine/read-aloud-manager-10.0.7.js, and a reader window as
  * far as the Engine uses one: EventTarget, Event, Promise, and an
  * AudioContext whose clock is the virtual clock of the core's harness.
  */
@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import type { VirtualClock } from '../../core/engine/harness';
 
-const SOURCE = readFileSync(new URL('../../fixtures/engine/read-aloud-manager-10.0.3.js', import.meta.url), 'utf8');
+const SOURCE = readFileSync(new URL('../../fixtures/engine/read-aloud-manager-10.0.7.js', import.meta.url), 'utf8');
 
 /** Read Aloud's own controller, as far as the manager and the tests see it: what a voice built before the Engine was in place. */
 export class NativeController extends EventTarget {
@@ -43,6 +43,7 @@ export class NativeController extends EventTarget {
   skipBack() {}
   skipAhead() {}
   retry() {}
+  clearFailures() {}
 }
 
 export interface ZoteroReadAloud {
