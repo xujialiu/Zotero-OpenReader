@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-02
 issue: 237
 ---
@@ -30,7 +30,7 @@ The sandbox is given `Worker` and `ChromeWorker` (`xpcom/plugins.js:167`,
    whenever its ordered list holds a regular-expression row**; a list of
    exact rows only runs on the main thread. An exact row compiles to a
    literal with fixed-width lookarounds, which is linear.
-2. **A time limit per Segment** (250 ms, provisional until measured). The
+2. **A time limit per Segment** (250 ms). The
    worker posts which row it starts before each regular-expression
    row.
    When the limit passes, the plugin terminates the worker, starts a new
@@ -51,8 +51,17 @@ The sandbox is given `Worker` and `ChromeWorker` (`xpcom/plugins.js:167`,
   lookaround or backreferences, RE2's syntax differences, and a
   third-party library to license and ship.
 
-## To verify before acceptance
+## Verified
 
-- A worker from the plugin's `resource://` substitution starts from the
-  sandbox, and `terminate()` stops a worker stuck in a regular expression.
-- The round trip per Segment and the worker's start, measured live.
+On 1.16.17-beta, Zotero 10.0.7, macOS (2026-11-02, issue #237):
+
+- **The worker starts** from the Player's `resource://` substitution
+  (`new Worker(…/replacements-worker.js)` in the sandbox), and
+  `terminate()` frees a worker stuck in `(a+)+$` on a 43-character
+  sentence: that Segment came back in 519 ms with the row skipped
+  (`timedOut: [4]`), and a bridge call right after it answered in 1 ms.
+- **The round trip** of an ordinary Segment with four rows, two of them
+  regular expressions, was 1-4 ms.
+- **Counters are per Zotero session.** An edit's recheck of the Segments a
+  reading holds runs a slow row again, and times out again, once per such
+  Segment: 8 cuts in that run, all of the same row and sentence.

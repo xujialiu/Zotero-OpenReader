@@ -115,6 +115,10 @@ for that request in that reply (2026-10-05).
 
 ## GitHub Markdown
 
+Never write "owner" in issue, PR and comment bodies, as in "settled with
+the owner" or "(owner, date)": state the decision and its date
+("Settled on 2026-11-02"). The user finds it crude (2026-11-02, issue #237).
+
 One paragraph per line in issue, PR and comment bodies; separate blocks
 with blank lines. GitHub renders single newlines as `<br>` (`breaks: true`),
 so 80-column wrapping creates a ragged narrow column (2026-08-30).
