@@ -834,3 +834,4 @@ then) and is in the git history before that day.
 ### [2026-11-02](NOTES_2026-11-02.md)
 
 - Zotero 10.0.7's Play calls the controller's `clearFailures()`, which the Engine lacked, so no paused reading resumed (issue #238)
+- Zotero's hidden popup replays Play when a request fails faster than its silent audio starts (issue #238)

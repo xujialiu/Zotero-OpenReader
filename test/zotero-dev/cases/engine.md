@@ -190,7 +190,10 @@ isolation rules, and close only the fixtures opened for this run.
     again. Play asks again too on Zotero 10.0.7 and later (its `play()`
     clears the failures first, issue #238): one more request
     (`store.requests` up one), `manager.error` null at once, and the error
-    back only if the server still fails. Before 10.0.7 Play failed again at
+    back only if the server still fails. Count it against a slow failure
+    (~300 ms): the first Play after a failure faster than ~40 ms asks twice,
+    because Zotero's hidden popup replays Play from its media element (the
+    kit's Limits, 1.16.16-beta7 run). Before 10.0.7 Play failed again at
     once without a request. A Zotero voice's `daily-limit-exceeded` passes
     through (item 21).
 
