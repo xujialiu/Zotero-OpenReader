@@ -22,14 +22,12 @@ and never let a pattern freeze Zotero.
   window marks its row, so the owner can rewrite it.
 - **Other sentences still use it.** A slow pattern is usually slow only on
   some text; it keeps working everywhere else.
-- **Exact rows are never slow**, and run as they are. Wildcard rows are
-  timed too: several `*` in one row, over a very long word, can be slow
-  in the same way.
+- **Exact rows are never slow**, and run as they are.
 
 ## What it costs
 
-- **A little time per sentence** while a document has wildcard or
-  regular-expression rows, a few milliseconds; the prefetch absorbs it.
+- **A little time per sentence** while a document has regular-expression
+  rows, a few milliseconds; the prefetch absorbs it.
 - **A sentence that hits the limit waits for it** before its audio is asked
   for, about a quarter of a second, usually while an earlier sentence is
   still being read.

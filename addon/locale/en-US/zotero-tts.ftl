@@ -733,7 +733,7 @@ ztts-replacements-add =
     .label = +
     .tooltiptext = Add a replacement
     .aria-label = Add a replacement
-# $mode is one of the three match names below
+# $mode is one of the two match names below
 ztts-replacements-ignore-case = { $mode }, any case
 ztts-replacements-overridden = This document has a row with the same text, which applies here instead.
 ztts-replacements-slow = Took too long on a sentence and was skipped there. Simplify it.
@@ -747,12 +747,9 @@ ztts-replacement-mode-label =
     .value = Match:
 ztts-replacement-mode-exact-item =
     .label = Exact
-ztts-replacement-mode-wildcard-item =
-    .label = Wildcard
 ztts-replacement-mode-regex-item =
     .label = Regular expression
 ztts-replacement-mode-exact = Exact
-ztts-replacement-mode-wildcard = Wildcard
 ztts-replacement-mode-regex = Regular expression
 ztts-replacement-match-case =
     .label = Match case
@@ -766,7 +763,7 @@ ztts-replacement-scope-document = This document
 ztts-replacement-scope-global = All documents
 ztts-help-replacement-mode =
     .value = ?
-    .help = Exact matches whole words only. Wildcard lets * stand for any part of a word and ? for one character, which Read as repeats with its own * and ?; Regular expression uses JavaScript's syntax, with $1 in Read as.
+    .help = Exact matches whole words only. Regular expression uses JavaScript's syntax, with $1 in Read as for what a group matched.
 ztts-help-replacement-match-case =
     .value = ?
     .help = Off, “IL” also matches “il” and “Il”.
@@ -776,7 +773,6 @@ ztts-help-replacement-scope =
 ztts-replacement-error-empty = Enter the text to replace.
 ztts-replacement-error-syntax = This regular expression is not valid: { $detail }
 ztts-replacement-error-empty-match = This pattern can match nothing at all. Make it match at least one character.
-ztts-replacement-error-placeholders = Read as has more * or ? than Text. Write \* or \? for the characters themselves.
 ztts-replacement-error-duplicate = This list already has a row with the same text, match and case.
 
 

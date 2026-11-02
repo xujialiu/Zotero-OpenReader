@@ -14,7 +14,7 @@ Issue #237 adds Replacements: rules that change the text sent to a voice
 while the highlight stays on the document's text. There are two lists,
 the Global replacements (settings) and the Document replacements (one per
 attachment, keyed like the Document voice, `user/KEY` or
-`group-N/KEY`). Each row is a pattern (exact, wildcard or regular
+`group-N/KEY`). Each row is a pattern (exact text or a regular
 expression, with a match-case flag) and its Read-as text. A Segment can
 match several rows at overlapping places, so their precedence has to be
 fixed. The owner settled it on 2026-11-02.
@@ -38,7 +38,7 @@ fixed. The owner settled it on 2026-11-02.
    whole document span, so the highlight lights `IL-6` while
    *interleukin six* is heard. Bracket removal's `removed` positions
    compose with this map (`restoreSpeechOffsets` generalized).
-5. **Exact match boundaries.** An exact or wildcard row whose edge is a
+5. **Exact match boundaries.** An exact row whose edge is a
    letter, digit or mark matches only where the neighbor on that side is
    neither a letter, digit or mark, nor a joiner (`-`, `/`, `_`) with one
    beyond it. Characters of scripts written without spaces (Han,

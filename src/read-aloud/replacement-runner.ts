@@ -4,11 +4,11 @@ import { findReplacements, needsWorker, type ReplacedSpan, type Replacement } fr
  * Runs a Segment's replacement rows (issue #237) where a pattern cannot
  * freeze Zotero (ADR 0024): Zotero lets chrome code run unbounded
  * (`dom.max_chrome_script_run_time` 0), so a backtracking regular
- * expression on the main thread would hang it. A list with a wildcard or
+ * expression on the main thread would hang it. A list with a
  * regular-expression row runs in one worker, one Segment at a time, under a
  * time limit; a list of exact rows runs on the spot.
  *
- * The worker says which row it starts before each wildcard or pattern row.
+ * The worker says which row it starts before each pattern row.
  * When the limit passes, the worker is terminated, a new one started, and
  * the Segment run again without the row it was in. The skip holds for that
  * Segment only: a pattern slow on one sentence still serves the others.
@@ -56,13 +56,13 @@ interface Job {
   rows: Replacement[];
   skip: Set<number>;
   resolve(result: RunResult): void;
-  /** The last wildcard or pattern row the worker said it started. */
+  /** The last pattern row the worker said it started. */
   row: number | null;
   started: number;
   timedOut: number[];
 }
 
-const patternRows = (rows: readonly Replacement[]): number[] => rows.flatMap((row, i) => (row.mode === 'exact' ? [] : [i]));
+const patternRows = (rows: readonly Replacement[]): number[] => rows.flatMap((row, i) => (row.mode === 'regex' ? [i] : []));
 
 export function createReplacementRunner(deps: ReplacementRunnerDeps) {
   const limit = deps.limitMs ?? REPLACEMENT_LIMIT_MS;

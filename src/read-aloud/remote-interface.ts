@@ -94,8 +94,8 @@ export type RemoteInterfaceDeps = {
   /**
    * The replaced spans of a Segment's text under this reader's rows, the
    * document's then the global ones (issue #237, ADR 0023), read at every
-   * request, so an edit reaches the next sentence asked for. Wildcard and
-   * regular-expression rows run in a worker under a time limit (ADR 0024).
+   * request, so an edit reaches the next sentence asked for.
+   * Regular-expression rows run in a worker under a time limit (ADR 0024).
    */
   replacements?(text: string): Promise<{ spans: ReplacedSpan[] }> | { spans: ReplacedSpan[] };
   /**

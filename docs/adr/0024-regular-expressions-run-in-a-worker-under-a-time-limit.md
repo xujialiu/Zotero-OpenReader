@@ -27,15 +27,12 @@ The sandbox is given `Worker` and `ChromeWorker` (`xpcom/plugins.js:167`,
 ## Decision
 
 1. **Every Segment's replacement passes run in one dedicated worker
-   whenever its ordered list holds a wildcard or regular-expression
-   row**; a list of exact rows only runs on the main thread. An exact row
-   compiles to a literal with fixed-width lookarounds, which is linear. A
-   wildcard compiles without nested quantifiers, but k stars over one
-   long run of word characters still cost O(n^(k+1)), so it is timed like
-   a regular expression.
+   whenever its ordered list holds a regular-expression row**; a list of
+   exact rows only runs on the main thread. An exact row compiles to a
+   literal with fixed-width lookarounds, which is linear.
 2. **A time limit per Segment** (250 ms, provisional until measured). The
-   worker posts which row it starts before each wildcard or
-   regular-expression row.
+   worker posts which row it starts before each regular-expression
+   row.
    When the limit passes, the plugin terminates the worker, starts a new
    one, and runs the Segment again with the row it was in skipped for
    that Segment. The skip is reported (Player status, dialog row,

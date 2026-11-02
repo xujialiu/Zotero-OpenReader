@@ -19,10 +19,11 @@ document, edited from the player. The owner's answers of 2026-11-02
 - **What a replacement put in is never matched again**, by any later row
   of either list. Writing `IL` → `I L` does not make a later row for `I`
   see two letters.
-- **A row above wins, even when a row below matches more.** With `IL-6` →
-  *interleukin six* first and `anti IL-*` → *anti-interleukin \** second,
-  "anti IL-6" is read *anti interleukin six*: the second row no longer
-  finds `IL-6`, which the first already replaced.
+- **A row above wins, even when a row below matches more.** With `IL-6`
+  read as *interleukin six* first, and below it a row that reads "anti
+  IL-" and any number as *anti-interleukin* and that number, "anti IL-6"
+  is read *anti interleukin six*: the second row no longer finds `IL-6`,
+  which the first already replaced.
 - **The document wins over the settings** for the same text: a document
   row for `IL` takes every `IL` before a global row for `IL` can.
 

@@ -13,7 +13,6 @@ import {
 } from '../../src/core/replacements';
 
 const exact = (text: string, readAs: string, matchCase = true): Replacement => ({ text, readAs, mode: 'exact', matchCase });
-const wildcard = (text: string, readAs: string, matchCase = true): Replacement => ({ text, readAs, mode: 'wildcard', matchCase });
 const regex = (text: string, readAs: string, matchCase = true): Replacement => ({ text, readAs, mode: 'regex', matchCase });
 
 /** The speech text a Segment becomes under these rows, brackets left alone. */
@@ -40,12 +39,6 @@ describe('validateReplacement', () => {
 
   it('refuses a pattern that matches empty text', () => {
     expect(validateReplacement(regex('a*', 'x'))).toEqual({ reason: 'empty-match' });
-    expect(validateReplacement(wildcard('*', 'x'))).toEqual({ reason: 'empty-match' });
-  });
-
-  it('refuses a wildcard Read as with more * or ? than its text', () => {
-    expect(validateReplacement(wildcard('IL-*', 'interleukin * *'))).toEqual({ reason: 'placeholders' });
-    expect(validateReplacement(wildcard('IL-*', 'interleukin \\* *'))).toBeNull();
   });
 });
 
@@ -61,9 +54,9 @@ describe('sameReplacement', () => {
 
 describe('parsing and storing', () => {
   it('round-trips a list and drops rows it cannot read', () => {
-    const rows = [exact('IL-6', 'interleukin six'), wildcard('IL-*', 'interleukin *', false), regex('(\\d+) mg', '$1 milligrams')];
+    const rows = [exact('IL-6', 'interleukin six'), regex('IL-(\\d+)', 'interleukin $1', false), regex('(\\d+) mg', '$1 milligrams')];
     expect(parseReplacements(serializeReplacements(rows))).toEqual(rows);
-    const raw = JSON.stringify([rows[0], { text: 'x' }, null, { text: 'a', readAs: 'b', mode: 'glob', matchCase: true }, rows[2]]);
+    const raw = JSON.stringify([rows[0], { text: 'x' }, null, { text: 'a*', readAs: 'b', mode: 'wildcard', matchCase: true }, rows[2]]);
     expect(parseReplacements(raw)).toEqual([rows[0], rows[2]]);
     expect(parseReplacements('not json')).toEqual([]);
     expect(parseReplacements(undefined)).toEqual([]);
@@ -116,32 +109,6 @@ describe('exact rows', () => {
   });
 });
 
-describe('wildcard rows', () => {
-  it('fills each * of Read as with what it matched, in order', () => {
-    expect(speak('IL-6 and IL-10 rose', [wildcard('IL-*', 'interleukin *')])).toBe('interleukin 6 and interleukin 10 rose');
-    expect(speak('H2O', [wildcard('H?O', 'water ?')])).toBe('water 2');
-  });
-
-  it('keeps * inside one word, across joiners but not spaces or other punctuation', () => {
-    expect(speak('IL-6-dependent, IL-7.', [wildcard('IL-*', '[*]')])).toBe('[6-dependent], [7].');
-    expect(speak('anti IL-6 and anti IL-7', [wildcard('anti *', 'against *')])).toBe('against IL-6 and against IL-7');
-  });
-
-  it('has the exact rows\' boundaries at both ends', () => {
-    expect(speak('XIL-6', [wildcard('IL-*', 'x')])).toBe('XIL-6');
-  });
-
-  it('reads \\*, \\? and \\\\ as the characters themselves, in both fields', () => {
-    expect(speak('5* and 5x', [wildcard('5\\*', 'five star \\*')])).toBe('five star * and 5x');
-    expect(speak('a?b', [wildcard('a\\?b', 'q')])).toBe('q');
-  });
-
-  it('matches case unless told not to', () => {
-    expect(speak('il-6', [wildcard('IL-*', 'interleukin *', false)])).toBe('interleukin 6');
-    expect(speak('il-6', [wildcard('IL-*', 'interleukin *')])).toBe('il-6');
-  });
-});
-
 describe('regular-expression rows', () => {
   it('uses JavaScript syntax with $1 in Read as, and no implied boundaries', () => {
     expect(speak('IL-6 rose', [regex('IL-(\\d+)', 'interleukin $1')])).toBe('interleukin 6 rose');
@@ -160,7 +127,7 @@ describe('regular-expression rows', () => {
 
 describe('the ordered passes (ADR 0023)', () => {
   it('lets an earlier row win even where a later one would match more, starting earlier', () => {
-    const rows = [exact('IL-6', 'interleukin six'), wildcard('anti IL-*', 'anti-interleukin *')];
+    const rows = [exact('IL-6', 'interleukin six'), regex('anti IL-(\\d+)', 'anti-interleukin $1')];
     expect(speak('anti IL-6', rows)).toBe('anti interleukin six');
     expect(speak('anti IL-6', [rows[1], rows[0]])).toBe('anti-interleukin 6');
   });
@@ -184,9 +151,9 @@ describe('the ordered passes (ADR 0023)', () => {
 });
 
 describe('needsWorker', () => {
-  it('is true once a wildcard or regular-expression row is in the list', () => {
+  it('is true once a regular-expression row is in the list', () => {
     expect(needsWorker([exact('a', 'b')])).toBe(false);
-    expect(needsWorker([exact('a', 'b'), wildcard('a*', 'b')])).toBe(true);
+    expect(needsWorker([exact('a', 'b'), regex('a+', 'b')])).toBe(true);
     expect(needsWorker([regex('a', 'b')])).toBe(true);
     expect(needsWorker([])).toBe(false);
   });

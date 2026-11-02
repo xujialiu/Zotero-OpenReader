@@ -6,12 +6,12 @@ import type { Timestamp } from './providers/types';
  * rows, their checks, the ordered passes over one Segment (ADR 0023) and
  * the map from the speech text back to the document's.
  *
- * Wildcard and regular-expression rows run in a worker under a time limit
- * (ADR 0024, read-aloud/replacement-runner.ts); this file is what the
- * worker and the main thread both run.
+ * Regular-expression rows run in a worker under a time limit (ADR 0024,
+ * read-aloud/replacement-runner.ts); this file is what the worker and the
+ * main thread both run.
  */
 
-export type MatchMode = 'exact' | 'wildcard' | 'regex';
+export type MatchMode = 'exact' | 'regex';
 
 export interface Replacement {
   text: string;
@@ -26,7 +26,7 @@ export interface DocumentReplacements {
   ts: number;
 }
 
-export type ReplacementProblem = { reason: 'empty' | 'syntax' | 'empty-match' | 'placeholders'; detail?: string };
+export type ReplacementProblem = { reason: 'empty' | 'syntax' | 'empty-match'; detail?: string };
 
 /** One replaced piece of a Segment: document code units [from, to) read as `text`, made by row `row`. */
 export interface ReplacedSpan {
@@ -51,7 +51,7 @@ export interface SpeechText {
   changed: boolean;
 }
 
-const MODES: readonly MatchMode[] = ['exact', 'wildcard', 'regex'];
+const MODES: readonly MatchMode[] = ['exact', 'regex'];
 /** A row's text or Read as longer than this is not a replacement anyone typed. */
 const MAX_FIELD = 4000;
 
@@ -64,52 +64,21 @@ const WORD = `(?:(?![${NO_SPACE}])[\\p{L}\\p{N}\\p{M}])`;
 const JOINER = '[\\-/_]';
 const LEFT_EDGE = `(?<!${WORD})(?<!${WORD}${JOINER})`;
 const RIGHT_EDGE = `(?!${WORD})(?!${JOINER}${WORD})`;
-/** What a wildcard may cover: the characters of one word, joiners included. */
-const WILD_CHAR = '[\\p{L}\\p{N}\\p{M}\\-/_]';
 
 const isWordChar = (char: string): boolean => LETTER_CHAR.test(char) && !NO_SPACE_CHAR.test(char);
 const escapeLiteral = (text: string): string => text.replace(/[\\^$.*+?()[\]{}|/]/g, '\\$&');
-
-type WildToken = { wild: '*' | '?' } | { literal: string };
-
-/** A wildcard field's tokens: `*` and `?` are wildcards; `\` makes the next character literal. */
-function wildTokens(text: string): WildToken[] {
-  const tokens: WildToken[] = [];
-  const chars = Array.from(text);
-  for (let i = 0; i < chars.length; i++) {
-    const char = chars[i];
-    if (char === '\\' && i + 1 < chars.length) tokens.push({ literal: chars[++i] });
-    else if (char === '*' || char === '?') tokens.push({ wild: char });
-    else tokens.push({ literal: char });
-  }
-  return tokens;
-}
-
-const wildCount = (text: string): number => wildTokens(text).filter((t) => 'wild' in t).length;
 
 function flags(row: Replacement, global: boolean): string {
   return (global ? 'g' : '') + 'u' + (row.matchCase ? '' : 'i');
 }
 
-/** The row's pattern source, with the word boundaries of an exact or wildcard row. */
+/** The row's pattern source, with an exact row's word boundaries. */
 function source(row: Replacement, edges = true): string {
   if (row.mode === 'regex') return row.text;
-  let body = '';
-  let first = '', last = '';
-  if (row.mode === 'exact') {
-    body = escapeLiteral(row.text);
-    const chars = Array.from(row.text);
-    first = chars[0] ?? '';
-    last = chars[chars.length - 1] ?? '';
-  } else {
-    const tokens = wildTokens(row.text);
-    for (const token of tokens) body += 'wild' in token ? (token.wild === '*' ? `(${WILD_CHAR}*)` : `(${WILD_CHAR})`) : escapeLiteral(token.literal);
-    // A wildcard at an edge covers word characters: it needs the boundary a letter would
-    const edge = (token: WildToken | undefined) => (!token ? '' : 'wild' in token ? 'a' : token.literal);
-    first = edge(tokens[0]);
-    last = edge(tokens[tokens.length - 1]);
-  }
+  const body = escapeLiteral(row.text);
   if (!edges) return body;
+  const chars = Array.from(row.text);
+  const first = chars[0] ?? '', last = chars[chars.length - 1] ?? '';
   return (isWordChar(first) ? LEFT_EDGE : '') + body + (isWordChar(last) ? RIGHT_EDGE : '');
 }
 
@@ -130,8 +99,7 @@ export function validateReplacement(row: Replacement): ReplacementProblem | null
   } catch (e) {
     return { reason: 'syntax', detail: e instanceof Error ? e.message : String(e) };
   }
-  if (row.mode !== 'exact' && pattern.exec('') !== null) return { reason: 'empty-match' };
-  if (row.mode === 'wildcard' && wildCount(row.readAs) > wildCount(row.text)) return { reason: 'placeholders' };
+  if (row.mode === 'regex' && pattern.exec('') !== null) return { reason: 'empty-match' };
   return null;
 }
 
@@ -141,9 +109,9 @@ export function sameReplacement(a: Replacement, b: Replacement): boolean {
   return a.matchCase ? a.text === b.text : a.text.toLocaleLowerCase() === b.text.toLocaleLowerCase();
 }
 
-/** Is a wildcard or regular-expression row in the list: the list then runs in the worker (ADR 0024). */
+/** Is a regular-expression row in the list: the list then runs in the worker (ADR 0024). */
 export function needsWorker(rows: readonly Replacement[]): boolean {
-  return rows.some((row) => row.mode !== 'exact');
+  return rows.some((row) => row.mode === 'regex');
 }
 
 function readRow(value: unknown): Replacement | null {
@@ -234,13 +202,6 @@ function expandRegex(readAs: string, match: RegExpExecArray, text: string): stri
   return out;
 }
 
-/** A wildcard's Read as: each unescaped `*` or `?` filled, in order, with what the text's wildcards matched. */
-function expandWildcard(readAs: string, match: RegExpExecArray): string {
-  let out = '', slot = 1;
-  for (const token of wildTokens(readAs)) out += 'wild' in token ? (match[slot++] ?? '') : token.literal;
-  return out;
-}
-
 const overlaps = (spans: readonly ReplacedSpan[], from: number, to: number): boolean =>
   spans.some((span) => from < span.to && span.from < to);
 
@@ -252,7 +213,7 @@ function stepFrom(text: string, index: number): number {
 
 /**
  * The ordered passes (ADR 0023): each row in turn replaces what it finds in
- * the text no earlier row replaced. `onRow` is told before each wildcard or
+ * the text no earlier row replaced. `onRow` is told before each
  * regular-expression row starts: the worker reports it, so a row that runs
  * out of time is known (ADR 0024). Spans come back in document order.
  */
@@ -265,7 +226,7 @@ export function findReplacements(
   for (let k = 0; k < rows.length; k++) {
     if (options.skip?.has(k)) continue;
     const row = rows[k];
-    if (row.mode !== 'exact') options.onRow?.(k);
+    if (row.mode === 'regex') options.onRow?.(k);
     const pattern = compile(row);
     if (!pattern) continue;
     let match: RegExpExecArray | null;
@@ -276,8 +237,7 @@ export function findReplacements(
         pattern.lastIndex = stepFrom(text, from);
         continue;
       }
-      const readAs = row.mode === 'regex' ? expandRegex(row.readAs, match, text)
-        : row.mode === 'wildcard' ? expandWildcard(row.readAs, match) : row.readAs;
+      const readAs = row.mode === 'regex' ? expandRegex(row.readAs, match, text) : row.readAs;
       spans.push({ from, to, text: readAs, row: k });
       pattern.lastIndex = to;
     }

@@ -34,7 +34,7 @@ is built for the way its author reads —
 - 🎧 **A voice browser** in the settings: every voice by provider and language, a play button for a short sample, hearts for favorites, and a switch to offer only the favorites. [→ Voice browser](#voice-browser)
 - ✨ **Word *and* sentence highlighting**, each behind a switch of its own, in your own colors and opacities — for Zotero's voices too. [→ Highlight](#highlight)
 - ⌨️ **Keyboard shortcuts** for speed, volume, skipping by sentence or paragraph, reading from the selection, the player's options panel, auto-scroll mode, the word highlight on or off, highlighting or underlining the sentence being read, and stopping Read Aloud in every tab at once. All rebindable. [→ Shortcuts](#keyboard-shortcuts)
-- 🔤 **Replacements** — have the voice say an abbreviation in full or a name the way it sounds, in every document or in one; exact words, wildcards or regular expressions, while the highlight stays on the text. [→ Tutorial](tutorials/replacements.md)
+- 🔤 **Replacements** — have the voice say an abbreviation in full or a name the way it sounds, in every document or in one; exact words or regular expressions, while the highlight stays on the text. [→ Tutorial](tutorials/replacements.md)
 - 📌 **One voice and speed everywhere** — every document and every open tab, instead of Zotero's choice per language. [→ Reading](#reading)
 - ⏱️ **The pauses are yours** — how long every voice waits between sentences and before a paragraph, shorter as you read faster. [→ Reading](#reading)
 - 💾 **Backup and sync** — settings and reading positions as files, or through your own WebDAV folder, so your settings and bookmarks follow you between computers. [→ Backup and sync](#backup-and-sync)

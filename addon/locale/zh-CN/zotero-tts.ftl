@@ -662,7 +662,7 @@ ztts-replacements-add =
     .label = +
     .tooltiptext = 添加替换
     .aria-label = 添加替换
-# $mode 是下面三种匹配方式之一
+# $mode 是下面两种匹配方式之一
 ztts-replacements-ignore-case = { $mode }，不区分大小写
 ztts-replacements-overridden = 本文档有一行原文相同的替换，在这里由它生效。
 ztts-replacements-slow = 在一个句子上用时过长，已在该句跳过。请简化它。
@@ -676,12 +676,9 @@ ztts-replacement-mode-label =
     .value = 匹配：
 ztts-replacement-mode-exact-item =
     .label = 精确
-ztts-replacement-mode-wildcard-item =
-    .label = 通配符
 ztts-replacement-mode-regex-item =
     .label = 正则表达式
 ztts-replacement-mode-exact = 精确
-ztts-replacement-mode-wildcard = 通配符
 ztts-replacement-mode-regex = 正则表达式
 ztts-replacement-match-case =
     .label = 区分大小写
@@ -695,7 +692,7 @@ ztts-replacement-scope-document = 本文档
 ztts-replacement-scope-global = 所有文档
 ztts-help-replacement-mode =
     .value = ?
-    .help = 精确只匹配整个词。通配符用 * 代表词里的任意一段、? 代表一个字符，“读作”里的 * 和 ? 会按顺序填回；正则表达式用 JavaScript 语法，“读作”里用 $1 引用。
+    .help = 精确只匹配整个词。正则表达式用 JavaScript 语法，“读作”里用 $1 引用分组匹配到的内容。
 ztts-help-replacement-match-case =
     .value = ?
     .help = 不勾选时，“IL”也会匹配“il”和“Il”。
@@ -705,7 +702,6 @@ ztts-help-replacement-scope =
 ztts-replacement-error-empty = 请输入要替换的原文。
 ztts-replacement-error-syntax = 这个正则表达式无效：{ $detail }
 ztts-replacement-error-empty-match = 这个模式可能什么都不匹配。请让它至少匹配一个字符。
-ztts-replacement-error-placeholders = “读作”里的 * 或 ? 比原文多。要写字符本身，请用 \* 或 \?。
 ztts-replacement-error-duplicate = 这个列表里已有一行原文、匹配方式和大小写设置都相同的替换。
 
 

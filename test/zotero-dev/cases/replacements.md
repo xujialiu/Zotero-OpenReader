@@ -3,7 +3,7 @@
 ## Replacements (issue #237)
 
 Text the voice says in place of a document's text: the document's rows,
-then the global ones, each in order (ADR 0023); wildcard and pattern rows
+then the global ones, each in order (ADR 0023); regular-expression rows
 in a worker under a time limit (ADR 0024). Run the [baseline](../baseline.md),
 then import `test/fixtures/replacements/replacements.epub` as a temporary
 standalone attachment (regenerate it with its `build.py`). Use only this
@@ -38,9 +38,9 @@ Never click the tutorial link: it opens the system browser.
    Match (Exact selected), Match case (checked), Applies to (This document)
    with three `?`. Refused at OK, with the dialog still open and its message
    shown: empty Text; regex `IL-(\d+` (syntax, message names the error);
-   regex `a*` (matches nothing); wildcard `IL-*` read as `* *`
-   (placeholders); the same Text, mode and case as a row already in that
-   list. Accepted rows land at the end of their list. A text selected in
+   regex `a*` (matches nothing); the same Text, mode and case as a row
+   already in that list. Match offers exactly Exact and Regular
+   expression. Accepted rows land at the end of their list. A text selected in
    the document before the Player's click is the new row's Text.
 4. **Saving.** OK in the window writes, for the rows below:
    `readAloud.replacements` (global rows, JSON) and
@@ -50,8 +50,8 @@ Never click the tutorial link: it opens the system browser.
    `rows`/`documentRows` matching.
 5. **What the voice is given** — `diagnostics.replacementsPreview(text, index)`
    with document rows `IL-6` → `interleukin six` (Exact) and
-   `anti IL-*` → `anti-interleukin *` (Wildcard), and global rows
-   `IL-*` → `interleukin *` (Wildcard), `(\d+) ?mg\b` → `$1 milligrams`
+   `anti IL-(\d+)` → `anti-interleukin $1` (Regex), and global rows
+   `IL-(\d+)` → `interleukin $1` (Regex), `(\d+) ?mg\b` → `$1 milligrams`
    (Regex):
 
    | text | expected `speech` |

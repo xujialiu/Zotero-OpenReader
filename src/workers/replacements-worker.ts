@@ -3,7 +3,7 @@ import { findReplacements } from '../core/replacements';
 /**
  * The replacement passes off the main thread (ADR 0024,
  * read-aloud/replacement-runner.ts): one job at a time, saying which
- * wildcard or pattern row it starts, so a row that never ends is known.
+ * pattern row it starts, so a row that never ends is known.
  */
 declare const self: { postMessage(message: unknown): void; onmessage: ((event: { data: any }) => void) | null };
 

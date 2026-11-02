@@ -2738,7 +2738,7 @@ function stopTextSettings(): void {
 //
 // Text the voice says in place of a document's text: the document's rows,
 // then the global ones, each in order (core/replacements.ts, ADR 0023). A
-// list with a wildcard or a pattern runs in a worker under a time limit
+// list with a regular expression runs in a worker under a time limit
 // (read-aloud/replacement-runner.ts, ADR 0024). An edit reaches a reading
 // in progress as a voice switch would (read-aloud/replacement-refresh.ts).
 // The two windows are chrome documents of a package registered per

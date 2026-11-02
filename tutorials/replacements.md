@@ -29,7 +29,7 @@ Click **+** under the list. Fill in:
   clicking the player's button is filled in for you.
 - **Read as** — what the voice says instead. Leave it empty to skip the
   text.
-- **Match** — Exact, Wildcard or Regular expression, below.
+- **Match** — Exact or Regular expression, below.
 - **Match case** — on by default: `IL` does not match `il`.
 - **Applies to** — this document, or all documents; only in the player's
   window.
@@ -50,20 +50,6 @@ and `_`:
 In Chinese, Japanese, Thai and other text written without spaces, a row
 matches anywhere.
 
-### Wildcard
-
-`*` stands for any part of a word, nothing included, and `?` for exactly
-one character. Neither goes past a space or any punctuation other than
-`-`, `/` and `_`. Each `*` and `?` in **Read as** is filled with what the
-one in the same place in **Text** matched:
-
-| Text | Read as | `IL-6 and IL-10 rose` is read |
-| --- | --- | --- |
-| `IL-*` | `interleukin *` | interleukin 6 and interleukin 10 rose |
-| `H?O` | `water ?` | (for `H2O`) water 2 |
-
-Write `\*`, `\?` and `\\` for the characters themselves, in either field.
-
 ### Regular expression
 
 JavaScript's regular expressions. In **Read as**, `$1`, `$2` and
@@ -80,8 +66,8 @@ nothing at all.
 
 **A slow pattern is skipped, never waited for.** Some patterns, such as
 nested repetition like `(a+)+`, take practically forever on some
-sentences. When a wildcard or a pattern takes more than a quarter of a
-second on a sentence, it is skipped for that sentence only: the other
+sentences. When a pattern takes more than a quarter of a second on a
+sentence, it is skipped for that sentence only: the other
 replacements still apply, the player's **!** names it, and its row turns
 red in the window. Zotero never freezes on one. Simplify the pattern.
 
@@ -96,7 +82,7 @@ end of its list.
 | Row | Text | Read as |
 | --- | --- | --- |
 | 1 | `IL-6` (Exact) | `interleukin six` |
-| 2 | `anti IL-*` (Wildcard) | `anti-interleukin *` |
+| 2 | `anti IL-(\d+)` (Regular expression) | `anti-interleukin $1` |
 
 `anti IL-6` is read *anti interleukin six*: row 2 no longer finds `IL-6`,
 which row 1 replaced. With the two rows swapped, it is read

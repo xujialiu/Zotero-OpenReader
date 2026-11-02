@@ -39,12 +39,11 @@ export interface ReplacementsDialogDeps {
   log(e: unknown): void;
 }
 
-const MODES: readonly MatchMode[] = ['exact', 'wildcard', 'regex'];
+const MODES: readonly MatchMode[] = ['exact', 'regex'];
 const DRAG_TYPE = 'application/x-ztts-replacement';
 
 const MODE_LABELS: Record<MatchMode, () => string> = {
   exact: () => t('ztts-replacement-mode-exact'),
-  wildcard: () => t('ztts-replacement-mode-wildcard'),
   regex: () => t('ztts-replacement-mode-regex'),
 };
 
@@ -56,7 +55,6 @@ export function matchLabel(row: Replacement): string {
 const PROBLEMS: Record<Exclude<ReplacementProblem['reason'], 'syntax'>, () => string> = {
   empty: () => t('ztts-replacement-error-empty'),
   'empty-match': () => t('ztts-replacement-error-empty-match'),
-  placeholders: () => t('ztts-replacement-error-placeholders'),
 };
 
 /** Open the window over `parent`, modal; the lists as OK left them, or null on Cancel. */
