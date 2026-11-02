@@ -8,9 +8,11 @@ in a worker under a time limit (ADR 0024). Run the [baseline](../baseline.md),
 then import `test/fixtures/replacements/replacements.epub` as a temporary
 standalone attachment (regenerate it with its `build.py`). Use only this
 fixture for playback; leave the user's tabs alone. Snapshot
-`extensions.zotero.zotero-tts.readAloud.replacements` and every
-`extensions.zotero.zotero-tts.documentReplacements.*` before changes, and
-restore them at the end. Use a free voice (Fish Audio's free model, or the
+`extensions.zotero.zotero-tts.readAloud.replacements`, every
+`extensions.zotero.zotero-tts.documentReplacements.*`,
+`…documentReplacementsChanged`, `…readAloud.defaultVoice` and Zotero's
+`extensions.zotero.reader.readAloudVoices` before changes — a voice picked
+on the fixture rewrites the last two — and restore them at the end. Use a free voice (Fish Audio's free model, or the
 configured Kokoro-FastAPI); a Zotero voice only through a stubbed transport.
 
 The window is modal: open it with `diagnostics.openReplacementsWindow(index)`
@@ -27,8 +29,8 @@ Never click the tutorial link: it opens the system browser.
    *For every document*. Expected: the global rows alone.
 2. **The Player's button.** With the Player as Top bar, then Bottom bar:
    `.replacements` is the element just before `.layout-menu` in
-   `.controls`, and its right edge is within 2 px of `.layout-menu`'s left
-   edge. As Floating panel: `.replacements` is in the bottom row, at its
+   `.controls`, with the bar's own 8 px gap between them (measured on
+   1.16.17-beta: right 1157, left 1165). As Floating panel: `.replacements` is in the bottom row, at its
    left edge (its left within 10 px of `.player`'s left), while
    `.status-button` stays at the right. Its title is `Replacements`
    (`替换` in zh-CN). A click opens the window over the reader: intro
@@ -70,10 +72,12 @@ Never click the tutorial link: it opens the system browser.
    covers `IL-6`. Re-reading sentence 2 is served from the cache; after an
    edit that changes it, a new request goes out.
 7. **A slow pattern.** Add a global regex row `(a+)+$` → `x` and preview
-   sentence 7 (`aaa…a!`): the answer comes within 1 s with `timedOut`
-   naming that row's index and `speech` unchanged; `runner.timeouts` 1,
-   `runner.workers` 2; a bridge call right after answers at once (Zotero
-   not frozen). Reading sentence 7: the Player's `!` shows
+   sentence 7 (`aaa…a!`): the answer comes within 1 s (519 ms on
+   1.16.17-beta) with `timedOut` naming that row's index and `speech`
+   unchanged; `runner.timeouts` and `runner.workers` each grow by at least
+   1 (they count for the whole Zotero session, and an edit's own recheck
+   of a held sentence runs the row again); a bridge call right after
+   answers at once (Zotero not frozen). Reading sentence 7: the Player's `!` shows
    *The replacement “(a+)+$” took too long …*, and the window marks that
    row red.
 8. **An edit while reading.** Playing sentence 2 before *levels*, change
