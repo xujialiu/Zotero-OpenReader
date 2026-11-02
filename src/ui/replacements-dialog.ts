@@ -101,7 +101,8 @@ function initMain(win: any, model: ReplacementsModel, deps: ReplacementsDialogDe
   const columns = [
     { dataKey: 'text', label: t('ztts-replacements-column-text'), flex: 3 },
     { dataKey: 'readAs', label: t('ztts-replacements-column-read-as'), flex: 3 },
-    { dataKey: 'match', label: t('ztts-replacements-column-match'), flex: 2 },
+    // Wide enough for "Regular expression" whole in a 640 px window (measured on 1.16.17-beta)
+    { dataKey: 'match', label: t('ztts-replacements-column-match'), flex: 3 },
     ...(documentMode ? [{ dataKey: 'scope', label: t('ztts-replacements-column-scope'), flex: 2 }] : []),
   ];
   const isSlow = (index: number): boolean => {
