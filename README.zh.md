@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:9294a5580c81 -->
+<!-- translated-from: README.md sha256:9b144df997a8 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -330,3 +330,9 @@ npm run build
 ## 请我喝杯咖啡
 
 <a href="https://buymeacoffee.com/xujialiu"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="60" alt="请我喝杯咖啡"></a>
+
+## 赞助者
+
+感谢 [vovakyan](https://github.com/vovakyan) 和其他匿名赞助者！
+
+如果你是匿名赞助的、想把名字留在这里，请发邮件到 [xujialiuphd@gmail.com](mailto:xujialiuphd@gmail.com) 告诉我。

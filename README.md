@@ -688,3 +688,10 @@ which also let the author ship them in his
 ## Buy me a coffee
 
 <a href="https://buymeacoffee.com/xujialiu"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="60" alt="Buy me a coffee"></a>
+
+## Sponsors
+
+Thanks [vovakyan](https://github.com/vovakyan) and other anonymous sponsors!
+
+If you sponsored anonymously and would like your name here, email me at
+[xujialiuphd@gmail.com](mailto:xujialiuphd@gmail.com).
