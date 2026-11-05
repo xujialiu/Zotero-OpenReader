@@ -60,6 +60,7 @@ import { createDOMFollow } from './read-aloud/dom-follow';
 import { forEachReader, liveReaderValue, readerGone } from './read-aloud/reader-access';
 import { createResumeGuard } from './read-aloud/resume-guard';
 import { createSelectionStart } from './read-aloud/selection-start';
+import { createSegmentPreparation } from './read-aloud/segment-preparation';
 import { createSentenceInView, type SentenceInView, type SentenceInViewDeps } from './read-aloud/sentence-in-view';
 import { createSkippedLines, type SkippedLines } from './read-aloud/skipped-lines';
 import { createSystemVoiceHiding, type SystemVoiceHiding } from './read-aloud/system-voices';
@@ -215,6 +216,7 @@ let sentenceInView: SentenceInView | null = null;
 let domFollowing: ReturnType<typeof createDOMFollow> | null = null;
 let followResumeGuard: ReturnType<typeof createResumeGuard> | null = null;
 let selectionStart: ReturnType<typeof createSelectionStart> | null = null;
+let segmentPreparation: ReturnType<typeof createSegmentPreparation> | null = null;
 /** The auto-scroll style's, the reading line's and the Word switch's observers: a change re-places the sentence or line being followed. */
 let autoScrollObservers: unknown[] = [];
 /** A page's first line Zotero's document analysis threw out, put back before the sentences are cut (read-aloud/skipped-lines.ts, issue #87). */
@@ -633,6 +635,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
       sentenceInView?.attach(reader);
       followResumeGuard?.attach(reader);
       selectionStart?.attach(reader);
+      segmentPreparation?.attach(reader);
       domFollowing?.attach(reader);
       // The structure is materialized when the first segments are
       // requested, after this listing: the shadow is in place first (issue #87)
@@ -991,6 +994,7 @@ function watchReader(reader: any): void {
   sentenceInView?.attach(reader);
   followResumeGuard?.attach(reader);
   selectionStart?.attach(reader);
+  segmentPreparation?.attach(reader);
   domFollowing?.attach(reader);
   skippedLines?.attach(reader);
   systemVoiceHiding?.attach(reader);
@@ -2476,6 +2480,17 @@ function startSelectionStart(): void {
   eachReader((reader) => selectionStart?.attach(reader));
 }
 
+function startSegmentPreparation(): void {
+  segmentPreparation?.dispose();
+  segmentPreparation = createSegmentPreparation({
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: (value) => ((value && typeof value === 'object') || typeof value === 'function' ? Components.utils.waiveXrays(value) : value),
+    isDead: (value) => Components.utils.isDeadWrapper(value),
+    error: (e) => Zotero.logError(e),
+  });
+  eachReader((reader) => segmentPreparation?.attach(reader));
+}
+
 // ---- A page's first line put back ------------------------------------------
 //
 // Zotero's document analysis can throw a page's first line out of the reading
@@ -3089,6 +3104,7 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
       ['sentence in view', startSentenceInView],
       ['skipped lines', startSkippedLines],
       ['selection start', startSelectionStart],
+      ['segment preparation', startSegmentPreparation],
       [
         'system speech helper',
         () => {
@@ -3175,6 +3191,8 @@ async function shutdown(reason?: number): Promise<void> {
   stopHtmlDocuments();
   selectionStart?.dispose();
   selectionStart = null;
+  segmentPreparation?.dispose();
+  segmentPreparation = null;
   stopSpeechBackend();
   // The outer shadow first, so the hiding's restore puts Zotero's own method back
   stopProviderTiers();
@@ -3675,6 +3693,12 @@ const diagnostics = {
       null,
       1,
     ),
+  /** Initial segment requests coalesced before consuming a one-shot target. */
+  segmentPreparation: () => {
+    const readers: unknown[] = [];
+    eachReader((reader) => readers.push({ itemID: reader.itemID, state: segmentPreparation?.inspect(reader) }));
+    return JSON.stringify({ patches: segmentPreparation?.patchCounts(), readers });
+  },
   /** Whether the boundary patch ran, as seen from the plugin sandbox. */
   selectionStart: () => JSON.stringify({
     patches: selectionStart?.patchCounts(),

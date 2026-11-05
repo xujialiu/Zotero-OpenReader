@@ -851,3 +851,8 @@ then) and is in the git history before that day.
 - Exact System voice selection needs a request-scoped candidate mask (issue #243)
 - Retained results rejected a false pass before the corrected live handoff (issue #243)
 - The shared anchor needs the whole boundary and candidate-ranking fix (issue #234)
+- The shared matcher passes live, with playback-start uncertainty retained (issue #234)
+
+### [2026-11-06](NOTES_2026-11-06.md)
+
+- Overlapping initial segment requests consume the shared target twice (issue #234)

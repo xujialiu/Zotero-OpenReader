@@ -115,7 +115,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Reading positions](cases/reading-positions.md) — 5.1–5.4, 5.8
 - [Reading position sync over WebDAV](cases/position-sync.md) — 6.1–6.5, 6.10–6.15
 - [The Positions File shared with OpenReader](cases/document-positions.md) — 1–17 (issues #126, #129, #138, #139, #207)
-- [A phone's position resolves to its quotation, not a similar or earlier copy](cases/shared-anchor-integrity.md) — 1–7 (issue #234)
+- [A phone's position resolves to its quotation, not a similar or earlier copy](cases/shared-anchor-integrity.md) — 1–8 (issue #234)
 - [A position written under another computer's library number is taken here](cases/position-library-numbers.md) — 1–3 (issue #187)
 - [Settings backup](cases/settings-backup.md) — 3.21, 6.6–6.9, 6.21
 - [Settings sync over WebDAV](cases/settings-sync.md) — 3.19, 6.11–6.15, 6.17–6.19, 6.22, 6.25, 6.26

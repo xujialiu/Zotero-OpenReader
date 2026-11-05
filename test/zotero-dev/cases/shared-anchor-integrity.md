@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Executed kit](../scripts/shared-anchor-integrity/README.md)
 
 ## A phone's position resolves to its quotation, not a similar or earlier copy (issue #234)
 
@@ -63,6 +63,14 @@ agreement, not the later spaced copy. Confirm the SDT source position or
 active segment distinguishes those occurrences. The stored context is
 allowed to attest adjacency; removing it is a different, host-tested case.
 
+On 1.17.1-beta4 (2026-11-05), the installed plugin delivered the first
+occurrence `[6,0,2]` through `[6,0,4]`, and one instrumented run consumed it
+and first exposed `[6,0,0]` / `前文你好后文。`. Other passes started elsewhere
+despite the correct delivered point. The resolver mechanism passed; playback
+start repeatability remains unresolved, not an unconditional end-to-end PASS.
+Keep both observations and do not retry away a failure. See the
+[verification record](https://github.com/xujialiu/Zotero-OpenReader/issues/234#issuecomment-6661264930).
+
 ### 4
 
 **The 100th reply is eligible, in both matching paths.** In the block whose
@@ -99,6 +107,32 @@ unique candidate. These are pure algorithm branches; a 10,000-occurrence
 live playback is unnecessary. Record host timings separately without a
 flaky unit-test timing threshold. This row is not evidence of live playback.
 
+### 8
+
+**A concurrent voice refresh cannot replace the explicit start.** Run this
+before item 7. Start from the known older local fallback, close the fixture
+session, then supply the first Han SDT point directly. Inject one call to
+the real manager's `applyPersistedVoices` at the first
+`_requestReadAloudSegments` entry, as in the retained red research probe
+`r33-inject-voices-write.js`. Use temporary fixture-only wrappers and restore
+and compare their actual descriptors/references in `finally`.
+
+Expected on beta5: exactly one native `setSegments`, choosing the segment
+containing the first Han point; exactly one non-null target consumption;
+`diagnostics.segmentPreparation()` for the fixture has `patched:true`,
+`coalesced` increased by at least one and ends with `pending:false`. Its
+`started` count increases once, not twice. Record the initial setter event,
+not a later polling sample that may miss a short segment. Repeat a bounded
+three-trial sequence and an ordinary unwrapped control. Beta4's deciding
+probe chose the correct index and then replaced it with the saved index;
+retain that red evidence rather than weakening the assertion.
+
+Host tests in `test/read-aloud/segment-preparation.test.ts` additionally
+cover granularity invalidation, close/reopen while pending, synchronous
+reentry, rejection/retry, reader isolation and disposal. Test the live
+cold/new-reader attach, a close/reopen, and the diagnostic after reinstall.
+These do not require changing user voices or the shared file format.
+
 ### 7
 
 **Restoration.** Pause and close only fixture playback, and run
@@ -115,6 +149,9 @@ disabled or sync suspended and is reported as a blocker, never PASS.
 
 The verified beta may remain installed. No release, production-server
 write, provider credential change or physical-phone operation is included.
-Successful reusable scripts belong in
-`test/zotero-dev/scripts/shared-anchor-integrity/`; add the kit link here
-when that executed kit exists.
+The executed scripts are retained in the linked kit. Its README distinguishes
+beta4 observations from the beta5 safety changes awaiting execution. Restore
+all named preferences and document-voice records by content and user flags,
+not only the old eight-field subset. The first run's original WebDAV switches
+were all off; the enabled-folder restoration order is also covered by the
+inert-boundary kit tests.
