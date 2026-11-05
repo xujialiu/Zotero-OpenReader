@@ -127,7 +127,9 @@ describe('the Windows daemon script', () => {
   it('fits the command line CreateProcess accepts, with room to grow', () => {
     const encoded = encodeCommand(WINDOWS_DAEMON_SCRIPT, (binary) => Buffer.from(binary, 'binary').toString('base64'));
     const line = windowsCommandArguments(encoded).join(' ').length;
-    expect(line).toBeLessThan(24_000);
+    // Native format negotiation needs COM declarations; retain >2,700 chars
+    // below CreateProcess's 32,767, including the executable and quotes.
+    expect(line).toBeLessThan(30_000);
   });
 
   it('encodes as base64 of UTF-16LE, which is what -EncodedCommand reads', () => {
@@ -135,10 +137,12 @@ describe('the Windows daemon script', () => {
     expect(Buffer.from(encoded, 'base64').toString('utf16le')).toBe('hi');
   });
 
-  it('speaks the protocol this module frames: a handshake, the three ops, and 16 kHz SAPI output', () => {
+  it('speaks the framed protocol with per-voice SAPI format negotiation', () => {
     expect(WINDOWS_DAEMON_SCRIPT).toContain('"ready":true');
     for (const op of ["'ping'", "'voices'", "'speak'"]) expect(WINDOWS_DAEMON_SCRIPT).toContain(op);
-    // The rate the marks are counted at; anything else silently skews them
+    // The old 16 kHz constant is fallback audio, not every voice's clock.
+    expect(WINDOWS_DAEMON_SCRIPT).toContain('SapiFormat $s.Voice.Id');
+    expect(WINDOWS_DAEMON_SCRIPT).toContain('GetOutputFormat(ref wanted, IntPtr.Zero');
     expect(WINDOWS_DAEMON_SCRIPT).toContain('SpeechAudioFormatInfo(16000');
     // Raw streams, never the console: the helper runs without one
     expect(WINDOWS_DAEMON_SCRIPT).toContain('OpenStandardInput()');

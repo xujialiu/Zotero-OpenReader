@@ -1,0 +1,151 @@
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { wordAt } from '../../../../src/core/engine/words';
+import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsCommandArguments } from '../../../../src/core/providers/system/daemon-script.win';
+import { decodeFrameBody, encodeFrame, timestampsFromMarks, type SystemRequest, type SystemResponse } from '../../../../src/core/providers/system/protocol';
+
+const ANDREW = 'sapi5/MicrosoftWindows.Voice.en-US.AndrewHD.1';
+const DAVID = 'sapi5/TTS_MS_EN-US_DAVID_11.0';
+const TEXT = 'One. Two. Three.';
+
+/** Read the WAV's own chunks: System.Speech does not use a 44-byte header. */
+function acousticWords(bytes: Buffer) {
+  let rate = 0;
+  let pcm: Buffer = Buffer.alloc(0);
+  for (let p = 12; p + 8 <= bytes.length;) {
+    const name = bytes.toString('ascii', p, p + 4);
+    const size = bytes.readUInt32LE(p + 4);
+    if (name === 'fmt ') {
+      rate = bytes.readUInt32LE(p + 12);
+      expect(bytes.readUInt16LE(p + 10)).toBe(1); // mono
+      expect(bytes.readUInt16LE(p + 22)).toBe(16);
+    }
+    if (name === 'data') {
+      pcm = bytes.subarray(p + 8, p + 8 + size);
+      break;
+    }
+    p += 8 + size + (size % 2);
+  }
+  expect(rate).toBeGreaterThan(0);
+  const window = Math.round(rate * 0.01);
+  const rms: number[] = [];
+  for (let p = 0; p + window * 2 <= pcm.length; p += window * 2) {
+    let energy = 0;
+    for (let i = 0; i < window; i++) energy += pcm.readInt16LE(p + i * 2) ** 2;
+    rms.push(Math.sqrt(energy / window));
+  }
+  const threshold = Math.max(20, Math.max(...rms) * 0.02);
+  const words: { start: number; end: number }[] = [];
+  let start: number | null = null;
+  let last = 0;
+  for (let i = 0; i <= rms.length; i++) {
+    if (i < rms.length && rms[i] >= threshold) {
+      if (start === null) start = i;
+      last = i;
+    }
+    if (start !== null && (i === rms.length || i - last > 12)) {
+      if (last - start >= 5) words.push({ start: start * 10, end: (last + 1) * 10 });
+      start = null;
+    }
+  }
+  return { rate, words };
+}
+
+function runHelper(script: string, requests: SystemRequest[]): Map<number, SystemResponse> {
+  const encoded = encodeCommand(script, binary => Buffer.from(binary, 'binary').toString('base64'));
+  const result = spawnSync(WINDOWS_POWERSHELL, windowsCommandArguments(encoded), {
+    input: Buffer.concat(requests.map(encodeFrame)),
+    // Zotero's Subprocess environment has no PATH; native format probing
+    // (including Add-Type's C# compiler) must not depend on npm's PATH.
+    env: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== 'PATH')), PATH: '' },
+    timeout: 30000,
+    windowsHide: true,
+    maxBuffer: 1024 * 1024,
+  });
+  expect(result.error).toBeUndefined();
+  expect(result.status, result.stderr.toString()).toBe(0);
+  const responses = new Map<number, SystemResponse>();
+  for (let p = 0; p < result.stdout.length;) {
+    const length = result.stdout.readUInt32LE(p);
+    const response = decodeFrameBody(result.stdout.subarray(p + 4, p + 4 + length));
+    responses.set(response.id, response);
+    p += 4 + length;
+  }
+  expect(responses.get(0)?.ready).toBe(true);
+  return responses;
+}
+
+/**
+ * Native integration for #242, not a mark-count or source-string test.
+ * Runs only on Windows, and skips an exact local voice if it is not installed.
+ * No Online substitution, audio playback, registry writes, or Zotero state.
+ * Andrew -> David -> Andrew goes through ONE actual long-lived helper.
+ */
+describe.skipIf(process.platform !== 'win32')('the Windows helper word clock', () => {
+  let dir = '';
+  let voices: string[] = [];
+  let responses = new Map<number, SystemResponse>();
+  const cases = [
+    { name: 'Andrew HD', id: 2, voice: ANDREW, rate: 24000 },
+    { name: 'David Desktop after Andrew', id: 3, voice: DAVID, rate: 16000 },
+    { name: 'Andrew HD after David', id: 4, voice: ANDREW, rate: 24000 },
+  ];
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), 'ztts-word-clock-'));
+    const requests: SystemRequest[] = [{ id: 1, op: 'voices' }];
+    for (const c of cases) requests.push({ id: c.id, op: 'speak', voice: c.voice, text: TEXT, file: join(dir, `${c.id}.wav`) });
+    responses = runHelper(WINDOWS_DAEMON_SCRIPT, requests);
+    expect(responses.get(1)?.ok).toBe(true);
+    voices = (responses.get(1)?.voices ?? []).map(v => v.id);
+  }, 35000);
+
+  afterAll(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
+  for (const c of cases) {
+    it(`keeps the highlighted word with the audio for ${c.name}`, context => {
+      if (!voices.includes(c.voice)) context.skip(`Local voice is not installed: ${c.voice}`);
+      const response = responses.get(c.id)!;
+      expect(response.ok, response.error).toBe(true);
+      const audio = acousticWords(readFileSync(join(dir, `${c.id}.wav`)));
+      expect(audio.words, 'fixture must have three independently audible words').toHaveLength(3);
+      const marks = response.words ?? [];
+      const timings = timestampsFromMarks(marks, response.ms ?? 0, TEXT);
+      expect(timings, 'real word timestamps, not sentence fallback').toHaveLength(3);
+      for (let i = 0; i < audio.words.length; i++) {
+        // Coarse 300 ms tolerance avoids treating phonetic onset/jitter as drift.
+        expect(Math.abs(marks[i].t - audio.words[i].start), `word ${i + 1} drift in ms`).toBeLessThanOrEqual(300);
+        expect(wordAt(timings, 0, (audio.words[i].end - 30) / 1000), `highlight while saying word ${i + 1}`).toBe(i);
+      }
+      expect(audio.rate, 'each voice keeps its own negotiated PCM rate').toBe(c.rate);
+    });
+  }
+
+  it('keeps audio but withholds unverified SAPI marks, without affecting OneCore', context => {
+    if (!voices.includes(DAVID)) context.skip('Local David Desktop is not installed');
+    const handshake = `Send '{"id":0,"ok":true,"ready":true}'`;
+    const script = WINDOWS_DAEMON_SCRIPT.replace(handshake, `function SapiFormat($token) { return $null }\n${handshake}`);
+    expect(script, 'the controlled format-query failure must actually be injected').not.toBe(WINDOWS_DAEMON_SCRIPT);
+    const file = join(dir, 'fallback.wav');
+    const requests: SystemRequest[] = [{ id: 1, op: 'speak', voice: DAVID, text: TEXT, file }];
+    const mark = 'onecore/MSTTS_V110_enUS_MarkM';
+    if (voices.includes(mark)) requests.push({ id: 2, op: 'speak', voice: mark, text: TEXT, file: join(dir, 'onecore.wav') });
+    const replies = runHelper(script, requests);
+    const fallback = replies.get(1)!;
+    expect(fallback.ok, fallback.error).toBe(true);
+    expect(acousticWords(readFileSync(file)).words).toHaveLength(3);
+    expect(fallback.words).toEqual([]);
+    expect(fallback.timingNote).toBe('the SAPI voice audio format could not be verified; using sentence highlighting');
+    if (voices.includes(mark)) {
+      const onecore = replies.get(2)!;
+      expect(onecore.ok, onecore.error).toBe(true);
+      expect(onecore.words).toHaveLength(3);
+      expect(onecore.timingNote).toBeUndefined();
+    }
+  }, 35000);
+});

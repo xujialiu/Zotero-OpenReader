@@ -109,7 +109,7 @@ export function createSystemProvider(deps: SystemProviderDeps): TTSProvider {
   const backend = (): SpeechBackend => backendOf(deps);
 
   /** The synthesis, without the timestamp arithmetic; the temp file is gone by the time it returns either way. */
-  async function speak(text: string, voice: string): Promise<{ audio: Blob; ms: number; words: WordMark[] }> {
+  async function speak(text: string, voice: string): Promise<{ audio: Blob; ms: number; words: WordMark[]; timingNote?: string }> {
     if (!isSystemVoiceId(voice)) throw new SynthesisError('unknown', `Not a system voice id: ${voice}`);
     const file = await deps.tempFile();
     try {
@@ -118,15 +118,16 @@ export function createSystemProvider(deps: SystemProviderDeps): TTSProvider {
       if (!bytes.length) throw new SynthesisError('decode-failed', `The ${platformName(backend())} speech helper wrote an empty audio file`);
       const words = Array.isArray(response.words) ? response.words : [];
       const ms = typeof response.ms === 'number' ? response.ms : 0;
+      const timingNote = typeof response.timingNote === 'string' ? response.timingNote : undefined;
       // A header with no samples — what say writes for text it cannot voice
       // (core/wav.ts) — goes on as empty audio, which the remote interface
       // plays as a short pause (issue #42); the bytes themselves would fail
       // Zotero's decode, and a decode failure is a silent stop
       if (wavDataLength(bytes) === 0) {
         deps.debug?.(`system: the engine wrote no samples for ${text.length} chars`);
-        return { audio: new Blob([], { type: 'audio/wav' }), ms, words };
+        return { audio: new Blob([], { type: 'audio/wav' }), ms, words, timingNote };
       }
-      return { audio: new Blob([bytes as BlobPart], { type: 'audio/wav' }), ms, words };
+      return { audio: new Blob([bytes as BlobPart], { type: 'audio/wav' }), ms, words, timingNote };
     } finally {
       // Best effort: a file that was never written has nothing to remove,
       // and a temp file left behind must never be the thing that fails a
@@ -152,15 +153,15 @@ export function createSystemProvider(deps: SystemProviderDeps): TTSProvider {
     },
 
     async synthesize(text: string, o: SynthesisOptions): Promise<SynthesisResult> {
-      const { audio, ms, words } = await speak(text, o.voice);
+      const { audio, ms, words, timingNote } = await speak(text, o.voice);
       if (sentenceOnly()) return { audio, note: `${platformName(backend())} voices come without word timings` };
       const timestamps = timestampsFromMarks(words, ms, text);
       if (timestamps.length) return { audio, timestamps };
       return {
         audio,
-        note: words.length
+        note: timingNote || (words.length
           ? `the engine reported ${words.length} word marks that do not fit ${ms} ms of audio`
-          : 'the engine reported no word marks',
+          : 'the engine reported no word marks'),
       };
     },
 
@@ -178,8 +179,8 @@ export function createSystemProvider(deps: SystemProviderDeps): TTSProvider {
      */
     async checkWordTimestamps(voice: string): Promise<{ ok: boolean; detail?: string }> {
       if (sentenceOnly()) return { ok: false, detail: `${platformName(backend())} voices have none, so the sentence is highlighted` };
-      const { ms, words } = await speak(PROBE_TEXT, voice);
-      if (!words.length) return { ok: false, detail: 'the engine reported no word marks' };
+      const { ms, words, timingNote } = await speak(PROBE_TEXT, voice);
+      if (!words.length) return { ok: false, detail: timingNote || 'the engine reported no word marks' };
       const timestamps = timestampsFromMarks(words, ms, PROBE_TEXT);
       return timestamps.length ? { ok: true } : { ok: false, detail: `the engine's ${words.length} word marks do not fit ${ms} ms of audio` };
     },

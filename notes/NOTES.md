@@ -843,3 +843,6 @@ then) and is in the git history before that day.
 - A newly registered bridge is visible to a fresh helper, but System.Speech retains a process-wide snapshot (issue #241)
 - Connection checks queue a fresh helper and notify open Players (issue #241)
 - Verified live on 1.17.1-beta, and why the first tester probes needed correction (issue #241)
+- Andrew HD word highlighting runs ahead because System.Speech mixes resampled byte counts with the voice's input rate
+- Per-voice PCM format negotiation keeps System word marks on the audio clock (issue #242)
+- Human reading accepts the Andrew HD timing fix (issue #242)

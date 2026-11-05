@@ -57,6 +57,8 @@ export type SystemResponse = {
   /** Milliseconds of audio written to the file. */
   ms?: number;
   words?: WordMark[];
+  /** The helper withheld marks because their audio format could not be verified. */
+  timingNote?: string;
 };
 
 /** A message bigger than this is a desynchronized stream, not a message; both sides refuse it. */

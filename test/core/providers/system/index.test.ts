@@ -140,6 +140,17 @@ describe('createSystemProvider', () => {
     expect(result.note).toBe('the engine reported no word marks');
   });
 
+  it('preserves audio and the explicit reason when the helper cannot verify a voice format', async () => {
+    const timingNote = 'the SAPI voice audio format could not be verified; using sentence highlighting';
+    const t = setup({ answer: () => ({ ms: 1000, words: [], timingNote }) });
+    const result = await t.provider.synthesize(TEXT, { voice: 'sapi5/X', signal: NEVER_ABORTS });
+    expect(result.audio.size).toBe(8);
+    expect(result.timestamps).toBeUndefined();
+    expect(result.note).toBe(timingNote);
+    await expect(t.provider.checkWordTimestamps!('sapi5/X')).resolves.toEqual({ ok: false, detail: timingNote });
+    expect(t.removed).toEqual(t.files);
+  });
+
   it('removes the temp file even when the helper failed, so a broken sentence leaks nothing', async () => {
     const t = setup({
       answer: () => {

@@ -30,15 +30,14 @@
  *   throws on the first line and the daemon never starts. The standard
  *   streams themselves open fine, so all I/O here is raw bytes on them and
  *   the encoding is ours to choose (UTF-8, framed, never the console's).
- * - **`SpeakProgress.AudioPosition` is not the position in the WAV.** It is
- *   always counted at 16 kHz, whatever rate the wave writer was given: at
- *   SAPI's default 22050 every mark is 37.8 % late and the last word of a
- *   4.5 s sentence is reported past the end of the audio. Asking for 16 kHz
- *   output makes the marks exactly WinRT's for the same engine (100/320/650
- *   against 101/321/651), so that is what SpeakSapi asks for. Whether the
- *   16 kHz is .NET's or these engines' is not knowable from here — only
- *   Microsoft's voices are installed — so index.ts still drops a mark set
- *   that runs past the audio.
+ * - **`SpeakProgress.AudioPosition` skews when System.Speech resamples.**
+ *   It divides the output byte count by the engine's input bytes/second:
+ *   forcing a 24 kHz voice to 16 kHz compresses the word clock to 2/3,
+ *   while forcing a 16 kHz voice to 22050 stretches it by 37.8%. The old
+ *   blanket 16 kHz workaround fixed the Desktop voices but broke Andrew
+ *   HD (#242). Negotiate each selected engine's PCM format through public
+ *   SAPI interfaces and request that same format, cached per voice. If it
+ *   cannot be verified, deliver audio without untrusted word marks.
  */
 
 /**
@@ -88,12 +87,14 @@ function Fail($id, $msg) { Send ('{"id":' + $id + ',"ok":false,"error":' + (JStr
 
 $sapi = $null
 $sapiFmt = $null
+$sapiFormats = @{}
+$sapiTimingNote = $null
 $sapiMarks = New-Object Collections.ArrayList
 function SapiSynth {
   if ($null -eq $script:sapi) {
     Add-Type -AssemblyName System.Speech
     $script:sapi = New-Object System.Speech.Synthesis.SpeechSynthesizer
-    # 16 kHz mono is the rate AudioPosition is counted at; see the header
+    # Fallback audio only; verified voices use their own negotiated format.
     $script:sapiFmt = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(16000, [System.Speech.AudioFormat.AudioBitsPerSample]::Sixteen, [System.Speech.AudioFormat.AudioChannel]::Mono)
     $script:sapi.add_SpeakProgress({
         param($sender, $e)
@@ -101,6 +102,79 @@ function SapiSynth {
       })
   }
   $script:sapi
+}
+
+# Read the engine's negotiated format without speaking or editing a token.
+# SupportedAudioFormats is empty even for the installed Microsoft voices.
+function SapiFormat($token) {
+  if ($script:sapiFormats.ContainsKey($token)) { return $script:sapiFormats[$token] }
+  $format = $null
+  $catalog = $null
+  $voices = $null
+  try {
+    if (-not ('SapiWave' -as [type])) {
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+public static class SapiWave {
+  [StructLayout(LayoutKind.Sequential, Pack = 2)]
+  struct Wave {
+    public short tag, channels;
+    public int rate, bytesPerSecond;
+    public short align, bits, extra;
+  }
+  [ComImport, Guid("14056589-E16C-11D2-BB90-00C04F8EE6C0"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface Token { }
+  [ComImport, Guid("5B559F40-E952-11D2-BB91-00C04F8EE6C0"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface WithToken { void SetObjectToken(Token token); }
+  [ComImport, Guid("A74D7C8E-4CC5-4F2F-A6EB-804DEE18500E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface Engine {
+    void Speak(); // Unused slot before GetOutputFormat.
+    void GetOutputFormat(ref Guid wanted, IntPtr format, out Guid actual, out IntPtr wave);
+  }
+  public static int[] Get(object token, string clsid) {
+    object engine = Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid(clsid)));
+    IntPtr result = IntPtr.Zero;
+    try {
+      ((WithToken)engine).SetObjectToken((Token)token);
+      Guid wanted = new Guid("C31ADBAE-527F-4FF5-A230-F62BB61FF70C"), actual;
+      ((Engine)engine).GetOutputFormat(ref wanted, IntPtr.Zero, out actual, out result);
+      if (actual != wanted || result == IntPtr.Zero) throw new NotSupportedException("Not PCM");
+      var wave = (Wave)Marshal.PtrToStructure(result, typeof(Wave));
+      if (wave.tag != 1 || wave.extra != 0 || wave.rate < 8000 || wave.rate > 192000 ||
+          (wave.bits != 8 && wave.bits != 16) || (wave.channels != 1 && wave.channels != 2) ||
+          wave.align != wave.channels * wave.bits / 8 || wave.bytesPerSecond != wave.rate * wave.align)
+        throw new NotSupportedException("Unsupported PCM");
+      return new int[] { wave.rate, wave.bits, wave.channels };
+    } finally {
+      Marshal.FreeCoTaskMem(result);
+      Marshal.ReleaseComObject(engine);
+    }
+  }
+}
+'@
+    }
+    $catalog = New-Object -ComObject SAPI.SpVoice
+    $voices = $catalog.GetVoices()
+    for ($i = 0; $i -lt $voices.Count; $i++) {
+      $v = $voices.Item($i)
+      try {
+        if (($v.Id -replace '^.*\\', '') -ne $token) { continue }
+        $f = [SapiWave]::Get($v, $v.DataKey.GetStringValue('CLSID'))
+        $format = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo($f[0], [System.Speech.AudioFormat.AudioBitsPerSample]$f[1], [System.Speech.AudioFormat.AudioChannel]$f[2])
+        break
+      } finally { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($v) }
+    }
+  } catch { $format = $null }
+  finally {
+    foreach ($v in @($voices, $catalog)) {
+      if ($null -ne $v) { try { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($v) } catch {} }
+    }
+  }
+  # Cache failures too: keep audio, but never guess a word clock.
+  $script:sapiFormats[$token] = $format
+  $format
 }
 
 $winrt = $null
@@ -169,8 +243,15 @@ function SpeakSapi($token, $text, $file) {
   if ($null -eq $name) { throw "no such voice: $token" }
   $script:sapiMarks.Clear()
   $s.SelectVoice($name)
-  $s.SetOutputToWaveFile($file, $script:sapiFmt)
+  $format = SapiFormat $s.Voice.Id
+  $script:sapiTimingNote = $null
+  if ($null -eq $format) {
+    $script:sapiTimingNote = 'the SAPI voice audio format could not be verified; using sentence highlighting'
+    $format = $script:sapiFmt
+  }
+  $s.SetOutputToWaveFile($file, $format)
   try { $s.Speak($text) } finally { $s.SetOutputToNull() }
+  if ($null -ne $script:sapiTimingNote) { $script:sapiMarks.Clear() }
   $script:sapiMarks
 }
 
@@ -232,7 +313,9 @@ while ($true) {
         elseif ($api -eq 'onecore') { $marks = SpeakWinrt $token $req.text $req.file }
         else { throw ('unknown speech API: ' + $api) }
         $words = ($marks | ForEach-Object { $p = $_.Split(','); '{"t":' + $p[0] + ',"c":' + $p[1] + ',"n":' + $p[2] + '}' }) -join ','
-        Send ('{"id":' + $id + ',"ok":true,"ms":' + (WavMs $req.file) + ',"words":[' + $words + ']}')
+        $note = ''
+        if ($api -eq 'sapi5' -and $null -ne $script:sapiTimingNote) { $note = ',"timingNote":' + (JStr $script:sapiTimingNote) }
+        Send ('{"id":' + $id + ',"ok":true,"ms":' + (WavMs $req.file) + ',"words":[' + $words + ']' + $note + '}')
       }
       default { Fail $id ('unknown op: ' + $req.op) }
     }
