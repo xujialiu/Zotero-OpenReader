@@ -21,7 +21,9 @@ function setup(enabled = true, busy = false) {
   for (const name of switches) users.set(full(name), false);
   users.set(full('webdav.url'), 'test-destination'); users.set(full('readAloud.volume'), 0);
   const writes: { key: string; value: unknown }[] = [];
-  const set = (key: string, value: Value) => { users.set(key, value); writes.push({ key, value }); };
+  let restamp = false;
+  const changed = (key: string) => { if (restamp && !key.startsWith(prefix + 'webdav.')) users.set(prefix + 'webdav.syncState', 'observer-restamped'); };
+  const set = (key: string, value: Value) => { users.set(key, value); writes.push({ key, value }); changed(key); };
   let ignored: string | null = null;
   const prefs = {
     PREF_BOOL: 128, PREF_INT: 64, PREF_STRING: 32,
@@ -31,7 +33,7 @@ function setup(enabled = true, busy = false) {
     setBoolPref: (key: string, value: Value) => { if (key !== ignored) set(key, value); },
     setStringPref: (key: string, value: Value) => { if (key !== ignored) set(key, value); },
     setIntPref: (key: string, value: Value) => { if (key !== ignored) set(key, value); },
-    clearUserPref: (key: string) => { if (key !== ignored) { users.delete(key); writes.push({ key, value: get(key) }); } },
+    clearUserPref: (key: string) => { if (key !== ignored) { users.delete(key); writes.push({ key, value: get(key) }); changed(key); } },
   };
   const state: Record<string, any> = { baselinePrefs: baseline, documentVoicesBefore: {}, cleanupVerified: true, debugStoringAtStart: false, baselineTabs: [], host: { selectedTabID: 'original' } };
   const win = { windowState: 2, minimize() {}, Zotero_Tabs: { selectedID: 'original', select() {} } };
@@ -52,7 +54,7 @@ function setup(enabled = true, busy = false) {
     },
   };
   const run = async () => JSON.parse(await runInNewContext(readFileSync(new URL('62-cleanup-prefs-restore.js', root), 'utf8'), context));
-  return { state, users, get, writes, run, ignore: (key: string) => { ignored = key; } };
+  return { state, users, get, writes, run, restampOnReadingWrites: () => { restamp = true; }, ignore: (key: string) => { ignored = key; } };
 }
 
 describe('shared anchor kit restoration gates', () => {
@@ -78,6 +80,11 @@ describe('shared anchor kit restoration gates', () => {
     expect(e.writes.at(-1)?.key).toBe(folder);
     expect(e.get(prefix + 'readAloud.volume')).toBe(19);
     expect(e.users.has(prefix + 'readAloud.volume')).toBe(false);
+  });
+  it('restores sync bookkeeping after reading-pref observers have restamped it', async () => {
+    const e = setup(false); e.restampOnReadingWrites();
+    expect((await e.run()).ok).toBe(true);
+    expect(e.get(prefix + 'webdav.syncState')).toBe('webdav.syncState-original');
   });
   it('checks every snapshotted preference, not just the switch subset', async () => {
     const e = setup();

@@ -71,6 +71,12 @@ start repeatability remains unresolved, not an unconditional end-to-end PASS.
 Keep both observations and do not retry away a failure. See the
 [verification record](https://github.com/xujialiu/Zotero-OpenReader/issues/234#issuecomment-6661264930).
 
+Beta5 supersedes that start uncertainty for the reproduced interleaving:
+script 33 observed one target-containing setter, and script 31 observed the
+correct first active segment at 167 ms before normal forward progression.
+A later polling sample is not a new start. This item does not impose a
+minimum dwell time or judge an en-US voice's Chinese pronunciation.
+
 ### 4
 
 **The 100th reply is eligible, in both matching paths.** In the block whose
@@ -123,7 +129,10 @@ containing the first Han point; exactly one non-null target consumption;
 `coalesced` increased by at least one and ends with `pending:false`. Its
 `started` count increases once, not twice. Record the initial setter event,
 not a later polling sample that may miss a short segment. Repeat a bounded
-three-trial sequence and an ordinary unwrapped control. Beta4's deciding
+three-trial sequence and an ordinary no-injection control. The retained
+`40` control's historical label is `control-unwrapped`, but its observation
+wrappers remain installed: it is a non-injected instrumented control, not
+a no-wrapper control. The ordinary shared-resume checks use no such wrappers. Beta4's deciding
 probe chose the correct index and then replaced it with the saved index;
 retain that red evidence rather than weakening the assertion.
 

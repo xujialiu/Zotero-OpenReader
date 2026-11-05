@@ -856,3 +856,4 @@ then) and is in the git history before that day.
 ### [2026-11-06](NOTES_2026-11-06.md)
 
 - Overlapping initial segment requests consume the shared target twice (issue #234)
+- Beta5 keeps one start, and polling must not mistake progression for a jump (issue #234)

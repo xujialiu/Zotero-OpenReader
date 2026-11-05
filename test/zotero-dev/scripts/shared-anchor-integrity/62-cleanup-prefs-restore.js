@@ -67,10 +67,15 @@
       return [name, { valueEqual: read(snap.key) === snap.value, userFlagEqual: p.prefHasUserValue(snap.key) === snap.user }];
     }));
     const equal = records => Object.values(records).every(value => value.valueEqual && value.userFlagEqual);
-    const ordinary = Object.keys(baseline).filter(name => name !== 'webdav.enabled' && !switches.includes(name) && name !== 'readAloud.memory');
+    const ordinary = Object.keys(baseline).filter(name => name !== 'webdav.enabled' && !switches.includes(name) && name !== 'readAloud.memory' && name !== 'webdav.syncState');
     for (const name of ordinary) restore(name);
     restore('readAloud.memory');
-    const beforeEnable = verify([...ordinary, 'readAloud.memory']);
+    // Reading-pref observers stamp settings-sync bookkeeping even with the
+    // folder off. Restore that metadata AFTER those observers have settled;
+    // webdav.* fields are neverSynced and do not stamp themselves again.
+    if (!await settle()) throw new Error('restoration observers did not settle');
+    if (baseline['webdav.syncState']) restore('webdav.syncState');
+    const beforeEnable = verify([...ordinary, 'readAloud.memory', ...(baseline['webdav.syncState'] ? ['webdav.syncState'] : [])]);
     out.beforeEnable = beforeEnable;
     if (!equal(beforeEnable)) throw new Error('preference restoration mismatch before enabling');
     if (!await settle()) throw new Error('restoration observers did not settle');
