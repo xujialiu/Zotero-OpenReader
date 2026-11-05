@@ -1,9 +1,9 @@
 /**
- * A COPY of OpenReader's `src/core/document/anchor.ts` (the copy rule: the plugin's
- * provider layer went to OpenReader the same way, its ADR 0013). The two
- * files must change in step: a Document Id is the join key of the shared
- * positions file (docs/spec/SYNC-FORMAT.md, section 6.3), and a byte of
- * difference between the two implementations names one book twice.
+ * A COPY of OpenReader's `src/core/document/anchor.ts` (its ADR 0013's copy
+ * rule). Source: xujialiu/OpenReader@18b37fb (issues #282/#283), ported for
+ * plugin issue #234. The two matchers must change in step so a shared
+ * Positions File item resolves to the same quotation in both products
+ * (docs/spec/SYNC-FORMAT.md, section 6.5). References below are OpenReader's.
  */
 
 /**
@@ -55,7 +55,7 @@
  * side. Nothing in this directory takes an Utterance index.
  */
 
-import { alignWords, tokenize, type TimedWord } from './align';
+import { alignWords, type TimedWord, tokenize } from './align';
 
 type Token = ReturnType<typeof tokenize>[number];
 
@@ -154,9 +154,6 @@ const MIN_MATCHED = 0.7;
  */
 const MIN_DENSITY = 0.5;
 
-/** A cap on how many identical occurrences are scored. Two are enough to know a text is ambiguous; this is only so a pathological anchor cannot walk a whole book. */
-const MAX_OCCURRENCES = 64;
-
 /**
  * Where `anchor` sits in `text`, or null when it is not there.
  *
@@ -175,31 +172,41 @@ export function matchAnchor(anchor: TextAnchor, text: string): AnchorMatch | nul
   const tokens = tokenize(text);
 
   let agreement: AnchorAgreement = 'exact';
-  let spans = characterSpans(text, anchor.exact);
+  const characters = characterSpans(text, anchor.exact);
+  // A substring inside another word/number is not an exact quotation (#282).
+  let spans = characters.filter((span) => quotationEdgesAgree(anchor, text, span));
 
   if (!spans.length) {
     agreement = 'aligned';
     const keys = tokenize(anchor.exact).map((token) => token.key);
     if (!keys.length) return null;
-    spans = runSpans(tokens, keys);
+    spans = runSpans(tokens, keys).filter((span) => quotationEdgesAgree(anchor, text, span));
     if (!spans.length) {
+      // Token-exact matching may still find a valid reflowed quotation elsewhere,
+      // but an approximate match must not rescue a rejected character substring.
+      if (characters.length) return null;
+      // A bare, whole-Block heading needs all its words: dropping its number
+      // would turn "Volume One Chapter 1" into "Volume One Chapter 10".
+      if (!anchor.prefix && !anchor.suffix && WORD_END.test(anchor.exact)) return null;
       const span = alignedSpan(anchor.exact, text, tokens, keys.length);
       if (!span) return null;
       spans = [span];
     }
+    spans = spans.filter((span) => quotationEdgesAgree(anchor, text, span));
   }
 
   const prefixKeys = tokenize(anchor.prefix).map((token) => token.key);
   const suffixKeys = tokenize(anchor.suffix).map((token) => token.key);
-  const scored: AnchorMatch[] = spans.map((span) => ({
-    ...span,
-    agreement,
-    context: contextScore(tokens, prefixKeys, suffixKeys, span),
-    ambiguous: false,
-  }));
-  scored.sort(compareMatches);
-  const best = scored[0];
-  return { ...best, ambiguous: scored.length > 1 && compareMatches(best, scored[1]) === 0 };
+  // Keep only the winner and whether it tied. Every occurrence is eligible,
+  // not just a prefix of the Block (#283); no sort or per-hit full-text scan.
+  let best: AnchorMatch | null = null;
+  for (const span of spans) {
+    const candidate: AnchorMatch = { ...span, agreement, context: contextScore(tokens, prefixKeys, suffixKeys, span), ambiguous: false };
+    const order = best ? compareMatches(candidate, best) : -1;
+    if (order < 0) best = candidate;
+    else if (order === 0 && best) best.ambiguous = true;
+  }
+  return best;
 }
 
 /**
@@ -261,17 +268,37 @@ function characterSpans(text: string, exact: string): Span[] {
   return [];
 }
 
+const WORD_START = /^[\p{L}\p{M}\p{N}]/u;
+const WORD_END = /[\p{L}\p{M}\p{N}]$/u;
+
+/**
+ * A quotation cannot cut a word/number unless its own stored context attests
+ * that adjacency. Unlike ASCII word boundaries this also protects Han text,
+ * combining marks and astral letters. Context permits legitimate adjacent text
+ * in scripts without spaces; empty context never invents such a boundary.
+ */
+function quotationEdgesAgree(anchor: TextAnchor, text: string, span: Span): boolean {
+  const before = Array.from(text.slice(Math.max(0, span.start - 2), span.start)).at(-1) ?? '';
+  const after = text.slice(span.end, span.end + 2);
+  if (WORD_END.test(before) && WORD_START.test(text.slice(span.start, span.start + 2)) && !anchor.prefix.endsWith(before)) return false;
+  if (WORD_END.test(text.slice(Math.max(0, span.end - 2), span.end)) && WORD_START.test(after)) {
+    const next = Array.from(after)[0] ?? '';
+    if (!anchor.suffix.startsWith(next)) return false;
+  }
+  return true;
+}
+
 function occurrences(text: string, needle: string): number[] {
   const out: number[] = [];
   if (!needle) return out;
-  for (let at = text.indexOf(needle); at >= 0 && out.length < MAX_OCCURRENCES; at = text.indexOf(needle, at + 1)) out.push(at);
+  for (let at = text.indexOf(needle); at >= 0; at = text.indexOf(needle, at + 1)) out.push(at);
   return out;
 }
 
 /** Every run of `tokens` whose keys are exactly the anchor's, in order: the same words, spelled or spaced differently. */
 function runSpans(tokens: readonly Token[], keys: readonly string[]): Span[] {
   const out: Span[] = [];
-  for (let i = 0; i + keys.length <= tokens.length && out.length < MAX_OCCURRENCES; i++) {
+  for (let i = 0; i + keys.length <= tokens.length; i++) {
     let j = 0;
     while (j < keys.length && tokens[i + j].key === keys[j]) j++;
     if (j === keys.length) out.push({ start: tokens[i].start, end: tokens[i + keys.length - 1].end, matched: 1 });
@@ -312,20 +339,30 @@ function alignedSpan(exact: string, text: string, tokens: readonly Token[], tota
  * `core/align.ts`'s, so this is the same comparison the match itself used.
  */
 function contextScore(tokens: readonly Token[], prefixKeys: readonly string[], suffixKeys: readonly string[], span: Span): number {
-  const before: string[] = [];
-  const after: string[] = [];
-  for (const token of tokens) {
-    if (token.end <= span.start) before.push(token.key);
-    else if (token.start >= span.end) after.push(token.key);
-  }
+  // Tokens are ordered in original-text coordinates. Find the two edges in
+  // log time, then inspect only the stored context (32 code units per side).
+  const before = tokenBoundary(tokens, (token) => token.end > span.start);
+  const after = tokenBoundary(tokens, (token) => token.start >= span.end);
   let score = 0;
-  for (let i = 1; i <= Math.min(before.length, prefixKeys.length); i++) {
-    if (before[before.length - i] !== prefixKeys[prefixKeys.length - i]) break;
+  for (let i = 1; i <= Math.min(before, prefixKeys.length); i++) {
+    if (tokens[before - i].key !== prefixKeys[prefixKeys.length - i]) break;
     score++;
   }
-  for (let i = 0; i < Math.min(after.length, suffixKeys.length); i++) {
-    if (after[i] !== suffixKeys[i]) break;
+  for (let i = 0; i < Math.min(tokens.length - after, suffixKeys.length); i++) {
+    if (tokens[after + i].key !== suffixKeys[i]) break;
     score++;
   }
   return score;
+}
+
+/** First token satisfying a monotone predicate, or tokens.length. */
+function tokenBoundary(tokens: readonly Token[], after: (token: Token) => boolean): number {
+  let low = 0;
+  let high = tokens.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (after(tokens[middle])) high = middle;
+    else low = middle + 1;
+  }
+  return low;
 }

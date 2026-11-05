@@ -850,3 +850,4 @@ then) and is in the git history before that day.
 - Windows Microsoft labels retain voice quality without the vendor or language
 - Exact System voice selection needs a request-scoped candidate mask (issue #243)
 - Retained results rejected a false pass before the corrected live handoff (issue #243)
+- The shared anchor needs the whole boundary and candidate-ranking fix (issue #234)

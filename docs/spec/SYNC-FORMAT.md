@@ -287,9 +287,15 @@ which is the paragraph's first sentence; it does not guess a sentence inside it.
 
 `prefix` and `suffix` are up to 32 UTF-16 code units of the **same block's**
 text immediately before and after `exact`, NFC, empty at the block's edges.
-They never make a match; they only rank places that match `exact` equally
-well. A reader that finds two places matching equally well after ranking
-**refuses** rather than picking the first.
+They never invent a quotation match. They attest legitimate adjacency when
+an edge touches another letter, mark or number (including scripts without
+spaces), and rank places that match `exact` equally well. A rejected
+substring cannot be rescued by approximate alignment; an unpunctuated
+whole-block heading must retain all its words. A reader considers every
+occurrence, not only an initial set. Two places matching equally well after
+ranking are **refused**, including two occurrences inside the locator's own
+block, rather than picking the first. These checks preserve offsets into
+the original text; they do not change the file's fields or context length.
 
 Resolution order for a reader: the locator's block first; if the block does
 not resolve or the anchor is not found in it, every block of the document in

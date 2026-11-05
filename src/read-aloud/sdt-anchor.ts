@@ -24,7 +24,7 @@
  * `position.start` is `[...blockRef, nodeIndex, charInNode]`.
  */
 
-import { anchorHasWords, compareMatches, matchAnchor, type AnchorAgreement, type AnchorMatch, type TextAnchor } from '../core/document-anchor';
+import { type AnchorAgreement, type AnchorMatch, anchorHasWords, compareMatches, matchAnchor, type TextAnchor } from '../core/document-anchor';
 import { ANCHOR_CONTEXT, EPUB_LOCATOR_PATTERN, locatorOfPath, locatorPath, type SharedAnchor } from './xujialiu-positions-file';
 
 /** One leaf block of the SDT structure, as much of it as a crossing needs. */
@@ -310,5 +310,7 @@ function best(anchor: TextAnchor, candidates: readonly BlockSnapshot[]): { block
       tied = true;
     }
   }
-  return found ? { ...found, tied } : null;
+  // A locator names a block, not one occurrence inside it. Preserve the
+  // winning match's own ambiguity, without letting a weaker candidate veto it.
+  return found ? { ...found, tied: tied || found.match.ambiguous } : null;
 }
