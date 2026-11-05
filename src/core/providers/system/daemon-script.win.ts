@@ -38,6 +38,11 @@
  *   HD (#242). Negotiate each selected engine's PCM format through public
  *   SAPI interfaces and request that same format, cached per voice. If it
  *   cannot be verified, deliver audio without untrusted word marks.
+ * - **Select by token, not a name prefix.** System.Speech can match
+ *   "Microsoft Andrew" before "Microsoft Andrew Online". Temporarily mask
+ *   other enabled candidates through public InstalledVoice.Enabled for the
+ *   whole Speak request, verify the selected token, then restore even on
+ *   failure. Restoring before Speak would reset the current voice (#243).
  */
 
 /**
@@ -94,7 +99,6 @@ function SapiSynth {
   if ($null -eq $script:sapi) {
     Add-Type -AssemblyName System.Speech
     $script:sapi = New-Object System.Speech.Synthesis.SpeechSynthesizer
-    # Fallback audio only; verified voices use their own negotiated format.
     $script:sapiFmt = New-Object System.Speech.AudioFormat.SpeechAudioFormatInfo(16000, [System.Speech.AudioFormat.AudioBitsPerSample]::Sixteen, [System.Speech.AudioFormat.AudioChannel]::Mono)
     $script:sapi.add_SpeakProgress({
         param($sender, $e)
@@ -104,8 +108,7 @@ function SapiSynth {
   $script:sapi
 }
 
-# Read the engine's negotiated format without speaking or editing a token.
-# SupportedAudioFormats is empty even for the installed Microsoft voices.
+# Query PCM through public SAPI; SupportedAudioFormats is empty.
 function SapiFormat($token) {
   if ($script:sapiFormats.ContainsKey($token)) { return $script:sapiFormats[$token] }
   $format = $null
@@ -130,7 +133,7 @@ public static class SapiWave {
   interface WithToken { void SetObjectToken(Token token); }
   [ComImport, Guid("A74D7C8E-4CC5-4F2F-A6EB-804DEE18500E"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
   interface Engine {
-    void Speak(); // Unused slot before GetOutputFormat.
+    void Speak(); // Unused slot.
     void GetOutputFormat(ref Guid wanted, IntPtr format, out Guid actual, out IntPtr wave);
   }
   public static int[] Get(object token, string clsid) {
@@ -172,7 +175,7 @@ public static class SapiWave {
       if ($null -ne $v) { try { [void][Runtime.InteropServices.Marshal]::ReleaseComObject($v) } catch {} }
     }
   }
-  # Cache failures too: keep audio, but never guess a word clock.
+  # Cache failure as sentence-only audio.
   $script:sapiFormats[$token] = $format
   $format
 }
@@ -219,8 +222,7 @@ function ListVoices {
   '{"voices":[' + ($rows -join ',') + '],"notes":[' + ($notes -join ',') + ']}'
 }
 
-# Milliseconds of audio in the file, from its own data chunk. SAPI writes an
-# 18-byte fmt chunk, so the data does not start at the textbook offset 44.
+# Read WAV chunks: SAPI's fmt is 18 bytes, not 16.
 function WavMs($path) {
   $b = [IO.File]::ReadAllBytes($path)
   $p = 12
@@ -238,21 +240,29 @@ function WavMs($path) {
 
 function SpeakSapi($token, $text, $file) {
   $s = SapiSynth
-  $name = $null
-  foreach ($v in $s.GetInstalledVoices()) { if ($v.VoiceInfo.Id -eq $token) { $name = $v.VoiceInfo.Name } }
-  if ($null -eq $name) { throw "no such voice: $token" }
-  $script:sapiMarks.Clear()
-  $s.SelectVoice($name)
-  $format = SapiFormat $s.Voice.Id
-  $script:sapiTimingNote = $null
-  if ($null -eq $format) {
-    $script:sapiTimingNote = 'the SAPI voice audio format could not be verified; using sentence highlighting'
-    $format = $script:sapiFmt
-  }
-  $s.SetOutputToWaveFile($file, $format)
-  try { $s.Speak($text) } finally { $s.SetOutputToNull() }
-  if ($null -ne $script:sapiTimingNote) { $script:sapiMarks.Clear() }
-  $script:sapiMarks
+  $voices = @($s.GetInstalledVoices())
+  $target = $null
+  foreach ($v in $voices) { if ($v.VoiceInfo.Id -eq $token) { $target = $v } }
+  if ($null -eq $target -or -not $target.Enabled) { throw "no enabled voice: $token" }
+  $masked = @()
+  try {
+    foreach ($v in $voices) {
+      if ($v.Enabled -and $v.VoiceInfo.Id -ne $token) { $masked += $v; $v.Enabled = $false }
+    }
+    $s.SelectVoice($target.VoiceInfo.Name)
+    if ($s.Voice.Id -ne $token) { throw "SAPI selected a different voice than $token" }
+    $script:sapiMarks.Clear()
+    $format = SapiFormat $s.Voice.Id
+    $script:sapiTimingNote = $null
+    if ($null -eq $format) {
+      $script:sapiTimingNote = 'the SAPI voice audio format could not be verified; using sentence highlighting'
+      $format = $script:sapiFmt
+    }
+    $s.SetOutputToWaveFile($file, $format)
+    try { $s.Speak($text) } finally { $s.SetOutputToNull() }
+    if ($null -ne $script:sapiTimingNote) { $script:sapiMarks.Clear() }
+    $script:sapiMarks
+  } finally { foreach ($v in $masked) { $v.Enabled = $true } }
 }
 
 function SpeakWinrt($token, $text, $file) {
@@ -270,7 +280,7 @@ function SpeakWinrt($token, $text, $file) {
     [IO.File]::WriteAllBytes($file, $buf)
   }
   finally { $reader.Dispose() }
-  # The word track, not Markers: Markers carries SSML <mark/> and stays empty
+  # SpeechWord cues, not SSML Markers.
   $marks = New-Object Collections.ArrayList
   foreach ($track in $stream.TimedMetadataTracks) {
     if ($track.Id -ne 'SpeechWord') { continue }
@@ -278,8 +288,7 @@ function SpeakWinrt($token, $text, $file) {
       $c = $cue.StartPositionInInput
       $e = $cue.EndPositionInInput
       if ($null -eq $c -or $null -eq $e) { continue }
-      # EndPositionInInput is inclusive; Cue.Duration is always zero, so the
-      # end of a word is the start of the next one (protocol.ts)
+      # Inclusive end; zero-duration cues end at the next word (protocol.ts).
       [void]$marks.Add(([int]$cue.StartTime.TotalMilliseconds).ToString() + ',' + $c + ',' + ($e - $c + 1))
     }
   }

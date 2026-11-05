@@ -8,6 +8,8 @@ import { encodeCommand, WINDOWS_DAEMON_SCRIPT, WINDOWS_POWERSHELL, windowsComman
 import { decodeFrameBody, encodeFrame, timestampsFromMarks, type SystemRequest, type SystemResponse } from '../../../../src/core/providers/system/protocol';
 
 const ANDREW = 'sapi5/MicrosoftWindows.Voice.en-US.AndrewHD.1';
+const ONLINE = 'sapi5/Edge-en-US-AndrewNeural';
+const MULTILINGUAL = 'sapi5/Edge-en-US-AndrewMultilingualNeural';
 const DAVID = 'sapi5/TTS_MS_EN-US_DAVID_11.0';
 const TEXT = 'One. Two. Three.';
 
@@ -147,5 +149,125 @@ describe.skipIf(process.platform !== 'win32')('the Windows helper word clock', (
       expect(onecore.words).toHaveLength(3);
       expect(onecore.timingNote).toBeUndefined();
     }
+  }, 35000);
+});
+
+/** Real selection with a read-only ping probe; no Windows setting is changed. */
+describe.skipIf(process.platform !== 'win32')('the Windows helper exact voice selection', () => {
+  let dir = '';
+  let installed: string[] = [];
+  let responses = new Map<number, SystemResponse>();
+  const cases = [
+    { name: 'Andrew HD', voice: ANDREW, speak: 2, ping: 3 },
+    { name: 'Andrew Online after Andrew HD', voice: ONLINE, speak: 4, ping: 5 },
+    { name: 'AndrewMultilingual Online', voice: MULTILINGUAL, speak: 6, ping: 7 },
+    { name: 'Andrew HD again', voice: ANDREW, speak: 8, ping: 9 },
+  ];
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), 'ztts-exact-voice-'));
+    const catalog = runHelper(WINDOWS_DAEMON_SCRIPT, [{ id: 1, op: 'voices' }]).get(1)!;
+    expect(catalog.ok, catalog.error).toBe(true);
+    installed = (catalog.voices ?? []).map(v => v.id);
+    if (![ANDREW, ONLINE, MULTILINGUAL].every(id => installed.includes(id))) return;
+    const ping = `'ping' { Send ('{"id":' + $id + ',"ok":true}') }`;
+    const probe = `'ping' { Send ('{"id":' + $id + ',"ok":true,"voice":' + (JStr $script:spokenToken) + '}') }`;
+    const speak = '$s.Speak($text)';
+    const capture = `${speak}; $script:spokenToken = $s.Voice.Id`;
+    expect(WINDOWS_DAEMON_SCRIPT.split(ping)).toHaveLength(2);
+    expect(WINDOWS_DAEMON_SCRIPT.split(speak)).toHaveLength(2);
+    const script = WINDOWS_DAEMON_SCRIPT.replace(ping, probe).replace(speak, capture);
+    expect(script).not.toBe(WINDOWS_DAEMON_SCRIPT);
+    // Observe the token during Speak, before restoring flags resets the default.
+    expect(script.replace(probe, ping).replace(capture, speak)).toBe(WINDOWS_DAEMON_SCRIPT);
+    const requests: SystemRequest[] = [{ id: 1, op: 'voices' }];
+    for (const c of cases) {
+      requests.push({ id: c.speak, op: 'speak', voice: c.voice, text: 'One.', file: join(dir, `${c.speak}.wav`) });
+      requests.push({ id: c.ping, op: 'ping' });
+    }
+    requests.push({ id: 10, op: 'voices' });
+    responses = runHelper(script, requests);
+  }, 35000);
+
+  afterAll(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+
+  function requireAndrews(context: { skip(note?: string): never }): void {
+    const missing = [ANDREW, ONLINE, MULTILINGUAL].filter(id => !installed.includes(id));
+    if (missing.length) context.skip(`Exact voices are not installed: ${missing.join(', ')}`);
+  }
+
+  for (const c of cases) {
+    it(`selects the exact token and produces audio for ${c.name}`, context => {
+      requireAndrews(context);
+      const response = responses.get(c.speak)!;
+      expect(response.ok, response.error).toBe(true);
+      const selected = responses.get(c.ping)!;
+      expect('voice' in selected ? selected.voice : undefined).toBe(c.voice.slice('sapi5/'.length));
+      expect(acousticWords(readFileSync(join(dir, `${c.speak}.wav`))).words.length).toBeGreaterThan(0);
+      expect(response.ms).toBeGreaterThan(0);
+      expect((response.words?.length ?? 0) > 0 || !!response.timingNote).toBe(true);
+    });
+  }
+
+  it('restores all candidate eligibility and raw catalog identities after switching', context => {
+    requireAndrews(context);
+    expect(responses.get(10)?.voices).toEqual(responses.get(1)?.voices);
+  });
+
+  it('restores eligibility after a selection error and accepts the next request', context => {
+    requireAndrews(context);
+    const selection = /\$s\.SelectVoice\([^\r\n]+\)/;
+    expect(WINDOWS_DAEMON_SCRIPT.match(new RegExp(selection.source, 'g'))).toHaveLength(1);
+    const script = WINDOWS_DAEMON_SCRIPT.replace(selection, `if ($token -eq 'Edge-en-US-AndrewNeural') { throw 'controlled selection failure' }; $&`);
+    expect(script).not.toBe(WINDOWS_DAEMON_SCRIPT);
+    const replies = runHelper(script, [
+      { id: 1, op: 'voices' },
+      { id: 2, op: 'speak', voice: ONLINE, text: 'One.', file: join(dir, 'error.wav') },
+      { id: 3, op: 'voices' },
+      { id: 4, op: 'speak', voice: ANDREW, text: 'One.', file: join(dir, 'recovered.wav') },
+    ]);
+    expect(replies.get(2)).toMatchObject({ ok: false, error: 'controlled selection failure' });
+    expect(replies.get(3)?.voices).toEqual(replies.get(1)?.voices);
+    expect(replies.get(4)?.ok, replies.get(4)?.error).toBe(true);
+    expect(acousticWords(readFileSync(join(dir, 'recovered.wav'))).words.length).toBeGreaterThan(0);
+  }, 35000);
+
+  it('rejects a different selected token and missing targets without changing eligibility', context => {
+    requireAndrews(context);
+    const selection = /\$s\.SelectVoice\([^\r\n]+\)/;
+    const script = WINDOWS_DAEMON_SCRIPT.replace(selection, `$&; if ($token -eq 'MicrosoftWindows.Voice.en-US.AndrewHD.1') { $token = 'controlled-wrong-token' }`);
+    expect(script).not.toBe(WINDOWS_DAEMON_SCRIPT);
+    const replies = runHelper(script, [
+      { id: 1, op: 'voices' },
+      { id: 2, op: 'speak', voice: ANDREW, text: 'One.', file: join(dir, 'wrong-token.wav') },
+      { id: 3, op: 'voices' },
+      { id: 4, op: 'speak', voice: 'sapi5/NotAnInstalledVoice', text: 'One.', file: join(dir, 'missing.wav') },
+      { id: 5, op: 'voices' },
+    ]);
+    expect(replies.get(2)).toMatchObject({ ok: false, error: 'SAPI selected a different voice than controlled-wrong-token' });
+    expect(replies.get(3)?.voices).toEqual(replies.get(1)?.voices);
+    expect(replies.get(4)).toMatchObject({ ok: false, error: 'no enabled voice: NotAnInstalledVoice' });
+    expect(replies.get(5)?.voices).toEqual(replies.get(1)?.voices);
+  }, 35000);
+
+  it('does not enable a deliberately disabled voice while selecting another', context => {
+    requireAndrews(context);
+    if (!installed.includes(DAVID)) context.skip('Local David Desktop is not installed');
+    const handshake = `Send '{"id":0,"ok":true,"ready":true}'`;
+    const disable = `foreach ($v in (SapiSynth).GetInstalledVoices()) { if ($v.VoiceInfo.Id -eq 'TTS_MS_EN-US_DAVID_11.0') { $v.Enabled = $false } }`;
+    const script = WINDOWS_DAEMON_SCRIPT.replace(handshake, `${disable}\n${handshake}`);
+    expect(script).not.toBe(WINDOWS_DAEMON_SCRIPT);
+    const replies = runHelper(script, [
+      { id: 1, op: 'voices' },
+      { id: 2, op: 'speak', voice: ONLINE, text: 'One.', file: join(dir, 'disabled-other.wav') },
+      { id: 3, op: 'speak', voice: DAVID, text: 'One.', file: join(dir, 'disabled-target.wav') },
+      { id: 4, op: 'voices' },
+    ]);
+    expect(replies.get(1)?.voices?.some(v => v.id === DAVID)).toBe(false);
+    expect(replies.get(2)?.ok, replies.get(2)?.error).toBe(true);
+    expect(replies.get(3)?.ok).toBe(false);
+    expect(replies.get(4)?.voices).toEqual(replies.get(1)?.voices);
   }, 35000);
 });

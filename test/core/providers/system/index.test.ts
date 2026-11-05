@@ -94,8 +94,8 @@ describe('createSystemProvider', () => {
   it('publishes the installed voices as catalog entries', async () => {
     const t = setup();
     await expect(t.provider.listVoices()).resolves.toEqual([
-      { id: 'onecore/MSTTS_V110_enUS_MarkM', label: 'Microsoft Mark', locale: 'en-US' },
-      { id: 'sapi5/TTS_MS_ZH-CN_HUIHUI_11.0', label: 'Microsoft Huihui Desktop', locale: 'zh-CN' },
+      { id: 'onecore/MSTTS_V110_enUS_MarkM', label: 'Mark', locale: 'en-US' },
+      { id: 'sapi5/TTS_MS_ZH-CN_HUIHUI_11.0', label: 'Huihui Desktop', locale: 'zh-CN' },
     ]);
     expect(t.sent).toEqual([{ op: 'voices' }]);
     expect(t.provider.id).toBe('system');

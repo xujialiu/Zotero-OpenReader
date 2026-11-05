@@ -33,10 +33,34 @@ const ZOTERO_IDS = [
 ];
 
 describe('toVoiceInfo', () => {
-  it('labels a voice by its plain name, leaving the language to the catalog', () => {
-    expect(toVoiceInfo(INSTALLED[3])).toEqual({ id: 'onecore/MSTTS_V110_enUS_DavidM', label: 'Microsoft David', locale: 'en-US' });
-    // The two Davids stay tellable apart, which is the distinction that matters
-    expect(toVoiceInfo(INSTALLED[0]).label).toBe('Microsoft David Desktop');
+  it('omits Microsoft and the language while keeping Desktop voices distinct', () => {
+    expect(toVoiceInfo(INSTALLED[3])).toEqual({ id: 'onecore/MSTTS_V110_enUS_DavidM', label: 'David', locale: 'en-US' });
+    expect(toVoiceInfo(INSTALLED[0]).label).toBe('David Desktop');
+  });
+
+  it.each([
+    { id: 'sapi5/MicrosoftWindows.Voice.en-US.AndrewHD.1', name: 'Microsoft Andrew', expected: 'Andrew (Natural HD)' },
+    { id: 'sapi5/Edge-en-US-AndrewNeural', name: 'Microsoft Andrew Online', expected: 'Andrew Online (Natural)' },
+    { id: 'sapi5/Edge-en-US-AndrewMultilingualNeural', name: 'Microsoft AndrewMultilingual Online', expected: 'AndrewMultilingual Online (Natural)' },
+  ])('displays $expected without changing the Windows voice identity', ({ id, name, expected }) => {
+    const desc = `Microsoft ${expected} - English (United States)`;
+    const record = { id, name, desc, lang: 'en-US' };
+    expect(toVoiceInfo(record)).toEqual({ id, label: expected, locale: 'en-US' });
+    expect(record).toEqual({ id, name, desc, lang: 'en-US' });
+    expect(zoteroVoiceId(record)).toBe(`local-urn:moz-tts:sapi:${desc}?en-US`);
+  });
+
+  it('drops localized language suffixes without losing the voice quality', () => {
+    expect(toVoiceInfo({ id: 'sapi5/AndrewHD', name: 'Microsoft Andrew', desc: 'Microsoft Andrew (Natural HD) - 英语（美国）', lang: 'en-US' }).label).toBe('Andrew (Natural HD)');
+  });
+
+  it('uses a Microsoft plain name when its description is missing', () => {
+    expect(toVoiceInfo({ id: 'sapi5/David', name: 'Microsoft David Desktop', desc: '', lang: 'en-US' }).label).toBe('David Desktop');
+  });
+
+  it('leaves other vendors and macOS display names unchanged', () => {
+    expect(toVoiceInfo({ id: 'sapi5/Acme', name: 'Acme Voice', desc: 'Acme Voice - English', lang: 'en-US' }).label).toBe('Acme Voice');
+    expect(toVoiceInfo({ id: 'osx/test', name: 'Microsoft Example', desc: 'Microsoft Example - English', lang: 'en-US' }).label).toBe('Microsoft Example');
   });
 
   it('falls back to the description, then the id, rather than publishing a blank label', () => {

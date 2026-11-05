@@ -55,15 +55,20 @@ export function localeForSystemVoice(record: Pick<SystemVoiceRecord, 'lang'>): s
 }
 
 /**
- * The catalog entry. The label is the voice's plain name ("Microsoft
- * David"), not its description: the description repeats the language, which
- * the catalog already carries and the popup already groups by, and
- * voice-catalog.ts puts the provider in front — so the player shows
- * "System-Microsoft David" beside "System-Microsoft David Desktop", which is
- * exactly the distinction that matters.
+ * Microsoft Windows labels use the description to retain distinctions such
+ * as (Natural HD), (Natural), Online and Desktop, but omit Microsoft and
+ * the language suffix. Other vendors and macOS keep their display names.
+ * Raw names, descriptions and engine tokens stay unchanged for synthesis
+ * and Zotero's voice-id mapping.
  */
 export function toVoiceInfo(record: SystemVoiceRecord): VoiceInfo {
-  return { id: record.id, label: record.name || record.desc || record.id, locale: localeForSystemVoice(record) };
+  let label = record.name || record.desc || record.id;
+  const windows = record.id.startsWith('sapi5/') || record.id.startsWith('onecore/');
+  const description = record.desc || record.name;
+  if (windows && description.startsWith('Microsoft ')) {
+    label = description.slice('Microsoft '.length).split(' - ')[0].trim() || label;
+  }
+  return { id: record.id, label, locale: localeForSystemVoice(record) };
 }
 
 /** Records the daemon reported, with anything malformed dropped rather than published half-formed. */
