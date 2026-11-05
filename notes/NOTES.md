@@ -842,3 +842,4 @@ then) and is in the git history before that day.
 - Andrew Natural HD is installed but absent from both Windows speech APIs
 - A newly registered bridge is visible to a fresh helper, but System.Speech retains a process-wide snapshot (issue #241)
 - Connection checks queue a fresh helper and notify open Players (issue #241)
+- Verified live on 1.17.1-beta, and why the first tester probes needed correction (issue #241)

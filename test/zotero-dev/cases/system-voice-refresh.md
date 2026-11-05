@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Scripts](../scripts/system-voice-refresh/README.md)
 
 ## Refresh installed Windows voices without restarting Zotero
 
@@ -10,11 +10,13 @@ installed. Do not install a bridge, change its settings or edit the registry.
 ### 1
 
 **Identify the build and baseline.** After baseline 0 isolation and before
-installation, capture the installed System provider's voice count and
-whether it contains the exact
-local token `sapi5/MicrosoftWindows.Voice.en-US.AndrewHD.1`; the research
-baseline was nine voices and no Andrew. Install the supplied beta, require
-every `diagnostics.startup()` step to pass, and prove bundle identity by
+installation, capture the installed System provider's voice count and the
+presence of `sapi5/MicrosoftWindows.Voice.en-US.AndrewHD.1`; the research
+baseline was nine voices and no Andrew; the later pre-upgrade verification
+already listed 40 after an external helper restart. Record the actual
+pre-install state rather than assuming the historical count. Install the
+supplied beta and require every `diagnostics.startup()` step to pass. Prove
+bundle identity by
 its SHA-256 and `refreshing the installed voice list` marker. A fresh
 backend may already find the voice immediately after installation; that
 alone is not evidence that Test connection refreshed it.
@@ -29,17 +31,20 @@ positions. No raw preference dump or secret value enters the report.
 ### 2
 
 **Test connection replaces the helper and updates an open Player.** Warm
-`diagnostics.systemProvider()` first. On this machine expect 39 records
-(33 SAPI5 plus six OneCore) and the exact local Andrew token. If this
-installation has changed, report the discrepancy before using a new count.
-Confirm the check's first probe voice is a local Desktop voice, not an
-Online or metered voice.
+`diagnostics.systemProvider()` first. The verified 2026-11-05 baseline is
+40 records (34 SAPI5 plus six OneCore), with the exact local Andrew token;
+the earlier research list was 39. Record the current baseline before the
+check and require the same count afterward; report environment drift, not
+a missing voice inferred from a historical count. Confirm the first probe
+voice is a local Desktop voice, not an Online or metered voice.
 
 Import `fixture-a.pdf`, point its initial choice at a listed free local
 System voice, and open and pause its Player. Record the selected voice,
 voice/controller identities and `diagnostics.liveVoiceList()`'s applied
-count, plus the current helper PID if available. Click the pane's actual
-**Test connection** once with System voices enabled.
+count, plus the current helper PID if available. The diagnostic array
+follows `Zotero.Reader._readers` order: match the fixture's index by item id,
+not the first non-null result (which can belong to a closed Player).
+Click the pane's actual **Test connection** once with System voices enabled.
 
 Expected: a successful result with the current voice count; the debug
 trace contains `speech daemon stopped: refreshing the installed voice
@@ -92,8 +97,10 @@ to force them. The live check above proves the actual refresh mechanism.
 its temporary document-voice entry, and require position rows back at the
 baseline. Close any settings window opened for this case; restore every
 touched pref's exact value and user-value flag, memory last, and restore
-WebDAV only after temporary state is gone. Confirm the folder switch and
-volume restoration, review run-time errors, and leave Zotero minimized.
+WebDAV only after temporary state is gone. Settle pending work boundedly,
+then recheck every affected pref's effective value and user flag after the
+last observer-triggering write. Confirm folder and volume restoration,
+review run-time errors, and leave Zotero minimized.
 Retain successfully executed scripts in
 `test/zotero-dev/scripts/system-voice-refresh/` with its README, and report
 PASS / FAIL / NOT TESTABLE per item. Subjective listening quality is not
