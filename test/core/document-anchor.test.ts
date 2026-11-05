@@ -175,6 +175,13 @@ describe('matchAnchor, when the text has moved', () => {
  * not, which philosophy rule 1 and ADR 0008 say is worse than no bookmark.
  */
 describe('matchAnchor, when it must refuse', () => {
+  it('does not take a short heading for the start of a longer number', () => {
+    // 'Chapter 1' is a prefix of 'Chapter 10'. The heading itself is not here,
+    // so the only character match is inside a longer number, and must not count.
+    const text = 'Chapter 10 opens the book.';
+    expect(matchAnchor({ exact: 'Chapter 1', prefix: '', suffix: '' }, text)).toBeNull();
+  });
+
   it('finds nothing in text that shares no words', () => {
     expect(matchAnchor(anchorForFox(), 'Something else entirely, about nothing at all.')).toBeNull();
   });

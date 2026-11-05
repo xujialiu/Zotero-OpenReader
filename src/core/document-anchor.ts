@@ -154,9 +154,6 @@ const MIN_MATCHED = 0.7;
  */
 const MIN_DENSITY = 0.5;
 
-/** A cap on how many identical occurrences are scored. Two are enough to know a text is ambiguous; this is only so a pathological anchor cannot walk a whole book. */
-const MAX_OCCURRENCES = 64;
-
 /**
  * Where `anchor` sits in `text`, or null when it is not there.
  *
@@ -255,23 +252,39 @@ function characterSpans(text: string, exact: string): Span[] {
   for (const spelling of [exact, exact.normalize('NFC'), exact.normalize('NFD')]) {
     if (tried.has(spelling)) continue;
     tried.add(spelling);
-    const found = occurrences(text, spelling);
+    const found = occurrences(text, spelling).filter((start) => quotationEdgesAgree(text, spelling, start));
     if (found.length) return found.map((start) => ({ start, end: start + spelling.length, matched: 1 }));
   }
   return [];
 }
 
+/** Every place `needle` occurs in `text`. Uncapped: a later copy of a repeated sentence must still be a candidate. */
 function occurrences(text: string, needle: string): number[] {
   const out: number[] = [];
   if (!needle) return out;
-  for (let at = text.indexOf(needle); at >= 0 && out.length < MAX_OCCURRENCES; at = text.indexOf(needle, at + 1)) out.push(at);
+  for (let at = text.indexOf(needle); at >= 0; at = text.indexOf(needle, at + 1)) out.push(at);
   return out;
 }
+
+/**
+ * Whether a character match at `start` begins and ends where the quotation does.
+ *
+ * A quotation that starts or ends with a letter or digit must not do so inside a
+ * longer word or number: "Chapter 1" is not found inside "Chapter 10".
+ */
+function quotationEdgesAgree(text: string, exact: string, start: number): boolean {
+  const end = start + exact.length;
+  if (WORD_CHARACTER.test(exact.charAt(0)) && WORD_CHARACTER.test(text.charAt(start - 1))) return false;
+  if (WORD_CHARACTER.test(exact.charAt(exact.length - 1)) && WORD_CHARACTER.test(text.charAt(end))) return false;
+  return true;
+}
+
+const WORD_CHARACTER = /[\p{L}\p{N}]/u;
 
 /** Every run of `tokens` whose keys are exactly the anchor's, in order: the same words, spelled or spaced differently. */
 function runSpans(tokens: readonly Token[], keys: readonly string[]): Span[] {
   const out: Span[] = [];
-  for (let i = 0; i + keys.length <= tokens.length && out.length < MAX_OCCURRENCES; i++) {
+  for (let i = 0; i + keys.length <= tokens.length; i++) {
     let j = 0;
     while (j < keys.length && tokens[i + j].key === keys[j]) j++;
     if (j === keys.length) out.push({ start: tokens[i].start, end: tokens[i + keys.length - 1].end, matched: 1 });
