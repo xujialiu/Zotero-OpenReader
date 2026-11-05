@@ -849,3 +849,4 @@ then) and is in the git history before that day.
 - Andrew Online selection collides with the shorter Andrew name
 - Windows Microsoft labels retain voice quality without the vendor or language
 - Exact System voice selection needs a request-scoped candidate mask (issue #243)
+- Retained results rejected a false pass before the corrected live handoff (issue #243)
