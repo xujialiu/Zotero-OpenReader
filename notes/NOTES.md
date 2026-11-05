@@ -857,3 +857,4 @@ then) and is in the git history before that day.
 
 - Overlapping initial segment requests consume the shared target twice (issue #234)
 - Beta5 keeps one start, and polling must not mistake progression for a jump (issue #234)
+- The final restoration order passes without manual metadata repair (issue #234)

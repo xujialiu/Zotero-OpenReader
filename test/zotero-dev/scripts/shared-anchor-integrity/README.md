@@ -22,6 +22,7 @@
 | `60-cleanup-teardown.js` | Folder off; close/erase fixture; library-scoped row removal; remove its new document voice | four table hashes and voice records match; `teardownVerified` | — |
 | `61-cleanup-verify-and-server.js` | After same-build reinstall, in-memory/store gate before server restore | no fixture rows, original counts/hashes, exact server bytes; `cleanupVerified` | — |
 | `62-cleanup-prefs-restore.js` | Data gate and four-idle gate; every named pref checked; destination and reading state before switches; folder last | all values/user flags match; independent document changes preserved; original readers/selection/debug | — |
+| `63-restore-minipass.js` | Restore-only setup for one no-data execution of 62 on the current user state: guards (folder off, four quiet, no active session), private snapshot of the 15 prefs + documentVoices + debug/window/selection, prior 60/61 receipts verified on disk, vacuous cleanup gate, then `readAloud.volume` → 0 to reproduce the reading-pref observer restamp | guards green, receipts green, volumeBefore retained, volume now 0 | `priorRunId` |
 
 ## Before starting
 
@@ -50,8 +51,16 @@
   after the other prefs allowed the unchanged script to pass. Script 62 now
   incorporates that order: settle reading-pref observers, restore syncState,
   then audit and enable the switches/folder. An eighth host regression went
-  red on the former order and passes on this revision; its focused live
-  restore check is recorded separately below. `webdav.*` never re-stamps itself.
+  red on the former order and passes on this revision; `63-restore-minipass.js`
+  executes this 62 live on the current user state with no fixture/server
+  activity — its data gate is vacuous and is set only after the prior run's
+  60/61 receipts are re-verified on disk. Never override a failed gate.
+  `webdav.*` never re-stamps itself.
+- The mini-pass's original `syncStateRestamped` field compared lengths, so
+  its false result cannot distinguish same-length content changes. The final
+  audit compares the actual baseline bytes. Script 63's returned snapshot is
+  now flags/types only (output redaction after the executed run); values stay
+  private, including URLs that may contain authentication.
 - On this macOS RDP host the in-process `minimize()` can stop taking effect
   mid-run; 62 then fails its final `hostMinimized` read. The system
   fallback (`osascript … set value of attribute "AXMinimized" of window 1 to
@@ -86,4 +95,5 @@
 | Date/build | Executed evidence |
 | --- | --- |
 | [2026-11-05, beta4](https://github.com/xujialiu/Zotero-OpenReader/issues/234#issuecomment-6661264930), tree `3a707b1`, bundle `f2b8eb20…` | Headings/refusals, final exact/token reply and ambiguity PASS; Han resolver PASS with landing observations retained; cleanup PASS on a reduced audit. Superseded prepared revisions were re-verified live in the beta5 run below. |
-| 2026-11-06, 1.17.1-beta5, tree `2475dfb`, installed `content/zotero-tts.js` `3694eea3…`, XPI `e33b33b0…` | Startup 31 steps ok ×3 installs; preflight removed two prior-fixture doc-voice residues (`user/8Y785WW3`, `user/3IC279IH`) with gates off. Items 1a/1b PASS (landing `Chapter 7` ref 3, `exact` + `locator-did-not-resolve`/`text-disagreed`), 2 PASS (`not resolved: text-disagreed, not-found`, toast, fallback), **3 position/start PASS on parent review** (one correct setter and correct first active segment; polling-only failure retained, later forward progression is not an incorrect start), 4a/4b PASS (final `Yes.` at block 7 offset 4456, `exact`), 4c PASS (`YES!` → `aligned`), 5a/5b PASS (`not resolved …, ambiguous`, toast, fallback). Item 8 PASS: three injected trials + non-injected instrumented control (one setter at bsi 7/`[6,0,0]`, coalesced +1, started +1, pending false), cold + close/reopen legs, post-reinstall hooks live. Item 7 PASS: teardown/verify/server/prefs gates green (`teardownVerified`, `cleanupVerified`, folder restored last, all pref values+user flags equal). Audio `suspended`/not-advancing during 22; `running` during later checks — machine-dependent, reported not claimed. Per-scenario raws: `.tmp/zotero-dev/2026-11-06-1.17.1-beta5-shared-anchor-integrity/results/`. |
+| [2026-11-06 accepted results](https://github.com/xujialiu/Zotero-OpenReader/issues/234#issuecomment-6664788226), 1.17.1-beta5, tree `2475dfb`, installed `content/zotero-tts.js` `3694eea3…`, XPI `e33b33b0…` | Startup 31 steps ok ×3 installs; preflight removed two prior-fixture doc-voice residues (`user/8Y785WW3`, `user/3IC279IH`) with gates off. Items 1a/1b PASS (landing `Chapter 7` ref 3, `exact` + `locator-did-not-resolve`/`text-disagreed`), 2 PASS (`not resolved: text-disagreed, not-found`, toast, fallback), **3 position/start PASS on parent review** (one correct setter and correct first active segment; polling-only failure retained, later forward progression is not an incorrect start), 4a/4b PASS (final `Yes.` at block 7 offset 4456, `exact`), 4c PASS (`YES!` → `aligned`), 5a/5b PASS (`not resolved …, ambiguous`, toast, fallback). Item 8 PASS: three injected trials + non-injected instrumented control (one setter at bsi 7/`[6,0,0]`, coalesced +1, started +1, pending false), cold + close/reopen legs, post-reinstall hooks live. Item 7 PASS: teardown/verify/server/prefs gates green (`teardownVerified`, `cleanupVerified`, folder restored last, all pref values+user flags equal). Audio `suspended`/not-advancing during 22; `running` during later checks — machine-dependent, reported not claimed. Per-scenario raws: `.tmp/zotero-dev/2026-11-06-1.17.1-beta5-shared-anchor-integrity/results/`. |
+| 2026-11-06 (mini-pass), 1.17.1-beta5, commit `ea76b5b`, bundle `3694eea3…` | Restore-only execution of the revised 62 on current user state: guards green (folder off, four quiet, reader 24932 inactive/paused), prior 60/61 receipts verified on disk, vacuous data gate documented, volume 19(user)→0 exercised reading-pref restoration, and 62 passed its FIRST restoration invocation with no manual syncState intervention — all 15 named pref values/user flags and 86 docVoice records equal, folder remained off, memory exact, reader/selection/debug/volume/window(minimized) restored. Raws: `.tmp/zotero-dev/2026-11-06-1.17.1-beta5-shared-anchor-integrity-62-minipass/results/`. |
