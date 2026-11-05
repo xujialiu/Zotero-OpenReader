@@ -1,7 +1,7 @@
 /**
  * The client for the speech daemon: one long-lived helper process for the
- * whole Zotero session, started at the first request and killed at plugin
- * shutdown (nothing reaps it for us).
+ * whole Zotero session, started at the first request, refreshed on a
+ * connection check and killed at plugin shutdown (nothing reaps it for us).
  *
  * Everything Zotero-flavored is injected — spawning, the clock, the log — so
  * the whole lifecycle is exercised against a fake process in the tests: the
@@ -70,7 +70,7 @@ export interface Daemon extends SpeechBackend {
    * `send` starts a new one.
    */
   stop(): void;
-  /** Forgets a spent start budget, so a fixed environment can be tried again without restarting Zotero. */
+  /** Queues a fresh helper and retry budget after prior requests, so installed voices are listed anew without interrupting synthesis. */
   reset(): void;
   /** Plain data for the diagnostics: whether it is up, what it has done, and why it last stopped. */
   state(): { running: boolean; starts: number; sent: number; queued: number; lastError: string | null };
@@ -232,8 +232,17 @@ export function createDaemon(deps: DaemonDeps): Daemon {
       queue = Promise.resolve();
     },
     reset: () => {
-      starts = 0;
-      lastError = null;
+      // System.Speech caches installed voices for the entire process (#241).
+      // A check must replace it, but only after work already in the serial
+      // queue. A reset overtaken by stop() must not touch a newer helper.
+      const mine = generation;
+      const refresh = () => {
+        if (mine !== generation) return;
+        discard('refreshing the installed voice list');
+        starts = 0;
+        lastError = null;
+      };
+      queue = queue.then(refresh, refresh);
     },
     state: () => ({ running: !!process, starts, sent, queued, lastError }),
   };

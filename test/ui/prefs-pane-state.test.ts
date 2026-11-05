@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULTS, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type ZoteroTier } from '../../src/core/settings';
 import { flattenSettings } from '../../src/core/settings-backup';
 import { createZoteroRefusals } from '../../src/read-aloud/zotero-refusals';
-import { onPaneLoad } from '../../src/ui/prefs-pane';
+import { onPaneLoad, type PaneHooks } from '../../src/ui/prefs-pane';
 import { providerRowIds } from '../../src/ui/provider-rows';
 import { FISH_SOURCE_IDS } from '../../src/ui/fish-voice-sources';
 import { FISH_MODEL_MENU_ID, FISH_MODEL_PREF } from '../../src/ui/fish-model-rows';
@@ -46,7 +46,7 @@ afterEach(async () => {
 });
 
 /** Real pane wiring, with synchronous Zotero pref notifications and no external network. */
-function pane(initial: Record<string, unknown> = {}) {
+function pane(initial: Record<string, unknown> = {}, hooks: PaneHooks = {}) {
   const store = new Map(Object.entries(flattenSettings(DEFAULTS)).map(([key, value]) => [PREF_PREFIX + key, value as unknown]));
   for (const id of SWITCH_IDS) store.set(`${PREF_PREFIX}${id}.enabled`, false);
   for (const [key, value] of Object.entries(initial)) store.set(PREF_PREFIX + key, value);
@@ -97,7 +97,7 @@ function pane(initial: Record<string, unknown> = {}) {
   });
   vi.stubGlobal('fetch', fetch);
   const elements = new Map<string, Element>();
-  for (const id of ['compatible', 'fish', 'zotero-standard', 'zotero-premium'] as const) {
+  for (const id of ['compatible', 'fish', 'system', 'zotero-standard', 'zotero-premium'] as const) {
     for (const key of Object.values(providerRowIds(id))) elements.set(key, new Element());
   }
   const baseURL = new Element();
@@ -111,9 +111,9 @@ function pane(initial: Record<string, unknown> = {}) {
     querySelector: () => null, querySelectorAll: () => [],
     addEventListener: () => {}, removeEventListener: () => {},
   } as unknown as Document;
-  onPaneLoad(doc);
+  onPaneLoad(doc, hooks);
   cleanups.push(() => win.fire('unload'));
-  const row = (id: 'compatible' | 'fish' | 'zotero-standard' | 'zotero-premium') => {
+  const row = (id: 'compatible' | 'fish' | 'system' | 'zotero-standard' | 'zotero-premium') => {
     const ids = providerRowIds(id);
     return { toggle: elements.get(ids.toggle)!, test: elements.get(ids.test)!, result: elements.get(ids.result)! };
   };
@@ -193,6 +193,36 @@ describe('external tier changes in the real pane (#215)', () => {
     expect([...p.observers.values()].some(o => o.key === PREF_PREFIX + 'zotero-premium.enabled')).toBe(true);
     await p.win.fire('unload');
     expect(p.observers.size).toBe(0);
+  });
+});
+
+describe('a checked System list reaches open Players (#241)', () => {
+  it.each([true, false])('notifies live lists only for an accepted successful check (success: %s)', async success => {
+    const voicesChanged = vi.fn();
+    const reset = vi.fn();
+    const p = pane({ 'system.enabled': true }, {
+      voicesChanged,
+      providerDeps: () => ({
+        fetch: async () => { throw new Error('No network request is needed'); },
+        getWebSocket: () => { throw new Error('No WebSocket is needed'); },
+        newRequestId: () => 'unused',
+        system: {
+          backend: {
+            platform: 'win', wordTimestamps: true, reset, stop: () => {}, state: () => ({}),
+            send: async () => ({ id: 1, ok: true, voices: success ? [{ id: 'sapi5/David', name: 'David', desc: 'David', lang: 'en-US' }] : [], ms: 1000, words: [{ t: 10, c: 0, n: 4 }] }),
+          },
+          tempFile: async () => 'probe.wav', readFile: async () => new Uint8Array([82, 73, 70, 70, 1, 2, 3, 4]), removeFile: async () => {},
+        },
+      }),
+    });
+    await p.row('system').test.fire();
+    expect(reset).toHaveBeenCalledOnce();
+    expect(voicesChanged).toHaveBeenCalledTimes(success ? 1 : 0);
+    // There is no enabled-pref notification to refresh open Players for this check.
+    expect(p.prefs.get(PREF_PREFIX + 'system.enabled')).toBe(true);
+    expect(p.row('system').result.textContent).toMatch(success ? /Connected/ : /no installed voices/);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    expect(p.errors.map(error => String(error))).toEqual(success ? [] : ['Error: system: listing voices failed: Windows reported no installed voices']);
   });
 });
 

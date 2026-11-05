@@ -5,6 +5,12 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPlayerController } from '../src/read-aloud/player-controller';
 import { PREF_PREFIX } from '../src/core/settings';
 
+// This fixture renders English UI; do not inherit the Windows host's display locale.
+vi.mock('../src/read-aloud/language-dropdown', async importOriginal => {
+  const actual = await importOriginal<typeof import('../src/read-aloud/language-dropdown')>();
+  return { ...actual, languageNames: (tags: Iterable<string>, options = {}) => actual.languageNames(tags, { locale: 'en-US', ...options }) };
+});
+
 function fixture(extra: Partial<Parameters<typeof createPlayerController>[0]> = {}) {
   const values = new Map<string, unknown>();
   const manager = {

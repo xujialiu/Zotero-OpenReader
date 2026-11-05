@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:25bbd06f880c -->
+<!-- translated-from: README.md sha256:5f94f5bacbf0 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -70,7 +70,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 | **OpenAI** | 一个 platform.openai.com 的 API 密钥 | 按字符计费 | 逐句 |
 | **Xiaomi MiMo** | 一个 platform.xiaomimimo.com 的 API 密钥 | 限时免费 | 逐句 |
 | **OpenAI Compatible** | 任何说 OpenAI 接口的服务器地址，服务器若要密钥再加一个：自建的 [Chatterbox](tutorials/chatterbox-tts-server.zh.md)、托管服务、OpenAI 的代理 | 服务器自己的价钱；自建的服务器不花钱 | 逐句 |
-| **系统语音** | 什么都不用——Windows 和 macOS | 免费、离线 | Windows 逐词，macOS 逐句 |
+| **系统语音** | 普通 Windows/macOS 语音无需配置；讲述人自然语音需要桥接工具 | 系统自带语音免费、离线 | Windows 逐词，macOS 逐句 |
 | **Zotero 标准/高级** | 登录 Zotero 账户（编辑 → 设置 → 账户）；**Zotero Read Aloud** 这一节里每档各有一个开关，一开始都是开着的 | Zotero 自己的额度，在 zotero.org 购买 | 逐词 |
 
 播放器第一个下拉框列出眼下有语音的每一个已启用服务商，以及开关开着时 Zotero 自己的 **Zotero 标准**和 **Zotero 高级**，按名称排序。
@@ -122,6 +122,8 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 - Zotero 自己那几份同名语音会从播放器里退场，所以不会列出两遍；你原先选的那个照读不误。
 - 语速快的时候，这些语音听起来会和以前略有不同。
 - Windows 上你可能会看到 Zotero 开着时多出一个 `powershell.exe`；Linux 不支持。
+- **新装的 Windows 语音：**安装语音或更改桥接工具后，点击**测试连接**（或**启用**系统语音），即可刷新语音浏览器和已打开的播放器，无需重启 Zotero。刷新会等待此前的语音合成完成。
+- **讲述人 Natural / Natural HD 语音：**只安装语音还不够，还需要单独安装 [NaturalVoiceSAPIAdapter](https://github.com/gexgd0419/NaturalVoiceSAPIAdapter) 这样的 SAPI5 桥接工具。该工具尚未完整支持 HD 语音，其中的 Online 语音仍然需要联网。
 
 </details>
 

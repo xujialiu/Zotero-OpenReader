@@ -393,10 +393,9 @@ export async function runConnectionCheck(prefs: PrefsBackend, id: SwitchId, deps
   if (isZoteroSwitch(id)) return checkZoteroTier(zoteroSwitchTier(id), { signedIn: () => !!Zotero.Sync?.Runner?.enabled, service: zoteroVoiceService() });
   const settings = loadSettings(prefs);
   let outcome: ConnectionResult;
-  // Test connection is the retry after an environment was fixed, so it
-  // forgives a speech helper that used up its start budget earlier in the
-  // session (core/providers/system/daemon.ts MAX_STARTS; the macOS backend
-  // forgets its last error)
+  // Test connection and Enable retry a fixed environment: Windows queues
+  // a fresh helper after prior synthesis, clearing System.Speech's cached
+  // voice list and a spent start budget (#241); macOS clears its last error.
   if (id === 'system') deps.system?.backend?.reset();
   try {
     const provider = createProvider(id, settings, deps);
@@ -482,6 +481,8 @@ export interface PaneHooks {
    * the system provider reports that it has none.
    */
   providerDeps?(): ProviderDeps;
+  /** A successful check or switch changed the offered voices, even when no preference changed (#241). */
+  voicesChanged?(): void;
   /** memory-sync's applySilently: a rewrite of Zotero's voices pref that is not a user's pick must not be learned as one. */
   applySilently?<T>(fn: () => T): T;
   /** The live position store's view (src/index.ts): what Export writes, what Import merges into. */
@@ -734,7 +735,10 @@ export function onPaneLoad(doc: Document, hooks: PaneHooks = {}): void {
     onExternalSwitch: refreshExternalSwitch,
     check: (id) => checkProvider(doc, prefs, id, providerDeps()),
     loadFishModels: () => fishModelList(providerDeps().fetch),
-    onVoicesChanged: () => { void voiceBrowserRows.load(); },
+    onVoicesChanged: () => {
+      void voiceBrowserRows.load();
+      hooks.voicesChanged?.();
+    },
     onSwitched: (id, on) => {
       if (id === 'system' && on) void adoptSystemVoices(prefs, providerDeps(), hooks);
     },

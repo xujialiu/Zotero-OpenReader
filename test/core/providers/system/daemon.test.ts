@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createDaemon, MAX_STARTS, type DaemonProcess } from '../../../../src/core/providers/system/daemon';
+import { listSystemVoiceRecords } from '../../../../src/core/providers/system';
+import type { SystemVoiceRecord } from '../../../../src/core/providers/system/protocol';
+import { runConnectionCheck } from '../../../../src/ui/prefs-pane';
 import { decodeFrameBody, decodeFrameLength, type SystemResponse } from '../../../../src/core/providers/system/protocol';
 
 /**
@@ -307,6 +310,148 @@ describe('createDaemon', () => {
     expect(t.fake.written[0]).toEqual({ id: 1, op: 'speak', voice: 'onecore/X', text: '朗读', file: 'C:\\a.wav' });
     t.fake.reply({ id: 1, ok: true, ms: 900, words: [{ t: 10, c: 0, n: 2 }] });
     await expect(pending).resolves.toMatchObject({ ms: 900 });
+  });
+});
+
+describe('refreshing the installed Windows voices (#241)', () => {
+  const david: SystemVoiceRecord = { id: 'sapi5/TTS_MS_EN-US_DAVID_11.0', name: 'Microsoft David Desktop', desc: 'Microsoft David Desktop', lang: 'en-US' };
+  const andrew: SystemVoiceRecord = { id: 'sapi5/MicrosoftWindows.Voice.en-US.AndrewHD.1', name: 'Microsoft Andrew', desc: 'Microsoft Andrew (Natural HD)', lang: 'en-US' };
+
+  /** Each helper holds the snapshot System.Speech takes when that process first lists voices. */
+  function voiceProcess(voices: SystemVoiceRecord[]) {
+    const fake = fakeProcess();
+    const write = fake.process.write;
+    fake.process.write = async (bytes) => {
+      await write(bytes);
+      const request = JSON.parse(new TextDecoder().decode(bytes.slice(4)));
+      fake.reply(request.op === 'voices'
+        ? { id: request.id, ok: true, voices }
+        : { id: request.id, ok: true, ms: 1000, words: [{ t: 10, c: 0, n: 4 }] });
+    };
+    fake.reply(HELLO);
+    return fake;
+  }
+
+  function changingVoices(first = voiceProcess([david])) {
+    const fresh = voiceProcess([david, andrew]);
+    const spawn = vi.fn(async () => spawn.mock.calls.length === 1 ? first.process : fresh.process);
+    const daemon = createDaemon({ spawn, timeoutMs: 1000 });
+    return { first, fresh, spawn, daemon, list: () => listSystemVoiceRecords({ backend: daemon, tempFile: async () => '', readFile: async () => new Uint8Array(), removeFile: async () => {} }) };
+  }
+
+  it('Test connection replaces an old process snapshot and reports the newly installed voice', async () => {
+    const t = changingVoices();
+    expect(await t.list()).toEqual([david]);
+    const result = await runConnectionCheck({ get: () => undefined, set: () => {} }, 'system', {
+      fetch: async () => { throw new Error('No network request is needed'); },
+      getWebSocket: () => { throw new Error('No WebSocket is needed'); },
+      newRequestId: () => 'unused',
+      system: { backend: t.daemon, tempFile: async () => 'probe.wav', readFile: async () => new Uint8Array([82, 73, 70, 70, 1, 2, 3, 4]), removeFile: async () => {} },
+    });
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('2 voices available');
+    expect(await t.list()).toEqual([david, andrew]);
+    expect(t.first.killed()).toBe(1);
+    expect(t.spawn).toHaveBeenCalledTimes(2);
+    // Listing twice and probing during the check, and later discovery, reuse this fresh helper.
+    expect(t.fresh.killed()).toBe(0);
+    expect(t.daemon.state()).toMatchObject({ starts: 1, lastError: null, queued: 0 });
+    t.daemon.stop();
+  });
+
+  it('finishes in-flight and already queued synthesis before replacing the helper', async () => {
+    const first = fakeProcess();
+    const t = changingVoices(first);
+    const one = t.daemon.send({ op: 'speak', voice: david.id, text: 'one', file: 'one.wav' });
+    const two = t.daemon.send({ op: 'speak', voice: david.id, text: 'two', file: 'two.wav' });
+    first.reply(HELLO);
+    await until(() => expect(first.written).toHaveLength(1));
+    t.daemon.reset();
+    const listed = t.list();
+    expect(first.killed()).toBe(0);
+    expect(t.spawn).toHaveBeenCalledTimes(1);
+    first.reply({ id: 1, ok: true, ms: 100 });
+    await until(() => expect(first.written).toHaveLength(2));
+    expect(first.killed()).toBe(0);
+    first.reply({ id: 2, ok: true, ms: 200 });
+    await expect(one).resolves.toMatchObject({ ms: 100 });
+    await expect(two).resolves.toMatchObject({ ms: 200 });
+    await expect(listed).resolves.toEqual([david, andrew]);
+    expect(first.written).toHaveLength(2);
+    expect(first.killed()).toBe(1);
+    expect(t.spawn).toHaveBeenCalledTimes(2);
+    t.daemon.stop();
+  });
+
+  it('does not interrupt a helper still starting when reset is requested', async () => {
+    const first = fakeProcess();
+    const t = changingVoices(first);
+    const before = t.daemon.send({ op: 'ping' });
+    await until(() => expect(t.spawn).toHaveBeenCalledTimes(1));
+    t.daemon.reset();
+    const listed = t.list();
+    expect(first.killed()).toBe(0);
+    first.reply(HELLO);
+    await until(() => expect(first.written).toHaveLength(1));
+    first.reply({ id: 1, ok: true });
+    await expect(before).resolves.toMatchObject({ ok: true });
+    await expect(listed).resolves.toEqual([david, andrew]);
+    expect(first.killed()).toBe(1);
+    t.daemon.stop();
+  });
+
+  it('refreshes after an earlier request fails, and clears its last error', async () => {
+    const first = fakeProcess();
+    const t = changingVoices(first);
+    const before = rejects(t.daemon.send({ op: 'ping' }), /old voice failed/);
+    first.reply(HELLO);
+    await until(() => expect(first.written).toHaveLength(1));
+    t.daemon.reset();
+    const listed = t.list();
+    first.reply({ id: 1, ok: false, error: 'old voice failed' });
+    await before;
+    await expect(listed).resolves.toEqual([david, andrew]);
+    expect(t.daemon.state()).toMatchObject({ starts: 1, lastError: null, queued: 0 });
+    t.daemon.stop();
+  });
+
+  it('leaves a newer helper alone when shutdown overtakes a queued reset', async () => {
+    const first = fakeProcess();
+    const fresh = voiceProcess([david, andrew]);
+    let finishStart!: (process: DaemonProcess) => void;
+    const spawn = vi.fn(async () => spawn.mock.calls.length === 1
+      ? new Promise<DaemonProcess>(resolve => { finishStart = resolve; })
+      : fresh.process);
+    const daemon = createDaemon({ spawn, timeoutMs: 1000 });
+    const before = rejects(daemon.send({ op: 'ping' }), /shutting down/);
+    await until(() => expect(spawn).toHaveBeenCalledTimes(1));
+    daemon.reset();
+    daemon.stop();
+    const after = daemon.send({ op: 'voices' });
+    await expect(after).resolves.toMatchObject({ voices: [david, andrew] });
+    finishStart(first.process);
+    await before;
+    // Await the old queue's refresh callback too, not just the rejected request.
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(first.killed()).toBe(1);
+    expect(fresh.killed()).toBe(0);
+    expect(daemon.state()).toMatchObject({ running: true, starts: 2 });
+    await expect(daemon.send({ op: 'ping' })).resolves.toMatchObject({ ok: true });
+    expect(spawn).toHaveBeenCalledTimes(2);
+    daemon.stop();
+  });
+
+  it('keeps repeated resets lazy and starts only one helper for the next request', async () => {
+    const t = changingVoices();
+    t.daemon.reset();
+    t.daemon.reset();
+    t.daemon.reset();
+    await Promise.resolve();
+    expect(t.spawn).not.toHaveBeenCalled();
+    await expect(t.list()).resolves.toEqual([david]);
+    expect(t.spawn).toHaveBeenCalledTimes(1);
+    t.daemon.stop();
   });
 });
 

@@ -79,7 +79,7 @@ is built for the way its author reads —
 | **OpenAI** | An API key from platform.openai.com | Billed per character | sentence |
 | **Xiaomi MiMo** | An API key from platform.xiaomimimo.com | Free for a limited time | sentence |
 | **OpenAI Compatible** | The address of any server that speaks OpenAI's API, and a key if it wants one: a self-hosted [Chatterbox](tutorials/chatterbox-tts-server.md), a hosted service, a proxy of OpenAI | The server's own price; self-hosted servers are free | sentence |
-| **System voices** | Nothing — Windows and macOS | Free, offline | word on Windows, sentence on macOS |
+| **System voices** | Nothing for standard Windows/macOS voices; Narrator Natural voices need a bridge | Free/offline for built-in voices | word on Windows, sentence on macOS |
 | **Zotero Standard / Premium** | A Zotero account signed in under Edit → Settings → Account; a switch each in the **Zotero Read Aloud** section, both on to begin with | Zotero's own credits, bought on zotero.org | word |
 
 The player's first dropdown lists every enabled provider that has voices
@@ -186,6 +186,15 @@ Read Aloud already lists the voices Windows and macOS install, under
 - At speed these voices sound a little different from before.
 - On Windows you may see one `powershell.exe` while Zotero is open; Linux
   is not supported.
+- **New Windows voices:** after installing voices or changing a bridge,
+  click **Test connection** (or enable System voices) to refresh the voice
+  browser and open Players without restarting Zotero. Pending synthesis
+  finishes before the refresh.
+- **Narrator Natural / Natural HD:** installing the voice alone is not
+  enough; a separately installed SAPI5 bridge such as
+  [NaturalVoiceSAPIAdapter](https://github.com/gexgd0419/NaturalVoiceSAPIAdapter)
+  is required. That bridge's HD support is incomplete, and its Online
+  voices still need Internet access.
 
 </details>
 

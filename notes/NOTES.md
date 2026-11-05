@@ -836,3 +836,9 @@ then) and is in the git history before that day.
 - Zotero 10.0.7's Play calls the controller's `clearFailures()`, which the Engine lacked, so no paused reading resumed (issue #238)
 - Zotero's hidden popup replays Play when a request fails faster than its silent audio starts (issue #238)
 - Zotero lets chrome code run unbounded, and the plugin sandbox can start a worker (issue #237)
+
+### [2026-11-05](NOTES_2026-11-05.md)
+
+- Andrew Natural HD is installed but absent from both Windows speech APIs
+- A newly registered bridge is visible to a fresh helper, but System.Speech retains a process-wide snapshot (issue #241)
+- Connection checks queue a fresh helper and notify open Players (issue #241)

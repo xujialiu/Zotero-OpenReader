@@ -242,6 +242,8 @@ const readerSources = new WeakMap<object, RemoteInterface>();
 const prefs = createZoteroPrefs();
 const followIntents = createFollowIntents(() => prefs.get(PREF_PREFIX + 'readAloud.defaultAutoScroll') !== false);
 let liveVoiceList: ReturnType<typeof createLiveVoiceList> | null = null;
+/** A pane check can discover voices without changing a pref (#241); shares the observers' coalesced refresh. */
+let requestVoiceListRefresh: (() => void) | null = null;
 let liveListObservers: unknown[] = [];
 const readingImpact = createReadingImpact({
   values: () => flattenSettings(loadSettings(prefs)),
@@ -2694,23 +2696,28 @@ function startLiveVoiceList(): void {
   liveVoiceList = lists;
   eachReader((reader) => lists.attach(reader));
   let queued = false;
+  const changed = () => {
+    lists.invalidate();
+    if (queued) return;
+    queued = true;
+    void Promise.resolve().then(async () => {
+      queued = false;
+      if (liveVoiceList === lists) await lists.refresh();
+    }).catch(e => Zotero.logError(e));
+  };
+  requestVoiceListRefresh = changed;
   for (const key of Object.keys(flattenSettings(loadSettings(prefs))).filter(editsPlayerList)) {
     liveListObservers.push(Zotero.Prefs.registerObserver('zotero-tts.' + key, () => {
       const settings = flattenSettings(loadSettings(prefs));
       if (key === 'readAloud.favoriteVoices' && settings['readAloud.favoritesOnly'] !== true) return;
       const section = key.slice(0, key.indexOf('.'));
       if (!key.startsWith('readAloud.') && !key.endsWith('.enabled') && settings[section + '.enabled'] !== true) return;
-      lists.invalidate();
-      if (queued) return;
-      queued = true;
-      void Promise.resolve().then(async () => {
-        queued = false;
-        if (liveVoiceList === lists) await lists.refresh();
-      }).catch(e => Zotero.logError(e));
+      changed();
     }));
   }
 }
 function stopLiveVoiceList(): void {
+  requestVoiceListRefresh = null;
   for (const token of liveListObservers.splice(0)) Zotero.Prefs.unregisterObserver(token);
   liveVoiceList?.dispose();
   liveVoiceList = null;
@@ -4449,6 +4456,7 @@ Zotero.ZoteroTTS = {
         // The speech helper is one process for the whole of Zotero, so the
         // pane's samples and checks must use this session's, not one of their own
         providerDeps,
+        voicesChanged: () => requestVoiceListRefresh?.(),
         // The Backup group's positions pair (#41): the live sampler's map,
         // and a merge in through the same adopt the WebDAV sync uses —
         // under this computer's library number (#187), only the strictly

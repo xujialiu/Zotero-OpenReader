@@ -30,7 +30,7 @@ export interface SpeechBackend {
   send(request: SystemRequestBody): Promise<SystemResponse>;
   /** Kills whatever is running; the next `send` starts afresh. */
   stop(): void;
-  /** Forgets a spent start budget or a last error, so a fixed environment can be tried again without restarting Zotero. */
+  /** Refreshes discovery and clears retry errors; Windows queues a fresh helper after existing work, macOS forgets its last error. */
   reset(): void;
   /** Plain data for the diagnostics: what is up, what has been done, and why it last failed. */
   state(): Record<string, unknown>;
