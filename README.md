@@ -462,7 +462,7 @@ provider (or Zotero's Standard / Premium), language, voice.
 ### Reading
 
 <details>
-<summary><b>Expanded player, document voices, pauses, brackets, replacements, prefetch, cache, a page's first line, a sentence split in two</b></summary>
+<summary><b>Expanded player, document voices, pauses, brackets, replacements, text cleaning, prefetch, cache, a page's first line, a sentence split in two</b></summary>
 
 - *Open the player expanded* — show the floating panel's provider, language
   and voice rows whenever it opens. On by default. Options or Shift+O
@@ -500,6 +500,12 @@ provider (or Zotero's Standard / Premium), language, voice.
   says differently in every document. A document's own are edited from the
   player. An edit reaches a reading in progress at once; both lists travel
   with backups and sync. [Tutorial](tutorials/replacements.md).
+- **Text cleaning** — whitespace between Chinese characters, or between a
+  Chinese character and Chinese punctuation, is removed automatically in
+  every document and voice. The document and highlight positions stay
+  unchanged, as do English and numeric spacing and Replacements' Read as
+  text. There is no switch; deliberate Chinese spacing may also disappear.
+  Use a Replacement to preserve a phrase's intended reading.
 - *Custom prefetch* — the sentences ahead are fetched while the current one
   plays, for every voice, so playback does not wait for the server. On, you
   set *Prefetch … sentences ahead* (3 to 20) and *Send … requests at once*

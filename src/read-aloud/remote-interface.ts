@@ -1,5 +1,5 @@
-import { prepareSpeechText } from '../core/speech-text';
-import { composeSpeechText, mapTimestampsToDocument, type ReplacedSpan, type SpeechText } from '../core/replacements';
+import { composeSpeechText, mapTimestampsToDocument, type ReplacedSpan } from '../core/replacements';
+import { prepareDocumentSpeech, type TextCleaningContext } from '../core/text-cleaning';
 import { fishLanguageHint } from '../core/fish-language-hint';
 import { SynthesisError, toZoteroError } from '../core/providers/errors';
 import { silentWav } from '../core/silence';
@@ -91,6 +91,8 @@ export type RemoteInterfaceDeps = {
   /** Fixed for the active reading session; refreshed at the next activation. */
   getStripAngleBrackets?(): boolean;
   getBracketPairs?(): string;
+  /** Reader metadata for a rule's scope, captured before waiting for Replacements. */
+  getTextCleaningContext?(voiceId: string): TextCleaningContext;
   /**
    * The replaced spans of a Segment's text under this reader's rows, the
    * document's then the global ones (issue #237, ADR 0023), read at every
@@ -514,7 +516,12 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       const strip = deps.getStripAngleBrackets?.() ?? true;
       const pairs = deps.getBracketPairs?.();
       const originalText = segment === 'sample' ? SAMPLE_TEXT : segment.text;
-      const decoded = decodeVoiceId(voice?.id ?? '');
+      const voiceId = voice?.id ?? '';
+      const decoded = decodeVoiceId(voiceId);
+      const context: TextCleaningContext = {
+        ...(segment !== 'sample' ? deps.getTextCleaningContext?.(voiceId) : {}),
+        ...(decoded ? { provider: decoded.provider } : {}),
+      };
       const invisible = segment !== 'sample' && !!decoded && isInvisibleSegment(segment);
       // The replacements may be a worker's answer (ADR 0024): the segment
       // Zotero's own interface is handed is copied before that await, by the
@@ -527,15 +534,17 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       const nativeVoice = voice;
       const spans = (waits ? await found : (found as { spans: ReplacedSpan[] } | null))?.spans ?? [];
       if (signal?.aborted) return { audio: null, error: 'network' };
-      const brackets = prepareSpeechText(originalText, segment !== 'sample' && strip, pairs);
-      const prepared: SpeechText = composeSpeechText(originalText, spans, brackets.removed);
+      const prepared = segment === 'sample'
+        ? { ...composeSpeechText(originalText, [], []), bracketsRemoved: 0, cleaning: [] }
+        : prepareDocumentSpeech(originalText, spans, { stripBrackets: strip, bracketPairs: pairs, context });
       if (prepared.changed && !prepared.text.trim()) {
         const pause = silentWav(SILENT_PAUSE_MS);
         deps.debug?.('speech text: nothing left to say; playing a short pause');
-        return { audio: deps.adoptAudio ? deps.adoptAudio(pause) : pause, timestamps: wholeSegmentTimestamp(originalText) };
+        return { audio: deps.adoptAudio ? deps.adoptAudio(pause) : pause, timestamps: wholeSegmentTimestamp(originalText), speechText: prepared.text };
       }
-      if (brackets.removed.length) deps.debug?.(`bracket pairs: removed ${brackets.removed.length} bracket code unit(s) from ${originalText.length} chars`);
+      if (prepared.bracketsRemoved) deps.debug?.(`bracket pairs: removed ${prepared.bracketsRemoved} bracket code unit(s) from ${originalText.length} chars`);
       if (spans.length) deps.debug?.(`replacements: ${spans.length} span(s) replaced in ${originalText.length} chars`);
+      for (const rule of prepared.cleaning) deps.debug?.(`text cleaning: ${rule.id} removed ${rule.removed} code unit(s) from ${originalText.length} chars`);
       if (!decoded) {
         // Not one of ours: Zotero's own voice, handled by Zotero's own code,
         // whose audio the plugin does not keep
@@ -637,11 +646,13 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       const decoded = decodeVoiceId(voice?.id ?? '');
       if (!decoded) return;
       const strip = deps.getStripAngleBrackets?.() ?? true;
+      const pairs = deps.getBracketPairs?.();
       const text = segment.text;
       const locale = voice?.locale;
-      // The key is the speech text's, replacements included (issue #237)
+      const context = { ...deps.getTextCleaningContext?.(voice.id), provider: decoded.provider };
+      // Capture all reader metadata before the worker can outlive its tab.
       const spans = (await deps.replacements?.(text))?.spans ?? [];
-      const prepared = composeSpeechText(text, spans, prepareSpeechText(text, strip, deps.getBracketPairs?.()).removed);
+      const prepared = prepareDocumentSpeech(text, spans, { stripBrackets: strip, bracketPairs: pairs, context });
       const key = cacheKeyFor(decoded.provider, decoded.voiceId, prepared.text, hintFor(decoded.provider, prepared.text, locale));
       await deps.cache?.()?.delete?.(key);
       deps.debug?.(`${decoded.provider}: forgot the cached audio of ${prepared.text.length} chars, which would not decode`);

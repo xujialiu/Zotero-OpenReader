@@ -14,8 +14,8 @@ import {
   readGlobalReplacements,
   writeGlobalReplacements,
 } from './core/document-replacements';
-import { composeSpeechText, sameReplacement, type Replacement } from './core/replacements';
-import { prepareSpeechText } from './core/speech-text';
+import { sameReplacement, type Replacement } from './core/replacements';
+import { prepareDocumentSpeech, TEXT_CLEANING_RULES, type TextCleaningContext } from './core/text-cleaning';
 import { createReplacementRunner, type ReplacementRunner, type RunResult, type WorkerLike } from './read-aloud/replacement-runner';
 import { createReplacementRefresh, type ReplacementRefresh } from './read-aloud/replacement-refresh';
 import { openReplacementsDialog } from './ui/replacements-dialog';
@@ -671,6 +671,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
     getStripAngleBrackets: () => textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets,
     // The document's rows, then the global ones, at every request (issue #237)
     replacements: (text) => replacementsFor(reader, text),
+    getTextCleaningContext: (voiceId) => readerCleaningContext(reader, voiceId),
     // Built from the voice id, not from the enabled flags: Zotero
     // remembers the last-selected voice, which may belong to a provider
     // the user has since switched off, and a cached or in-flight segment
@@ -2811,12 +2812,45 @@ function replacementsFor(reader: any, text: string): RunResult | Promise<RunResu
   return result instanceof Promise ? result.then(note) : note(result);
 }
 
-/** The text a voice would be given now for `text`, as remote-interface prepares it: replacements, then bracket removal around them. */
-async function replacementSpeechText(reader: any, text: string): Promise<string> {
-  const { spans } = await replacementsFor(reader, text);
+/** Scope metadata, never inferred from a voice's locale or from an unknown document. */
+function readerCleaningContext(reader: any, requestedVoiceId?: string): TextCleaningContext {
+  const context: TextCleaningContext = {};
+  try {
+    const item = reader?.itemID ? Zotero.Items.get(reader.itemID) : null;
+    const mime = item?.attachmentContentType;
+    if (mime === 'application/pdf') context.documentType = 'pdf';
+    else if (mime === 'application/epub+zip') context.documentType = 'epub';
+    else if (mime === 'text/html' || mime === 'application/xhtml+xml') context.documentType = 'snapshot';
+    const manager = readAloudManager(reader);
+    const id = requestedVoiceId ?? engine?.session(reader)?.voice?.id ?? manager?.selectedVoiceID ?? '';
+    context.provider = decodeVoiceId(id)?.provider;
+    if (!context.provider) {
+      const voices = manager?._allVoices;
+      for (let i = 0; i < (voices?.length ?? 0); i++) {
+        if (voices[i]?.id !== id) continue;
+        const tier = voices[i].tier;
+        if (tier === 'standard') context.provider = 'zotero-standard';
+        else if (tier === 'premium') context.provider = 'zotero-premium';
+        break;
+      }
+    }
+  } catch {
+    // Dead or unavailable metadata never broadens a restricted rule's scope.
+  }
+  return context;
+}
+
+/** The same preparation as getAudio/forget; capture reader state before the worker's await. */
+async function preparedSpeechFor(reader: any, text: string, voiceId?: string) {
   const strip = textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets;
   const pairs = textSettings?.pairs(reader) ?? loadSettings(prefs).readAloud.bracketPairs;
-  return composeSpeechText(text, spans, prepareSpeechText(text, strip, pairs).removed).text;
+  const context = readerCleaningContext(reader, voiceId);
+  const { spans } = await replacementsFor(reader, text);
+  return { ...prepareDocumentSpeech(text, spans, { stripBrackets: strip, bracketPairs: pairs, context }), context };
+}
+
+async function replacementSpeechText(reader: any, text: string): Promise<string> {
+  return (await preparedSpeechFor(reader, text)).text;
 }
 
 /** An edit, a restore or the sync changed the rows: every reading compares what it holds, a moment later. */
@@ -3593,6 +3627,13 @@ const diagnostics = {
     return JSON.stringify({ lang, keys: k, preferred: p, key: resolveVoiceLang(lang, k, p) });
   },
   textSettings: () => JSON.stringify(readerRows((r) => textSettings?.inspect(r) ?? null), null, 1),
+  /** Pure sandbox preview of the same scoped path getAudio/forget and edit comparison use. No voice is asked for audio. */
+  textCleaning: async (text = '中 文', index = 0, voiceId?: string) => {
+    const reader = (Zotero.Reader._readers ?? [])[index] ?? null;
+    const original = String(text);
+    const prepared = await preparedSpeechFor(reader, original, voiceId);
+    return JSON.stringify({ mechanism: 'scoped-text-cleaning-v1', rules: TEXT_CLEANING_RULES.map(({ id, scope }) => ({ id, scope })), original, ...prepared });
+  },
   /**
    * Replacements (issue #237): the windows' package, the runner (workers
    * started, sentences run, rows that ran out of time, ADR 0024), and per

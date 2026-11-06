@@ -26,6 +26,17 @@ _Avoid_: sentence splitting, chunking
 One unit of reading: a sentence, with its place in the document.
 _Avoid_: chunk
 
+**Text cleaning**:
+Built-in corrections to the text read aloud, such as removing extra
+whitespace in Chinese, without changing the document. Distinct from the
+user's Replacements.
+_Avoid_: preprocessing, text normalization
+
+**Text cleaning rule**:
+One built-in correction, together with the document types and Providers it
+applies to.
+_Avoid_: built-in Replacement, preset Replacement
+
 **Replacement**:
 A rule that has the voice say other text in place of a piece of the
 document's text, such as an abbreviation written out or a word spelled the
