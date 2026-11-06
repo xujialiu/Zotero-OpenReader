@@ -7,6 +7,10 @@ WebDAV case: snapshot the folder switch privately, settle pending work,
 disable it before installation and confirm `positionSync().folder:false`
 after installation too. Restore the original value and user-value state
 only after fixture data, transports and preference observers are quiet.
+Also snapshot Zotero's `extensions.zotero.sync.autoSync` value/user flag,
+wait for its data sync to be idle, and disable it before importing the
+fixture. The plugin's folder switch does not isolate Zotero's own cloud
+attachment sync. Restore auto-sync only after the fixture is erased.
 
 Use `test/fixtures/text-cleaning/text-cleaning.epub`, regenerated with its
 `build.py`, as a temporary standalone attachment. Open at most one new
@@ -85,7 +89,10 @@ the prepared text must compare equal and must not request new audio.
 
 Capture the actual outgoing text at a restored System/provider request
 boundary for a few fixture Segments; preview/debug output alone is not
-transport proof. Expect the actual Segment's extra Chinese whitespace to
+transport proof. On Windows the kit taps the helper's framed stdin before
+write through Gecko's mutable subprocess test implementation; the public
+`Subprocess.call` is frozen. A held-speech record is not an independent
+transport capture. Expect the actual Segment's extra Chinese whitespace to
 be removed, mixed Latin/numeric spacing preserved, and the original
 Segment/source position unchanged. Record the capture method and exact
 observed input/output.
@@ -98,7 +105,17 @@ If real Chinese word timing is unavailable, report sentence fallback and
 exercise exact coordinate cases through a clearly labeled transport stub.
 Use controlled, restored Standard/Premium stubs to confirm the copied
 native segment keeps metadata, gets cleaned text and returns original
-coordinates. No paid request is permitted.
+coordinates. Install the API and HTTP guards before any request; use
+uncached synthetic native ids directly through the copied-segment route,
+without enabling/picking a real tier or starting native playback. No paid
+request is permitted.
+
+For objective moving-highlight verification, restore/focus the fixture and
+refresh document activation after its voice catalog is ready. Record the
+advancing AudioContext/playback clock together with changing real word
+timestamps and the rendered DOM ranges. Each rendered range must equal
+the corresponding substring of the original Segment and have nonempty
+geometry. Report this separately from subjective listening quality.
 
 Normal requests, Prefetch and Handoff share preparation; concurrent
 original-offset sharing, held misses, samples and reader death across a
@@ -124,9 +141,14 @@ Restore transport/probe wrappers. Close and erase the fixture, remove only
 its position/document-voice/Replacement records and account for every new
 row. Restore preferences and user-value flags, reading memory last among
 reading preferences; restore any observer-re-stamped sync metadata after
-those writes. Confirm quiet transports, exact document-voice map, original
-reader tabs/selection, volume/debug/minimized state and no fixture data
-before restoring the original WebDAV switch. Finish
+those writes. Remove the run's rows from all four local position tables,
+scoped by stored library/key and fixture Document Id; compare unrelated
+rows with the original snapshot. Reinstall in place while both sync gates
+remain off to discard stale in-memory fixture maps. Confirm all four
+transports quiet, exact document-voice map, original reader tabs/selection,
+volume/debug/minimized state and no fixture data before restoring the
+original Zotero auto-sync and WebDAV switches. Then audit the normal
+transports after their expected switch-on work settles. Finish
 [playback 3.26](playback.md#326) and compare error contents with baseline.
 A failed restoration is a blocker, not a PASS.
 

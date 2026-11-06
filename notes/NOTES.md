@@ -859,3 +859,5 @@ then) and is in the git history before that day.
 - Beta5 keeps one start, and polling must not mistake progression for a jump (issue #234)
 - The final restoration order passes without manual metadata repair (issue #234)
 - Text cleaning shares speech identity without touching Read as (issue #240)
+- Verification crossed metered-voice and normal-sync boundaries (issue #240)
+- Main verification captures transport text and closes the recovery gap (issue #240)
