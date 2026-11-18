@@ -12,6 +12,13 @@ one local fixture voice such as `af_sample`, with valid local audio. Do not
 send metered synthesis, sign out, open native dialogs, or change the user's
 server or account outside the isolated test configuration.
 
+Before repointing the fixture Provider, keep it off and make sure no real
+key or gateway header can reach the loopback server. Preserve any affected
+original values and user flags in Zotero's live runner memory only; never
+return or write credentials to disk. Restore the original address and
+headers while the Provider is still off, then restore its switch. Refuse
+this setup if exact restoration cannot be guaranteed.
+
 Snapshot the affected provider switches and the fixture Provider's address,
 Global default voice, favorites, favorites-only, speed, volume, native
 `reader.readAloudVoices`, and any other pref readied for the run; restore
@@ -20,6 +27,15 @@ and compare without printing them. The fixtures may have test Document
 voices; erase the fixture attachments and records in cleanup. Only perform
 a disable/re-enable check if that operation can be confined to the test
 tabs; otherwise report the live limit and rely on the native-manager test.
+
+**Before any Play:** use IDs from the plugin's own System catalog, not
+Zotero's browser voice URIs. Prove the fixture's saved Document voice
+through `diagnostics.documentVoices()`; planting `readAloud.memory` does
+not change it. No Play is allowed if the saved voice or a proposed
+explicit pick is outside the System/loopback allowlist. Do not treat an
+idle Player or an unmatched voice ID as a playback observation. A
+script-started suspended audio clock does not establish a device fault;
+follow the baseline's trusted-key probe before classifying audio.
 
 Read the fixture's Player from `diagnostics.pluginPlayer()`, its list from
 `diagnostics.liveVoiceList()` (reader order), and its audio and selected
