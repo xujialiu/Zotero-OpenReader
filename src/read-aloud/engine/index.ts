@@ -3,12 +3,12 @@
  * plays on the plugin's own engine, behind Read Aloud's manager.
  *
  * The manager builds its engine in one place: `_createController` asks the
- * selected voice for a controller (reader.js 82653-82718), and every voice
- * of the Player is a `RemoteReadAloudVoice`, whose `getController` (40476)
- * builds Read Aloud's. So `getController` is shadowed on that class's
- * prototype, per tab, and answers with a controller of the tab's session
- * (controller.ts, core/engine/session.ts). Samples go on through
- * `getSampleController`, untouched: they stay Read Aloud's.
+ * selected voice for a controller (reader.js 82653-82718). The plugin's
+ * Voice catalog builds reader-realm voices implementing that contract
+ * without running native discovery (#261). The same `getController`
+ * hook covers older native voice objects on a reader carried across an
+ * update. Both answer with a controller of the tab's session
+ * (controller.ts, core/engine/session.ts).
  *
  * Three more shadows, on the manager's prototype, per tab:
  *
@@ -49,6 +49,7 @@ import { EngineSession, type PlaybackNotice } from '../../core/engine/session';
 import type { EngineClock, EngineSegment, EngineVoice, FetchResult } from '../../core/engine/types';
 import { createProtoPatches } from '../proto-patches';
 import { ownerOf } from '../system-voices';
+import type { CatalogVoice, VoiceCatalogSnapshot } from '../voice-catalog';
 import { createAudioOutput, type AudioOutput, type DecodedClip } from './audio-output';
 import { createEngineController, type EngineController } from './controller';
 
@@ -146,6 +147,8 @@ export interface Engine {
   owns(controller: unknown): boolean;
   /** The session of a reader, for the handoff and the diagnostics. */
   session(reader: unknown): EngineSession<DecodedClip> | null;
+  /** Materialize the plugin's already discovered voices for the reader, without running Zotero's discovery. */
+  catalogVoices(reader: unknown, snapshot: VoiceCatalogSnapshot): any[] | null;
   /** A reader's voice as the Engine plays it. */
   voiceOf(voice: any): TabVoice;
   /** Whether the reader's manager holds a live controller of the Engine's. */
@@ -233,6 +236,7 @@ export function createEngine(deps: EngineDeps): Engine {
   const all = new Set<Tab>();
   /** Every controller the Engine made, the reader-window object it hands out. */
   const controllers = new WeakSet<object>();
+  const adapterVoices = new WeakMap<Tab, { proto: any; provider: any; credits: VoiceCatalogSnapshot['zotero']; voices: WeakMap<CatalogVoice, object> }>();
   let disposed = false;
 
   const managerOf = (reader: any): any => {
@@ -410,8 +414,73 @@ export function createEngine(deps: EngineDeps): Engine {
     });
   }
 
-  /** Shadow `getController` on the prototype of the tab's remote voices, found through any live one. */
+  function patchVoice(tab: Tab, proto: object) {
+    patches.shadow(proto, 'getController', (original) =>
+      function (this: unknown, segments: unknown, backwardStopIndex: unknown, forwardStopIndex: unknown) {
+        if (!disposed && alive(tab.window)) {
+          try {
+            return controllerFor(tab, waive(this), waive(segments) as ArrayLike<EngineSegment>, backwardStopIndex, forwardStopIndex).object;
+          } catch (e) {
+            deps.error(e);
+            tab.stats.fallbacks++;
+          }
+        }
+        return Reflect.apply(original, this, [segments, backwardStopIndex, forwardStopIndex]);
+      },
+    );
+  }
+
+  /** Adapt the catalog's records using only the voice fields the manager and Engine read. */
+  function catalogVoices(reader: unknown, snapshot: VoiceCatalogSnapshot): any[] | null {
+    if (!attach(reader)) return null;
+    const tab = tabOfReader(reader);
+    if (!tab) return null;
+    const win = tab.window;
+    const clone = <T>(value: T): T => waive(deps.cloneInto(value, win));
+    let adapter = adapterVoices.get(tab);
+    if (!adapter) {
+      const proto = clone({});
+      Object.defineProperties(proto, {
+        getController: { value: deps.exportFunction(() => { throw new Error('No Engine for the catalog voice'); }, win), writable: true, configurable: true },
+        minutesRemaining: { get: deps.exportFunction(function (this: unknown) {
+          const voice = waive(this) as any;
+          const credits = voice.tier === 'standard' ? voice.provider.standardCreditsRemaining
+            : voice.tier === 'premium' ? voice.provider.premiumCreditsRemaining : null;
+          return typeof credits === 'number' && voice.creditsPerMinute > 0 ? credits / voice.creditsPerMinute : null;
+        }, win) },
+      });
+      const provider: any = clone({ standardCreditsRemaining: null, premiumCreditsRemaining: null });
+      // Zotero's native interface still supplies its voices' audio, cache and credits.
+      provider.remote = tab.manager._options.remoteInterface;
+      adapter = { proto, provider, credits: null, voices: new WeakMap() };
+      adapterVoices.set(tab, adapter);
+      patchVoice(tab, proto);
+    }
+    if (snapshot.zotero && snapshot.zotero !== adapter.credits) {
+      adapter.credits = snapshot.zotero;
+      adapter.provider.standardCreditsRemaining = snapshot.zotero.standardCreditsRemaining ?? null;
+      adapter.provider.premiumCreditsRemaining = snapshot.zotero.premiumCreditsRemaining ?? null;
+    }
+    const list: any[] = clone([]);
+    for (const info of snapshot.offered) {
+      let voice = adapter.voices.get(info);
+      if (!voice) {
+        voice = clone({ ...info, default: true, score: 999, provider: null, impl: { ...info, locale: info.language } });
+        Object.setPrototypeOf(voice, adapter.proto);
+        Object.defineProperty(voice, 'provider', { value: adapter.provider });
+        adapter.voices.set(info, voice);
+      }
+      // Use the array's own method, not sandbox values as a native array of arguments.
+      Reflect.apply(list.push, list, [voice]);
+    }
+    return list;
+  }
+
+  /** Shadow legacy native voices too, including a voice retained during an in-place update. */
   function patchVoices(tab: Tab): void {
+    const current = tab.manager._voice;
+    const currentProto = current?.provider?.remote ? ownerOf(waive(current), 'getController') : null;
+    if (currentProto) patchVoice(tab, currentProto);
     let voices: any;
     try {
       voices = tab.manager.allVoices;
@@ -424,20 +493,7 @@ export function createEngine(deps: EngineDeps): Engine {
       if (!voice?.provider?.remote) continue;
       const proto = ownerOf(voice, 'getController');
       if (!proto) continue;
-      patches.shadow(proto, 'getController', (original) =>
-        function (this: unknown, segments: unknown, backwardStopIndex: unknown, forwardStopIndex: unknown) {
-          if (!disposed && alive(tab.window)) {
-            try {
-              return controllerFor(tab, waive(this), waive(segments) as ArrayLike<EngineSegment>, backwardStopIndex, forwardStopIndex).object;
-            } catch (e) {
-              // Better Read Aloud's own engine than no reading at all; loud in the console
-              deps.error(e);
-              tab.stats.fallbacks++;
-            }
-          }
-          return Reflect.apply(original, this, [segments, backwardStopIndex, forwardStopIndex]);
-        },
-      );
+      patchVoice(tab, proto);
       return;
     }
   }
@@ -554,7 +610,7 @@ export function createEngine(deps: EngineDeps): Engine {
         deps.error(error);
       }
     };
-    let section;
+    let section: ReturnType<typeof sectionFor> | undefined;
     try { section = session.segments ? sectionFor(reader, session.segments, session.position) : undefined; }
     catch (error) { report(error); }
     try { return session.remainingTime(section); }
@@ -592,6 +648,8 @@ export function createEngine(deps: EngineDeps): Engine {
     owns: (controller) => !!controller && controllers.has(waive(controller as object)),
 
     session: (reader) => tabOfReader(reader)?.session ?? null,
+
+    catalogVoices,
 
     voiceOf: (voice) => voiceOf(waive(voice)),
 

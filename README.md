@@ -90,19 +90,22 @@ while their switches are on, sorted by name.
   OpenAI, OpenAI Compatible, Speechify, System, Xiaomi MiMo, Zotero
   Premium and Zotero Standard; the voices under them carry their own
   names.
-- **Each entry remembers its own last voice** per language: Kokoro → Fish
-  → Kokoro brings the Kokoro voice back.
+- **Ready voices do not wait for another provider.** You can choose and
+  use a System voice while an online provider is still loading. New
+  voices arriving do not change your choice or interrupt reading.
 - **A provider with nothing to offer** — switched off, its server down,
   no favorite of its own while only favorites are offered — is not
   listed until it has voices again.
 - **Without a Zotero account** every other provider still works; only
   Zotero Standard and Zotero Premium are left out, as in Zotero itself.
-- **When the entry you are on stops offering voices**, the player moves
-  to the provider of the remembered voice, else of the default voice,
-  else to the first entry.
-- **Switching provider or language while paused** takes effect at once;
-  press play and the sentence starts over in the new voice. A voice
-  picked while paused waits for play and carries on from the paused word.
+- **One Play press while your chosen voice loads** starts reading from
+  the requested place when that voice becomes available. A timeout, Stop,
+  or closing the player cancels it. Looking at another tab does not cancel
+  the wait; pressing Play in another document cancels it and pauses the
+  old reading immediately, even if the new one cannot start.
+- **Choices in OpenReader and Zotero's own Read Aloud are separate.** When
+  you disable OpenReader, reopen Zotero's player to use its own choice.
+  Your saved document voices, default voice, and favorites stay in OpenReader.
 - **Zotero's own first-run window and its *Manage voices* window** keep
   filing every plugin voice under Local.
 - **Enable**, at the end of every provider section, runs the connection
@@ -420,11 +423,13 @@ provider (or Zotero's Standard / Premium), language, voice.
 - *Offer only favorite voices* trims the player to the marked
   ones **for every provider** — a provider you marked nothing in leaves
   the player's first dropdown, Zotero's own two included. With nothing
-  marked at all, or when none of the
-  marked voices is listed any more, everything is offered again. While the
-  switch is on, only a favorite can be the default, and the switch stays
-  off while the default is not one. Favorites travel with the settings
-  backup.
+  marked, or once the player confirms no favorites are offered, everything
+  is offered again without choosing a voice. If a favorite's provider is
+  still loading or cannot be reached, the filter stays in effect. A
+  connection error names the provider. While the switch is on, only a
+  favorite can be the default, and the switch stays off while the default
+  is not one.
+  Favorites travel with the settings backup.
 - The hearts show in the player's voice list too, favorites first, and a
   click on one marks or unmarks that voice. While *Offer only favorite
   voices* is on, a change that would take away the voice a tab is reading

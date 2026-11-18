@@ -343,7 +343,7 @@ export function createPluginPlayer(deps: {
       if (entry.open !== state.opened) { if (state.opened) entry.expanded = state.expandOnOpen; entry.open = state.opened; entry.openedAt = state.opened ? Date.now() : 0; paint(doc); }
     }
     const json = JSON.stringify({ ...state, expanded: entry.expanded, error: entry.actionError ?? state.error,
-      loading: entry.open && !state.voices.length && Date.now() - entry.openedAt < 15000,
+      loading: entry.open && !state.voices.length && (state.catalogLoading ?? Date.now() - entry.openedAt < 15000),
       strings: deps.strings() });
     if (json !== entry.lastSnapshot && entry.frame.contentWindow && deps.update(entry.frame.contentWindow, json)) entry.lastSnapshot = json;
   }

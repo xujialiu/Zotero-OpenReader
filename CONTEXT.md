@@ -170,8 +170,9 @@ excludes manual pauses and network waits.
 _Avoid_: section countdown, chapter duration
 
 **Voice catalog**:
-The voices the player offers: every enabled provider's voices, with
-favorites and the remembered choice per language.
+The voices currently offered in the player across enabled providers, with
+their favorite marks. A global default voice or document voice may name a
+voice that is not currently offered.
 _Avoid_: voice list (the per-tab snapshot of it)
 
 ### Sources of voices

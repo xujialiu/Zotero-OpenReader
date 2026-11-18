@@ -1,5 +1,6 @@
 import { createDocumentVoices, documentVoiceSettings, readDefaultVoice, DOCUMENT_VOICE_CHANGED } from './core/document-voices';
 import { createLiveVoiceList } from './read-aloud/live-voice-list';
+import { createReadingStart, listingProblem, voiceSource, type StartProblem } from './read-aloud/reading-start';
 import { createReadingImpact } from './read-aloud/settings-impact';
 import type { FlatSettings } from './core/settings-backup';
 import { createPluginPlayer } from './ui/player';
@@ -31,7 +32,7 @@ import { zoteroVoiceId } from './core/providers/system/voices';
 import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSource, t, type L10nArgs } from './core/l10n';
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
-import { audioSetup, autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, hiddenZoteroTiers, loadSettings, migrateFishFreeOnly, migrateLegacyProviderPref, migrateSyncPositionsDefault, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
+import { audioSetup, autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, enabledProviders, hiddenZoteroTiers, loadSettings, migrateFishFreeOnly, migrateLegacyProviderPref, migrateSyncPositionsDefault, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
 import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, legacyPrefSet, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
@@ -90,7 +91,7 @@ import { runStartupSteps, type StartupReport } from './core/startup-steps';
 import { CATALOG_CAP_MS, listNamedCatalog, providerNaming, providerTierColumns, providerTierLabels, type CatalogEntry } from './read-aloud/catalog';
 import { parseFavoriteVoices } from './read-aloud/favorites';
 import { languageNames, voiceLanguages } from './read-aloud/language-dropdown';
-import { decodeVoiceId, pluginVoiceTier, zoteroTierLabel } from './read-aloud/voice-catalog';
+import { decodeVoiceId, pluginVoiceTier, providerTierLabel, zoteroTierLabel, type CatalogSource } from './read-aloud/voice-catalog';
 import { createProviderTiers, type ProviderTiers } from './read-aloud/provider-tiers';
 import { createWindowWrapper } from './read-aloud/window-interface';
 import { ZOTERO_READ_ALOUD_URL, type ZoteroVoice } from './read-aloud/zotero-voices';
@@ -244,6 +245,45 @@ const readerSources = new WeakMap<object, RemoteInterface>();
 const prefs = createZoteroPrefs();
 const followIntents = createFollowIntents(() => prefs.get(PREF_PREFIX + 'readAloud.defaultAutoScroll') !== false);
 let liveVoiceList: ReturnType<typeof createLiveVoiceList> | null = null;
+let readingStart: ReturnType<typeof createReadingStart> | null = null;
+const ownsCatalog = (reader: unknown): boolean => !!reader && typeof reader === 'object' && readerSources.has(reader);
+
+function catalogSourceName(source: CatalogSource): string {
+  return source === 'zotero' ? 'Zotero' : providerTierLabel(source, providerNaming(loadSettings(prefs)));
+}
+
+function startProblemText(reader: unknown, problem: StartProblem): string {
+  if (problem.kind === 'no-voice') return t('ztts-default-voice-required');
+  if (problem.kind === 'unavailable') {
+    const voice = liveVoiceList?.catalog(reader)?.published.find(v => v.id === problem.id)?.label ?? problem.id;
+    return t('ztts-document-voice-unavailable', { voice });
+  }
+  const provider = catalogSourceName(problem.source);
+  if (problem.kind === 'timeout') return t('ztts-player-voice-list-timeout', { provider });
+  if (problem.kind === 'key') return t('ztts-player-voice-list-key', { provider });
+  return t('ztts-player-voice-list-unreachable', { provider });
+}
+
+function catalogProblem(reader: unknown): StartProblem | null {
+  const failedStart = readingStart?.error(reader);
+  const snapshot = liveVoiceList?.catalog(reader) ?? null;
+  if (!snapshot) return failedStart ?? null;
+  const saved = readAloudMemory?.choice(reader);
+  if (saved && !snapshot.offered.some(voice => voice.id === saved.id)) {
+    const failure = listingProblem(snapshot, voiceSource(saved.id));
+    if (failure) return failure;
+  }
+  const settings = loadSettings(prefs).readAloud;
+  if (settings.favoritesOnly) {
+    for (const favorite of parseFavoriteVoices(settings.favoriteVoices)) {
+      if (snapshot.offered.some(voice => voice.id === favorite)) continue;
+      const failure = listingProblem(snapshot, voiceSource(favorite));
+      if (failure) return failure;
+    }
+  }
+  return failedStart ?? null;
+}
+
 /** A pane check can discover voices without changing a pref (#241); shares the observers' coalesced refresh. */
 let requestVoiceListRefresh: (() => void) | null = null;
 let liveListObservers: unknown[] = [];
@@ -275,6 +315,22 @@ const playerController = createPlayerController({
   choose: (reader, choice) => voicePick?.choose(reader, choice) ?? false,
   draft: reader => voicePick?.draft(reader) ?? null,
   needsVoice: reader => voicePick?.needsVoice(reader) ?? false,
+  beforeVoiceChoice: reader => {
+    readingStart?.cancel(reader);
+    readingStart?.clearError(reader);
+  },
+  hasSavedVoice: reader => ownsCatalog(reader) && !!readAloudMemory?.choice(reader),
+  waitingForVoice: reader => {
+    const source = readingStart?.waiting(reader);
+    return source ? t('ztts-player-voice-list-waiting', { provider: catalogSourceName(source) }) : null;
+  },
+  catalogLoading: reader => ownsCatalog(reader)
+    ? Object.values(liveVoiceList?.catalog(reader)?.sources ?? {}).includes('loading')
+    : undefined,
+  catalogProblem: reader => {
+    const problem = catalogProblem(reader);
+    return problem ? startProblemText(reader, problem) : null;
+  },
   // The voice a pending switch is to is the Player's at once (issue #225)
   pendingVoice: reader => voicePick?.pendingVoice(reader) ?? null,
   // The replacements window for this document (issue #237): opened a moment later, so the Player's click returns first
@@ -587,10 +643,10 @@ function webdavDeps(): WebDAVDeps {
 }
 
 /** The voices of every enabled provider; one failing, or not answering within its bound, is logged and skipped, not fatal. */
-async function listCatalog(): Promise<CatalogEntry[]> {
+async function listCatalog(onListed?: (entry: CatalogEntry) => void): Promise<CatalogEntry[]> {
   const settings = loadSettings(prefs);
   return listNamedCatalog(settings, (id) => createProvider(id, settings, providerDeps()), (e) => Zotero.logError(e), {
-    newAbortController: newChromeAbortController,
+    newAbortController: newChromeAbortController, onListed,
   });
 }
 
@@ -634,6 +690,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
       // The same views: the PDF one's follow is taken over here (issue #83)
       sentenceInView?.attach(reader);
       followResumeGuard?.attach(reader);
+      readingStart?.attach(reader);
       selectionStart?.attach(reader);
       segmentPreparation?.attach(reader);
       domFollowing?.attach(reader);
@@ -659,6 +716,7 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
     // A list that lands after the tab closed is planned for nobody: the reader's objects are dead (issue #165)
     isReaderLive: () => !readerGone(reader, isDeadWrapper),
     listCatalog,
+    catalogProviders: () => enabledProviders(loadSettings(prefs)),
     getFavoriteVoices: () => {
       const s = loadSettings(prefs);
       return s.readAloud.favoritesOnly ? parseFavoriteVoices(s.readAloud.favoriteVoices) : null;
@@ -700,7 +758,8 @@ function buildReaderInterface(reader: any, targetWindow: any, native: () => unkn
   });
   // The Engine asks this very interface for audio, on the plugin's side (read-aloud/engine/)
   if (reader && typeof reader === 'object') readerSources.set(reader, composite);
-  const iface = windowWrapper.wrap(targetWindow, composite);
+  const { getVoices, getAudio, getCreditsRemaining, resetCredits } = composite;
+  const iface = windowWrapper.wrap(targetWindow, { getVoices, getAudio, getCreditsRemaining, resetCredits });
   (iface as Record<string, unknown>).__zoteroTTSInstance = interfaceInstanceToken;
   return iface;
 }
@@ -994,6 +1053,7 @@ function watchReader(reader: any): void {
   highlightStyling?.attach(reader);
   sentenceInView?.attach(reader);
   followResumeGuard?.attach(reader);
+  readingStart?.attach(reader);
   selectionStart?.attach(reader);
   segmentPreparation?.attach(reader);
   domFollowing?.attach(reader);
@@ -1161,7 +1221,7 @@ function hookTabClose(reader: any): void {
       tabCloseHooks.delete(tab);
       try { voicePick?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
       try { engine?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
-      try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { readingStart?.detach(reader); followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`tab.onClose fired ${String(tabID)}`);
       try {
         positionSync?.captureClose(reader);
@@ -1235,7 +1295,7 @@ function hookPositionCapture(reader: any): void {
       positionCaptureHooks.delete(reader);
       try { voicePick?.detach(reader); voiceNotices?.clear(reader); } catch (error) { Zotero.logError(error); }
       try { engine?.detach(reader); liveVoiceList?.detach(reader); } catch (error) { Zotero.logError(error); }
-      try { followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
+      try { readingStart?.detach(reader); followResumeGuard?.detach(reader); } catch (error) { Zotero.logError(error); }
       trace(`reader.uninit fired item ${String(reader?.itemID)}`);
       try {
         positionSync?.captureClose(reader);
@@ -1349,6 +1409,7 @@ function startReadAloudShortcuts(pluginID: string): void {
     togglePaused: togglePlayerPaused,
     // No voice chosen in the Player after an entry or language pick (issue #224)
     needsVoice: (reader: any) => voicePick?.needsVoice(reader) ?? false,
+    prepareStart: reader => readingStart?.prepare(reader),
     // Zotero's EPUB, snapshot and Reading Mode views act on the push below
     // only when it is their first: forget the state they hold (issue #76).
     // The line in the debug log is the proof the path ran, and which branch
@@ -1383,7 +1444,10 @@ function startReadAloudShortcuts(pluginID: string): void {
       // resumeAfterPull falls through to Zotero's own start when it brings
       // nothing, which is what returning false would do
       if (!entry && !shared && !canPullShared(attachment)) return false;
-      void resumeAfterPull(reader, attachment, positionSync).catch((e) => Zotero.logError(e));
+      const start = readingStart;
+      const token = start?.token(reader) ?? null;
+      const current = () => !start || start.current(reader, token);
+      void resumeAfterPull(reader, attachment, positionSync, current).catch((e) => Zotero.logError(e));
       return true;
     },
     // Route Shift+O to the visible floating or native Options control.
@@ -1474,6 +1538,8 @@ function startReadAloudMemory(): void {
     deferVoiceChange: (reader, id, restore) => voicePick?.defer(reader, id, restore) ?? false,
     isVoicePreview: reader => voicePick?.isPreviewing(reader) ?? false,
     documentKey: documentVoiceKey,
+    ownsCatalog,
+    mayActivate: (reader, voice) => readingStart?.mayActivate(reader, voice) ?? false,
     prefs,
     sameVoice: () => loadSettings(prefs).readAloud.sameForAllDocuments,
     globalSpeed: () => loadSettings(prefs).readAloud.globalSpeed,
@@ -1696,12 +1762,13 @@ function blocksSnapshotOf(reader: any, structure: any, wantPath: string | null):
  * never as the locator itself. False when the sentence is not in this copy
  * or two places tie, which the caller says and falls back on.
  */
-async function resumeFromShared(reader: any, item: SharedItem): Promise<boolean> {
+async function resumeFromShared(reader: any, item: SharedItem, current: () => boolean,
+  continueAt: (start: () => void) => void = start => start()): Promise<boolean> {
   const internal = reader?._internalReader;
   if (!internal || typeof internal._loadSDT !== 'function') return false;
   const sdt = await internal._loadSDT();
   const structure = sdt?.structure;
-  if (!structure) return false;
+  if (!current() || !structure) return false;
   let resolution = resolveSharedItem(item.anchor, item.locator, blocksSnapshotOf(reader, structure, locatorPath(item.locator)));
   if (resolution.outcome === 'unresolved' && resolution.search !== 'ambiguous') {
     resolution = resolveSharedItem(item.anchor, item.locator, blocksSnapshotOf(reader, structure, null));
@@ -1713,7 +1780,7 @@ async function resumeFromShared(reader: any, item: SharedItem): Promise<boolean>
   const position = sdtPositionAt(resolution.block, resolution.start, resolution.end);
   if (!position) return false;
   const win = reader?._iframeWindow;
-  internal.startReadAloudAtPosition(win ? Components.utils.cloneInto(position, win) : position);
+  continueAt(() => internal.startReadAloudAtPosition(win ? Components.utils.cloneInto(position, win) : position));
   Zotero.debug(`[zotero-tts] resumed from the shared position of ${item.stamp.device}: ${resolution.agreement}${resolution.moved ? ', ' + resolution.moved : ''}`);
   return true;
 }
@@ -1724,18 +1791,19 @@ async function resumeFromShared(reader: any, item: SharedItem): Promise<boolean>
  * started; this machine's own row otherwise, exactly as before; a phone's
  * item that cannot be found here falls back to the row and says so once.
  */
-async function resumeAfterPull(reader: any, attachment: { lib: number; key: string; epub: boolean } | null, sync: PositionSync): Promise<void> {
+async function resumeAfterPull(reader: any, attachment: { lib: number; key: string; epub: boolean } | null, sync: PositionSync, current: () => boolean): Promise<void> {
   await pullBeforeResume(attachment);
+  if (!current()) return;
   const entry = attachment ? sync.entryOf(attachment.lib, attachment.key) : null;
   const shared = attachment ? (documentPositions?.itemFor(attachment.lib, attachment.key) ?? null) : null;
   if (shared && shared.stamp.at > (entry?.ts ?? Number.NEGATIVE_INFINITY)) {
     let resumed = false;
     try {
-      resumed = await resumeFromShared(reader, shared);
+      resumed = await resumeFromShared(reader, shared, current);
     } catch (e) {
       Zotero.logError(e);
     }
-    if (resumed) return;
+    if (resumed || !current()) return;
     const doc = toastDoc(reader);
     if (doc) showToast(doc, t('ztts-shared-position-unresolved'));
   }
@@ -1784,16 +1852,20 @@ function pullBeforePlay(reader: any, control: { resume(): void; release(): void 
   if (!webdavSwitchOn(loadSettings(prefs).webdav, 'syncPositions')) return false;
   const attachment = readerAttachment(reader);
   if (!attachment?.epub) return false;
+  const start = readingStart;
+  const token = start?.token(reader) ?? null;
+  const current = () => !start || start.current(reader, token);
   void (async () => {
     let started = false;
     try {
       await pullBeforeResume(attachment);
+      if (!current()) return;
       const entry = sync.entryOf(attachment.lib, attachment.key);
       const shared = positions.itemFor(attachment.lib, attachment.key);
       if (shared && shared.stamp.at > (entry?.ts ?? Number.NEGATIVE_INFINITY)) {
         let resolved = false;
         try {
-          resolved = await resumeFromShared(reader, shared);
+          resolved = await resumeFromShared(reader, shared, current, go => start ? start.continueAt(reader, go) : go());
         } catch (e) {
           Zotero.logError(e);
         }
@@ -1809,7 +1881,7 @@ function pullBeforePlay(reader: any, control: { resume(): void; release(): void 
     } catch (e) {
       Zotero.logError(e);
     } finally {
-      if (started) control.release();
+      if (started || !current()) control.release();
       else control.resume();
     }
   })();
@@ -2692,6 +2764,23 @@ function stopVoicePick(): void {
 
 function startLiveVoiceList(): void {
   stopLiveVoiceList();
+  readingStart = createReadingStart({
+    ownsCatalog,
+    choice: reader => readAloudMemory?.choice(reader) ?? null,
+    catalog: reader => liveVoiceList?.catalog(reader) ?? null,
+    readers: () => Zotero.Reader._readers ?? [],
+    cancelResume: reader => followResumeGuard?.cancel(reader),
+    resuming: reader => followResumeGuard?.pending(reader) ?? false,
+    exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
+    waiveXrays: waived,
+    cloneForReader: (reader: any, value) => Components.utils.cloneInto(value, reader._iframeWindow),
+    isDead: isDeadWrapper,
+    report: (reader, problem) => {
+      const doc = toastDoc(reader);
+      if (doc) showToast(doc, startProblemText(reader, problem), undefined, ANNOUNCEMENT_TOAST_MS);
+    },
+    error: e => Zotero.logError(e),
+  });
   const lists = createLiveVoiceList({
     readers: () => Zotero.Reader._readers ?? [],
     stage: reader => Components.utils.cloneInto({}, reader._iframeWindow),
@@ -2702,7 +2791,11 @@ function startLiveVoiceList(): void {
     protectedVoices: readingImpact.protectedVoices,
     // The plugin's list is asked for whether or not Zotero is signed in (issue #130)
     ownsInterface: reader => hijackPatched.has(reader),
-    ended: () => settingsSyncTransport?.poke('player-close'),
+    source: reader => readerSources.get(reader),
+    engine: () => engine,
+    savedVoice: reader => readAloudMemory?.choice(reader)?.id ?? null,
+    catalogChanged: reader => readingStart?.catalogChanged(reader),
+    ended: reader => { readingStart?.cancel(reader); settingsSyncTransport?.poke('player-close'); },
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
     waiveXrays: waived,
     promise: (reader, job) => new reader._iframeWindow.Promise((resolve: () => void, reject: (e: unknown) => void) => job.then(resolve, reject)),
@@ -2733,6 +2826,8 @@ function startLiveVoiceList(): void {
   }
 }
 function stopLiveVoiceList(): void {
+  readingStart?.dispose();
+  readingStart = null;
   requestVoiceListRefresh = null;
   for (const token of liveListObservers.splice(0)) Zotero.Prefs.unregisterObserver(token);
   liveVoiceList?.dispose();
@@ -3166,8 +3261,14 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
 }
 
 async function shutdown(reason?: number): Promise<void> {
+  const handBack = reason === ADDON_DISABLE || reason === ADDON_UNINSTALL;
+  if (handBack) {
+    // Closing the Player preserves the Position without implicitly reading in a new, possibly metered voice.
+    try { positionSync?.sample(); } catch (error) { Zotero.logError(error); }
+    liveVoiceList?.prepareHandBack();
+  }
   // An upgrade leaves Zotero's own player hidden for the successor; a disable hands it back (ADR 0007)
-  pluginPlayer?.dispose({ handBack: reason === ADDON_DISABLE || reason === ADDON_UNINSTALL });
+  pluginPlayer?.dispose({ handBack });
   pluginPlayer = null;
   if (playerResourceName) playerResources?.setSubstitution(playerResourceName, null);
   playerResources = null;
@@ -3179,29 +3280,26 @@ async function shutdown(reason?: number): Promise<void> {
   } catch (e) {
     Zotero.logError(e);
   }
-  // A disable or uninstall would strand every open tab on this stopped
-  // instance's interface (issue #38): hand them back to Zotero's own first.
-  // An upgrade or downgrade leaves them alone — the successor redelivers,
-  // and a voice-list rebuild from here would race the one it starts. At
-  // app shutdown the tabs are going down with Zotero.
-  if (reason === ADDON_DISABLE || reason === ADDON_UNINSTALL) {
-    try {
-      restoreInterfaces({ ...interfaceWalkIO(), buildNative: nativeForOpenReader });
-    } catch (e) {
-      Zotero.logError(e);
-    }
-  }
-  uninstallHijack?.();
-  uninstallHijack = null;
   stopReadAloudShortcuts();
   stopVoicePick();
   // A reading pauses at its segment; the successor takes it from there (issue #133)
   stopEngine(reason);
+  if (handBack) stopReadAloudMemory();
   stopLiveVoiceList();
   voiceNotices?.dispose();
   voiceNotices = null;
   playerVoiceList?.dispose();
   playerVoiceList = null;
+  if (handBack) {
+    // Native discovery must not go through the plugin's disposed list or choice hooks (#217).
+    stopProviderTiers();
+    stopSystemVoiceHiding();
+    try { restoreInterfaces({ ...interfaceWalkIO(), buildNative: nativeForOpenReader }); }
+    catch (error) { Zotero.logError(error); }
+  }
+  // An update leaves the interface slots to the successor (#38).
+  uninstallHijack?.();
+  uninstallHijack = null;
   // The last pushes to the WebDAV folder run side by side, each under its
   // own bound, so a folder that stops answering holds the shutdown for one
   // bound rather than one per file (issue #219). They write different

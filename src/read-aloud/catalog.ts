@@ -69,6 +69,8 @@ export const CATALOG_CAP_MS = PROVIDER_LISTING_TIMEOUT_MS + 5_000;
 export type CatalogBound = {
   /** How long one provider may take; PROVIDER_LISTING_TIMEOUT_MS by default. */
   timeoutMs?: number;
+  /** Publish this Provider's result without waiting for the other Providers. */
+  onListed?(entry: CatalogEntry): void;
   /**
    * The AbortController for one provider's request, so a listing that runs
    * past the bound is cancelled rather than left running. From a chrome
@@ -113,8 +115,9 @@ export async function collectCatalog(
   bound: CatalogBound = {},
 ): Promise<CatalogEntry[]> {
   const timeoutMs = bound.timeoutMs ?? PROVIDER_LISTING_TIMEOUT_MS;
-  const results = await Promise.allSettled(
-    ids.map(async (id): Promise<CatalogEntry> => {
+  return Promise.all(ids.map(async (id): Promise<CatalogEntry> => {
+    let entry: CatalogEntry;
+    try {
       const provider = getProvider(id);
       const controller = bound.newAbortController?.() ?? null;
       const voices = await withTimeout(
@@ -124,20 +127,15 @@ export async function collectCatalog(
         () => controller?.abort(),
       );
       const notices = provider.voiceListNotices?.();
-      return { provider: id, voices: onePerId(voices), ...(notices?.length ? { notices } : {}) };
-    }),
-  );
-  const out: CatalogEntry[] = [];
-  results.forEach((result, i) => {
-    if (result.status === 'fulfilled') {
-      out.push(result.value);
-    } else {
-      const failure = listingFailure(result.reason);
-      log?.(new Error(`${ids[i]}: listing voices failed: ${failure.detail}`, { cause: result.reason }));
-      out.push({ provider: ids[i], voices: [], failure });
+      entry = { provider: id, voices: onePerId(voices), ...(notices?.length ? { notices } : {}) };
+    } catch (error) {
+      const failure = listingFailure(error);
+      log?.(new Error(`${id}: listing voices failed: ${failure.detail}`, { cause: error }));
+      entry = { provider: id, voices: [], failure };
     }
-  });
-  return out;
+    try { bound.onListed?.(entry); } catch (error) { log?.(error); }
+    return entry;
+  }));
 }
 
 /**
@@ -198,7 +196,10 @@ export async function listNamedCatalog(
   log?: (e: unknown) => void,
   bound?: CatalogBound,
 ): Promise<CatalogEntry[]> {
-  const entries = await collectCatalog(enabledProviders(settings), getProvider, log, bound);
   const { localEngine } = providerNaming(settings);
-  return entries.map((e) => (e.provider === 'local' && localEngine ? { ...e, name: localEngine } : e));
+  const named = (entry: CatalogEntry) => entry.provider === 'local' && localEngine ? { ...entry, name: localEngine } : entry;
+  const entries = await collectCatalog(enabledProviders(settings), getProvider, log, {
+    ...bound, onListed: bound?.onListed ? entry => bound.onListed?.(named(entry)) : undefined,
+  });
+  return entries.map(named);
 }

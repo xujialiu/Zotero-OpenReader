@@ -4,14 +4,10 @@
 
 Signed out of Zotero, the player lists every enabled provider's voices and
 reads with them, as signed in; only Zotero's own Standard and Premium are
-left out, as Zotero itself leaves them out. Nothing changes signed in. Mechanism: Zotero asks for its remote voice list only with an
-account signed in (`loadVoices(this._state.loggedIn)`, reader.js 84271),
-and every plugin voice travels in it; the plugin's `loadVoices` hook asks
-for that list whatever the flag says on a reader whose interface is the
-plugin's (`src/read-aloud/live-voice-list.ts`), the composite interface
-skips Zotero's own `getVoices` while the reader's flag says signed out
-(`src/read-aloud/remote-interface.ts`, `signedIn`). Zotero's own player,
-whose log-in row the plugin used to replace, is never shown since #134.
+left out, as Zotero itself leaves them out. The plugin's Voice catalog
+(#261) discovers plugin Providers independently, and only asks for
+Zotero's own list when a Zotero account is signed in and at least one
+tier is enabled. The Player is the plugin's, not Zotero's own since #134.
 
 **Signed out, per tab.** The owner's profile is signed in, and signing out
 is not the kit's to do. The player reads the tab's own flag, so the case
@@ -37,7 +33,8 @@ values are derived from `src/` until a run corrects them.
 1. **The plugin's list is asked for, Zotero's is not.** Fixture tab
    signed out, popup opened → `diagnostics.liveVoiceList()`, the fixture's
    entry: `asked: false`, `remote: true`, `applied` one more than before
-   the open. `diagnostics.providerTiers()`, the fixture's reader:
+   the open, `sources` without `zotero` and each ready plugin Provider
+   marked `ready`. `diagnostics.providerTiers()`, the fixture's reader:
    `signedIn: false`; `tiers` = every enabled provider that lists voices
    (`fish`, `kokoro`, `system`… as the profile has them), and neither
    `standard` nor `premium`; `retagged` counts the plugin's voices under

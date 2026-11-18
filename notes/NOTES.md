@@ -861,3 +861,12 @@ then) and is in the git history before that day.
 - Text cleaning shares speech identity without touching Read as (issue #240)
 - Verification crossed metered-voice and normal-sync boundaries (issue #240)
 - Main verification captures transport text and closes the recovery gap (issue #240)
+
+### [2026-11-18](NOTES_2026-11-18.md)
+
+- Restoring a Document voice also rewrites Zotero's voice memory
+- Staging the native list still waits for browser voices, and a native pick can start reading (issue #261)
+
+### [2026-11-19](NOTES_2026-11-19.md)
+
+- Hand-back must close the Player before restoring native voice resolution (issue #261)

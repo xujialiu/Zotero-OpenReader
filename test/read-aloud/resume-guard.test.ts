@@ -132,6 +132,24 @@ describe('the pull before the player\'s play (docs/spec/SYNC-FORMAT.md 6.8)', ()
     guardC.dispose();
   });
 
+  it('cannot resume a superseded press or clear a newer one when the old pull finishes', () => {
+    const { reader, calls } = paused();
+    const attempts: ResumeControl[] = [];
+    const guard = createResumeGuard({ error: vi.fn(), beforeResume: (_reader, control) => { attempts.push(control); return true; } });
+    guard.attach(reader);
+    reader._internalReader.toggleReadAloudPaused();
+    guard.cancel(reader);
+    reader._internalReader.toggleReadAloudPaused();
+    expect(attempts).toHaveLength(2);
+    attempts[0].resume();
+    attempts[0].release();
+    expect(guard.pending(reader)).toBe(true);
+    expect(calls).toEqual([]);
+    attempts[1].resume();
+    expect(calls).toEqual([[]]);
+    guard.dispose();
+  });
+
   it('does not offer a resume when no hook is wired', () => {
     const { reader, calls } = paused();
     const guard = createResumeGuard({ error: vi.fn() });

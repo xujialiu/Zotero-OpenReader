@@ -39,11 +39,13 @@ export interface ResumeGuardDeps extends ProtoPatchDeps {
 }
 
 export function createResumeGuard(deps: ResumeGuardDeps) {
-  const records = new Map<any, { target: any; depth: number; pending: boolean; undo(): void }>();
+  type Record = { target: any; depth: number; pending: boolean; cancel?: () => void; undo(): void };
+  const records = new Map<any, Record>();
   const dead = (value: any) => !!deps.isDead?.(value);
   function detach(reader: any) {
     const record = records.get(reader);
     if (!record) return;
+    record.cancel?.();
     records.delete(reader);
     try { if (!dead(record.target)) record.undo(); } catch (e) { deps.error(e); }
   }
@@ -56,7 +58,7 @@ export function createResumeGuard(deps: ResumeGuardDeps) {
       if (!target || typeof target.toggleReadAloudPaused !== 'function') return;
       const descriptor = Object.getOwnPropertyDescriptor(target, 'toggleReadAloudPaused');
       const original: AnyFn = target.toggleReadAloudPaused;
-      const record = { target, depth: 0, pending: false, undo: () => {} };
+      const record: Record = { target, depth: 0, pending: false, undo: () => {} };
       const run = function(self: any, args: any[]) {
         record.depth++;
         try { return Reflect.apply(original, self, args); }
@@ -81,24 +83,27 @@ export function createResumeGuard(deps: ResumeGuardDeps) {
               if (settled) return;
               settled = true;
               record.pending = false;
+              delete record.cancel;
               run(self, args);
             },
             release: () => {
+              if (settled) return;
               settled = true;
               record.pending = false;
+              delete record.cancel;
             },
           };
           let taken = false;
           try {
             record.pending = true;
+            record.cancel = control.release;
             taken = deps.beforeResume(reader, control) === true;
           } catch (e) {
             deps.error(e);
             taken = false;
           }
           if (taken) return undefined;
-          record.pending = false;
-          settled = true;
+          control.release();
         }
         return run(this, args);
       };
@@ -114,6 +119,7 @@ export function createResumeGuard(deps: ResumeGuardDeps) {
     resuming(reader: any): boolean { return (records.get(reader)?.depth ?? 0) > 0; },
     /** A resume of this reader is waiting on its pull. */
     pending(reader: any): boolean { return records.get(reader)?.pending ?? false; },
+    cancel(reader: any): void { records.get(reader)?.cancel?.(); },
     detach,
     dispose() { for (const reader of [...records.keys()]) detach(reader); },
   };

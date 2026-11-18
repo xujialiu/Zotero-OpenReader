@@ -64,12 +64,12 @@ function updateControls() {
   if (!play) return;
   const playingLabel = text(state.playing ? 'pause' : 'play');
   play.innerHTML = state.playing ? nativePause : nativePlay;
-  play.title = state.buffering ? text('buffering') : playingLabel;
-  play.setAttribute('aria-label', playingLabel);
+  play.title = state.waitingForVoice || (state.buffering ? text('buffering') : playingLabel);
+  play.setAttribute('aria-label', state.waitingForVoice || playingLabel);
   play.setAttribute('aria-pressed', String(state.playing));
-  play.dataset.buffering = String(state.buffering);
-  // No voice chosen after an entry or language pick: nothing to play in yet (issue #224)
-  play.disabled = (!state.active && !state.voices.length) || !!state.chooseVoice;
+  play.dataset.buffering = String(state.buffering || !!state.waitingForVoice);
+  // A saved voice may already be chosen even while its Provider's list has not arrived.
+  play.disabled = (!state.active && !state.voices.length && !state.hasSavedVoice) || !!state.chooseVoice || !!state.waitingForVoice;
   for (const button of document.querySelectorAll('[data-navigate]')) {
     button.title = text(button.dataset.navigate); button.setAttribute('aria-label', button.title); button.disabled = !state.active;
   }

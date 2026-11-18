@@ -150,6 +150,28 @@ export interface ListedVoice {
   label: string;
 }
 
+/** The offered voice plus the information the Engine and Zotero need to read with it. */
+export interface CatalogVoice extends ListedVoice {
+  segmentGranularity: string;
+  sentenceDelay: number;
+  cacheVersion?: string | number;
+  creditsPerMinute?: number;
+}
+
+export type CatalogSource = ProviderId | 'zotero';
+export type ListingState = 'loading' | 'ready' | 'failed';
+
+/** A view of the catalog while independent listings are arriving. Absent sources are disabled. */
+export interface VoiceCatalogSnapshot {
+  offered: readonly CatalogVoice[];
+  published: readonly CatalogVoice[];
+  sources: Readonly<Partial<Record<CatalogSource, ListingState>>>;
+  /** Unchanged between updates from other Providers; do not reset newer credit readings. */
+  zotero: { standardCreditsRemaining: number | null; premiumCreditsRemaining: number | null; devMode?: boolean } | null;
+  /** Providers that explicitly rejected their credentials. */
+  rejectedKeys: readonly ProviderId[];
+}
+
 /**
  * The voices a format=2 response publishes, one entry per voice and locale,
  * in the order given — the plugin's own response (buildVoicesResponse) and
@@ -159,10 +181,10 @@ export interface ListedVoice {
  * publishes is dropped, as Zotero drops it; a voice without a label is
  * named by its id. Never throws: the shape is what a server sent.
  */
-export function listVoicesResponse(response: unknown): ListedVoice[] {
+export function playableVoices(response: unknown): CatalogVoice[] {
   const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object';
   if (!isRecord(response)) return [];
-  const out: ListedVoice[] = [];
+  const out: CatalogVoice[] = [];
   for (const [tier, configs] of Object.entries(response)) {
     if (!Array.isArray(configs)) continue;
     for (const config of configs) {
@@ -179,12 +201,21 @@ export function listVoicesResponse(response: unknown): ListedVoice[] {
           const voice = published[id];
           if (!isRecord(voice)) continue;
           const label = typeof voice.label === 'string' && voice.label ? voice.label : id;
-          out.push({ id, language, tier, label });
+          out.push({ id, language, tier, label,
+            segmentGranularity: typeof config.segmentGranularity === 'string' ? config.segmentGranularity : 'sentence',
+            sentenceDelay: typeof config.sentenceDelay === 'number' ? config.sentenceDelay : 0,
+            ...(typeof config.cacheVersion === 'string' || typeof config.cacheVersion === 'number' ? { cacheVersion: config.cacheVersion } : {}),
+            ...(typeof config.creditsPerMinute === 'number' ? { creditsPerMinute: config.creditsPerMinute } : {}),
+          });
         }
       }
     }
   }
   return out;
+}
+
+export function listVoicesResponse(response: unknown): ListedVoice[] {
+  return playableVoices(response).map(({ id, language, tier, label }) => ({ id, language, tier, label }));
 }
 
 /**

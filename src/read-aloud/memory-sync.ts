@@ -3,6 +3,7 @@ import { createDocumentVoices, readDefaultVoice, writeDefaultVoice } from '../co
 import { PREF_PREFIX } from '../core/settings';
 import {
   isLanguageSupported,
+  persistSpeed,
   READ_ALOUD_VOICES_PREF,
   readReadAloudVoices,
   resolveVoiceLang,
@@ -54,6 +55,10 @@ export const READ_ALOUD_VOICES_OBSERVER = 'reader.readAloudVoices';
 export interface ReadAloudMemoryDeps {
   /** Stable library namespace plus attachment key. Enables independent document voices. */
   documentKey?(reader: unknown): string | null;
+  /** This reader receives the plugin's catalog and must not use native voice preference resolution. */
+  ownsCatalog?(reader: unknown): boolean;
+  /** Authorize an initial activation with the exact Document voice, not just the popup opening. */
+  mayActivate?(reader: unknown, voice: VoiceChoice | null): boolean;
   /** A shortcut prepares other playing readers before the existing restore is applied. */
   deferVoiceChange?(reader: unknown, id: string, restore: () => void): boolean;
   isVoicePreview?(reader: unknown): boolean;
@@ -113,6 +118,8 @@ export interface ReadAloudMemoryDeps {
 export interface ReadAloudMemorySync {
   /** Patch a reader so the remembered choice is applied before Zotero restores its per-language one. Repeat calls are no-ops. */
   attach(reader: unknown): boolean;
+  /** The Document voice that would be used for a reading in this reader. */
+  choice(reader: unknown): VoiceChoice | null;
   /** The memory as its pref holds it right now. */
   memory(): ReadAloudMemory;
   /**
@@ -457,6 +464,38 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     m._selectedTier = null;
   }
 
+  /** Apply the saved voice only to this reader. No native fallback, persistent voice history, or controller rebuild. */
+  function restoreCatalogChoice(reader: unknown, internal: any): void {
+    const m = waive(internal?._readAloudManager);
+    if (!m || m.active) return;
+    const saved = documentChoice(reader);
+    let voice: any = null;
+    for (let i = 0; saved && i < (m._allVoices?.length ?? 0); i++) {
+      const candidate = m._allVoices[i];
+      if (candidate.id !== saved.id) continue;
+      if (!voice) voice = candidate;
+      if (memoryLangForLocale(candidate.language) === saved.lang) { voice = candidate; break; }
+    }
+    const before = m._voice;
+    m._voice = voice;
+    m._voiceID = voice?.id ?? null;
+    m._selectedTier = voice?.tier ?? null;
+    m._pendingSetVoice = false;
+    if (voice) {
+      const lang = memoryLangForLocale(voice.language);
+      const from = documentLanguageOf(internal, managerLangOf(m));
+      if (from && from !== lang) moved.set(internal, { from, to: lang });
+      m._lang = lang;
+      m._region = voice.language.includes('-') ? voice.language.slice(voice.language.indexOf('-') + 1) : null;
+      m._segmentGranularity = voice.segmentGranularity;
+    }
+    const native = readReadAloudVoices(deps.prefs);
+    const lane = resolveVoiceLang(managerLangOf(m), Object.keys(native), deps.preferredLanguages?.() ?? []);
+    const speed = deps.globalSpeed() ? memory().speed : (lane ? native[lane]?.speed : null);
+    if (validSpeed(speed) && speed !== m.speed) Reflect.apply(m.setSpeed, m, [speed, false]);
+    else if (before !== voice) m._stateChanged?.();
+  }
+
   /**
    * What this sync puts in front of Zotero's restore, and whether it
    * changed anything (the pref written, or the lane moved). `upcoming` is
@@ -466,6 +505,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    */
   function apply(internal: any, upcoming: readonly ListedVoice[] | null = null): { changed: boolean; lane: string | null } {
     const nothing = { changed: false, lane: null };
+    if (deps.ownsCatalog?.(owners.get(internal))) return nothing;
     // Each switch is read here, on every sync, so the pane's checkboxes apply at once
     const wanted = { voice: !!deps.documentKey || deps.sameVoice(), speed: deps.globalSpeed() };
     if (!wanted.voice) noteSubstitution(internal, null, null);
@@ -810,11 +850,12 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
         function (this: any, ...args: unknown[]) {
           let persist = false;
           try {
-            persist = name !== 'setLanguage' || !!waive(args[1])?.persist;
+            const catalog = deps.ownsCatalog?.(readerForManager(this));
+            persist = catalog ? name === 'selectVoice' : name !== 'setLanguage' || !!waive(args[1])?.persist;
             // An idle draft pick persisted its voice before Zotero clears the
             // staged region with setLanguage(lang). Resolve against that fresh
             // entry, not the one from before the pick (issue #232).
-            if (deps.documentKey && name === 'setLanguage' && !persist && typeof args[0] === 'string' && args[0]) {
+            if (!catalog && deps.documentKey && name === 'setLanguage' && !persist && typeof args[0] === 'string' && args[0]) {
               const target = waive(this);
               const reader = !target.active && inPick.has(target) ? readerForManager(target) : null;
               if (reader) loadEntry(reader, target, memoryLangForLocale(args[0]));
@@ -887,6 +928,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     const target = waive(manager);
     if (typeof target._resolveVoice !== 'function') return;
     const hook = function (this: unknown, ...args: unknown[]) {
+      if (deps.ownsCatalog?.(reader)) { restoreCatalogChoice(reader, internal); return; }
       const before = managerLangOf(manager);
       const pending = !!target._pendingSetVoice;
       // The prototype's method as it stands now: Zotero's, or the shadow system-voices.ts put there
@@ -937,6 +979,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
    * refreshVoices), the memory in place, then Zotero's restore.
    */
   function resync(reader: unknown, internal: any): void {
+    if (deps.ownsCatalog?.(reader)) { restoreCatalogChoice(reader, internal); return; }
     deps.refreshVoices?.(reader);
     apply(internal);
     const original = originals.get(internal) ?? internal?._syncPersistedVoicesToManager;
@@ -1001,7 +1044,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     const target = waive(manager);
     const undo: (() => void)[] = [];
     lifecycle.set(manager, undo);
-    for (const name of ['activate', 'deactivate', '_createController']) {
+    for (const name of ['activate', 'deactivate', '_createController', '_persistCurrentVoice', 'setSpeed']) {
       if (typeof target[name] !== 'function') continue;
       const descriptor = Object.getOwnPropertyDescriptor(target, name);
       // The method as it stands at each call: an own one found here, else
@@ -1011,8 +1054,17 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
       const own = descriptor ? target[name] : null;
       const current = () => own ?? ownerOf(target, name)?.[name];
       const hook = function (this: unknown, ...args: unknown[]) {
+        const managed = deps.ownsCatalog?.(reader) === true;
+        if (name === '_persistCurrentVoice') return managed ? undefined : Reflect.apply(current(), this, args);
+        if (name === 'setSpeed') {
+          if (!managed || !args[1]) return Reflect.apply(current(), this, args);
+          const result = Reflect.apply(current(), this, [args[0], false]);
+          if (validSpeed(args[0])) persistSpeed(deps.prefs, managerLangOf(manager), args[0], deps.preferredLanguages?.() ?? []);
+          return result;
+        }
         if (name === 'deactivate') sessions.delete(manager);
         if (name === 'activate' && !manager.active) {
+          if (managed && deps.mayActivate && !deps.mayActivate(reader, documentChoice(reader))) return;
           sessions.delete(manager);
           whileApplying(() => resync(reader, reader._internalReader));
           sessions.set(manager, documentChoice(reader));
@@ -1072,6 +1124,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
     // by one.
     const wrapper: SyncMethod = (...args) => {
       try {
+        if (deps.ownsCatalog?.(reader)) return restoreCatalogChoice(reader, internal);
         apply(internal);
       } catch (e) {
         deps.error(e);
@@ -1113,6 +1166,7 @@ export function createReadAloudMemorySync(deps: ReadAloudMemoryDeps): ReadAloudM
 
   return {
     attach,
+    choice: documentChoice,
     memory,
     spreadVoice,
     applySilently: whileApplying,

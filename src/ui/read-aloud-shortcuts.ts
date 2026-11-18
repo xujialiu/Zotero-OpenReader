@@ -130,6 +130,8 @@ export interface ReadAloudShortcutsDeps {
    * true says so over the document, and the play key starts nothing.
    */
   needsVoice?(reader: unknown): boolean;
+  /** Reserve the new Play before any asynchronous position lookup. */
+  prepareStart?(reader: unknown): void;
   /**
    * Make the reader's current view take the next state push as the
    * session's first (read-aloud/return-to-spoken.ts, issue #76). Zotero's
@@ -390,6 +392,7 @@ export function createReadAloudShortcuts(deps: ReadAloudShortcutsDeps): ReadAlou
       }
       return true;
     }
+    try { deps.prepareStart?.(reader); } catch (e) { log(e); }
     if (!hasSelection(reader)) {
       let resumed = false;
       try {

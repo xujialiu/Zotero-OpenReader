@@ -21,6 +21,10 @@ export interface PlayerSnapshot {
   chooseVoice: boolean;
   providers: PlayerOption[]; locales: PlayerOption[]; voices: PlayerOption[]; favorites: string[];
   error: string | null;
+  /** Catalog readiness is not audio buffering. */
+  waitingForVoice?: string | null;
+  hasSavedVoice?: boolean;
+  catalogLoading?: boolean;
   /** A replacement skipped on a sentence for taking too long (issue #237, ADR 0024): shown by the Player's ! after any error. */
   warning?: string | null;
   remaining?: RemainingTimeLine[];
@@ -47,6 +51,11 @@ export interface PlayerControllerDeps {
   draft?(reader: any): VoiceChoice | null;
   /** Whether Play waits for a voice, said over the document when it does. */
   needsVoice?(reader: any): boolean;
+  beforeVoiceChoice?(reader: any): void;
+  hasSavedVoice?(reader: any): boolean;
+  waitingForVoice?(reader: any): string | null;
+  catalogLoading?(reader: any): boolean | undefined;
+  catalogProblem?(reader: any): string | null;
   /** The voice a pending switch is to, shown in place of the one reading (issue #225). */
   pendingVoice?(reader: any): string | null;
   /** The replacements window for the reader's document (issue #237). */
@@ -159,7 +168,10 @@ export function createPlayerController(deps: PlayerControllerDeps) {
       automatic: !!m && deps.automatic(reader), providers, locales,
       voices: voicesOf(draft ? entryVoices(m.allVoices, draft.tier, draft.locale) : m?.voicesForLanguage),
       favorites: parseFavoriteVoices(pref('favoriteVoices')),
-      error: errorOf(m, labels),
+      error: errorOf(m, labels) ?? deps.catalogProblem?.(reader) ?? null,
+      waitingForVoice: deps.waitingForVoice?.(reader),
+      hasSavedVoice: deps.hasSavedVoice?.(reader),
+      catalogLoading: deps.catalogLoading?.(reader),
       warning: deps.warning?.(reader) ?? null,
     };
   }
@@ -197,6 +209,7 @@ export function createPlayerController(deps: PlayerControllerDeps) {
         const tier = requireChoice(state.providers);
         // What is shown changes nothing (issue #224)
         if (tier === state.provider) return;
+        deps.beforeVoiceChoice?.(reader);
         // The language stays where the new entry has exactly it, else none
         const keep = state.locale && voiceLanguages(entryVoices(m.allVoices, tier)).includes(state.locale) ? state.locale : null;
         if (deps.choose?.(reader, { tier, locale: keep })) return;
@@ -206,11 +219,17 @@ export function createPlayerController(deps: PlayerControllerDeps) {
       case 'locale': {
         const language = requireChoice(state.locales), base = baseLanguage(language);
         if (language === state.locale) return;
+        deps.beforeVoiceChoice?.(reader);
         if (deps.choose?.(reader, { tier: state.provider, locale: language })) return;
         await m.setLanguage(base, deps.clone(reader, { region: language.includes('-') ? language.slice(base.length + 1) : null, persist: true }));
         return;
       }
-      case 'voice': await m.selectVoice(requireChoice(state.voices)); return;
+      case 'voice': {
+        const voice = requireChoice(state.voices);
+        deps.beforeVoiceChoice?.(reader);
+        await m.selectVoice(voice);
+        return;
+      }
       case 'speed': {
         const speed = number(0.5, 3);
         m.setSpeed(speed, !!m.active);

@@ -87,9 +87,9 @@ bundle includes this diagnostic, not just its version string.
     either way; the 2026-10-17 run picked Aman, the first en-IN voice, and
     proved nothing. Name, before the pick, the voice the bug would land
     on. System voices are local and free where the profile has them.
-    Right after the pick: `selected` is the picked voice, `active: true`,
-    `saved` is the picked voice with `manual: true`, and Zotero's
-    `reader.readAloudVoices` entry for the language names it. Plant again
+    Right after the pick: `selected` is the picked voice, `active: false`
+    until Play, and `saved` is the picked voice with `manual: true`.
+    Zotero's native `reader.readAloudVoices` stays unchanged (#261). Plant again
     and pick that provider's Entry in the provider dropdown: since issue
     #224 (1.16.13) it picks no voice, so `saved` stays the planted record
     and the Player lists the Entry's voices with none chosen; picking one

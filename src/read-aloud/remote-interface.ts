@@ -8,7 +8,9 @@ import { withTimeout } from '../core/timeout';
 import { unlistedProviders, type CatalogEntry, type UnlistedProvider } from './catalog';
 import { countVoicesResponse, filterCatalogToFavorites, filterVoicesResponseToFavorites } from './favorites';
 import { isInvisibleSegment } from './invisible-text';
-import { buildVoicesResponse, decodeVoiceId, listVoicesResponse, withoutTiers, type ListedVoice } from './voice-catalog';
+import { buildVoicesResponse, decodeVoiceId, listVoicesResponse, playableVoices, tierForProvider, withoutTiers,
+  type CatalogSource, type CatalogVoice, type ListedVoice, type ListingState, type VoiceCatalogSnapshot } from './voice-catalog';
+import { ZOTERO_TIERS } from './zotero-voices';
 
 export const SAMPLE_TEXT = 'The quick brown fox jumps over the lazy dog.';
 
@@ -60,7 +62,8 @@ export interface NativeRemoteInterface {
 export type PluginCatalog = CatalogEntry[];
 
 export type RemoteInterfaceDeps = {
-  listCatalog(): Promise<PluginCatalog>;
+  listCatalog(onListed?: (entry: CatalogEntry) => void): Promise<PluginCatalog>;
+  catalogProviders?(): readonly ProviderId[];
   /**
    * The favorite voice ids while "offer only favorites" is on; null (or
    * empty) offers everything. Read per call so the pane switch applies at
@@ -226,6 +229,8 @@ function wholeSegmentTimestamp(text: string): Timestamp[] {
 }
 
 export interface RemoteInterface {
+  /** Discover the Voice catalog on the plugin's side, one Provider at a time. */
+  discoverVoices(publish: (catalog: VoiceCatalogSnapshot) => void): Promise<void>;
   getVoices(): Promise<{
     voices?: Record<string, unknown[]>;
     error?: string;
@@ -306,11 +311,11 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
   };
 
   /** The plugin's own catalog, bounded. Favorites are applied later, where Zotero's tiers are in view too. */
-  async function ownCatalog(): Promise<{ catalog: PluginCatalog } | { error: string }> {
+  async function ownCatalog(onListed?: (entry: CatalogEntry) => void): Promise<{ catalog: PluginCatalog } | { error: string }> {
     const timeoutMs = deps.catalogTimeoutMs ?? DEFAULT_CATALOG_TIMEOUT_MS;
     try {
       const catalog = await withTimeout(
-        deps.listCatalog(),
+        deps.listCatalog(onListed),
         timeoutMs,
         () => new SynthesisError('network', `Listing the plugin's voices took longer than ${seconds(timeoutMs)}`),
       );
@@ -431,13 +436,74 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     throw new NotHeld();
   }
 
+  function requestedVoices(): void {
+    try { deps.onVoicesRequested?.(); } catch (e) { log(e); }
+  }
+
+  async function discoverVoices(publish: (catalog: VoiceCatalogSnapshot) => void): Promise<void> {
+    requestedVoices();
+    const sources: Partial<Record<CatalogSource, ListingState>> = {};
+    for (const id of deps.catalogProviders?.() ?? []) sources[id] = 'loading';
+    const hidden = deps.getHiddenTiers?.() ?? [];
+    const signedIn = zoteroSignedIn();
+    const wantZotero = !!deps.native && signedIn && ZOTERO_TIERS.some(tier => !hidden.includes(tier));
+    if (!signedIn) deps.debug?.("Zotero's own voices not asked for: no Zotero account is signed in");
+    if (wantZotero) sources.zotero = 'loading';
+    const favorites = new Set(deps.getFavoriteVoices?.() ?? []);
+    const local = new Map<ProviderId, { entry: CatalogEntry; voices: CatalogVoice[] }>();
+    const version = deps.cacheVersion();
+    let zotero: VoicesResult | null = null;
+    let nativeList: CatalogVoice[] = [];
+    const publishNow = () => {
+      if (deps.isReaderLive?.() === false) return;
+      const published = [...nativeList, ...[...local.values()].flatMap(source => source.voices)];
+      const marked = published.filter(voice => favorites.has(voice.id));
+      const unresolvedFavorite = [...favorites].some(id => {
+        const source = decodeVoiceId(id)?.provider ?? 'zotero';
+        return sources[source] === 'loading' || sources[source] === 'failed';
+      });
+      publish({ offered: marked.length || unresolvedFavorite ? marked : published, published,
+        sources: { ...sources }, zotero,
+        rejectedKeys: [...local.values()].filter(s => s.entry.failure?.reason === 'key').map(s => s.entry.provider) });
+    };
+    function record(entry: CatalogEntry): boolean {
+      const previous = local.get(entry.provider)?.entry;
+      if (previous?.voices === entry.voices && previous.name === entry.name && previous.failure === entry.failure
+        && previous.notices === entry.notices) return false;
+      const tier = tierForProvider(entry.provider, entry.name);
+      const voices = playableVoices(buildVoicesResponse([entry], version)).map(voice => ({ ...voice, tier }));
+      local.set(entry.provider, { entry, voices });
+      sources[entry.provider] = unlistedProviders([entry]).length ? 'failed' : 'ready';
+      return true;
+    }
+    publishNow();
+    let ownFinished = false;
+    await Promise.all([
+      ownCatalog(entry => { if (!ownFinished && record(entry)) publishNow(); }).then(result => {
+        ownFinished = true;
+        if ('catalog' in result) {
+          let changed = false;
+          for (const entry of result.catalog) changed = record(entry) || changed;
+          if (changed) publishNow();
+        } else {
+          for (const id of deps.catalogProviders?.() ?? []) if (sources[id] === 'loading') sources[id] = 'failed';
+          publishNow();
+        }
+      }),
+      wantZotero && nativeVoices().then(result => {
+        zotero = result;
+        nativeList = playableVoices(withoutTiers(result?.voices ?? {}, hidden)).filter(voice => voice.tier === 'standard' || voice.tier === 'premium');
+        sources.zotero = result ? 'ready' : 'failed';
+        publishNow();
+      }),
+    ]);
+  }
+
   return {
+    discoverVoices,
+
     async getVoices() {
-      try {
-        deps.onVoicesRequested?.();
-      } catch (e) {
-        log(e);
-      }
+      requestedVoices();
       const [theirs, mine] = await Promise.all([nativeVoices(), ownCatalog()]);
       if (!theirs && 'error' in mine) {
         // RemoteReadAloudProvider checks `error || !voices` and throws,

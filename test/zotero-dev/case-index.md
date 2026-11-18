@@ -41,6 +41,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 
 ## Voices
 
+- [The Player can use a ready voice while another Provider is loading (issue #261)](cases/voice-catalog.md)
 - [Independent document voices, global default, backup and sync, an unreachable provider, a pick while unavailable (issues #146, #179, #183)](cases/document-voices.md)
 - [The voice browser: the listing, the default voice and speed](cases/voice-browser.md) — 1.9, 2.1, 2.2, 2.7
 - [Favorite voices](cases/favorites.md) — 2.3–2.5, 2.8
