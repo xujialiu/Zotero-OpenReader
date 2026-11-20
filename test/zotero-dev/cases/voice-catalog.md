@@ -1,4 +1,4 @@
-[Checklist index](../README.md)
+[Checklist index](../README.md) · [Script kit](../scripts/voice-catalog/README.md)
 
 ## The Player can use a ready voice while another Provider is loading (issue #261)
 
