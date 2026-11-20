@@ -870,3 +870,7 @@ then) and is in the git history before that day.
 ### [2026-11-19](NOTES_2026-11-19.md)
 
 - Hand-back must close the Player before restoring native voice resolution (issue #261)
+
+### [2026-11-20](NOTES_2026-11-20.md)
+
+- Exported hooks need unwrapped identity during teardown (issue #261)

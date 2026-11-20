@@ -115,6 +115,42 @@ describe('live player voice choices', () => {
     f.manager.deactivate(); await Promise.resolve();
     expect(f.ended).toHaveBeenCalledOnce();
   });
+  it('restores the native methods when the reader returns wrappers for the installed hooks', async () => {
+    const f = fixture();
+    f.lists.dispose();
+    const nativeLoad = f.manager.loadVoices;
+    const nativeDeactivate = f.manager.deactivate;
+    const originals = new WeakMap<object, object>();
+    const manager = new Proxy(f.manager, {
+      set(target, name, value, receiver) {
+        if (name !== 'loadVoices' && name !== 'deactivate') return Reflect.set(target, name, value, receiver);
+        const wrapper = function (this: unknown, ...args: unknown[]) {
+          return Reflect.apply(value, this, args);
+        };
+        originals.set(wrapper, value);
+        return Reflect.set(target, name, wrapper, receiver);
+      },
+    });
+    f.reader._internalReader._readAloudManager = manager;
+    const lists = createLiveVoiceList({ readers: () => [f.reader], stage: () => ({}),
+      voiceTiers: () => () => null, protectedVoices: () => [], ownsInterface: () => true, error: f.error,
+      waiveXrays: value => typeof value === 'function' ? (originals.get(value) ?? value) as typeof value : value });
+    expect(lists.attach(f.reader)).toBe(true);
+    expect(Object.hasOwn(manager, 'loadVoices')).toBe(true);
+    expect(Object.hasOwn(manager, 'deactivate')).toBe(true);
+
+    lists.dispose();
+
+    expect(Object.hasOwn(manager, 'loadVoices')).toBe(false);
+    expect(Object.hasOwn(manager, 'deactivate')).toBe(false);
+    expect(manager.loadVoices).toBe(nativeLoad);
+    expect(manager.deactivate).toBe(nativeDeactivate);
+    const reopening = manager.loadVoices(false);
+    f.requests.shift()!();
+    await reopening;
+    expect(f.remote).toEqual([false]);
+    expect(f.resolveVoice).toHaveBeenCalledOnce();
+  });
   // A tab open across updates can carry an earlier instance's hook (#131):
   // taken for Zotero's own, it never fills the stage, and every shutdown
   // put it back for the next version to take again

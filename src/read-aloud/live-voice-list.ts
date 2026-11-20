@@ -172,7 +172,7 @@ export function createLiveVoiceList(deps: LiveVoiceListDeps) {
       entry.undoEnd = () => {
         // Delete, never restore what was found: that is how a leftover hook
         // was carried to the next version (issue #131)
-        if (manager.deactivate === hook) delete manager.deactivate;
+        if (waive(manager.deactivate) === waive(hook)) delete manager.deactivate;
       };
     }
     entries.set(reader, entry);
@@ -198,7 +198,8 @@ export function createLiveVoiceList(deps: LiveVoiceListDeps) {
     entries.delete(reader);
     if (deps.isDead?.(entry.manager)) return;
     entry.undoEnd?.();
-    if (entry.manager.loadVoices === entry.hook) delete entry.manager.loadVoices;
+    // Gecko can return a different wrapper when it reads back an exported hook.
+    if (waive(entry.manager.loadVoices) === waive(entry.hook)) delete entry.manager.loadVoices;
   }
   return { attach, detach, refresh, inspect,
     catalog: (reader: any) => entries.get(reader)?.catalog ?? null,
