@@ -76,6 +76,10 @@ status, send reminders, hurry a child, rerun checks or interrupt. Interrupt
 only for a concrete safety concern, changed requirements or the user's
 request (2026-09-12).
 
+For `zotero-tester`, treat consecutive short waits as one checkpoint
+window. Check its status or activity logs only at a checkpoint or when
+the user asks for an update.
+
 The project checkpoint policy is **at most 50 minutes per blocking wait
 window** (2026-10-01). Where blocking waits/checkpoints are supported, wait
 up to 50 minutes, read status once if it is still running — state, current

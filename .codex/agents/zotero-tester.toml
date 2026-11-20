@@ -1,6 +1,6 @@
 name = "zotero-tester"
 description = "Verify an implementation in the running Zotero through zotero-dev after local checks, or investigate a live question in a delegated research run. Use for live verification by default; personal-driving exceptions are in MEMORY/agents.md. Writes only script kits and scratch probes, never production code."
-model = "gpt-5.6-luna"
+model = "glm-5.3-flash"
 model_reasoning_effort = "max"
 developer_instructions = """
 Read `.agents/zotero-tester.md` in full before acting, then follow its

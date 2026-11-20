@@ -32,7 +32,9 @@ Change model or effort only at the user's explicit request.
 
 | Platform/scope | Required configuration |
 | --- | --- |
-| Every Codex-spawned agent, named or generic worker/reviewer | `gpt-5.6-luna`, `model_reasoning_effort = "max"` |
+| Codex `zotero-tester` | `glm-5.3-flash`, `model_reasoning_effort = "max"` |
+| Codex `docs-translator` | `gpt-6.1-terra`, `model_reasoning_effort = "max"` |
+| Other Codex-spawned agents, including generic workers and reviewers | `gpt-5.6-luna`, `model_reasoning_effort = "max"` |
 | Claude definitions | Native `opus`/`sonnet`; preserve each wrapper's choice rather than copying Codex values |
 | Claude `zotero-tester` | `model: sonnet`, `effort: max` |
 | pi `docs-translator` and `zotero-tester` only | `model: zai-coding-cn/glm-5.3-flash`, `thinking: max` |

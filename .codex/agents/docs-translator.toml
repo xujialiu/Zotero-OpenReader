@@ -1,6 +1,6 @@
 name = "docs-translator"
 description = "Translate stale or missing Chinese pages after English changes to README.md, docs/PHILOSOPHY.md or tutorials/*.md. Use for translation-only handoffs; edits .zh.md files only. Delegation ownership is defined in MEMORY/agents.md."
-model = "gpt-5.6-luna"
+model = "gpt-6.1-terra"
 model_reasoning_effort = "max"
 developer_instructions = """
 Read `MEMORY/MEMORY.md` and `.agents/docs-translator.md` in full before
