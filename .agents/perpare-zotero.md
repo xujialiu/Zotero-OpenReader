@@ -2,6 +2,8 @@
 
 Prepare one disposable Zotero for the named test. The main session assigns
 functional checks to `zotero-tester` and owns the session until disposal.
+If GLM runs out of quota during preparation, hand the current instance
+and its cleanup status to the [fallback preparer](glm-quota-fallback.md).
 
 ## Prepare
 

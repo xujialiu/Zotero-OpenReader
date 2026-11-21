@@ -18,9 +18,10 @@ agent definition/workflow. Shared policy comes from `MEMORY/MEMORY.md`.
 Delegation is per agent, not a general license to fan out. Research and
 verification have different drivers (2026-09-14); explicit personal-driving
 requests override verification delegation (2026-09-13). Use configured
-models and effort. Changing either requires the user's explicit request;
-platform constraints and Codex generic-worker defaults are in
-[MEMORY/agent-definitions.md](agent-definitions.md).
+models and effort. On confirmed GLM quota exhaustion, apply the
+[approved fallback](../.agents/glm-quota-fallback.md). Other model or
+effort changes require the user's explicit request. Platform constraints
+and Codex generic-worker defaults are in [agent-definitions.md](agent-definitions.md).
 
 ### A blocked tester keeps ownership
 
@@ -29,8 +30,8 @@ with `zotero-tester` (2026-09-15, issue #108). Report the blocker, continue
 independent work and resume it when possible; report a persistent blocker
 to the user. "Continue", "finish the tests" and approval to merge or push
 after testing preserve the assignment. The main session takes over only
-on an explicit request to change driver. Keep its model unless the user
-explicitly requests a model change.
+on an explicit request to change driver. A quota fallback keeps the
+verification assignment with the tester role.
 
 ### Give the next owner only what it needs
 
