@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createMemoryCache } from '../../src/core/memory-cache';
+import { createFishSpeechProvider } from '../../src/core/providers/fishspeech';
+import { audioSetup, DEFAULTS } from '../../src/core/settings';
 import { SynthesisError } from '../../src/core/providers/errors';
 import type { TTSProvider } from '../../src/core/providers/types';
 import { createRemoteInterface, SAMPLE_TEXT, SILENT_PAUSE_MS, TINY_SEGMENT_CHARS, WHOLE_SEGMENT_END_SECONDS } from '../../src/read-aloud/remote-interface';
@@ -235,6 +238,29 @@ describe('getAudio', () => {
     cache.mockReturnValue(undefined as any);
     await iface.getAudio({ text: 'A different sentence' }, voice);
     expect(put).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses a Fish Speech sentence only on the server that made it (#222)', async () => {
+    const settings = { ...DEFAULTS, fishspeech: { ...DEFAULTS.fishspeech, baseURL: 'http://a.test' } };
+    const fetch = vi.fn(async (url: RequestInfo | URL) => new Response(new URL(String(url)).hostname));
+    const cache = createMemoryCache({ maxBytes: 1024 });
+    const iface = createRemoteInterface({
+      ...deps(),
+      getProvider: () => createFishSpeechProvider({ baseURL: settings.fishspeech.baseURL }, { fetch }),
+      cacheVersion: () => audioSetup(settings),
+      cache: () => cache,
+    });
+    const read = async () => {
+      const result = await iface.getAudio({ text: 'Read the same sentence.' }, { id: encodeVoiceId('fishspeech', 'bella') });
+      return result.audio?.text();
+    };
+
+    expect(await read()).toBe('a.test');
+    expect(await read()).toBe('a.test');
+    settings.fishspeech.baseURL = 'http://b.test';
+    expect(await read()).toBe('b.test');
+    expect(await read()).toBe('b.test');
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual(['http://a.test/v1/tts', 'http://b.test/v1/tts']);
   });
 
   it('passes the signal from the injected factory to the provider', async () => {

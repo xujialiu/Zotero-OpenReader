@@ -199,7 +199,7 @@ describe('enabledProviders', () => {
 
 // Issue #190: the reading cache's fingerprint, now the voice browser's too
 describe('audioSetup', () => {
-  it('names the settings that change a voice\'s audio, in the order the reading cache has always keyed them', () => {
+  it('includes the Fish Speech endpoint alongside the other settings that change a voice\'s audio', () => {
     const s = {
       ...DEFAULTS,
       'openai-official': { ...DEFAULTS['openai-official'], model: 'tts-1-hd' },
@@ -207,9 +207,10 @@ describe('audioSetup', () => {
       compatible: { ...DEFAULTS.compatible, baseURL: 'http://box:8004', model: 'chatterbox' },
       azure: { ...DEFAULTS.azure, region: 'eastus' },
       fish: { ...DEFAULTS.fish, model: 'drama-3' },
+      fishspeech: { ...DEFAULTS.fishspeech, baseURL: 'http://fish-box/v1/' },
       local: { ...DEFAULTS.local, engine: 'kokoro', baseURL: 'http://localhost:8880' },
     };
-    expect(audioSetup(s)).toBe('tts-1-hd|mimo-tts|http://box:8004|chatterbox|eastus|drama-3|kokoro|http://localhost:8880');
+    expect(audioSetup(s)).toBe('tts-1-hd|mimo-tts|http://box:8004|chatterbox|eastus|drama-3|http://fish-box|kokoro|http://localhost:8880');
   });
 
   it('moves with a Model and stays put for a key', () => {

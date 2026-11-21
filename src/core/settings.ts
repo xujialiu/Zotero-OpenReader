@@ -1,3 +1,4 @@
+import { normalizeBaseURL } from './providers/base-url';
 import { DEFAULT_FISH_MODEL, PAID_FISH_MODEL } from './providers/fish';
 import type { ProviderId } from './providers/types';
 import type { ShortcutAction } from './shortcut-actions';
@@ -516,7 +517,10 @@ export function prefetchOf(readAloud: Settings['readAloud']): PrefetchSettings {
  * reaches both.
  */
 export function audioSetup(s: Settings): string {
-  return [s['openai-official'].model, s.mimo.model, s.compatible.baseURL, s.compatible.model, s.azure.region, s.fish.model, s.local.engine, s.local.baseURL].join('|');
+  return [
+    s['openai-official'].model, s.mimo.model, s.compatible.baseURL, s.compatible.model,
+    s.azure.region, s.fish.model, normalizeBaseURL(s.fishspeech.baseURL), s.local.engine, s.local.baseURL,
+  ].join('|');
 }
 
 /** The providers whose voices are published, in catalog order. */

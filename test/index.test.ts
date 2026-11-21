@@ -259,6 +259,63 @@ describe('startup with a reader whose window is gone (issue #143)', () => {
   });
 });
 
+describe('runtime walks with a listed reader whose window is gone (#218)', () => {
+  const live = () => ({ itemID: 2, _internalReader: { _readAloudManager: { selectedVoiceID: 'live-voice' } } });
+  const deadErrors = (errors: unknown[]) => errors.map(String).filter(line => line.includes('dead object'));
+
+  it.each([
+    ['voiceSwitch', { index: 1, selected: 'live-voice' }],
+    ['providerTiers', { signedIn: expect.any(Boolean) }],
+    ['highlightLevels', { itemID: 2 }],
+    ['highlightKey', { itemID: 2 }],
+  ] as const)('%s reports both rows and keeps the original order', async (name, expectedLive) => {
+    const { diagnostics, errors } = await start([goneReaderWindow(), live()]);
+    const report = JSON.parse(await diagnostics[name]());
+    const rows = (report.before ?? report).readers;
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toEqual({ gone: true });
+    expect(rows[1]).toMatchObject(expectedLive);
+    expect(deadErrors(errors)).toEqual([]);
+  });
+
+  it('keeps a voice switch aimed at the gone index from reaching a different reader', async () => {
+    const { diagnostics, errors } = await start([goneReaderWindow(), live()]);
+    const before = JSON.parse(diagnostics.voiceSwitch());
+    expect(JSON.parse(diagnostics.voiceSwitch(1, 0))).toEqual(before);
+    expect(deadErrors(errors)).toEqual([]);
+  });
+
+  it('spreads a changed global speed to the live reader past the gone one', async () => {
+    const setSpeed = vi.fn();
+    let speed = 100;
+    const observers: Array<() => void> = [];
+    const prefs = stub({
+      get: (key: string) => key.endsWith('readAloud.speedPercent') ? speed : undefined,
+      registerObserver: (key: string, callback: () => void) => {
+        if (key === 'zotero-tts.readAloud.speedPercent') observers.push(callback);
+        return Symbol();
+      },
+    });
+    const reader = { _internalReader: { _readAloudManager: { setSpeed } } };
+    const { errors } = await start([goneReaderWindow(), reader], { zotero: { Prefs: prefs } });
+    speed = 150;
+    for (const notify of observers) notify();
+    expect(setSpeed).toHaveBeenCalledWith(1.5, false);
+    expect(deadErrors(errors)).toEqual([]);
+  });
+
+  it('restores the live reader on disable without logging a dead-object error', async () => {
+    const original = vi.fn();
+    const internal = { _syncPersistedVoicesToManager: original, _readAloudManager: {} };
+    const { errors } = await start([goneReaderWindow(), { _internalReader: internal }]);
+    expect(internal._syncPersistedVoicesToManager).not.toBe(original);
+    await running.shutdown(4);
+    running = null;
+    expect(internal._syncPersistedVoicesToManager).toBe(original);
+    expect(deadErrors(errors)).toEqual([]);
+  });
+});
+
 describe('a voice list that lands after its tab closed (issue #165)', () => {
   it('is planned against nothing: the closed reader is not read, and nothing is logged', async () => {
     const manager = { active: false, paused: true };

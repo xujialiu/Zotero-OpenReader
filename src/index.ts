@@ -1008,6 +1008,12 @@ function eachReader(visit: (reader: any) => unknown): void {
   forEachReader(Zotero.Reader._readers ?? [], visit, { isDead: isDeadWrapper, error: (e) => Zotero.logError(e) });
 }
 
+function liveReaders(): any[] {
+  const readers: any[] = [];
+  eachReader(reader => readers.push(reader));
+  return readers;
+}
+
 /** Every top-level Zotero window that can host reader tabs. */
 function mainWindows(): any[] {
   if (typeof Zotero.getMainWindows === 'function') return Zotero.getMainWindows();
@@ -1551,7 +1557,7 @@ function startReadAloudMemory(): void {
     preferredLanguages,
     registerObserver: (name, handler) => Zotero.Prefs.registerObserver(name, handler),
     unregisterObserver: (token) => Zotero.Prefs.unregisterObserver(token),
-    readers: () => Zotero.Reader._readers ?? [],
+    readers: liveReaders,
     // The reader iframe may not call a bare sandbox function (the call
     // throws there and takes the Read Aloud button with it); export it into
     // the iframe's compartment, as Zotero does with its own interface.
@@ -3377,8 +3383,8 @@ function safe(fn: () => unknown): unknown {
  * reader whose window is gone reads `{ gone: true }`, a row that throws its
  * error, and the other readers' rows still come back.
  */
-function readerRows(row: (reader: any) => unknown): unknown[] {
-  return (Zotero.Reader._readers ?? []).map((r: any) => safe(() => (readerGone(r, isDeadWrapper) ? { gone: true } : row(r))));
+function readerRows(row: (reader: any, index: number) => unknown): unknown[] {
+  return (Zotero.Reader._readers ?? []).map((r: any, index: number) => safe(() => (readerGone(r, isDeadWrapper) ? { gone: true } : row(r, index))));
 }
 
 /** A language tag named as the popup's dropdown names it, in the app's locale — what the pane hands the voice browser too. */
@@ -3418,13 +3424,12 @@ const diagnostics = {
   },
   /** direction is optional; readerIndex makes fixture checks independent of tab routing. */
   voiceSwitch(direction?: -1 | 1, readerIndex?: number): string {
-    const readers = Zotero.Reader._readers ?? [];
     if (direction === -1 || direction === 1) {
       const win = Zotero.getMainWindow();
       const reader = readerIndex === undefined
-        ? pickReader(readers, win, win?.Zotero_Tabs?.selectedID ?? null, (r: any) => isSpeaking(readAloudManager(r)))
-        : readers[readerIndex];
-      if (reader) voicePick?.step(reader, direction);
+        ? pickReader(liveReaders(), win, win?.Zotero_Tabs?.selectedID ?? null, (r: any) => isSpeaking(readAloudManager(r)))
+        : Zotero.Reader._readers?.[readerIndex];
+      if (reader && !readerGone(reader, isDeadWrapper)) voicePick?.step(reader, direction);
     }
     // v2: the old voice asks for nothing new while a switch is pending; skips and jumps keep it (issue #163)
     // v3: an entry or language pick is a draft with no voice (issue #224), and the Player shows a pending switch's voice (issue #225)
@@ -3439,7 +3444,7 @@ const diagnostics = {
     };
     return JSON.stringify({ mechanism: 'engine-handoff-v4', bindings: {
       previous: loadSettings(prefs).shortcuts.previousVoice, next: loadSettings(prefs).shortcuts.nextVoice,
-    }, readers: readers.map((reader: any, index: number) => ({ index, selected: readAloudManager(reader)?.selectedVoiceID ?? null,
+    }, readers: readerRows((reader, index) => ({ index, selected: readAloudManager(reader)?.selectedVoiceID ?? null,
       paused: readAloudManager(reader)?.paused ?? null, player: player(reader),
       handoff: voicePick?.inspect(reader) ?? null })) }, null, 2);
   },
@@ -3669,7 +3674,7 @@ const diagnostics = {
         feature: 'provider-tiers',
         labels: safe(() => providerTierLabels(loadSettings(prefs))),
         hidden: safe(() => hiddenZoteroTiers(loadSettings(prefs))),
-        readers: (Zotero.Reader._readers ?? []).map((r: any) => ({
+        readers: readerRows(r => ({
           title: safe(() => {
             const item = r?.itemID ? Zotero.Items.get(r.itemID) : null;
             return (item?.parentItem ?? item)?.getField('title') ?? null;
@@ -4028,7 +4033,7 @@ const diagnostics = {
         switches: safe(() => readHighlightLevels(prefs)),
         pin: safe(() => highlightPin?.inspect() ?? null),
         menu: safe(() => zoteroHighlightMenu?.inspect() ?? null),
-        readers: (Zotero.Reader._readers ?? []).map((r: any) => ({
+        readers: readerRows(r => ({
           itemID: safe(() => r?.itemID),
           state: safe(() => r?._internalReader?._state?.readAloudState?.highlightGranularity ?? null),
           wordTiming: safe(() => highlightStyling?.wordTiming(r) ?? 'none'),
@@ -4052,7 +4057,7 @@ const diagnostics = {
     const state = () => ({
       switches: safe(() => readHighlightLevels(prefs)),
       pref: safe(() => Zotero.Prefs.get(HIGHLIGHT_LEVEL_PREF, true)),
-      readers: (Zotero.Reader._readers ?? []).map((r: any) => ({
+      readers: readerRows(r => ({
         itemID: safe(() => r?.itemID),
         state: safe(() => r?._internalReader?._state?.readAloudState?.highlightGranularity ?? null),
         wordTiming: safe(() => highlightStyling?.wordTiming(r) ?? 'none'),
@@ -4062,7 +4067,7 @@ const diagnostics = {
     const result: Record<string, unknown> = { shortcut, before: state() };
     if (!press) return JSON.stringify(result, null, 1);
     const win = mainWindows()[0];
-    const reader = pickReader(Zotero.Reader._readers ?? [], win, win?.Zotero_Tabs ? win.Zotero_Tabs.selectedID : null, (r: any) => isSpeaking(readAloudManager(r)));
+    const reader = pickReader(liveReaders(), win, win?.Zotero_Tabs ? win.Zotero_Tabs.selectedID : null, (r: any) => isSpeaking(readAloudManager(r)));
     result.picked = safe(() => reader?.itemID ?? null);
     result.levels = reader ? safe(() => readAloudShortcuts?.toggleWordHighlight(reader)) : 'no reader';
     result.after = state();

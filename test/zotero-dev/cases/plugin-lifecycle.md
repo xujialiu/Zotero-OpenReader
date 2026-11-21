@@ -60,6 +60,17 @@ and 5.9, added after the split.
      `textSettings()` and `playerVoiceList()` each answer with one row per
      listed reader: `{ "gone": true }` for the closed window's, and for
      the tab an object that is neither that nor an error's text.
+   - With the fixed build running and the window still listed (issue
+     #218), call `voiceSwitch()`, `providerTiers()`, `highlightLevels()`
+     and `highlightKey()`. Each returns the gone row and the live row in
+     their listed order, with the live index preserved in `voiceSwitch`.
+     A voice step addressed to the gone index leaves the live voice alone.
+     Change Global speed and step the voice on the live fixture using
+     only free local voices. Check that the live reader responds and that
+     none of these operations logs a plugin dead-object error. Reinstall
+     the fixed build over itself. Include shutdown **before** the stopped
+     message when checking for plugin errors, and confirm clean startup.
+     Restore speed and voice along with the fixtures.
    - The tab listed after the gone reader is attached: `liveVoiceList()`
      gives it a non-null entry, and the gone reader `null`; `highlight()`
      shows its PDF view `patched: true` (only if its pages are rendered,

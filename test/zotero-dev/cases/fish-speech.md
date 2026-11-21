@@ -7,7 +7,7 @@ settings window, and a fixture tab. One Test connection per item, never a
 loop. The section's layout is item 1a.1 and the restore item 1a.14, both
 in [Fish Audio](fish-audio.md).
 
-Items 1a.9–1a.13 of the checklist, under their original numbers.
+Items 1a.9–1a.13 keep their original numbers.
 
 ### 1a.9
 
@@ -82,3 +82,19 @@ Items 1a.9–1a.13 of the checklist, under their original numbers.
     Both are the server's pace, not a plugin failure (measured 2026-09-10
     without torch.compile, 4 tokens a second); they are here so a later
     pass recognizes them.
+
+### 1a.15
+
+**Reading and preview after a server change (issue #222).** Use two local
+Fish Speech fixtures offering the same reference, `bella`, with different
+audio and a request log for each. Turn on *Cache synthesized audio*. Keep
+one settings window open throughout. On A, read a short fixture sentence
+twice and preview the voice twice, allowing each preview to end. Count
+requests for each exact text separately. Each text reaches A once.
+
+Close any open Player, Disable Fish Speech, change Address to B, and
+Enable. Repeat the sentence and the preview twice each. B receives one
+speech request per text, A receives none after the switch, and the first
+audio returned for each text now matches B. Use the reader's audio bytes
+and the preview's played audio to identify the server. Restore the
+provider settings, cache switch and fixtures.

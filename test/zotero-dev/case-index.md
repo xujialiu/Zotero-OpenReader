@@ -31,7 +31,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Cloudflare Workers AI](cases/cloudflare.md) — 1.14, 2.9, 3.15
 - [Speechify](cases/speechify.md) — 1.15, 2.10, 3.22, 3.23, 3.28
 - [1a. Fish Audio: the cloud voices](cases/fish-audio.md) — 1a.1–1a.8, 1a.14
-- [1a. Fish Speech: a server of the owner's own](cases/fish-speech.md) — 1a.9–1a.13
+- [1a. Fish Speech: a server of the owner's own](cases/fish-speech.md) — 1a.9–1a.13, 1a.15
 - [1b. Fish Audio voice sources (issues #91, #216)](cases/fish-voice-sources.md) — item 10: Manual IDs across refreshes
 - [1c. Fish Audio: the model (issue #182)](cases/fish-model.md)
 - [1c. Fish settings refinement (issue #91, beta5)](cases/fish-settings-refinement.md)

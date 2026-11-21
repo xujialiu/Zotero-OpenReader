@@ -1,7 +1,7 @@
 import { readDefaultVoice, writeDefaultVoice } from '../../src/core/document-voices';
 import { describe, expect, it, vi } from 'vitest';
 import type { ProviderId } from '../../src/core/providers/types';
-import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
+import { audioSetup, DEFAULTS, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { READ_ALOUD_VOICES_PREF } from '../../src/core/read-aloud-speed';
 import { sampleTextForLocale } from '../../src/core/sample-text';
 import type { CatalogEntry } from '../../src/read-aloud/catalog';
@@ -688,6 +688,29 @@ describe('playing a sample', () => {
     await t.play(0).fire('click');
     expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(2);
     expect(t.player.play).toHaveBeenCalledTimes(3);
+  });
+
+  it('plays the new Fish Speech server’s sample for a same-named voice (#222)', async () => {
+    const settings = { ...DEFAULTS, fishspeech: { ...DEFAULTS.fishspeech, baseURL: 'http://a.test' } };
+    const t = setup({
+      catalog: [{ provider: 'fishspeech', voices: [{ id: 'bella', label: 'Bella', locale: 'mul' }] }],
+      sampleSetup: () => audioSetup(settings),
+    });
+    t.deps.synthesizeSample.mockImplementation(async () => new Blob([settings.fishspeech.baseURL]));
+    await t.rows.load();
+    await t.pickTier('Fish Speech');
+    const preview = async () => {
+      await t.play(0).fire('click');
+      const [audio, , ended] = t.player.play.mock.calls.at(-1)!;
+      ended(null);
+      return audio.text();
+    };
+
+    expect(await preview()).toBe('http://a.test');
+    settings.fishspeech.baseURL = 'http://b.test';
+    expect(await preview()).toBe('http://b.test');
+    expect(await preview()).toBe('http://b.test');
+    expect(t.deps.synthesizeSample).toHaveBeenCalledTimes(2);
   });
 
   it('stops the current sample when another voice is played', async () => {
