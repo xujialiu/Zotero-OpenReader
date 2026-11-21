@@ -32,6 +32,7 @@ highlight-levels.md's unless marked `4.10` (word-highlight-key.md) or
 | `15-mai-voice-no-timing.js` | Item 9's last bullet + 4.10's no-timing voice, on the EPUB switched to `azure::en-US-Ethan:MAI-Voice-2` | `wordTiming:"stand-in"`; long toast opacity `1` at 4.9 s, `0` at 5.2 s; `granularity:"sentence"`, `state.highlightGranularity:"word"` | `state.fixtures` |
 | `16-restore-defaults-and-recorder.js` | Item 10 (Restore default colors with Sentence off) + 4.10's recorder row (position, `?` tip, Clear, collision with Player options) | All 6 prefs back to defaults; tip text matches; `Already used by "Word highlight on / off".` | pane open on Highlight |
 | `17-cleanup-restore.js` | Closes/erases A and B, closes the EPUB's tab (kept, never erased), restores every pref (memory last), reports the owner's reader | Every `verify.*` byte-identical to baseline; `ownerStillUntouched` equals the run's first read (`null` without `params.ownerItemID`) | `params.ownerItemID`; `state.baseline`, `state.voicePrep`, `state.fixtures` |
+| `18-word-only-and-invalid-repair.js` | Item 14 (#208): pane observes Sentence-only → synchronous Word-only pair, then the separate both-off write | `{true,false}` → `{false,true}`; both-off repairs persistently to `{true,false}`; original values and user flags restored. Simulates restore writes; no native FilePicker | Open Settings on Highlight; `state.fix4Prefs` |
 
 ## Before you start
 
@@ -139,3 +140,7 @@ highlight-levels.md's unless marked `4.10` (word-highlight-key.md) or
   corrected data for their affected sub-checks came from an interactive
   follow-up in the same session rather than a rerun of the fixed file —
   a future run exercises the fixed files directly.
+- **2026-11-21, 1.17.3-beta, Zotero 10.0.9**: item 14 (#208) PASS; synchronous
+  Word-only transition and persistent both-off repair PASS; settings and
+  preference flags restored. [Verification table](https://github.com/xujialiu/Zotero-OpenReader/issues/208#issuecomment-7065241120).
+  `18` last ran in `2026-11-21-1.17.3-beta-highlight-levels-01`.
