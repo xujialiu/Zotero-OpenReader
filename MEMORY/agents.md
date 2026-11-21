@@ -8,6 +8,7 @@ agent definition/workflow. Shared policy comes from `MEMORY/MEMORY.md`.
 | Work | Owner |
 | --- | --- |
 | Bug/feature research in running Zotero | Main session may use zotero-dev directly; first read `.agents/zotero-tester.md` and follow its research, evidence and restoration rules |
+| Prepare a disposable Zotero for a live test | `perpare-zotero` prepares the instance and returns its READY record to the main session |
 | Live implementation verification | `zotero-tester`, regardless of main model |
 | User explicitly asks main session to drive Zotero personally | Main session, under the same tester workflow |
 | Chinese translation in a Fable or Astra (`gpt-6-astra`) session | `docs-translator` |

@@ -2,9 +2,11 @@
 
 ## 0. Before every case — the baseline
 
+- On a disposable run, use the `perpare-zotero` READY record and its
+  session-bound bridge command throughout this case.
 - `zotero_ping`; `zotero_plugin_list` → the build under test (a release
-  xpi, or `X.Y.Z-betaN` for a branch). A verification run installs; a
-  research run does not. Then, before anything else,
+  xpi, or `X.Y.Z-betaN` for a branch). For a prepared build, confirm the READY installation;
+  perform an upgrade under observation when that is the check. Then, before anything else,
   `diagnostics.startup()` (synchronous): `version` the build, every step
   `ok`, `failed` empty.
 - Zotero's version, the open reader tabs by title with each manager's

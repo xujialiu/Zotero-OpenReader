@@ -32,19 +32,20 @@ Change model or effort only at the user's explicit request.
 
 | Platform/scope | Required configuration |
 | --- | --- |
-| Codex `zotero-tester` | `glm-5.3-flash`, `model_reasoning_effort = "max"` |
+| Codex `zotero-tester` and `perpare-zotero` | `glm-5.3-flash`, `model_reasoning_effort = "max"` |
 | Codex `docs-translator` | `gpt-6.1-terra`, `model_reasoning_effort = "max"` |
 | Other Codex-spawned agents, including generic workers and reviewers | `gpt-5.6-luna`, `model_reasoning_effort = "max"` |
-| Claude definitions | Native `opus`/`sonnet`; preserve each wrapper's choice rather than copying Codex values |
+| Claude `perpare-zotero` | `model: glm-5.3-flash`, `effort: max`; requires a provider serving that ID |
+| Other Claude definitions | Native `opus`/`sonnet`; preserve each wrapper's choice rather than copying Codex values |
 | Claude `zotero-tester` | `model: sonnet`, `effort: max` |
-| pi `docs-translator` and `zotero-tester` only | `model: zai-coding-cn/glm-5.3-flash`, `thinking: max` |
+| pi `docs-translator`, `zotero-tester` and `perpare-zotero` | `model: zai-coding-cn/glm-5.3-flash`, `thinking: max` |
 | Other pi builtin/generic agents | Stock behavior: inherit session model/thinking |
 
 Codex's Luna default includes `general-purpose` workers and reviewers
 (2026-09-11). Luna is unavailable in Claude Code. The tester's Claude
 Sonnet/max choice was requested after two Sonnet runs of issue #110
 (2026-09-15); Claude `effort` accepts low / medium / high / xhigh / max.
-The two pi pins were requested on 2026-09-27. Keep project/user settings
+The translator and tester pi pins were requested on 2026-09-27. Keep project/user settings
 free of `subagents.defaultModel`, `defaultThinking` and `agentOverrides`
 that would impose these pins on other pi agents.
 

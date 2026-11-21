@@ -5,6 +5,17 @@ zotero-dev bridge for live work, including research. First choose the
 verification tier in `MEMORY/MEMORY.md`. Select the driver and apply
 blocked-agent ownership through `MEMORY/agents.md`.
 
+## Select the test instance
+
+For live plugin tests, the main session gives `perpare-zotero` the case,
+starting XPI and required setup. Forward its READY record with the
+verification brief to `zotero-tester`. Both agents use the recorded
+session command for every bridge call. The main session closes that
+instance after the tester releases it, including on failure or cancellation.
+An install or update check explicitly requested for the user's own Zotero
+continues to target that installation. Research that specifically needs
+personal state names the target separately.
+
 ## Prepare the evidence contract
 
 - **Verification brief:** xpi path, every behavior to verify, diagnostic
@@ -72,7 +83,8 @@ and names exactly what to check by eye.
 ## Protect live state before driving
 
 Use the **zotero-dev MCP bridge**, `introfini/mcp-server-zotero-dev`,
-with *MCP Bridge for Zotero*: Zotero opens RDP at 127.0.0.1:6100 on start.
+with *MCP Bridge for Zotero*. Disposable runs use the assigned loopback
+port in the READY record; the normal installation defaults to port 6100.
 "Test with zotero dev" / "用 zotero dev 测试" means this bridge, not another
 route (settled 2026-08-28). Main-session direct research follows
 `.agents/zotero-tester.md`; delegation leaves that workflow with the
@@ -164,8 +176,8 @@ topic-specific mechanics live in its shared workflow.
 - **The user takes over only** when a check needs a human — how a voice
   sounds, whether the word highlight keeps pace, how the popup behaves in
   motion (screenshots are static; nothing here records) — or when the
-  bridge is down (`zotero_ping` fails: Zotero needs a restart, which only
-  the user can do; `netstat -ano -p tcp | grep 6100` shows whether the
+  bridge on the user’s own installation is down (`zotero_ping` fails
+  and a restart is needed; `netstat -ano -p tcp | grep 6100` shows whether the
   listener is up). Then a hand round in the old form: at most 3
   self-contained steps, each with (1) what to do in Zotero, naming the UI
   by what it says on screen — "tab 1" / "tab 2", "the player" for the Read

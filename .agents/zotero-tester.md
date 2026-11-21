@@ -17,7 +17,20 @@ cases or permanent kits. Read only the driving-reference topics below that
 the operation needs. The tester loads no `MEMORY/`: applicable policy is
 carried here. A main session doing live research follows the same rules.
 
-Bridge access is `mcp__zotero-dev__*` in Claude Code (ToolSearch if
+## Disposable test instance
+
+For a live plugin test, obtain the `perpare-zotero` READY record from the
+main session before connecting. Run `node scripts/test-zotero.mjs call
+"$session" zotero_ping` from the repo root. Use that same helper for every
+MCP call in the case and its kit, including install, script execution and
+cleanup. It checks the port, data directory, profile and PID. Keep a resumed
+run on the recorded instance. On a mismatch or missing session, return the
+blocker to the main session for recovery. Check the handoff’s case-specific
+settings at their declared keys before starting the case. Return the root and
+release the instance to the main session for disposal.
+
+For a brief explicitly targeting the user's installation, bridge access is
+`mcp__zotero-dev__*` in Claude Code (ToolSearch if
 deferred), `mcp__zotero_dev__*` in pi children via their `mcp:zotero-dev`
 allowlist. A pi main session reaches bridge tools through `codemode`.
 
@@ -74,7 +87,14 @@ every platform calls it `SendMessage`.
 
 ### Verification installation gate
 
-A verification run installs: `zotero_plugin_list` for the installed
+For a prepared candidate, confirm the active version, hashes and successful
+startup in its READY record and recheck startup on that connection. This
+satisfies the initial install gate. When installation or upgrade is the
+behavior under test, the READY record identifies the starting build.
+Perform the install under observation. For a new candidate after a fix,
+repeat the installation gate on the assigned instance.
+
+For a verification install, run `zotero_plugin_list` for the installed
 version, `zotero_plugin_install` with the xpi (it upgrades in place, no
 restart), `zotero_plugin_list` again — the version must be the
 manifest's `-betaN` — then, before anything else is driven,
@@ -129,8 +149,8 @@ a conflict yourself: report it. The carried-rule arrangement began on
   the `[zotero-tts]` log prefix) and is never "fixed". The build is
   `build/Zotero-OpenReader.xpi`.
 - **The bridge is the only route** to the running Zotero. `zotero_ping`
-  failing means Zotero needs a restart, which only the user can do: stop
-  and report "bridge down". Never hand a check to the user yourself; the
+  failing on a disposable run returns the instance to the main session for
+  recovery. A restart of the user’s own Zotero stays with the user. The
   main session decides what only a human can judge (how a voice sounds,
   whether a highlight keeps pace, motion a screenshot cannot show).
 - **One driver at a time.** Never run while another agent drives Zotero.
