@@ -26,6 +26,7 @@ class Sums {
 /** One voice over one segment list. Audio measurements outlive decoded clip eviction. */
 export class RemainingTime {
   private readonly base: Float64Array;
+  private readonly continuations: Uint32Array;
   private readonly paragraphs: Uint32Array;
   private readonly knownBase: Sums;
   private readonly knownSeconds: Sums;
@@ -44,6 +45,7 @@ export class RemainingTime {
 
   constructor(segments: ArrayLike<EngineSegment>) {
     this.base = new Float64Array(segments.length + 1);
+    this.continuations = new Uint32Array(segments.length + 1);
     this.paragraphs = new Uint32Array(segments.length + 1);
     this.knownBase = new Sums(segments.length);
     this.knownSeconds = new Sums(segments.length);
@@ -55,6 +57,7 @@ export class RemainingTime {
       this.base[i + 1] = this.base[i] + weight;
       // Eight word equivalents, including CJK, with real letters rather than only numbers.
       this.representative[i] = weight >= 8 / 3 && /\p{L}/u.test(text) ? 1 : 0;
+      this.continuations[i + 1] = this.continuations[i] + (segments[i].openReaderOffset ? 1 : 0);
       this.paragraphs[i + 1] = this.paragraphs[i] + (segments[i].anchor === 'paragraphStart' ? 1 : 0);
     }
   }
@@ -98,9 +101,10 @@ export class RemainingTime {
     const base = this.base[to] - this.base[from] - this.knownBase.range(from, to);
     const speech = Math.max(0, base * factor + this.knownSeconds.range(from, to) - offset) / speed;
     const paragraphs = this.paragraphs[to] - this.paragraphs[from + 1];
+    const continuations = this.continuations[to] - this.continuations[from + 1];
     const sentence = computeGap({ paragraph: false, speed, settings: pauses });
     const paragraph = computeGap({ paragraph: true, speed, settings: pauses });
-    return speech + ((to - from - 1 - paragraphs) * sentence + paragraphs * paragraph) / 1000;
+    return speech + ((to - from - 1 - paragraphs - continuations) * sentence + paragraphs * paragraph) / 1000;
   }
 }
 

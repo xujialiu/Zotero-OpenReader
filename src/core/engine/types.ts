@@ -13,6 +13,8 @@
 export interface EngineSegment {
   readonly text: string;
   readonly anchor?: string | null;
+  readonly openReaderOriginal?: string;
+  readonly openReaderOffset?: number;
 }
 
 /** One word timing, in seconds of the provider's audio and characters of the segment's text (reader.js `normalizedOffsetsToRawOffsets`). */

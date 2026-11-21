@@ -68,6 +68,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 - [Estimated remaining document, section and selection reading time (issue #148)](cases/remaining-time.md)
 
 - [The Engine: every voice on the plugin's own engine (issue #133)](cases/engine.md)
+- [Long tables start in independently playable pieces](cases/long-segments.md)
 - [Playback on a fixture](cases/playback.md) — 3.4, 3.26
 - [Local HTML reading compatibility (issue #228)](cases/html-compatibility.md)
 - [3l. Playback preparation notice (issue #120)](cases/playback-notice.md)

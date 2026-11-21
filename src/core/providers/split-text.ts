@@ -27,7 +27,10 @@ export function splitText(text: string, max: number): { text: string; offset: nu
         }
       }
     }
-    if (cut < 1) cut = max;
+    if (cut < 1) {
+      cut = max;
+      if (cut > 1 && /[\uD800-\uDBFF]/.test(window[cut - 1]) && /[\uDC00-\uDFFF]/.test(text[offset + cut])) cut--;
+    }
     pieces.push({ text: window.slice(0, cut), offset });
     offset += cut;
   }

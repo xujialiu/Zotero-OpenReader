@@ -22,7 +22,7 @@ function setup() {
   const asked: string[] = [];
   const refresh = createReplacementRefresh({
     session: () => live as any,
-    speechText: async (_reader, text) => {
+    speechText: async (_reader, { text }) => {
       asked.push(text);
       return speak(text);
     },

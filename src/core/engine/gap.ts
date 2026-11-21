@@ -54,6 +54,7 @@ export function computeGap(input: GapInput): number {
 }
 
 /** The gap before `next`, by whether it begins a paragraph. */
-export function gapBefore(next: { anchor?: string | null } | null | undefined, speed: number, settings: PauseSettings): number {
+export function gapBefore(next: { anchor?: string | null; openReaderOffset?: number } | null | undefined, speed: number, settings: PauseSettings): number {
+  if (next?.openReaderOffset) return 0;
   return computeGap({ paragraph: next?.anchor === 'paragraphStart', speed, settings });
 }

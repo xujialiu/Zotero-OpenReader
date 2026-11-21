@@ -1,5 +1,5 @@
 import { composeSpeechText, mapTimestampsToDocument, type ReplacedSpan } from '../core/replacements';
-import { prepareDocumentSpeech, type TextCleaningContext } from '../core/text-cleaning';
+import { prepareSegmentSpeech, snapshotSpeechSegment, type SpeechSegment, type TextCleaningContext } from '../core/text-cleaning';
 import { fishLanguageHint } from '../core/fish-language-hint';
 import { SynthesisError, toZoteroError } from '../core/providers/errors';
 import { silentWav } from '../core/silence';
@@ -42,7 +42,7 @@ export interface AudioCache {
   delete?(key: string): Promise<void>;
 }
 
-type ZoteroSegment = { text: string } | 'sample';
+type ZoteroSegment = SpeechSegment | 'sample';
 type ZoteroVoice = { id: string; locale?: string };
 
 /**
@@ -581,7 +581,8 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       const locale = voice?.locale;
       const strip = deps.getStripAngleBrackets?.() ?? true;
       const pairs = deps.getBracketPairs?.();
-      const originalText = segment === 'sample' ? SAMPLE_TEXT : segment.text;
+      const input = snapshotSpeechSegment(segment === 'sample' ? SAMPLE_TEXT : segment);
+      const originalText = input.text;
       const voiceId = voice?.id ?? '';
       const decoded = decodeVoiceId(voiceId);
       const context: TextCleaningContext = {
@@ -594,7 +595,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       // rule above. The voice is the reader's own object, with getters a copy
       // would lose: it goes as it is, and a tab closed meanwhile fails the
       // request it no longer wants.
-      const found = segment !== 'sample' && !invisible ? deps.replacements?.(originalText) ?? null : null;
+      const found = segment !== 'sample' && !invisible ? deps.replacements?.(input.openReaderOriginal ?? originalText) ?? null : null;
       const waits = !!found && typeof (found as Promise<unknown>).then === 'function';
       const nativeSegment = waits && !decoded && typeof segment === 'object' ? { ...segment } : segment;
       const nativeVoice = voice;
@@ -602,7 +603,7 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       if (signal?.aborted) return { audio: null, error: 'network' };
       const prepared = segment === 'sample'
         ? { ...composeSpeechText(originalText, [], []), bracketsRemoved: 0, cleaning: [] }
-        : prepareDocumentSpeech(originalText, spans, { stripBrackets: strip, bracketPairs: pairs, context });
+        : prepareSegmentSpeech(input, spans, { stripBrackets: strip, bracketPairs: pairs, context });
       if (prepared.changed && !prepared.text.trim()) {
         const pause = silentWav(SILENT_PAUSE_MS);
         deps.debug?.('speech text: nothing left to say; playing a short pause');
@@ -713,12 +714,12 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
       if (!decoded) return;
       const strip = deps.getStripAngleBrackets?.() ?? true;
       const pairs = deps.getBracketPairs?.();
-      const text = segment.text;
+      const input = snapshotSpeechSegment(segment);
       const locale = voice?.locale;
       const context = { ...deps.getTextCleaningContext?.(voice.id), provider: decoded.provider };
       // Capture all reader metadata before the worker can outlive its tab.
-      const spans = (await deps.replacements?.(text))?.spans ?? [];
-      const prepared = prepareDocumentSpeech(text, spans, { stripBrackets: strip, bracketPairs: pairs, context });
+      const spans = (await deps.replacements?.(input.openReaderOriginal ?? input.text))?.spans ?? [];
+      const prepared = prepareSegmentSpeech(input, spans, { stripBrackets: strip, bracketPairs: pairs, context });
       const key = cacheKeyFor(decoded.provider, decoded.voiceId, prepared.text, hintFor(decoded.provider, prepared.text, locale));
       await deps.cache?.()?.delete?.(key);
       deps.debug?.(`${decoded.provider}: forgot the cached audio of ${prepared.text.length} chars, which would not decode`);

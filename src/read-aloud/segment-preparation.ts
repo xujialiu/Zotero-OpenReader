@@ -1,5 +1,6 @@
 /** Keep initial segment requests from consuming a one-shot start twice (#234). */
 import { type AnyFn, createProtoPatches, type ProtoPatchDeps } from './proto-patches';
+import { divideLongSegments } from './long-segments';
 import { ownerOf } from './system-voices';
 
 interface NativeReader {
@@ -67,6 +68,15 @@ export function createSegmentPreparation(deps: ProtoPatchDeps & { waiveXrays?<T>
       const internal = waive(reader?._internalReader);
       const proto = internal && ownerOf(internal, '_requestReadAloudSegments');
       if (!proto) return false;
+      const materializer = ownerOf(internal, '_materializeSourcePositions');
+      if (materializer) patches.shadow(materializer, '_materializeSourcePositions', original => function (this: unknown, list: any) {
+        const result = Reflect.apply(original, this, [list]);
+        const self = waive(this) as any;
+        try {
+          divideLongSegments(self._readAloudSegments, waive(list), self._sdt?.mapper);
+        } catch (error) { deps.error(error); }
+        return result;
+      });
       patches.shadow(proto, '_requestReadAloudSegments', original => function (this: unknown, ...args: unknown[]) {
         const self = waive(this) as NativeReader;
         const manager = waive(self._readAloudManager);

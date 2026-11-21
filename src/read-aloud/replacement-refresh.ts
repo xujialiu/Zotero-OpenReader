@@ -1,6 +1,6 @@
 import type { HandoffReport } from '../core/engine/handoff';
 import type { EngineSession } from '../core/engine/session';
-import type { EngineClip } from '../core/engine/types';
+import type { EngineClip, EngineSegment } from '../core/engine/types';
 
 /**
  * A replacement edit reaching a reading in progress (issue #237): which of
@@ -26,7 +26,7 @@ export interface RefreshRecord {
 export interface ReplacementRefreshDeps {
   session(reader: unknown): EngineSession<EngineClip> | null;
   /** The text a voice would be given for `text` now: replacements and bracket removal applied. */
-  speechText(reader: unknown, text: string): Promise<string> | string;
+  speechText(reader: unknown, segment: EngineSegment): Promise<string> | string;
   now?(): number;
   log?(e: unknown): void;
   debug?(message: string): void;
@@ -51,7 +51,7 @@ export function createReplacementRefresh(deps: ReplacementRefreshDeps) {
         }
         const segment = segments[index];
         if (!segment) continue;
-        const speech = await deps.speechText(reader, String(segment.text));
+        const speech = await deps.speechText(reader, segment);
         if (store.speech.get(index) !== speech) changed.add(index);
       }
     } catch (e) {

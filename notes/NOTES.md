@@ -875,3 +875,8 @@ then) and is in the git history before that day.
 ### [2026-11-20](NOTES_2026-11-20.md)
 
 - Exported hooks need unwrapped identity during teardown (issue #261)
+
+### [2026-11-21](NOTES_2026-11-21.md)
+
+- A long PDF table Segment times out after Fish Audio starts returning audio (issue #262)
+- Each table piece has a native source range before playback (issue #262)

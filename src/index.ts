@@ -16,7 +16,7 @@ import {
   writeGlobalReplacements,
 } from './core/document-replacements';
 import { sameReplacement, type Replacement } from './core/replacements';
-import { prepareDocumentSpeech, TEXT_CLEANING_RULES, type TextCleaningContext } from './core/text-cleaning';
+import { prepareSegmentSpeech, snapshotSpeechSegment, type SpeechSegment, TEXT_CLEANING_RULES, type TextCleaningContext } from './core/text-cleaning';
 import { createReplacementRunner, type ReplacementRunner, type RunResult, type WorkerLike } from './read-aloud/replacement-runner';
 import { createReplacementRefresh, type ReplacementRefresh } from './read-aloud/replacement-refresh';
 import { openReplacementsDialog } from './ui/replacements-dialog';
@@ -2936,15 +2936,16 @@ function readerCleaningContext(reader: any, requestedVoiceId?: string): TextClea
 }
 
 /** The same preparation as getAudio/forget; capture reader state before the worker's await. */
-async function preparedSpeechFor(reader: any, text: string, voiceId?: string) {
+async function preparedSpeechFor(reader: any, segment: string | SpeechSegment, voiceId?: string) {
+  const input = snapshotSpeechSegment(segment);
   const strip = textSettings?.enabled(reader) ?? loadSettings(prefs).readAloud.stripAngleBrackets;
   const pairs = textSettings?.pairs(reader) ?? loadSettings(prefs).readAloud.bracketPairs;
   const context = readerCleaningContext(reader, voiceId);
-  const { spans } = await replacementsFor(reader, text);
-  return { ...prepareDocumentSpeech(text, spans, { stripBrackets: strip, bracketPairs: pairs, context }), context };
+  const { spans } = await replacementsFor(reader, input.openReaderOriginal ?? input.text);
+  return { ...prepareSegmentSpeech(input, spans, { stripBrackets: strip, bracketPairs: pairs, context }), context };
 }
 
-async function replacementSpeechText(reader: any, text: string): Promise<string> {
+async function replacementSpeechText(reader: any, text: string | SpeechSegment): Promise<string> {
   return (await preparedSpeechFor(reader, text)).text;
 }
 

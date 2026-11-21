@@ -1252,3 +1252,21 @@ describe('audio already held, while a voice switch is pending (issue #163)', () 
     expect(native.getAudio).not.toHaveBeenCalled();
   });
 });
+
+describe('speech across a long Segment boundary', () => {
+  it('applies a spanning replacement once, removes paired brackets, and returns piece-local offsets', async () => {
+    const text = 'The [first second] marker ends.';
+    const asked: string[] = [];
+    const synthesize = vi.fn(async (value: string) => {
+      asked.push(value);
+      return { audio: new Blob(['audio']), timestamps: [{ start: 0, end: 1, charStart: 0, charEnd: value.length }] };
+    });
+    const iface = createRemoteInterface({ ...deps(fakeProvider({ synthesize })),
+      replacements: async (value) => ({ spans: value === text ? [{ from: 5, to: 17, text: 'spoken', row: 0 }] : [] }) });
+    const first = await iface.getAudio({ text: 'The [first', openReaderOriginal: text, openReaderOffset: 0 }, voice);
+    const second = await iface.getAudio({ text: 'second] marker ends.', openReaderOriginal: text, openReaderOffset: 11 }, voice);
+    expect(asked).toEqual(['The spoken', ' marker ends.']);
+    expect(first.timestamps).toMatchObject([{ charStart: 0, charEnd: 10 }]);
+    expect(second.timestamps).toMatchObject([{ charStart: 7, charEnd: 20 }]);
+  });
+});

@@ -100,3 +100,45 @@ export function prepareDocumentSpeech(
   }
   return { ...speech, bracketsRemoved: brackets.removed.length, cleaning };
 }
+
+/** Normalized document text retained on a playable subdivision of a native Segment. */
+export interface SpeechSegment {
+  text: string;
+  openReaderOriginal?: string;
+  openReaderOffset?: number;
+}
+
+/** Capture primitives before a worker or provider await can outlive the reader realm. */
+export function snapshotSpeechSegment(segment: SpeechSegment | string): SpeechSegment {
+  if (typeof segment === 'string') return { text: segment };
+  const { text, openReaderOriginal, openReaderOffset } = segment;
+  return { text, openReaderOriginal, openReaderOffset };
+}
+
+/** Match rules on their original sentence, then express this piece's speech in its own coordinates. */
+export function prepareSegmentSpeech(segment: SpeechSegment, spans: readonly ReplacedSpan[], options: SpeechPreparationOptions): PreparedDocumentSpeech {
+  const { text, openReaderOriginal: original, openReaderOffset: start } = segment;
+  if (original === undefined || start === undefined) return prepareDocumentSpeech(text, spans, options);
+  const full = prepareDocumentSpeech(original, spans, options);
+  const end = start + text.length;
+  // addSegment trims the separating space. A replacement starting on that space belongs here.
+  const ownsFrom = start > 0 && original[start - 1] === ' ' ? start - 1 : start;
+  const pieces: SpeechText['pieces'] = [];
+  let out = '';
+  for (const piece of full.pieces) {
+    const from = Math.max(start, piece.docFrom);
+    const to = Math.min(end, piece.docTo);
+    let speech: string;
+    if (piece.replaced) {
+      if (piece.docFrom < ownsFrom || piece.docFrom >= end) continue;
+      speech = full.text.slice(piece.outFrom, piece.outTo);
+    } else {
+      if (to <= from) continue;
+      speech = full.text.slice(piece.outFrom + from - piece.docFrom, piece.outFrom + to - piece.docFrom);
+    }
+    pieces.push({ docFrom: from - start, docTo: Math.max(from, to) - start, outFrom: out.length,
+      outTo: out.length + speech.length, replaced: piece.replaced });
+    out += speech;
+  }
+  return { ...full, text: out, pieces, changed: full.changed };
+}
