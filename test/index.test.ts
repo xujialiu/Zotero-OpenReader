@@ -304,6 +304,24 @@ describe('runtime walks with a listed reader whose window is gone (#218)', () =>
     expect(deadErrors(errors)).toEqual([]);
   });
 
+  it('takes over from a speaking reader past a gone reader without logging an error', async () => {
+    const pause = vi.fn();
+    const speaking = { _internalReader: { _readAloudManager: { active: true, paused: false, pause } } };
+    const startAt = vi.fn();
+    const target = readerInstance({
+      _item: { id: 3, libraryID: 1, key: 'TARGET03' },
+      _type: 'pdf',
+      _internalReader: { _readAloudManager: {}, startReadAloudAtPosition: startAt },
+      _iframeWindow: { addEventListener() {}, removeEventListener() {} },
+    });
+    const { errors } = await start([goneReaderWindow(), speaking, target]);
+    await target._getReadAloudRemoteInterface({ Promise }).getVoices();
+    target._internalReader.startReadAloudAtPosition();
+    expect(startAt).toHaveBeenCalledOnce();
+    expect(pause).toHaveBeenCalledOnce();
+    expect(deadErrors(errors)).toEqual([]);
+  });
+
   it('restores the live reader on disable without logging a dead-object error', async () => {
     const original = vi.fn();
     const internal = { _syncPersistedVoicesToManager: original, _readAloudManager: {} };

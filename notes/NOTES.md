@@ -886,3 +886,4 @@ then) and is in the git history before that day.
 
 - Reading and preview reuse the same Fish Speech reference across servers (issue #222)
 - A reader can disappear between startup and a diagnostic or shutdown (issue #218)
+- A Play also checks the other readers (issue #218)

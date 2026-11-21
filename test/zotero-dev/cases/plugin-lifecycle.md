@@ -66,7 +66,10 @@ and 5.9, added after the split.
      their listed order, with the live index preserved in `voiceSwitch`.
      A voice step addressed to the gone index leaves the live voice alone.
      Change Global speed and step the voice on the live fixture using
-     only free local voices. Check that the live reader responds and that
+     only free local voices. With a listed Document voice, press Shift+Space
+     on the live reader and check the start attempt for dead-object errors
+     from `takeOver`. Record whether the manager activated.
+     Check that the live reader responds and that
      none of these operations logs a plugin dead-object error. Reinstall
      the fixed build over itself. Include shutdown **before** the stopped
      message when checking for plugin errors, and confirm clean startup.

@@ -2779,7 +2779,7 @@ function startLiveVoiceList(): void {
     ownsCatalog,
     choice: reader => readAloudMemory?.choice(reader) ?? null,
     catalog: reader => liveVoiceList?.catalog(reader) ?? null,
-    readers: () => Zotero.Reader._readers ?? [],
+    readers: liveReaders,
     cancelResume: reader => followResumeGuard?.cancel(reader),
     resuming: reader => followResumeGuard?.pending(reader) ?? false,
     exportFunction: (fn, target) => Components.utils.exportFunction(fn, target),
