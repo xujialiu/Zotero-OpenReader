@@ -183,12 +183,13 @@ describe('initHighlightRows', () => {
     expect(t.disabled(WORD)).toBe(false);
   });
 
-  it('both off in the prefs — a hand-edited profile — paints and greys as Word off', () => {
+  it('both off in the prefs — a hand-edited profile — paints and greys as Word off', async () => {
     const t = setup({ ...cyanPink, [key('sentence')]: false, [key('word')]: false });
     expect(t.word()).toBe(PINK_SENTENCE);
     expect(t.before()).toBe(PINK_SENTENCE);
     expect(t.disabled(SENTENCE)).toBe(true);
     expect(t.disabled(WORD)).toBe(false);
+    await Promise.resolve();
     // and the Sentence pref is written back on, so its checkbox agrees with the screen
     expect(t.prefs.store[key('sentence')]).toBe(true);
     expect(t.prefs.store[key('word')]).toBe(false);

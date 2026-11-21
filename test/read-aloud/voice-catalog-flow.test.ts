@@ -165,6 +165,7 @@ function fixture(options: { slowAzure?: boolean; favorites?: string[]; keepNativ
   const opening = manager.loadVoices(true);
   return {
     player: () => player.snapshot(reader), clock, requests, errors, positions, problems,
+    pendingVoice: () => start.pendingVoice(reader),
     selectPosition(p: number) { selection = p; },
     async stop() { await player.command(reader, 'close'); },
     async play(voice?: string) {
@@ -244,9 +245,11 @@ describe('using voices while other Providers are still loading (#261)', () => {
       f.selectPosition(1);
       await f.play();
       expect(f.requests).toEqual([]);
+      expect(f.pendingVoice()).toBe('azure::ava');
       f.selectPosition(2);
       f.pendingAzure.resolve(azure);
       await f.clock.advance(1);
+      expect(f.pendingVoice()).toBeNull();
       expect(f.positions).toEqual([1]);
       expect(f.requests[0]).toBe('azure::ava');
       expect(f.requests).not.toContain('system::sam');

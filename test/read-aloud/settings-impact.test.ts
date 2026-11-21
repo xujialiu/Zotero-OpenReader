@@ -17,10 +17,32 @@ describe('settings changes during reading', () => {
     expect(affectedReading(current, { 'readAloud.favoritesOnly': true }, sessions)).toEqual(['Paper']);
     expect(affectedReading(current, { 'readAloud.favoritesOnly': true, 'readAloud.favoriteVoices': '["azure::ava","local::bella"]' }, sessions)).toEqual([]);
     const filtered = { ...current, 'readAloud.favoritesOnly': true };
-    expect(affectedReading(filtered, { 'readAloud.favoriteVoices': '[]' }, sessions)).toEqual(['Paper']);
+    expect(affectedReading(filtered, { 'readAloud.favoriteVoices': '[]' }, sessions)).toEqual([]);
     expect(affectedReading(filtered, { 'readAloud.favoritesOnly': false }, sessions)).toEqual([]);
     expect(affectedReading(current, { 'readAloud.favoriteVoices': '[]' }, sessions)).toEqual([]);
   });
+  it('allows favorites-only with no favorites, even when a Player has no voice', () => {
+    const sessions = [
+      { title: 'Reading', voices: [{ id: 'azure::ava', provider: 'azure' }] },
+      { title: 'Loading', uncertain: true, voices: [] },
+    ];
+    const current = { 'readAloud.favoritesOnly': false, 'readAloud.favoriteVoices': '[]' };
+    expect(affectedReading(current, { 'readAloud.favoritesOnly': true }, sessions)).toEqual([]);
+    expect(affectedReading(current, { 'readAloud.favoriteVoices': '["azure::ava"]', 'local.baseURL': 'other' }, sessions)).toEqual(['Loading']);
+  });
+  it('offers all voices after a confirmed empty favorite listing and guards an unresolved listing', () => {
+    const reader = { _internalReader: { _readAloudManager: { active: true, selectedVoiceID: 'local::bella' } } };
+    const sources = { azure: 'ready' as 'ready' | 'loading' | 'failed' };
+    const impact = createReadingImpact({ values: () => ({ 'readAloud.favoritesOnly': true }), readers: () => [reader],
+      pending: () => [], listings: () => ({ published: [], sources }), title: () => 'Paper' });
+    const change = { 'readAloud.favoriteVoices': '["azure::missing"]' };
+    expect(impact.affectedTabs(change)).toEqual([]);
+    for (const state of ['loading', 'failed'] as const) {
+      sources.azure = state;
+      expect(impact.affectedTabs(change)).toEqual(['Paper']);
+    }
+  });
+
   it('protects subsequent synthesis and playback settings in a restore, while allowing cosmetic settings', () => {
     const sessions = [{ title: 'Paper', voices: [{ id: 'azure::ava', provider: 'azure' }] }];
     expect(affectedReading({ 'azure.apiKey': 'old' }, { 'azure.apiKey': 'new' }, sessions)).toEqual(['Paper']);

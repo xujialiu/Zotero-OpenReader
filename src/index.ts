@@ -290,7 +290,12 @@ let liveListObservers: unknown[] = [];
 const readingImpact = createReadingImpact({
   values: () => flattenSettings(loadSettings(prefs)),
   readers: () => Zotero.Reader._readers ?? [],
-  pending: reader => voicePick?.protectedVoices(reader) ?? [],
+  pending: reader => {
+    const handoff = voicePick?.protectedVoices(reader) ?? [];
+    const starting = readingStart?.pendingVoice(reader);
+    return starting ? [...handoff, starting] : handoff;
+  },
+  listings: reader => liveVoiceList?.catalog(reader) ?? null,
   title: readingTabTitle,
 });
 const playerController = createPlayerController({

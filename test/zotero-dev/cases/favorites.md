@@ -30,3 +30,17 @@ the ♥ in Zotero's own player's list (issue #45), went with that player in
    again blocks them. **Since 1.10.2 the switch refuses to go on while
    the default is not a favorite** — the notice names the voice and the
    two ways out (`src/ui/voice-list-switches.ts`), the pref stays false.
+
+### Reading guard on a favorite change (#195)
+
+With an isolated fixture Player open and no selected voice, mark a listed
+voice while *Offer only favorite voices* is off. The heart and stored
+favorite change without closing the Player. With the filter on, unmark
+the only favorite while that voice is in use. The list expands and the
+voice stays selected. With two favorites, removing the one in use must
+still be refused. Use a fixture voice separate from the Global default.
+
+Read `diagnostics.readingImpact(changes)` before each action. Expect
+no affected tabs for the first two and the fixture tab for the third.
+Also check enabling the filter with an empty list. Capture and restore
+the exact favorite settings, user-value flags and fixture voice choices.

@@ -1,4 +1,4 @@
-import { affectedReading } from '../src/read-aloud/settings-impact';
+import { createReadingImpact } from '../src/read-aloud/settings-impact';
 import { loadSettings } from '../src/core/settings';
 import { flattenSettings } from '../src/core/settings-backup';
 import { describe, expect, it, vi } from 'vitest';
@@ -32,9 +32,10 @@ function fixture(extra: Partial<Parameters<typeof createPlayerController>[0]> = 
   const prefs = { get: (key: string) => values.get(key), set: (key: string, value: unknown) => { values.set(key, value); } };
   const remainingTime = vi.fn(() => ({ status: 'ready' as const, scope: 'document' as const, seconds: 100 }));
   const message = vi.fn((key: string, _args?: Record<string, string | number>) => key);
+  const impact = createReadingImpact({ values: () => flattenSettings(loadSettings(prefs)), readers: () => [reader], pending: () => [], title: () => 'Paper' });
   const controller = createPlayerController({
     remainingTime,
-    affectedTabs: changes => affectedReading(flattenSettings(loadSettings(prefs)), changes, manager.active ? [{ title: 'Paper', voices: [{ id: manager.selectedVoiceID, provider: 'fish' }] }] : []),
+    affectedTabs: impact.affectedTabs,
     prefs: { get: key => values.get(key), set: (key, value) => { values.set(key, value); } },
     labels: () => ({ fish: 'Fish Audio', standard: 'Zotero Standard', premium: 'Zotero Premium' }), clone: (_reader, value) => value,
     start, close, togglePaused, rememberSpeed, follow, navigate, automatic, manual, anyReading: () => manager.active,
@@ -88,14 +89,19 @@ describe('player controller', () => {
     expect(f.rememberSpeed).toHaveBeenCalledWith(1.7);
     await expect(f.controller.command(f.reader, 'speed', NaN)).rejects.toThrow();
   });
-  it('writes the shared favorite and volume preferences and protects a favorite-only active catalog', async () => {
+  it('marks a favorite in a voiceless Player and unmarks the last favorite during reading', async () => {
     const f = fixture();
+    f.reader._internalReader._state.readAloudState.popupOpen = true;
+    f.manager.selectedVoiceID = '';
     await f.controller.command(f.reader, 'favorite', 'fish::one');
     expect(JSON.parse(String(f.values.get(PREF_PREFIX + 'readAloud.favoriteVoices')))).toEqual(['fish::one']);
     await f.controller.command(f.reader, 'volume', 35);
     expect(f.values.get(PREF_PREFIX + 'readAloud.volume')).toBe(35);
-    f.values.set(PREF_PREFIX + 'readAloud.favoritesOnly', true); f.manager.active = true;
-    await expect(f.controller.command(f.reader, 'favorite', 'fish::one')).rejects.toThrow();
+    f.values.set(PREF_PREFIX + 'readAloud.favoritesOnly', true);
+    f.manager.active = true;
+    f.manager.selectedVoiceID = 'fish::one';
+    await f.controller.command(f.reader, 'favorite', 'fish::one');
+    expect(f.values.get(PREF_PREFIX + 'readAloud.favoriteVoices')).toBe('[]');
   });
   it('reports the current reader follow state even when the old global preference is enabled', () => {
     const f = fixture();

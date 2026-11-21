@@ -1,5 +1,5 @@
 import type { CatalogEntry } from './catalog';
-import { encodeVoiceId } from './voice-catalog';
+import { decodeVoiceId, encodeVoiceId, type VoiceCatalogSnapshot } from './voice-catalog';
 
 /**
  * Favorite voices, as marked in the settings' voice browser. The pref
@@ -33,6 +33,16 @@ export function serializeFavoriteVoices(ids: readonly string[]): string {
 
 export function toggleFavoriteVoice(ids: readonly string[], id: string): string[] {
   return ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+}
+
+export type FavoriteListings = Pick<VoiceCatalogSnapshot, 'published' | 'sources'>;
+
+/** Offer everything again only when all marked voices are known to be absent. */
+export function favoritesLimitList(favorites: ReadonlySet<string>, listings: FavoriteListings): boolean {
+  return favorites.size > 0 && (listings.published.some(voice => favorites.has(voice.id)) || [...favorites].some(id => {
+    const state = listings.sources[decodeVoiceId(id)?.provider ?? 'zotero'];
+    return state === 'loading' || state === 'failed';
+  }));
 }
 
 /**

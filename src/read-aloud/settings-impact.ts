@@ -1,7 +1,7 @@
 import type { FlatSettings } from '../core/settings-backup';
-import { parseFavoriteVoices } from './favorites';
+import { favoritesLimitList, parseFavoriteVoices, type FavoriteListings } from './favorites';
 import { decodeVoiceId } from './voice-catalog';
-import { editsPlayerList, sectionOf } from '../core/settings-sync';
+import { sectionOf } from '../core/settings-sync';
 import { SWITCH_IDS } from '../core/settings';
 import { isPlayerOpen } from './player-stop';
 
@@ -36,22 +36,31 @@ export function affectedReading(current: FlatSettings, changes: FlatSettings, se
   return affectedSessions(current, changes, sessions).map(session => session.title);
 }
 
-function affectedSessions<S extends ReadingSession>(current: FlatSettings, changes: FlatSettings, sessions: readonly S[]): S[] {
-  const changed = Object.keys(changes).filter(key => changes[key] !== current[key] && !turnsOn(key, changes[key]));
+function affectedSessions<S extends ReadingSession>(current: FlatSettings, changes: FlatSettings, sessions: readonly S[],
+  listings?: (reader: unknown) => FavoriteListings | null): S[] {
+  const changed = Object.keys(changes).filter(key => changes[key] !== current[key]);
   const next = { ...current, ...changes };
-  const filtering = changed.some(key => key === 'readAloud.favoritesOnly' || key === 'readAloud.favoriteVoices')
-    && next['readAloud.favoritesOnly'] === true;
-  const favorites = new Set(parseFavoriteVoices(next['readAloud.favoriteVoices']));
-  return sessions.filter(session => changed.some(key => PLAYBACK_SETTINGS.has(key))
-    || (session.uncertain && changed.some(editsPlayerList)) || session.voices.some(voice =>
-    changed.some(key => key.startsWith(voice.provider + '.')) || (filtering && !favorites.has(voice.id)),
-  ));
+  const providerKeys = changed.filter(key => (SWITCH_IDS as readonly string[]).includes(sectionOf(key)));
+  const protectedProviders = new Set(providerKeys.filter(key => !turnsOn(key, changes[key])).map(sectionOf));
+  const playbackChanged = changed.some(key => PLAYBACK_SETTINGS.has(key));
+  const favoritesEdited = changed.some(key => key === 'readAloud.favoritesOnly' || key === 'readAloud.favoriteVoices');
+  const favorites = new Set(next['readAloud.favoritesOnly'] === true && favoritesEdited
+    ? parseFavoriteVoices(next['readAloud.favoriteVoices']) : []);
+  return sessions.filter(session => {
+    if (playbackChanged || (session.uncertain && protectedProviders.size > 0)) return true;
+    if (session.voices.some(voice => protectedProviders.has(voice.provider))) return true;
+    if (!favorites.size || !session.voices.some(voice => !favorites.has(voice.id))) return false;
+    // A simultaneous provider edit can invalidate what this catalog knows.
+    const catalog = providerKeys.length ? null : listings?.(session.reader);
+    return !catalog || favoritesLimitList(favorites, catalog);
+  });
 }
 
 export function createReadingImpact(deps: {
   values(): FlatSettings;
   readers(): readonly any[];
   pending(reader: any): readonly string[];
+  listings?(reader: unknown): FavoriteListings | null;
   title(reader: any): string;
 }) {
   function protectedVoices(reader: any): string[] {
@@ -76,10 +85,11 @@ export function createReadingImpact(deps: {
     }
     return out;
   }
+  const affected = (changes: FlatSettings) => affectedSessions(deps.values(), changes, sessions(), deps.listings);
   return {
     sessions,
     protectedVoices,
-    affectedTabs: (changes: FlatSettings) => affectedReading(deps.values(), changes, sessions()),
-    affectedSessions: (changes: FlatSettings) => affectedSessions(deps.values(), changes, sessions()),
+    affectedTabs: (changes: FlatSettings) => affected(changes).map(session => session.title),
+    affectedSessions: affected,
   };
 }

@@ -6,7 +6,7 @@ import { silentWav } from '../core/silence';
 import type { ProviderId, SynthesisResult, Timestamp, TTSProvider } from '../core/providers/types';
 import { withTimeout } from '../core/timeout';
 import { unlistedProviders, type CatalogEntry, type UnlistedProvider } from './catalog';
-import { countVoicesResponse, filterCatalogToFavorites, filterVoicesResponseToFavorites } from './favorites';
+import { countVoicesResponse, favoritesLimitList, filterCatalogToFavorites, filterVoicesResponseToFavorites } from './favorites';
 import { isInvisibleSegment } from './invisible-text';
 import { buildVoicesResponse, decodeVoiceId, listVoicesResponse, playableVoices, tierForProvider, withoutTiers,
   type CatalogSource, type CatalogVoice, type ListedVoice, type ListingState, type VoiceCatalogSnapshot } from './voice-catalog';
@@ -457,12 +457,8 @@ export function createRemoteInterface(deps: RemoteInterfaceDeps): RemoteInterfac
     const publishNow = () => {
       if (deps.isReaderLive?.() === false) return;
       const published = [...nativeList, ...[...local.values()].flatMap(source => source.voices)];
-      const marked = published.filter(voice => favorites.has(voice.id));
-      const unresolvedFavorite = [...favorites].some(id => {
-        const source = decodeVoiceId(id)?.provider ?? 'zotero';
-        return sources[source] === 'loading' || sources[source] === 'failed';
-      });
-      publish({ offered: marked.length || unresolvedFavorite ? marked : published, published,
+      const offered = favoritesLimitList(favorites, { published, sources }) ? published.filter(voice => favorites.has(voice.id)) : published;
+      publish({ offered, published,
         sources: { ...sources }, zotero,
         rejectedKeys: [...local.values()].filter(s => s.entry.failure?.reason === 'key').map(s => s.entry.provider) });
     };

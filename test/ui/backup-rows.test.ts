@@ -1,3 +1,4 @@
+import { openHighlightPane, sentence, word } from './restore-highlight-fixture';
 import { affectedReading } from '../../src/read-aloud/settings-impact';
 import { flattenSettings } from '../../src/core/settings-backup';
 import { loadSettings } from '../../src/core/settings';
@@ -124,6 +125,19 @@ describe('Backup settings', () => {
 });
 
 describe('Restore settings', () => {
+  it('restores Word only and favorites together while a voiceless Player and Settings are open', async () => {
+    const favorites = PREF_PREFIX + 'readAloud.favoriteVoices';
+    const file = serializeBackup(createBackup(fakePrefs({ [sentence]: false, [word]: true, [favorites]: '["azure::ava"]' })));
+    const t = setup({ file, prefs: { [sentence]: true, [word]: false } });
+    Object.assign(t.deps, { affectedTabs: (changes: FlatSettings) => affectedReading(flattenSettings(loadSettings(t.prefs)), changes,
+      [{ title: 'Paper', voices: [], uncertain: true }]) });
+    const pane = openHighlightPane(t.prefs);
+    await t.el('ztts-restore').fire('command');
+    expect(t.deps.warn).not.toHaveBeenCalled();
+    expect(t.prefs.store).toMatchObject({ [sentence]: false, [word]: true, [favorites]: '["azure::ava"]' });
+    pane.dispose();
+  });
+
   it('allows a harmless complete restore but refuses every write when any restored setting affects reading', async () => {
     for (const region of ['eastasia', 'westeurope']) {
       const initial = { [PREF_PREFIX + 'azure.region']: 'eastasia', [PREF_PREFIX + 'shortcuts.speedUp']: 'Shift+X' };

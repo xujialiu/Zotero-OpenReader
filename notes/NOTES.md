@@ -880,3 +880,4 @@ then) and is in the git history before that day.
 
 - A long PDF table Segment times out after Fish Audio starts returning audio (issue #262)
 - Each table piece has a native source range before playback (issue #262)
+- A restore can encounter two independent settings guards (issues #195 and #208)

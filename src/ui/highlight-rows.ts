@@ -105,11 +105,19 @@ export function initHighlightRows(doc: RowsDocument, prefs: PrefsBackend, deps: 
     else el.removeAttribute('disabled');
   };
 
+  let disposed = false;
   const refresh = () => {
     const h = loadSettings(prefs).highlight;
     const levels = readHighlightLevels(prefs);
-    // Both off in the prefs — a hand-edited profile — reads as the sentence: write it back so the checkbox agrees
-    if (!h.sentence && !h.word) prefs.set(HIGHLIGHT_SWITCH_PREFS.sentence, true);
+    // A restore or sync can turn one level off and the other on in the same
+    // turn. Repair a hand-edited both-off pair only after those writes finish.
+    if (!h.sentence && !h.word) {
+      void Promise.resolve().then(() => {
+        if (!disposed && prefs.get(HIGHLIGHT_SWITCH_PREFS.sentence) === false && prefs.get(HIGHLIGHT_SWITCH_PREFS.word) === false) {
+          prefs.set(HIGHLIGHT_SWITCH_PREFS.sentence, true);
+        }
+      });
+    }
     const theme = deps.theme?.() ?? { ...LIGHT_THEME, scheme: 'light' as const };
     paint(HIGHLIGHT_IDS.preview, previewBoxStyle(theme));
     const sentence = previewStyle(h.sentenceColor, h.sentenceAlpha, theme.scheme);
@@ -142,6 +150,7 @@ export function initHighlightRows(doc: RowsDocument, prefs: PrefsBackend, deps: 
   return {
     refresh,
     dispose: () => {
+      disposed = true;
       for (const off of unwatch.splice(0)) off();
     },
   };

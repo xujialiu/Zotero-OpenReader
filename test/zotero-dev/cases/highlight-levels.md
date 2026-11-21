@@ -194,3 +194,13 @@ corrects them.
     original before any pref restore, then byte for byte), the settings
     windows the run opened (closed). The switches never start or stop
     playback.
+
+14. **Restore Word only with Settings open (#208).** Start from Sentence
+    only. With the Highlight rows observing, write Sentence off and Word
+    on in the same synchronous turn as a settings restore. After the
+    observers settle, expect the two preferences and checkboxes to show
+    Sentence off and Word on. Leave both off in a separate turn and
+    verify Sentence comes back on. Restore both preferences and their
+    original user-value flags. Automated file and server restore tests
+    drive the button handlers with the dialogs and file I/O supplied by
+    the fixture. The native file picker is a human-only step.

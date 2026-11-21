@@ -1,3 +1,4 @@
+import { openHighlightPane, sentence, word } from './restore-highlight-fixture';
 import { describe, expect, it, vi } from 'vitest';
 import { PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { BACKUP_FILENAME, BACKUP_FORMAT, createBackup, machineSettingsFilename, parseBackup, serializeBackup, type FlatSettings } from '../../src/core/settings-backup';
@@ -194,6 +195,16 @@ describe('Restore settings from server', () => {
       machine: 'office-pc',
     }),
   );
+
+  it('restores the server backup’s Word-only choice over Sentence only with the Highlight pane open', async () => {
+    const t = setup({ prefs: { [sentence]: true, [word]: false } });
+    t.client.download.mockResolvedValue(serializeBackup(createBackup(fakePrefs({ [sentence]: false, [word]: true }))));
+    const pane = openHighlightPane(t.prefs);
+    await t.el(WEBDAV_IDS.download).fire('command');
+    expect(t.client.download).toHaveBeenCalledOnce();
+    expect(t.prefs.store).toMatchObject({ [sentence]: false, [word]: true });
+    pane.dispose();
+  });
 
   it('takes the one file there is, asks first, then applies it and redraws the unbound rows', async () => {
     const t = setup({ prefs: { [PREF_PREFIX + 'azure.region']: 'eastasia' } });

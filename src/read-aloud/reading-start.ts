@@ -228,6 +228,7 @@ export function createReadingStart(deps: ReadingStartDeps) {
     current(reader: unknown, token: number | null): boolean {
       return !disposed && (token === null ? !deps.ownsCatalog(reader) : !!latest && latest.reader === reader && latest.token === token);
     },
+    pendingVoice(reader: unknown): string | null { return pending && pending.reader === reader ? pending.choice.id : null; },
     waiting(reader: unknown): CatalogSource | null {
       return pending && pending.reader === reader && pending.armed && readiness(pending) === 'waiting' ? voiceSource(pending.choice.id) : null;
     },
