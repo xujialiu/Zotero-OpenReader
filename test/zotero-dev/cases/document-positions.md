@@ -7,7 +7,7 @@ never the owner's own, under the same switch as the plugin's own positions
 file (`Sync reading positions between computers`): every crafted item and
 every test file deleted from the server at the end, the switch restored,
 every tab closed. The file is
-`xujialiu-positions.json` (docs/spec/SYNC-FORMAT.md, section 6): items keyed
+`openreader-positions.json` (docs/spec/SYNC-FORMAT.md, section 6): items keyed
 by Document Id, canonical compact JSON, nothing ever removed. The fixture
 is an EPUB of the run's own — never a user document — and nothing plays
 out loud: the simulator rule applies to the desktop too, volume down before
@@ -20,7 +20,7 @@ the first Read Aloud. Diagnostics: `Zotero.ZoteroTTS.diagnostics.positionSync()`
 1. **Schema 3 at startup.** `position()` → `database.userVersion` 3,
    `store.schemaVersion` 3, `store.state` `open`, `database.rows` the
    count from before the update (nothing lost); `positionSync().shared`
-   present with `file` `xujialiu-positions.json`, `documents.documents` a
+   present with `file` `openreader-positions.json`, `documents.documents` a
    number, `transport` a stats object.
 
 ### 2

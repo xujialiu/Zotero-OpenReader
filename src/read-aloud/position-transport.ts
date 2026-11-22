@@ -1,6 +1,6 @@
 import { createSingleFlight } from '../core/single-flight';
-import { WebDAVError } from '../core/webdav';
-import { mergePositions, parsePositions, POSITIONS_FILENAME, PositionsFileError, serializePositions } from './position-file';
+import { downloadPositionCopies, uploadPositionCopies } from './position-file-copies';
+import { mergePositions, parsePositions, POSITIONS_FILENAMES, PositionsFileError, serializePositions } from './position-file';
 import type { PositionEntry } from './read-aloud-position';
 
 /**
@@ -208,25 +208,19 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
     }
     try {
       const client = deps.client();
-      let remoteText: string | null = null;
-      try {
-        remoteText = await client.download(POSITIONS_FILENAME);
-      } catch (e) {
-        // No file yet is the ordinary first run, not a failure
-        if (!(e instanceof WebDAVError) || e.kind !== 'not-found') throw e;
-      }
-      let remote: PositionEntry[] = [];
-      if (remoteText !== null) {
+      const copies = await downloadPositionCopies(client, POSITIONS_FILENAMES);
+      const entries: PositionEntry[] = [];
+      for (const copy of copies) {
+        if (copy.text === null) continue;
         try {
-          remote = parsePositions(remoteText);
-        } catch (e) {
-          // A newer build's file is left strictly alone; a broken one is
-          // treated as absent, and the upload below heals it
-          if (e instanceof PositionsFileError && e.kind === 'newer') throw e;
-          reportGated(e);
-          remoteText = null;
+          for (const entry of parsePositions(copy.text)) entries.push(entry);
+        } catch (error) {
+          if (error instanceof PositionsFileError && error.kind === 'newer') throw error;
+          reportGated(error);
+          copy.text = null;
         }
       }
+      const remote = mergePositions([], entries);
       // This machine's tombstones (#51): an entry stamped no later than the
       // deletion leaves the file here. The check failing keeps the entry —
       // a wrongly kept orphan costs bytes, a wrongly dropped one is a bookmark
@@ -263,11 +257,7 @@ export function createPositionTransport(deps: PositionTransportDeps): PositionTr
         }
       }
       const text = serializePositions(merged);
-      let uploaded = false;
-      if (remoteText === null ? merged.length > 0 : text !== remoteText) {
-        await client.upload(POSITIONS_FILENAME, text);
-        uploaded = true;
-      }
+      const uploaded = await uploadPositionCopies(client, copies, text, merged.length > 0);
       remoteEntries = remote.length;
       adoptedCount = adopted;
       remappedCount = remapped;

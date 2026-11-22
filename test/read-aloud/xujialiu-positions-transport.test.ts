@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { WebDAVError } from '../../src/core/webdav';
-import { entryOf, SHARED_POSITIONS_FILENAME, SHARED_POSITIONS_FORMAT, serializeSharedPositions, type SharedItem } from '../../src/read-aloud/xujialiu-positions-file';
+import { entryOf, SHARED_POSITIONS_FILENAMES, SHARED_POSITIONS_FORMAT, serializeSharedPositions, type SharedItem } from '../../src/read-aloud/xujialiu-positions-file';
 import { createSharedTransport, SHARED_SYNC_RETRY_MS, type SharedTransportDeps } from '../../src/read-aloud/xujialiu-positions-transport';
 
 const FIXTURE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'xujialiu-positions.v1.json'), 'utf8');
@@ -81,10 +81,10 @@ describe('createSharedTransport', () => {
     const h = harness();
     h.setLocal([item()]);
     await h.transport.flush('startup');
-    expect(h.uploads).toEqual([{ name: SHARED_POSITIONS_FILENAME, text: serializeSharedPositions([entryOf(item())]) }]);
+    expect(h.uploads).toEqual(SHARED_POSITIONS_FILENAMES.map(name => ({ name, text: serializeSharedPositions([entryOf(item())]) })));
     h.setRemote(h.uploads[0].text);
     await h.transport.flush('reader-open');
-    expect(h.uploads).toHaveLength(1);
+    expect(h.uploads).toHaveLength(2);
     expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', uploaded: false, remoteItems: 1, adopted: 0 });
   });
 
@@ -117,7 +117,7 @@ describe('createSharedTransport', () => {
     broken.setRemote('{not json');
     broken.setLocal([item()]);
     await broken.transport.flush('startup');
-    expect(broken.uploads).toHaveLength(1);
+    expect(broken.uploads).toHaveLength(2);
     expect(broken.transport.stats().lastOutcome).toBe('ok');
   });
 
@@ -169,6 +169,62 @@ describe('createSharedTransport', () => {
     await h.transport.flush('reader-open');
     expect(prepared).toBe(1);
     expect(h.errors.map(String)).toEqual(['Error: backfill failed']);
-    expect(h.uploads).toHaveLength(1);
+    expect(h.uploads).toHaveLength(2);
+  });
+});
+
+describe('WebDAV filename transition', () => {
+  const current = 'openreader-positions.json';
+  const legacy = 'xujialiu-positions.json';
+
+  it('merges the two copies by document and retries a partial write using fresh reads', async () => {
+    const first = entryOf(item({ id: ID_B, stamp: { at: 10, device: 'desk' } }));
+    const latest = entryOf(item({ id: ID_C, stamp: { at: 30, device: 'phone' } }));
+    const older = entryOf(item({ id: ID_C, stamp: { at: 20, device: 'phone' } }));
+    const files = new Map([[current, serializeSharedPositions([first, older])], [legacy, serializeSharedPositions([latest])]]);
+    const puts: string[] = [];
+    let failLegacy = true;
+    const client = {
+      download: async (name: string) => {
+        const text = files.get(name);
+        if (text === undefined) throw new WebDAVError('not-found', 'missing', 404);
+        return text;
+      },
+      upload: async (name: string, text: string) => {
+        puts.push(name);
+        if (name === legacy && failLegacy) throw new WebDAVError('network', 'interrupted');
+        files.set(name, text);
+      },
+    };
+    const h = harness({ client: () => client });
+    const merged = serializeSharedPositions([first, latest]);
+    await h.transport.flush('partial');
+    expect(files.get(current)).toBe(merged);
+    expect(files.get(legacy)).toBe(serializeSharedPositions([latest]));
+    failLegacy = false;
+    await h.transport.flush('retry');
+    expect(files.get(legacy)).toBe(merged);
+    await h.transport.flush('unchanged');
+    expect(puts).toEqual([current, legacy, legacy]);
+
+    files.delete(current);
+    await h.transport.flush('legacy-only');
+    expect(files.get(current)).toBe(merged);
+    expect(puts.at(-1)).toBe(current);
+  });
+
+  it('does not write either name if one download fails', async () => {
+    const uploads: string[] = [];
+    const client = {
+      download: async (name: string) => {
+        if (name === legacy) throw new WebDAVError('network', 'timeout');
+        return serializeSharedPositions([entryOf(item({ id: ID_B, stamp: { at: 10, device: 'desk' } }))]);
+      },
+      upload: async (name: string) => { uploads.push(name); },
+    };
+    const h = harness({ client: () => client });
+    await h.transport.flush('network-error');
+    expect(h.transport.stats().lastOutcome).toBe('error');
+    expect(uploads).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { WebDAVError } from '../../src/core/webdav';
-import { POSITIONS_FILENAME, POSITIONS_FORMAT, POSITIONS_VERSION, serializePositions } from '../../src/read-aloud/position-file';
+import { POSITIONS_FILENAMES, POSITIONS_FORMAT, POSITIONS_VERSION, serializePositions } from '../../src/read-aloud/position-file';
 import { createPositionSync } from '../../src/read-aloud/position-sync';
 import { createPositionTransport, entryHere, SYNC_RETRY_MS, type LibraryLookup, type PositionTransportDeps } from '../../src/read-aloud/position-transport';
 import type { PositionEntry } from '../../src/read-aloud/read-aloud-position';
@@ -87,8 +87,8 @@ describe('createPositionTransport', () => {
     const mine = entry();
     h.setLocal([mine]);
     await h.transport.flush('startup');
-    expect(h.downloads).toEqual([POSITIONS_FILENAME]);
-    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([mine]) }]);
+    expect(h.downloads).toEqual(POSITIONS_FILENAMES);
+    expect(h.uploads).toEqual(POSITIONS_FILENAMES.map(name => ({ name, text: serializePositions([mine]) })));
     expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', remoteEntries: 0, uploaded: true });
   });
 
@@ -120,7 +120,7 @@ describe('createPositionTransport', () => {
     h.setLocal([newer]);
     h.setRemote(serializePositions([older, theirs]));
     await h.transport.flush('reader-close');
-    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([newer, theirs]) }]);
+    expect(h.uploads).toEqual(POSITIONS_FILENAMES.map(name => ({ name, text: serializePositions([newer, theirs]) })));
     expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', adopted: 0, uploaded: true });
   });
 
@@ -132,7 +132,7 @@ describe('createPositionTransport', () => {
     h.setRemote(serializePositions([foreign]));
     await h.transport.flush('startup');
     expect(h.adopted).toEqual([mine]); // the foreign entry is never offered to the sampler
-    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([mine, foreign]) }]);
+    expect(h.uploads).toEqual(POSITIONS_FILENAMES.map(name => ({ name, text: serializePositions([mine, foreign]) })));
   });
 
   it('hands adopt the parsed, normalized position', async () => {
@@ -154,7 +154,7 @@ describe('createPositionTransport', () => {
     h.setRemote('<html>maintenance</html>');
     await h.transport.flush('startup');
     expect(h.errors).toHaveLength(1);
-    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([mine]) }]);
+    expect(h.uploads).toEqual(POSITIONS_FILENAMES.map(name => ({ name, text: serializePositions([mine]) })));
     expect(h.transport.stats().lastOutcome).toBe('ok');
   });
 
@@ -175,18 +175,18 @@ describe('createPositionTransport', () => {
     h.setRemote(new WebDAVError('network', 'no reply'));
     await h.transport.flush('startup');
     expect(h.transport.stats().lastOutcome).toBe('error');
-    expect(h.downloads).toHaveLength(1);
+    expect(h.downloads).toHaveLength(2);
 
     h.transport.poke('reader-open'); // inside the window: no request at all
     await settle();
-    expect(h.downloads).toHaveLength(1);
+    expect(h.downloads).toHaveLength(2);
     expect(h.transport.stats().lastOutcome).toBe('skipped');
 
     h.tick(SYNC_RETRY_MS);
     h.setRemote(null);
     h.transport.poke('reader-open');
     await settle();
-    expect(h.downloads).toHaveLength(2);
+    expect(h.downloads).toHaveLength(4);
     expect(h.transport.stats().lastOutcome).toBe('ok');
   });
 
@@ -196,7 +196,7 @@ describe('createPositionTransport', () => {
     await h.transport.flush('startup');
     h.tick(1000);
     await h.transport.flush('shutdown'); // forced through the back-off, still fails
-    expect(h.downloads).toHaveLength(2);
+    expect(h.downloads).toHaveLength(4);
     expect(h.errors).toHaveLength(1);
     h.tick(SYNC_RETRY_MS);
     await h.transport.flush('shutdown');
@@ -226,11 +226,11 @@ describe('createPositionTransport', () => {
     h.transport.poke('two');
     h.transport.poke('three');
     h.transport.poke('four');
-    expect(h.downloads).toHaveLength(1);
+    expect(h.downloads).toHaveLength(2);
     release();
     await first;
     await settle();
-    expect(h.downloads).toHaveLength(2); // one in flight, one trailing — never four
+    expect(h.downloads).toHaveLength(4); // one in flight, one trailing — never four
     expect(h.transport.stats().syncs).toBe(2);
     expect(h.transport.stats().lastTrigger).toBe('four');
   });
@@ -252,7 +252,7 @@ describe('createPositionTransport', () => {
     await running;
     await behind;
     // Both forced through: the running one and the trailing shutdown flush
-    expect(h.downloads).toHaveLength(3);
+    expect(h.downloads).toHaveLength(6);
     expect(h.transport.stats().lastOutcome).toBe('ok');
   });
 
@@ -265,7 +265,7 @@ describe('createPositionTransport', () => {
     h.setRemote(serializePositions([gone, kept]));
     await h.transport.flush('delete');
     expect(h.adopted).toEqual([kept]);
-    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([kept]) }]);
+    expect(h.uploads).toEqual(POSITIONS_FILENAMES.map(name => ({ name, text: serializePositions([kept]) })));
     expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', dropped: 1, uploaded: true });
   });
 
@@ -274,7 +274,7 @@ describe('createPositionTransport', () => {
     h.setRemote(serializePositions([entry({ ts: 5000 })]));
     await h.transport.flush('startup');
     expect(h.adopted).toEqual([]);
-    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([]) }]);
+    expect(h.uploads).toEqual(POSITIONS_FILENAMES.map(name => ({ name, text: serializePositions([]) })));
     expect(h.transport.stats().dropped).toBe(1);
   });
 
@@ -325,7 +325,7 @@ describe('createPositionTransport', () => {
     h.setLocal([mine]);
     await h.transport.flush('startup');
     expect(h.errors).toHaveLength(1);
-    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([mine]) }]);
+    expect(h.uploads).toEqual(POSITIONS_FILENAMES.map(name => ({ name, text: serializePositions([mine]) })));
     expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', dropped: 0 });
   });
 });
@@ -426,7 +426,7 @@ describe('the transport adopts under this computer’s library number (issue #18
     await h.transport.flush('reader-open');
     expect(h.adopted).toEqual([]);
     expect(h.errors).toHaveLength(1);
-    expect(h.uploads).toEqual([{ name: POSITIONS_FILENAME, text: serializePositions([mine, theirs]) }]);
+    expect(h.uploads).toEqual(POSITIONS_FILENAMES.map(name => ({ name, text: serializePositions([mine, theirs]) })));
     expect(h.transport.stats()).toMatchObject({ lastOutcome: 'ok', adopted: 0, remapped: 0 });
   });
 });
@@ -536,5 +536,61 @@ describe('a group library numbered differently on two computers (issue #187)', (
       { id: `2/${KEY}`, ts: 2000, pos: AT_B },
       { id: `3/${KEY}`, ts: 2000, pos: AT_B },
     ]);
+  });
+});
+
+describe('WebDAV filename transition', () => {
+  const current = 'zotero-openreader-positions.json';
+  const legacy = 'zotero-tts-positions.json';
+
+  it('merges the two copies by document and retries a partial write using fresh reads', async () => {
+    const first = entry({ key: 'DOC0000A', ts: 10 });
+    const latest = entry({ key: 'DOC0000B', ts: 30 });
+    const older = entry({ key: 'DOC0000B', ts: 20 });
+    const files = new Map([[current, serializePositions([first, older])], [legacy, serializePositions([latest])]]);
+    const puts: string[] = [];
+    let failLegacy = true;
+    const client = {
+      download: async (name: string) => {
+        const text = files.get(name);
+        if (text === undefined) throw new WebDAVError('not-found', 'missing', 404);
+        return text;
+      },
+      upload: async (name: string, text: string) => {
+        puts.push(name);
+        if (name === legacy && failLegacy) throw new WebDAVError('network', 'interrupted');
+        files.set(name, text);
+      },
+    };
+    const h = harness({ client: () => client });
+    const merged = serializePositions([first, latest]);
+    await h.transport.flush('partial');
+    expect(files.get(current)).toBe(merged);
+    expect(files.get(legacy)).toBe(serializePositions([latest]));
+    failLegacy = false;
+    await h.transport.flush('retry');
+    expect(files.get(legacy)).toBe(merged);
+    await h.transport.flush('unchanged');
+    expect(puts).toEqual([current, legacy, legacy]);
+
+    files.delete(current);
+    await h.transport.flush('legacy-only');
+    expect(files.get(current)).toBe(merged);
+    expect(puts.at(-1)).toBe(current);
+  });
+
+  it('does not write either name if one download fails', async () => {
+    const uploads: string[] = [];
+    const client = {
+      download: async (name: string) => {
+        if (name === legacy) throw new WebDAVError('network', 'timeout');
+        return serializePositions([entry({ key: 'DOC0000A', ts: 10 })]);
+      },
+      upload: async (name: string) => { uploads.push(name); },
+    };
+    const h = harness({ client: () => client });
+    await h.transport.flush('network-error');
+    expect(h.transport.stats().lastOutcome).toBe('error');
+    expect(uploads).toEqual([]);
   });
 });

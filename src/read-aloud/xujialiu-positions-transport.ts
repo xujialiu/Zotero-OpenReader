@@ -1,18 +1,18 @@
 import { createSingleFlight } from '../core/single-flight';
-import { WebDAVError } from '../core/webdav';
+import { downloadPositionCopies, uploadPositionCopies } from './position-file-copies';
 import {
   entryOf,
   mergeSharedPositions,
   parseSharedPositions,
   serializeSharedPositions,
-  SHARED_POSITIONS_FILENAME,
+  SHARED_POSITIONS_FILENAMES,
   SharedPositionsFileError,
   type SharedEntry,
   type SharedItem,
 } from './xujialiu-positions-file';
 
 /**
- * Carries the Positions File, `xujialiu-positions.json`, over the user's
+ * Carries the Positions File, `openreader-positions.json`, over the user's
  * WebDAV folder (docs/spec/SYNC-FORMAT.md, section 6): the shape of
  * position-transport.ts, for the file OpenReader shares. Every sync is
  * download → merge → adopt → conditional upload: the file's items merged
@@ -153,25 +153,22 @@ export function createSharedTransport(deps: SharedTransportDeps): SharedTranspor
         await prepared;
       }
       const client = deps.client();
-      let remoteText: string | null = null;
-      try {
-        remoteText = await client.download(SHARED_POSITIONS_FILENAME);
-      } catch (e) {
-        if (!(e instanceof WebDAVError) || e.kind !== 'not-found') throw e;
-      }
-      let remote: SharedEntry[] = [];
+      const copies = await downloadPositionCopies(client, SHARED_POSITIONS_FILENAMES);
+      const entries: SharedEntry[] = [];
       let droppedNow = 0;
-      if (remoteText !== null) {
+      for (const copy of copies) {
+        if (copy.text === null) continue;
         try {
-          const parsed = parseSharedPositions(remoteText);
-          remote = parsed.entries;
-          droppedNow = parsed.dropped;
-        } catch (e) {
-          if (e instanceof SharedPositionsFileError && e.kind === 'newer') throw e;
-          reportGated(e);
-          remoteText = null;
+          const parsed = parseSharedPositions(copy.text);
+          for (const entry of parsed.entries) entries.push(entry);
+          droppedNow += parsed.dropped;
+        } catch (error) {
+          if (error instanceof SharedPositionsFileError && error.kind === 'newer') throw error;
+          reportGated(error);
+          copy.text = null;
         }
       }
+      const remote = mergeSharedPositions([], entries);
       const local = deps.local().map(entryOf);
       const merged = mergeSharedPositions(local, remote);
       // Only what came from the file is offered: an entry that is this
@@ -189,11 +186,7 @@ export function createSharedTransport(deps: SharedTransportDeps): SharedTranspor
         if (deps.adopt(entry.usable)) adopted++;
       }
       const text = serializeSharedPositions(merged);
-      let uploaded = false;
-      if (remoteText === null ? merged.length > 0 : text !== remoteText) {
-        await client.upload(SHARED_POSITIONS_FILENAME, text);
-        uploaded = true;
-      }
+      const uploaded = await uploadPositionCopies(client, copies, text, merged.length > 0);
       remoteItems = remote.length;
       carried = carriedNow;
       dropped = droppedNow;

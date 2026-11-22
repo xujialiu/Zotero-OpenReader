@@ -9,7 +9,7 @@ session on either side reads this before it reads an implementation.
 Glossary terms are OpenReader's (`CONTEXT.md` there): a **Document Id** is the
 content-derived identity of a document; a **Reading Position** is a
 **Locator** plus a **Text Anchor**; a **Stamp** is a wall-clock time plus the
-**Device Name** that wrote it; the **Positions File** is `xujialiu-positions.json`.
+**Device Name** that wrote it; the **Positions File** is `openreader-positions.json`.
 One term is this document's own: a document is **Named** on a device once
 that device has computed its Document Id — OpenReader names a document when
 it is added to its Library, the plugin names an EPUB attachment when its
@@ -21,15 +21,32 @@ reader opens — and a device adopts items only for the documents it has named.
 | --- | --- | --- | --- | --- |
 | `zotero-tts-settings_<machine>.json` | the plugin, one per machine | the plugin | `zotero-tts-settings` | 1 |
 | `zotero-tts-shared-settings.json` | the plugin, every machine | the plugin | `zotero-tts-shared-settings` | 1 |
-| `zotero-tts-positions.json` | the plugin, every machine | the plugin | `zotero-tts-positions` | 1 |
-| `xujialiu-positions.json` | the plugin (1.13.2+) and OpenReader | both | `xujialiu-positions` | 1 |
+| `zotero-openreader-positions.json` (formerly `zotero-tts-positions.json`) | Zotero plugin | Zotero plugin | `zotero-tts-positions` | 1 |
+| `openreader-positions.json` (formerly `xujialiu-positions.json`) | Zotero plugin and OpenReader | both | `xujialiu-positions` | 1 |
 
-**The naming rule.** `zotero-tts-*` names a file private to the plugin: its
-shape may change whenever the plugin's own version policy allows. `xujialiu-*`
-names a file that is a contract between the owner's products: its shape
-changes only here, by the policy in section 2. A product never writes, rewrites
-or deletes a file whose name it does not know; both products filter the
-folder's listing to the names above.
+### Position filenames during the transition
+
+Each table row is a separate format. Starting with plugin 1.18.0 and the
+corresponding OpenReader compatibility release, a writer reads both names
+for its format before adopting or writing anything. With equal timestamps
+the local item wins, then the item under the new name. Otherwise the newest
+position for each document wins. Copying between names preserves timestamps.
+Both names receive the same canonical bytes. Only differing copies need a
+PUT. An absent copy needs no PUT for an empty union.
+
+A missing name (HTTP 404) is ordinary. If either GET fails for another
+reason, or either copy requires a newer reader, do not write the pair.
+Malformed data follows section 2.2. If one PUT succeeds and the other
+fails, the next run reads both again. OpenReader reads only the shared
+pair. On the desktop the same tombstone filters the merged attachment rows
+before either copy is written.
+
+Once mixed-version compatibility has shipped and been verified, a later
+release may finish the rename. On each device, merge the old names one
+last time per folder, even when the new files exist. Mark this complete
+only after success. Later syncs use only the new names. Leave old files
+on the server. Subsequent old-client writes no longer reach these devices.
+See Zotero-OpenReader #263 and OpenReader #379.
 
 ## 2. Rules every shared file follows
 
@@ -122,7 +139,7 @@ by OpenReader in this version; a later version of this document may open it
 to OpenReader under a new file rather than by adding to this one. Shape and
 merge: `src/core/settings-sync.ts`.
 
-## 5. `zotero-tts-positions.json`
+## 5. `zotero-openreader-positions.json`
 
 The plugin's own reading positions, keyed by Zotero's coordinates.
 
@@ -153,15 +170,11 @@ The plugin's own reading positions, keyed by Zotero's coordinates.
   differently on two computers holds one item per numbering, each kept
   current by the computers that use it.
 
-**Retirement.** This file is retired in **2.0.0**, and only once the Positions
-File's id rules and locator dialects for `pdf` and `snapshot` are written in
-section 6 and shipped in the plugin, so that a desktop-only owner loses no PDF
-or snapshot position. Until then every 1.x build writes both files. A 2.0
-build neither reads nor deletes this file: machines still on 1.x keep using
-it. The condition is written in the code beside the transport, the way
-issue #22 records the pref import's deletion.
+The attachment-based format remains the desktop carrier for all three
+document types. Manual export suggests the new filename. Import accepts
+both generations of exports by their contents.
 
-## 6. `xujialiu-positions.json` — the Positions File
+## 6. `openreader-positions.json` — the Positions File
 
 Every device's reading positions, keyed by Document Id, written by the plugin
 and by OpenReader alike. It exists because the plugin's file names a document
@@ -355,7 +368,7 @@ native position is built only then, in the open document, by resolving the
 anchor (section 6.5); a resolution that fails falls back to the machine's own
 last native position and says so. A native row newer than the item the plugin
 holds for its document — one from before this file existed, one brought from
-another computer through `zotero-tts-positions.json`, one whose last sentences
+another computer through the desktop file, one whose last sentences
 gave the plugin no item to write — gets its item when the document is next
 opened, stamped with the row's own time, and only if that time is still newer
 than the item held when it is written: an item adopted meanwhile, as the
@@ -399,3 +412,6 @@ playing nothing moves.
   #187): a group library is numbered per computer, and a position read in a
   group never reached a computer that numbered it differently. No change to
   any file's shape.
+
+- **2026-11-22** — section 1 defines the two-step filename transition. Both
+  position formats, their version numbers and their merge keys stay in use.

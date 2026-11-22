@@ -75,12 +75,12 @@ import { createZoteroHighlightMenu, type ZoteroHighlightMenu } from './ui/zotero
 import { createPositionSync, ACTIVE_TICK_MS, IDLE_TICK_MS, type PositionSync } from './read-aloud/position-sync';
 import { createPositionStore, type PositionStore } from './read-aloud/position-store';
 import { createPositionTransport, entryHere, SYNC_POSITIONS_OBSERVER, withLibrariesOnce, type LibraryLookup, type PositionTransport } from './read-aloud/position-transport';
-import { POSITIONS_FILENAME } from './read-aloud/position-file';
+import { POSITIONS_FILENAMES } from './read-aloud/position-file';
 import { createWebDAVClient, type WebDAVDeps } from './core/webdav';
 import { describePosition, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
 import { createDocumentPositions, type DocumentPositions } from './read-aloud/document-positions';
 import { createSharedTransport, type SharedTransport } from './read-aloud/xujialiu-positions-transport';
-import { locatorPath, SHARED_POSITIONS_FILENAME, type SharedItem } from './read-aloud/xujialiu-positions-file';
+import { locatorPath, SHARED_POSITIONS_FILENAME, SHARED_POSITIONS_FILENAMES, type SharedItem } from './read-aloud/xujialiu-positions-file';
 import { blockAtRef, captureShared, offsetInBlock, resolveSharedItem, sdtPositionAt, snapshotBlocks, walkSnapshot, type BlockSnapshot, type SharedCapture } from './read-aloud/sdt-anchor';
 import { documentIdOf } from './core/document-id/identity';
 import { bytesAsArchive } from './core/document-id/zip';
@@ -4235,7 +4235,7 @@ const diagnostics = {
     try {
       const client = createWebDAVClient(loadSettings(prefs).webdav, webdavDeps());
       const files = (await client.list()).filter(
-        (f) => SETTINGS_FILE_PATTERN.test(f.name) || f.name === POSITIONS_FILENAME || f.name === SHARED_SETTINGS_FILENAME || f.name === SHARED_POSITIONS_FILENAME,
+        (f) => SETTINGS_FILE_PATTERN.test(f.name) || POSITIONS_FILENAMES.some(name => f.name === name) || f.name === SHARED_SETTINGS_FILENAME || SHARED_POSITIONS_FILENAMES.some(name => f.name === name),
       );
       return JSON.stringify({ url: client.url, files }, null, 1);
     } catch (e) {

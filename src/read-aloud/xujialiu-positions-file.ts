@@ -1,5 +1,5 @@
 /**
- * The Positions File, `xujialiu-positions.json` (docs/spec/SYNC-FORMAT.md,
+ * The Positions File, `openreader-positions.json` (docs/spec/SYNC-FORMAT.md,
  * section 6): every device's reading positions keyed by Document Id, written
  * by this plugin and by OpenReader alike. This module is the file's shape and
  * nothing else — parse, canonical serialise, merge — so the transport
@@ -27,7 +27,8 @@
  * and treated as absent (spec 2.1, 2.2).
  */
 
-export const SHARED_POSITIONS_FILENAME = 'xujialiu-positions.json';
+export const SHARED_POSITIONS_FILENAME = 'openreader-positions.json';
+export const SHARED_POSITIONS_FILENAMES = [SHARED_POSITIONS_FILENAME, 'xujialiu-positions.json'] as const;
 export const SHARED_POSITIONS_FORMAT = 'xujialiu-positions';
 export const SHARED_POSITIONS_VERSION = 1;
 

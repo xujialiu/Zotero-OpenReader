@@ -364,7 +364,7 @@ describe('a voice list that lands after its tab closed (issue #165)', () => {
 
 describe('a pause sends both positions files up at once (issue #161)', () => {
   const FOLDER = 'https://dav.test/positions/';
-  const FILES = ['zotero-tts-positions.json', 'xujialiu-positions.json'];
+  const FILES = ['zotero-openreader-positions.json', 'zotero-tts-positions.json', 'openreader-positions.json', 'xujialiu-positions.json'];
 
   /** A WebDAV folder in memory: GET answers what the last PUT left, or 404; every request is logged with the clock. */
   function davFolder() {
@@ -456,7 +456,7 @@ describe('a pause sends both positions files up at once (issue #161)', () => {
     const pausedAt = Date.now();
     await vi.advanceTimersByTimeAsync(1000);
     const after = dav.log.filter((request) => request.at >= pausedAt && FILES.includes(request.name));
-    expect(FILES.map((name) => after.some((request) => request.method === 'GET' && request.name === name))).toEqual([true, true]);
+    for (const name of FILES) expect(after.some((request) => request.method === 'GET' && request.name === name)).toBe(true);
   });
 });
 
@@ -545,7 +545,7 @@ describe('the shutdown with a WebDAV folder that stops answering (issue #219)', 
 
   it('lets go within one bound at the default switches, both positions files asked for at once', async () => {
     const { heldFor, hung } = await shutdownAgainstHangingFolder({ 'extensions.zotero.zotero-tts.webdav.syncPositions': true });
-    expect(hung.sort()).toEqual(['xujialiu-positions.json', 'zotero-tts-positions.json']);
+    expect(hung.sort()).toEqual(['openreader-positions.json', 'xujialiu-positions.json', 'zotero-openreader-positions.json', 'zotero-tts-positions.json']);
     expect(heldFor).toBeLessThanOrEqual(SYNC_SHUTDOWN_TIMEOUT_MS + 1000);
   });
 
@@ -554,7 +554,7 @@ describe('the shutdown with a WebDAV folder that stops answering (issue #219)', 
       'extensions.zotero.zotero-tts.webdav.syncPositions': true,
       'extensions.zotero.zotero-tts.webdav.syncSettings': true,
     });
-    expect(hung.sort()).toEqual(['xujialiu-positions.json', 'zotero-tts-positions.json', 'zotero-tts-shared-settings.json']);
+    expect(hung.sort()).toEqual(['openreader-positions.json', 'xujialiu-positions.json', 'zotero-openreader-positions.json', 'zotero-tts-positions.json', 'zotero-tts-shared-settings.json']);
     expect(heldFor).toBeLessThanOrEqual(SYNC_SHUTDOWN_TIMEOUT_MS + 1000);
   });
 });

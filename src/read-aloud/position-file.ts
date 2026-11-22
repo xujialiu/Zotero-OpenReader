@@ -15,20 +15,12 @@ import { isPositionEntry, normalizePosition, type PositionEntry } from './read-a
  * also what the manual positions import uses (#41): an import is a merge,
  * never a replace.
  *
- * **Retired in 2.0.0, on one condition** (docs/spec/SYNC-FORMAT.md, section
- * 5; issue #126, the shape of #22): since 1.13.2 the Positions File
- * `xujialiu-positions.json` (xujialiu-positions-file.ts) carries the same
- * positions keyed by Document Id for EPUB, and this file stays the
- * desktop-only carrier for PDF and snapshot positions. It goes only once the
- * spec defines and the plugin ships a Document Id rule and a locator dialect
- * for `pdf` and `snapshot`, so a desktop-only owner loses nothing; until
- * then every 1.x build writes both files. A 2.0 build neither reads nor
- * deletes this file — machines still on 1.x keep using it. To delete then:
- * this module, position-transport.ts and its wiring in index.ts, the
- * `positions` pair of the Backup group's import/export, and their tests.
+ * The attachment format also carries PDFs and snapshots between desktops.
+ * The two filenames are synchronized during the transition (spec section 1).
  */
 
-export const POSITIONS_FILENAME = 'zotero-tts-positions.json';
+export const POSITIONS_FILENAME = 'zotero-openreader-positions.json';
+export const POSITIONS_FILENAMES = [POSITIONS_FILENAME, 'zotero-tts-positions.json'] as const;
 export const POSITIONS_FORMAT = 'zotero-tts-positions';
 export const POSITIONS_VERSION = 1;
 

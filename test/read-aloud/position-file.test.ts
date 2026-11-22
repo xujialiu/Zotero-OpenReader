@@ -44,7 +44,7 @@ describe('serializePositions / parsePositions', () => {
     const parsed = JSON.parse(serializePositions([entry()])) as { format: string; version: number };
     expect(parsed.format).toBe(POSITIONS_FORMAT);
     expect(parsed.version).toBe(POSITIONS_VERSION);
-    expect(POSITIONS_FILENAME).toBe('zotero-tts-positions.json');
+    expect(POSITIONS_FILENAME).toBe('zotero-openreader-positions.json');
   });
 
   it('normalizes a PDF rect list to its resume point on the way in', () => {
