@@ -24,7 +24,7 @@ One case, one behavior. Item numbers stay stable across moves; see
 
 - [Providers on first installation (issue #132)](cases/first-install-providers.md)
 
-- [The OpenAI section split into OpenAI, Xiaomi MiMo and OpenAI Compatible, and the old settings carried over (issue #113)](cases/openai-split.md)
+- [OpenAI, Xiaomi MiMo and OpenAI Compatible (issues #113 and #115)](cases/openai-split.md)
 - [System voices](cases/system-voices.md) — 1.8, 1.17, 1.18
 - [Newly installed Windows voices appear after Test connection or Enable (issue #241)](cases/system-voice-refresh.md)
 - [Exact Windows voice selection despite overlapping names (issue #243)](cases/system-voice-selection.md)

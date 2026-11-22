@@ -19,7 +19,7 @@ and 5.9, added after the split.
 6. **In-place reinstall with a tab open** (the path an update takes):
    the log `stopped` (observers unregistered, `Closing database`,
    `Database closed`) before `started`; `startup()` all ok; no
-   dead-object error; the store `open`, `imported 0 / swept 0`, the
+   dead-object error; the store `open`, `swept 0`, the
    fixture's row intact; the pane re-registered once, no `Pane with ID`
    error. **Since 1.10.3 the open tab is handed the new instance's
    interface** (issue #38, `src/read-aloud/interface-redelivery.ts`):

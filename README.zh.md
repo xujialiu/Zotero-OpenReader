@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:7b89f817837d -->
+<!-- translated-from: README.md sha256:170b85bfcc6d -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -45,6 +45,11 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 3. 到**编辑 → 设置 → OpenReader** 里启用一个服务商——拿不准就先启用 **Fish Audio**（[为什么](#服务商)）——再在播放器第一个下拉框里选它和它的一个语音。
 
 > **更新提醒：**插件更新后可能出现运行异常，建议更新后重启 Zotero。
+
+**从旧版升级到 1.18.0 或更高版本**
+
+- **1.9.x 及更早版本。**要保留阅读位置，请先安装 [1.17.2](https://github.com/xujialiu/Zotero-OpenReader/releases/tag/v1.17.2)，启动一次 Zotero，再继续升级。
+- **1.12.11 及更早版本。**先经过 1.17.2 升级，也能保留 OpenAI、Xiaomi MiMo 和 OpenAI Compatible 的设置。如果需要使用旧设置备份，请先在 1.17.2 中恢复，再重新备份。
 
 <p align="center"><img src="assets/player.png" width="720" alt="顶部栏的播放器，正在用 Fish Audio 的语音朗读：正在读的词是蓝色，它所在的句子是黄色"></p>
 

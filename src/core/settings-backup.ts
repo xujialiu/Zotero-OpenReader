@@ -1,7 +1,6 @@
 import { documentReplacementSettings, isDocumentReplacementsKey } from './document-replacements';
 import { documentVoiceSettings, isDocumentVoiceKey, parseDocumentVoice } from './document-voices';
 import { parseDocumentReplacements, serializeDocumentReplacements } from './replacements';
-import { convertLegacySettings } from './openai-split';
 import { DEFAULTS, fishModelOfFreeOnly, loadSettings, PREF_PREFIX, type PrefsBackend, type Settings } from './settings';
 
 /** The Fish Audio switch issue #182 replaced, as a backup or the sync names it. */
@@ -115,9 +114,7 @@ export function parseBackup(text: string): ParsedBackup {
   }
   const settings: FlatSettings = {};
   const ignored: string[] = [];
-  // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts): a
-  // file from before the split holds one OpenAI section; read as three
-  for (const [key, raw] of Object.entries(convertLegacySettings(backup.settings))) {
+  for (const [key, raw] of Object.entries(backup.settings)) {
     if (isDocumentVoiceKey(key)) {
       const record = parseDocumentVoice(raw);
       if (record) settings[key] = JSON.stringify(record);

@@ -118,6 +118,13 @@ describe('parseBackup / applyBackup', () => {
     expect(parsed.ignored).toEqual(['openai-official.model', 'cacheAudio', 'speed', 'future.setting']);
   });
 
+  it('restores current settings and skips the retired OpenAI section', () => {
+    const settings = { 'openai.server': 'mimo', 'openai.model': 'old-model', 'mimo.model': 'current-model', cacheAudio: false };
+    const parsed = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, version: 1, settings }));
+    expect(parsed.settings).toEqual({ 'mimo.model': 'current-model', cacheAudio: false });
+    expect(parsed.ignored).toEqual(['openai.server', 'openai.model']);
+  });
+
   it('skips the player switch of a backup from before #134: no setting chooses the player any more', () => {
     const parsed = parseBackup(
       JSON.stringify({

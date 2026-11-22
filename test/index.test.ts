@@ -171,12 +171,25 @@ async function start(readers: unknown[], setup: { prefs?: Record<string, unknown
   running = Zotero.ZoteroTTS;
   await running.startup({ id: 'zotero-tts@xujialiu.top', version: '0.0.0-test', rootURI: 'file:///plugin/' });
   const report = JSON.parse(running.diagnostics.startup()) as { failed: string[] };
-  return { report, listeners, errors, diagnostics: running.diagnostics };
+  return { report, listeners, errors, prefs, diagnostics: running.diagnostics };
 }
 
 afterEach(async () => {
   await running?.shutdown(ADDON_UPGRADE);
   running = null;
+});
+
+it('starts with current settings and SQLite positions when retired preferences are present', async () => {
+  const prefix = 'extensions.zotero.zotero-tts.';
+  const obsolete = {
+    [prefix + 'readAloud.positions']: JSON.stringify({ v: 1, items: [] }),
+    [prefix + 'openai.server']: 'mimo',
+    [prefix + 'openai.model']: 'old-model',
+  };
+  const { prefs, report } = await start([], { prefs: { ...obsolete, [prefix + 'mimo.model']: 'current-model' } });
+  expect(report.failed).toEqual([]);
+  for (const [key, value] of Object.entries(obsolete)) expect(prefs.get(key)).toBe(value);
+  expect(prefs.get(prefix + 'mimo.model')).toBe('current-model');
 });
 
 describe('HTML compatibility startup wiring (#228)', () => {

@@ -33,7 +33,6 @@ import { FTL_FILE, hasMessageSource, paneElementBlank, sentences, setMessageSour
 import { installOwnSource, OWN_SOURCE_NAME, unregisterOwnSource } from './core/l10n-source';
 import { createMemoryCache } from './core/memory-cache';
 import { audioSetup, autoScrollMode, readingLine, createZoteroPrefs, DEFAULTS, enabledProviders, hiddenZoteroTiers, loadSettings, migrateFishFreeOnly, migrateLegacyProviderPref, migrateSyncPositionsDefault, migrateWebDAVFolderSwitch, PREF_PREFIX, prefetchOf, WEBDAV_FOLDER_OBSERVER, webdavSwitchOn, ZOTERO_SWITCH_IDS } from './core/settings';
-import { LEGACY_OPENAI_FIELDS, LEGACY_OPENAI_PREFIX, legacyPrefSet, migrateOpenAISplit, SPLIT_TARGETS, type SplitReport } from './core/openai-split';
 import { createBackup, flattenSettings, machineSettingsFilename, serializeBackup, SETTINGS_FILE_PATTERN } from './core/settings-backup';
 import { createSettingsAutoUpload, type SettingsAutoUpload } from './core/settings-autoupload';
 import { machineId } from './core/machine-id';
@@ -78,7 +77,7 @@ import { createPositionStore, type PositionStore } from './read-aloud/position-s
 import { createPositionTransport, entryHere, SYNC_POSITIONS_OBSERVER, withLibrariesOnce, type LibraryLookup, type PositionTransport } from './read-aloud/position-transport';
 import { POSITIONS_FILENAME } from './read-aloud/position-file';
 import { createWebDAVClient, type WebDAVDeps } from './core/webdav';
-import { describePosition, READ_ALOUD_POSITIONS_PREF, readPositions, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
+import { describePosition, resumeTarget, type PositionEntry } from './read-aloud/read-aloud-position';
 import { createDocumentPositions, type DocumentPositions } from './read-aloud/document-positions';
 import { createSharedTransport, type SharedTransport } from './read-aloud/xujialiu-positions-transport';
 import { locatorPath, SHARED_POSITIONS_FILENAME, type SharedItem } from './read-aloud/xujialiu-positions-file';
@@ -1971,10 +1970,6 @@ async function startPositionTracking(): Promise<void> {
   positionDB = db;
   positionStore = createPositionStore({
     db,
-    legacy: {
-      read: () => readPositions(prefs),
-      clear: () => prefs.clear?.(READ_ALOUD_POSITIONS_PREF),
-    },
     // Synchronous map lookups: plugins start in initComplete, after
     // Items._loadIDsAndKeys has run for every library (xpcom/zotero.js:746)
     itemExists: (lib, key) => !!Zotero.Items.getIDFromLibraryAndKey(lib, key),
@@ -1990,7 +1985,6 @@ async function startPositionTracking(): Promise<void> {
     // so bookmarks still work for this session — they just do not persist
     Zotero.logError(e);
     Zotero.debug('[zotero-tts] position store failed to open; bookmarks stay in memory this session');
-    initial = readPositions(prefs);
   }
   // The Positions File's side (spec 6): what the store holds of it, seeded
   // once; a read that fails leaves the maps empty for the session
@@ -3167,15 +3161,6 @@ async function startup({ id, version, rootURI }: StartupParams): Promise<void> {
           if (migrateFishFreeOnly(prefs)) Zotero.debug('[zotero-tts] Fish Audio reads with s2.1-pro: the free-model switch was off');
         },
       ],
-      // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts):
-      // the one OpenAI section of 1.12.11 and before becomes three
-      [
-        'OpenAI section split',
-        () => {
-          openaiSplitReport = migrateOpenAISplit(prefs);
-          if (openaiSplitReport) Zotero.debug(`[zotero-tts] split the OpenAI section: ${JSON.stringify(openaiSplitReport)}`);
-        },
-      ],
       ['settings pane', () => registerPrefsPane(rootURI, id, version)],
       ['plugin player', () => {
         // Gecko retains resource stylesheet/script caches across in-place upgrades.
@@ -3390,38 +3375,9 @@ function readerRows(row: (reader: any, index: number) => unknown): unknown[] {
 /** A language tag named as the popup's dropdown names it, in the app's locale — what the pane hands the voice browser too. */
 const appLanguageNames = (locales: readonly string[]) => languageNames(locales, { locale: Zotero.locale ?? 'en' });
 
-/** What this start's split of the old OpenAI section did (core/openai-split.ts); null when it found no old section. TEMPORARY, issue #113. */
-let openaiSplitReport: SplitReport | null = null;
-
 /** For Tools → Developer → Run JavaScript: `Zotero.ZoteroTTS.diagnostics.highlight()` etc. */
 const diagnostics = {
   pluginPlayer: async () => JSON.stringify(pluginPlayer?.inspect() ?? null),
-  /**
-   * Issue #113: the three sections as the prefs say (keys, headers and
-   * the address by length, never by value), this start's split report,
-   * any pref of the old section still holding a value the user set —
-   * none after a split — and the old prefs whose default is still
-   * registered from the old prefs.js (`staleDefaults`), which the split
-   * ignores. Synchronous.
-   */
-  openaiSplit(): string {
-    const settings = loadSettings(prefs);
-    const masked = (id: (typeof SPLIT_TARGETS)[number]) =>
-      Object.fromEntries(
-        Object.entries(settings[id]).map(([field, value]) => [field, field === 'apiKey' || field === 'headers' || field === 'baseURL' ? String(value).length : value]),
-      );
-    return JSON.stringify(
-      {
-        feature: 'openai-split',
-        report: openaiSplitReport,
-        sections: Object.fromEntries(SPLIT_TARGETS.map((id) => [id, masked(id)])),
-        legacyPrefs: LEGACY_OPENAI_FIELDS.filter((field) => legacyPrefSet(prefs, field)),
-        staleDefaults: LEGACY_OPENAI_FIELDS.filter((field) => !legacyPrefSet(prefs, field) && prefs.get(PREF_PREFIX + LEGACY_OPENAI_PREFIX + field) !== undefined),
-      },
-      null,
-      1,
-    );
-  },
   /** direction is optional; readerIndex makes fixture checks independent of tab routing. */
   voiceSwitch(direction?: -1 | 1, readerIndex?: number): string {
     if (direction === -1 || direction === 1) {
@@ -4146,15 +4102,9 @@ const diagnostics = {
         // a wrap silently landed on an Xray wrapper
         live: safe(() => liveHookCounts()),
         trace: closeTrace.slice(-30),
-        // The queue and the import/sweep/load counters — never row contents
+        // The queue and the sweep/load counters — never row contents
         store: safe(() => positionStore?.stats() ?? 'not started'),
         database,
-        // Gone after the first run of this version; entries here mean the
-        // import has not happened (or the pref was written by a 1.9.x again)
-        legacyPref: safe(() => {
-          const raw = prefs.get(READ_ALOUD_POSITIONS_PREF);
-          return typeof raw === 'string' ? { chars: raw.length, entries: readPositions(prefs).length } : null;
-        }),
         readers,
       },
       null,

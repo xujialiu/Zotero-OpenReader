@@ -1,5 +1,3 @@
-import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
-
 /**
  * Where Read Aloud stopped, per attachment, kept by the plugin.
  *
@@ -11,8 +9,7 @@ import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
  * scrolling somewhere else and closing the document therefore loses the
  * position. This store keeps its own copy, which nothing erases.
  *
- * It is not an annotation: nothing is drawn in the document, nothing shows
- * up in the annotations sidebar, nothing is synced or exported. `pos` is
+ * The position is separate from annotations. `pos` is
  * opaque JSON — Zotero's `sourcePosition`, whose shape differs per view
  * type (PDF `{pageIndex, rects}`, EPUB `{value: <cfi>}`, snapshot
  * `{value: <selector>}`) and which is only ever handed straight back to
@@ -21,17 +18,9 @@ import { PREF_PREFIX, type PrefsBackend } from '../core/settings';
  *
  * The store lives in the plugin's own database, one row per attachment
  * (position-store.ts, #16) — every document the user has listened to keeps
- * its bookmark, no count cap and no byte cap. The pref here is the legacy
- * home: `readPositions` remains for the one-time import, which clears it
- * (deleted in 2.0, #22). Reading state, not a setting: like
- * `readAloud.memory` this store stays out of DEFAULTS, so
- * settings-backup.ts (which backs up exactly DEFAULTS) does not carry
- * bookmarks between machines.
+ * its bookmark, no count cap and no byte cap. Settings backups exclude
+ * reading positions. The positions export and WebDAV sync carry them.
  */
-
-export const READ_ALOUD_POSITIONS_PREF = PREF_PREFIX + 'readAloud.positions';
-
-const FORMAT_VERSION = 1;
 
 export interface PositionEntry {
   /** The attachment's libraryID. */
@@ -57,19 +46,6 @@ export function isPositionEntry(value: unknown): value is PositionEntry {
     e.pos !== undefined &&
     e.pos !== null
   );
-}
-
-/** The legacy pref store, read for the import (and as the fallback when the database cannot open). */
-export function readPositions(prefs: PrefsBackend): PositionEntry[] {
-  try {
-    const raw = prefs.get(READ_ALOUD_POSITIONS_PREF);
-    if (typeof raw !== 'string' || !raw) return [];
-    const parsed = JSON.parse(raw) as { v?: unknown; items?: unknown };
-    if (parsed?.v !== FORMAT_VERSION || !Array.isArray(parsed.items)) return [];
-    return parsed.items.filter(isPositionEntry);
-  } catch {
-    return [];
-  }
 }
 
 /**

@@ -14,7 +14,6 @@ import type { PositionEntry } from '../../src/read-aloud/read-aloud-position';
 // schema, the REPLACE semantics and the user_version migration are what is
 // verified, not a count of calls.
 
-const FAT_PDF = { pageIndex: 7, rects: Array.from({ length: 500 }, (_, i) => [i, i, i + 1, i + 1]) };
 const PDF_POINT = { pageIndex: 7, rects: [[0.5, 0.5, 0.5, 0.5]] };
 const CFI = { type: 'FragmentSelector', value: 'epubcfi(/6/34!/4/2/4/2/4/1,:0,:94)' };
 
@@ -88,17 +87,12 @@ function fakeDB(raw = new DatabaseSync(':memory:')) {
   };
 }
 
-function harness(over: Partial<PositionStoreDeps> = {}, legacyEntries: PositionEntry[] = []) {
+function harness(over: Partial<PositionStoreDeps> = {}) {
   const fake = fakeDB();
   const errors: unknown[] = [];
-  let cleared = 0;
   let clock = 0;
   const deps: PositionStoreDeps = {
     db: fake.db,
-    legacy: {
-      read: () => legacyEntries,
-      clear: () => void cleared++,
-    },
     itemExists: () => true,
     libraryExists: () => true,
     now: () => clock,
@@ -110,7 +104,6 @@ function harness(over: Partial<PositionStoreDeps> = {}, legacyEntries: PositionE
     store,
     fake,
     errors,
-    clearedCount: () => cleared,
     tick: (ms: number) => void (clock += ms),
   };
 }
@@ -138,31 +131,6 @@ describe('createPositionStore', () => {
     expect(loaded).toEqual([{ lib: 1, key: 'KEEP0000', pos: CFI, ts: 5 }]);
   });
 
-  it('open() imports the pref store, normalized on the way in, then clears the pref', async () => {
-    const h = harness({}, [entry({ key: 'FATPDF00', pos: FAT_PDF, ts: 5 }), entry({ key: 'EPUB0000', pos: CFI, ts: 4 })]);
-    const loaded = await h.store.open();
-    expect(h.fake.rows()).toEqual([
-      { libraryID: 1, key: 'EPUB0000', pos: JSON.stringify(CFI), ts: 4 },
-      { libraryID: 1, key: 'FATPDF00', pos: JSON.stringify(PDF_POINT), ts: 5 },
-    ]);
-    expect(loaded.map((e) => e.key).sort()).toEqual(['EPUB0000', 'FATPDF00']);
-    expect(h.clearedCount()).toBe(1);
-  });
-
-  it('open() clears an empty pref too — garbage read as no entries has nothing to lose', async () => {
-    const h = harness({}, []);
-    await h.store.open();
-    expect(h.clearedCount()).toBe(1);
-  });
-
-  it('a failed import keeps the pref so the next start retries', async () => {
-    const h = harness({}, [entry()]);
-    h.fake.fail('disk I/O error');
-    await expect(h.store.open()).rejects.toThrow('disk I/O error');
-    expect(h.clearedCount()).toBe(0);
-    expect(h.store.stats().state).toBe('failed');
-  });
-
   it('open() sweeps rows for attachments and libraries that no longer exist', async () => {
     const first = harness();
     await first.store.open();
@@ -182,22 +150,15 @@ describe('createPositionStore', () => {
     expect(h.store.stats().swept).toBe(2);
   });
 
-  it('imported rows are swept in the same open() — import runs first', async () => {
-    const h = harness({ itemExists: (_lib, key) => key !== 'DELETED0' }, [entry({ key: 'DELETED0' }), entry({ key: 'ALIVE000' })]);
-    const loaded = await h.store.open();
-    expect(loaded.map((e) => e.key)).toEqual(['ALIVE000']);
-    expect(h.clearedCount()).toBe(1);
-  });
-
   it('a sweep check that throws keeps the row — never delete on an error', async () => {
-    const h = harness(
-      {
-        itemExists: () => {
-          throw new Error('Items not loaded');
-        },
-      },
-      [entry()],
-    );
+    const first = harness();
+    await first.store.open();
+    first.store.save(entry());
+    await first.store.drain();
+    const h = harness({
+      db: fakeDB(first.fake.raw).db,
+      itemExists: () => { throw new Error('Items not loaded'); },
+    });
     const loaded = await h.store.open();
     expect(loaded).toHaveLength(1);
     expect(h.errors.length).toBeGreaterThan(0);
@@ -378,16 +339,15 @@ describe('createPositionStore', () => {
   });
 
   it('stats() carries the counts the live verification reads', async () => {
-    const h = harness({}, [entry({ key: 'IMPORTED' })]);
+    const h = harness();
     expect(h.store.stats().state).toBe('new');
     await h.store.open();
     const stats = h.store.stats();
     expect(stats).toMatchObject({
       state: 'open',
       schemaVersion: SCHEMA_VERSION,
-      imported: 1,
       swept: 0,
-      loaded: 1,
+      loaded: 0,
       queued: 0,
       writing: false,
       lastError: null,
@@ -515,7 +475,7 @@ describe('schema 3: the Document Ids and the shared Positions File items (docs/s
     expect(tables).toEqual(['deletions', 'document_positions', 'documents', 'positions']);
     await h.store.close();
     // Opened again on the same file: nothing to migrate, nothing lost
-    const again = createPositionStore({ ...h.store === undefined ? {} : {}, db: fakeDB(h.fake.raw).db, legacy: { read: () => [], clear: () => {} }, itemExists: () => true, libraryExists: () => true, now: () => 0, error: () => {} } as PositionStoreDeps);
+    const again = harness({ db: fakeDB(h.fake.raw).db }).store;
     expect(await again.open()).toEqual([entry({ key: 'OLDROW01', ts: 7 })]);
     expect(h.fake.userVersion()).toBe(3);
   });

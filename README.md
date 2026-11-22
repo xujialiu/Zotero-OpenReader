@@ -50,6 +50,15 @@ is built for the way its author reads —
 > **Update reminder:** The plugin may not work correctly after an update.
 > We recommend restarting Zotero after every plugin update.
 
+**Upgrading an older installation to 1.18.0 or later**
+
+- **1.9.x or earlier.** To keep reading positions, install
+  [1.17.2](https://github.com/xujialiu/Zotero-OpenReader/releases/tag/v1.17.2)
+  and start Zotero once before updating.
+- **1.12.11 or earlier.** The same intermediate upgrade carries your OpenAI,
+  Xiaomi MiMo and OpenAI Compatible settings forward. If you rely on an old
+  settings backup, restore it in 1.17.2 and make a fresh backup there.
+
 <p align="center"><img src="assets/player.png" width="720" alt="The player as a top bar, reading with a Fish Audio voice: the word being read in blue, its sentence in yellow"></p>
 
 ## Providers

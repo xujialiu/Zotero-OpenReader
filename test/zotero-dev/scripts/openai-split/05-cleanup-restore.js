@@ -1,13 +1,5 @@
-// Final cleanup for the 2026-09-16 re-run: closes and erases the fixture 04
-// opened FIRST (reads Zotero.ZoteroTTSRun.state.item4Fixture, falling back
-// to searching today's "Zotero-TTS issue 113 openai-split fixture B" items
-// if state did not survive), THEN disables Xiaomi MiMo and OpenAI
-// Compatible (item 5: "Disable both (no player open); the three switches
-// back to what item 1 found"), restores readAloud.memory to what it was
-// before 04 wrote it (state.memoryBeforeFixture, same fallback), then
-// readAloud.volume (clearUserPref -- it had no user value) and
-// webdav.autoUploadSettings (-> true, the LAST write of the run, per the
-// brief).
+// Close the fixture before disabling its providers. The driver restores
+// the standard baseline after the settings window closes.
 //
 // ORDER BUG FOUND LIVE 2026-09-16 IN THIS SCRIPT'S FIRST DRAFT, fixed
 // here: it disabled BEFORE closing the fixture, so the fixture (still
@@ -28,17 +20,7 @@
 // seen with dialog.close() (never a button) as a safety net, though it
 // should not appear once the fixture is already gone.
 //
-// ALSO restores extensions.zotero.reader.readAloudVoices verbatim: Zotero's
-// OWN selectTier/selectVoice calls in 04 persist through
-// _persistCurrentVoice regardless of the plugin, rewriting this pref's
-// "mul" entry (confirmed live: 1397 -> 1465 chars after 04's playback
-// probe) even though nothing in this kit calls Zotero.Prefs.set on it
-// directly -- reads 00's captured baseline (state.baseline, falling back
-// to the run's own 00 result file on disk) and writes it back byte-exact.
-// Never touches readAloud.favoriteVoices (confirmed unwritten this run).
-// Closes the settings window and reports the error ring and
-// Zotero.Debug.storing.
-// params: none. state: reads item4Fixture, memoryBeforeFixture, baseline.
+// state: item4Fixture.
 (async () => {
   const out = { step: 'cleanup-restore' };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -128,40 +110,6 @@
     out.mimoEnabledFinal = Zotero.Prefs.get(PREFIX + 'mimo.enabled', true);
     out.compatibleEnabledFinal = Zotero.Prefs.get(PREFIX + 'compatible.enabled', true);
     out.openaiOfficialEnabledFinal = Zotero.Prefs.get(PREFIX + 'openai-official.enabled', true);
-
-    // --- Restore readAloud.memory to what it was before 04's fixture. ---
-    const memoryBefore = S.memoryBeforeFixture;
-    if (typeof memoryBefore === 'string') {
-      Services.prefs.setStringPref(PREFIX + 'readAloud.memory', memoryBefore);
-      out.memoryRestored = Services.prefs.getStringPref(PREFIX + 'readAloud.memory', '') === memoryBefore;
-    } else {
-      out.memoryRestoreNote = 'state.memoryBeforeFixture was not available -- see the report for whether 04 ran and what it captured';
-    }
-
-    // --- Restore reader.readAloudVoices: Zotero's own selectTier/selectVoice
-    // persistence rewrites this regardless of the plugin (see header). ---
-    const RAV_KEY = 'extensions.zotero.reader.readAloudVoices';
-    const ravBefore = S.baseline && S.baseline.readerReadAloudVoices ? S.baseline.readerReadAloudVoices.value : null;
-    if (typeof ravBefore === 'string') {
-      const beforeLength = Services.prefs.getStringPref(RAV_KEY, '').length;
-      Services.prefs.setStringPref(RAV_KEY, ravBefore);
-      const afterValue = Services.prefs.getStringPref(RAV_KEY, '');
-      out.readerReadAloudVoicesRestored = { beforeLength, targetLength: ravBefore.length, afterLength: afterValue.length, matches: afterValue === ravBefore };
-    } else {
-      out.readerReadAloudVoicesRestoreNote = 'state.baseline.readerReadAloudVoices was not available this run -- read the 00 result file on disk directly if this pref needs restoring';
-    }
-
-    // --- readAloud.volume: originally NOT a user value (declared default 100) -- clear it. ---
-    const volKey = PREFIX + 'readAloud.volume';
-    Services.prefs.clearUserPref(volKey);
-    out.volumeAfter = { hasUserValue: Services.prefs.prefHasUserValue(volKey), value: Zotero.Prefs.get(volKey, true) };
-    out.volumeRestored = out.volumeAfter.hasUserValue === false && out.volumeAfter.value === 100;
-
-    // --- webdav.autoUploadSettings: LAST write of the run, back to true. ---
-    const webdavKey = PREFIX + 'webdav.autoUploadSettings';
-    Services.prefs.setBoolPref(webdavKey, true);
-    out.webdavAfter = { hasUserValue: Services.prefs.prefHasUserValue(webdavKey), value: Zotero.Prefs.get(webdavKey, true) };
-    out.webdavRestored = out.webdavAfter.value === true;
 
     try {
       const w = Services.wm.getMostRecentWindow('zotero:pref');

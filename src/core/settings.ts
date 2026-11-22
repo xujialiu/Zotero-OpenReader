@@ -47,8 +47,7 @@ export interface Settings {
    * that prefix belonged to the one section that held four servers until
    * 1.12.11, and a copy still on that version reads `openai.apiKey` as
    * the key of whichever server its dropdown has in force — through the
-   * settings sync, a shared key would carry the wrong meaning both ways
-   * (core/openai-split.ts converts the old keys, once).
+   * settings sync, a shared key would carry the wrong meaning both ways.
    */
   'openai-official': { enabled: boolean; apiKey: string; model: string; voices: string };
   /** Xiaomi MiMo (core/providers/mimo.ts, issues #50, #113): its address is fixed too; `voices` empty offers MiMo's documented voices. */

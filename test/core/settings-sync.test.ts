@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { convertFishFreeOnlyItems, parseSharedSettings as parseShared, serializeSharedSettings as serializeShared } from '../../src/core/settings-sync';
 import { DEFAULTS, PREF_PREFIX, type PrefsBackend } from '../../src/core/settings';
 import { flattenSettings, SETTINGS_FILE_PATTERN } from '../../src/core/settings-backup';
 import {
+  convertFishFreeOnlyItems,
   editsPlayerList,
   heldSections,
   isLocalAddress,
@@ -343,26 +343,16 @@ describe('mergeSharedSettings', () => {
     expect(plan.adopt).toEqual([item({ key: 'cacheAudio', value: false, ts: 999 }), item({ key: 'readAloud.volume', value: 150, ts: 999 })]);
   });
 
-  // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts): a
-  // file written by a copy from before the split is read as the three sections
-  it('reads the old OpenAI section’s items of a file as the three sections’ items, and keeps the old ones in it', () => {
+  it('carries the retired OpenAI items through sync without applying them to current providers', () => {
     const remote = [
-      item({ key: 'openai.enabled', value: true, ts: 100 }),
-      item({ key: 'openai.apiKey', value: 'mimo-key', ts: 300 }),
-      item({ key: 'openai.server', value: 'mimo', ts: 200 }),
-      item({ key: 'openai.presetValues', value: JSON.stringify({ openai: { apiKey: 'sk-theirs' } }), ts: 250 }),
+      item({ key: 'openai.server', value: 'mimo', ts: 300 }),
+      item({ key: 'openai.model', value: 'old-model', ts: 300 }),
+      item({ key: 'mimo.model', value: 'current-model', ts: 100 }),
     ];
-    const parsed = parseShared(serializeShared(remote));
-    const byKey = Object.fromEntries(parsed.map((i) => [i.key, i]));
-    expect(byKey['mimo.apiKey']).toEqual(item({ key: 'mimo.apiKey', value: 'mimo-key', ts: 300 }));
-    expect(byKey['mimo.enabled']).toEqual(item({ key: 'mimo.enabled', value: true, ts: 100 }));
-    expect(byKey['openai-official.apiKey']).toEqual(item({ key: 'openai-official.apiKey', value: 'sk-theirs', ts: 250 }));
-    expect(byKey['openai-official.enabled']).toEqual(item({ key: 'openai-official.enabled', value: false, ts: 100 }));
-    expect(byKey['openai.apiKey']).toEqual(remote[1]);
-    // The merge then adopts the derived items and passes the old ones through, unapplied
-    const plan = mergeSharedSettings({ values: values({ 'openai-official.enabled': true }), stamps: {}, machine }, parsed);
-    expect(plan.adopt.map((i) => i.key).sort()).toEqual(['mimo.apiKey', 'mimo.enabled', 'openai-official.apiKey', 'openai-official.enabled']);
-    expect(plan.items.map((i) => i.key)).toContain('openai.presetValues');
+    const parsed = parseSharedSettings(serializeSharedSettings(remote));
+    const plan = mergeSharedSettings({ values: values(), stamps: {}, machine }, parsed);
+    expect(plan.adopt).toEqual([remote[2]]);
+    expect(plan.items).toEqual(expect.arrayContaining(remote));
   });
 });
 
@@ -382,6 +372,6 @@ describe('an older computer\'s Fish Audio switch (issue #182)', () => {
 
   it('is read from the shared file', () => {
     const text = JSON.stringify({ format: SHARED_SETTINGS_FORMAT, version: 1, items: [item('fish.freeOnly', false, 5)] });
-    expect(parseShared(text)).toContainEqual(item('fish.model', 's2.1-pro', 5));
+    expect(parseSharedSettings(text)).toContainEqual(item('fish.model', 's2.1-pro', 5));
   });
 });

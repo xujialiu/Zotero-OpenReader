@@ -1,62 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { PrefsBackend } from '../../src/core/settings';
 import {
   describePosition,
   normalizePosition,
-  READ_ALOUD_POSITIONS_PREF,
-  readPositions,
   samePosition,
   resumeTarget,
-  type PositionEntry,
 } from '../../src/read-aloud/read-aloud-position';
-
-function fakePrefs(initial: Record<string, unknown> = {}): PrefsBackend & { store: Record<string, unknown> } {
-  const store = { ...initial };
-  return { store, get: (k) => store[k], set: (k, v) => void (store[k] = v) };
-}
 
 // Zotero's sourcePosition, one shape per view type. Stored opaquely.
 const PDF_POS = { pageIndex: 12, rects: [[10, 20, 30, 40]] };
 const EPUB_POS = { value: 'epubcfi(/6/16!/4/4/12/1,:32,:168)' };
-
-const entry = (lib: number, key: string, pos: unknown, ts: number): PositionEntry => ({ lib, key, pos, ts });
-
-// The pref is the store's legacy home: written by 1.9.x, read here once for
-// the import into the database (position-store.ts, #16; the read is deleted
-// in 2.0, #22).
-describe('readPositions', () => {
-  it('reads what 1.9.x wrote', () => {
-    const entries = [entry(1, 'ABCD1234', PDF_POS, 1000), entry(1, 'EFGH5678', EPUB_POS, 900)];
-    const prefs = fakePrefs({ [READ_ALOUD_POSITIONS_PREF]: JSON.stringify({ v: 1, items: entries }) });
-    expect(readPositions(prefs)).toEqual(entries);
-  });
-
-  it('reads an unset pref as empty', () => {
-    expect(readPositions(fakePrefs())).toEqual([]);
-  });
-
-  it('reads malformed JSON as empty', () => {
-    expect(readPositions(fakePrefs({ [READ_ALOUD_POSITIONS_PREF]: '{not json' }))).toEqual([]);
-  });
-
-  it('ignores a wire format from another version', () => {
-    const raw = JSON.stringify({ v: 2, items: [entry(1, 'ABCD1234', PDF_POS, 1000)] });
-    expect(readPositions(fakePrefs({ [READ_ALOUD_POSITIONS_PREF]: raw }))).toEqual([]);
-  });
-
-  it('drops entries that could not be used', () => {
-    const raw = JSON.stringify({
-      v: 1,
-      items: [
-        entry(1, 'ABCD1234', PDF_POS, 1000),
-        { lib: 1, key: '', pos: PDF_POS, ts: 1 },
-        { lib: '1', key: 'IJKL', pos: PDF_POS, ts: 1 },
-        { lib: 1, key: 'MNOP', pos: null, ts: 1 },
-      ],
-    });
-    expect(readPositions(fakePrefs({ [READ_ALOUD_POSITIONS_PREF]: raw }))).toEqual([entry(1, 'ABCD1234', PDF_POS, 1000)]);
-  });
-});
 
 describe('samePosition', () => {
   it('is true for structurally equal positions', () => {

@@ -497,7 +497,7 @@ describe('readAloud favorites', () => {
 // readAloud.hideZoteroLocalVoices (issue #17, hiding is unconditional)
 
 // Issue #113: the one OpenAI section of 1.12.11 became three, none of them
-// under the old `openai` prefix (core/openai-split.ts reads that, once)
+// under the old `openai` prefix
 describe('the three sections that speak OpenAI’s API', () => {
   it('are openai-official, mimo and compatible, and no section is called openai', () => {
     expect(Object.keys(DEFAULTS)).not.toContain('openai');

@@ -1,7 +1,6 @@
 import { compareDocumentReplacements, isDocumentReplacementsKey } from './document-replacements';
 import { compareDocumentVoices, isDocumentVoiceKey, parseDocumentVoice } from './document-voices';
 import { parseDocumentReplacements, serializeDocumentReplacements } from './replacements';
-import { convertLegacyItems } from './openai-split';
 import { DEFAULTS, fishModelOfFreeOnly, PREF_PREFIX, SWITCH_IDS, type PrefsBackend, type SwitchId } from './settings';
 import { coerceSetting, FISH_FREE_ONLY_KEY, flattenSettings, type FlatSettings, type SettingValue } from './settings-backup';
 
@@ -29,12 +28,6 @@ import { coerceSetting, FISH_FREE_ONLY_KEY, flattenSettings, type FlatSettings, 
  * file nor applied from it, so a Kokoro on this computer's Docker and a
  * Chatterbox on that one's stay where they are (the owner's rule,
  * 2026-09-10: a LAN address is a local one, no exceptions).
- *
- * A file written by a copy from before the OpenAI section was split
- * (issue #113) carries that section's `openai.*` items; they are read
- * through core/openai-split.ts, which derives the three sections' items
- * from them, each with the time of the item it came from, and are left in
- * the file for the copies still on that version.
  *
  * The stamps live in an undeclared pref, `webdav.syncState`, deliberately
  * outside DEFAULTS like `webdav.machineId`: the backup set is exactly
@@ -232,9 +225,7 @@ export function parseSharedSettings(text: string): SharedItem[] {
       `The shared settings file on the server is version ${parsed.version}; this build reads up to ${SHARED_SETTINGS_VERSION}. Update OpenReader on this computer.`,
     );
   }
-  // TEMPORARY (issue #113, deleted in 2.0.0 with core/openai-split.ts): the
-  // items of a copy from before the split, read as the three sections'
-  return convertFishFreeOnlyItems(convertLegacyItems(parsed.items.map(asItem).filter((item): item is SharedItem => item !== null)));
+  return convertFishFreeOnlyItems(parsed.items.map(asItem).filter((item): item is SharedItem => item !== null));
 }
 
 /**

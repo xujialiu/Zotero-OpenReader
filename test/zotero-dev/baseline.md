@@ -23,8 +23,7 @@
   [tester workflow](../../.agents/zotero-tester.md#how-to-drive): default
   `readAloud.volume` to `0` before playback, retaining its original value
   and user-value state for cleanup. Record any necessary audible interval.
-- `diagnostics.position()` → `database.rows` and `legacyPref` (null), so
-  a fixture's row can be counted in and out.
+- `diagnostics.position()` → `database.rows`, so a fixture's row can be counted in and out.
 - Fixtures: `test/fixtures/fixture-a.pdf` (two pages, 17 segments,
   paragraph starts 0/5/9/12/15, `/Lang en-US`), `fixture-b.pdf` (one
   page, 6 segments) and `fixture-c.pdf` (eight pages, one paragraph

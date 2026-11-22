@@ -1,4 +1,4 @@
-import { normalizePosition, type PositionEntry } from './read-aloud-position';
+import type { PositionEntry } from './read-aloud-position';
 import type { SharedItem } from './xujialiu-positions-file';
 
 /**
@@ -10,8 +10,8 @@ import type { SharedItem } from './xujialiu-positions-file';
  * library the way rewriting a blob does.
  *
  * The module owns everything asynchronous: the schema and its
- * `PRAGMA user_version` migration, the one-time import of the old pref, the
- * startup sweep of rows whose attachment or library no longer exists, the
+ * `PRAGMA user_version` migration, the startup sweep of rows whose
+ * attachment or library no longer exists, the
  * load of every row, the write queue, and the close. The sampler
  * (position-sync.ts) stays synchronous and talks to this store through
  * `save()`/`remove()` plus one awaited `drain()` at shutdown.
@@ -75,11 +75,6 @@ export interface PositionDatabase {
 
 export interface PositionStoreDeps {
   db: PositionDatabase;
-  /** The old pref store: read for the one-time import, cleared only after it commits. */
-  legacy: {
-    read(): PositionEntry[];
-    clear(): void;
-  };
   /** `Zotero.Items.getIDFromLibraryAndKey` — synchronous once Zotero has initialized. */
   itemExists(lib: number, key: string): boolean;
   /** `Zotero.Libraries.exists`. */
@@ -91,8 +86,6 @@ export interface PositionStoreDeps {
 export interface PositionStoreStats {
   state: 'new' | 'open' | 'failed' | 'closed';
   schemaVersion: number | null;
-  /** Pref entries imported by this open(); null before it ran. */
-  imported: number | null;
   /** Rows removed by the startup sweep; null before it ran. */
   swept: number | null;
   /** Rows handed to the sampler; null before the load ran. */
@@ -116,7 +109,7 @@ export interface DocumentRow {
 
 export interface PositionStore {
   /**
-   * Migrate the schema, import the old pref store, sweep orphaned rows,
+   * Migrate the schema, sweep orphaned rows,
    * and return every surviving row. Rejects when the database cannot be
    * opened — the caller keeps the sampler running in memory and reports.
    */
@@ -158,7 +151,6 @@ type Op =
 export function createPositionStore(deps: PositionStoreDeps): PositionStore {
   let state: PositionStoreStats['state'] = 'new';
   let schemaVersion: number | null = null;
-  let imported: number | null = null;
   let swept: number | null = null;
   let loaded: number | null = null;
   let lastError: string | null = null;
@@ -304,37 +296,6 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
       });
     }
     schemaVersion = SCHEMA_VERSION;
-
-    // One-time import of the pref store, normalized on the way in (entries
-    // from before #14 can carry a full rect list). The pref is cleared only
-    // after the transaction commits: a mid-import failure leaves it in
-    // place and the next start retries. The import, the `legacy` dep and
-    // read-aloud-position's readPositions all go away in 2.0 (#22).
-    let legacy: PositionEntry[] = [];
-    try {
-      legacy = deps.legacy.read();
-    } catch (e) {
-      report(e);
-    }
-    if (legacy.length > 0) {
-      await deps.db.executeTransaction(async () => {
-        for (const e of legacy) {
-          await deps.db.queryAsync('REPLACE INTO positions (libraryID, key, pos, ts) VALUES (?, ?, ?, ?)', [
-            e.lib,
-            e.key,
-            JSON.stringify(normalizePosition(e.pos)),
-            e.ts,
-          ]);
-        }
-      });
-    }
-    imported = legacy.length;
-    try {
-      // An empty or unparseable pref is cleared too — nothing to lose
-      deps.legacy.clear();
-    } catch (e) {
-      report(e);
-    }
 
     // Sweep and load in one read. Deletion is exact or not at all: the
     // first existence check that throws turns the sweep off for this start
@@ -494,7 +455,6 @@ export function createPositionStore(deps: PositionStoreDeps): PositionStore {
     stats: () => ({
       state,
       schemaVersion,
-      imported,
       swept,
       loaded,
       queued: queue.size,

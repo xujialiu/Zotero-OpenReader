@@ -44,7 +44,7 @@
 // (selectTier) applies at once; a VOICE pick needs the resume dance. This
 // is a FIXTURE (fixture-b.pdf, imported fresh below): play()/pause() on it
 // are allowed by baseline.md's fixture rule; never on the user's own
-// documents. readAloud.volume is 0 (muted by 00), so nothing here is
+// documents. readAloud.volume is 0 (muted at baseline), so nothing here is
 // audible.
 //
 // KNOWN LIMIT (confirmed live, matches provider-tiers/04's own documented
