@@ -180,12 +180,15 @@ unsafe restoration sequence; future runs require complete row snapshots.
 
 ### WebDAV filename transition (#128)
 
-In an isolated test folder, snapshot all four position filenames before
-seeding either pair. Give the old and new desktop names different PDF
+Use a session-owned loopback WebDAV server with a request log, following
+the isolation and restoration procedure in the WebDAV shutdown case. Start
+with both legacy names present and both new names missing. Sync once and
+confirm each new file matches its old peer. Give the two desktop names different PDF
 and snapshot entries. Give the shared names different EPUB entries for
 the same Document Id with different stamps and one server-only item.
 Trigger sync and fetch all four files. Within each pair, both names must
 hold the same canonical union and original timestamps. Change only the
 old name, then only the new one, syncing after each. Check each change
 reaches its peer. Run again without changes and confirm no position PUT.
-Restore all four server files and the local baseline.
+Restore the server and local baselines. Partial PUT recovery, failed GETs
+and unsupported versions are covered by the transport unit tests.
