@@ -4,6 +4,18 @@
 
 ## Scripts
 
+For item 1, run these upgrade scripts around the identical-XPI install.
+The position fixture, WebDAV baseline and SQLite table snapshots are owned
+by `reading-positions/00-baseline-and-seed-upgrade.js`; keep runner state
+between the two kits. Item 1 makes no provider requests.
+
+| Script | Checks | Expects | Reads | Last run |
+| --- | --- | --- | --- | --- |
+| `00-seed-upgrade-legacy-prefs.js` | Item 1: snapshots retired OpenAI prefs, current MiMo model and all provider switches; seeds conflicting retired values | `openai.server: mimo`; distinct old `openai.model` and current `mimo.model`; switch values and user flags captured | none | `…openai-split-upgrade` |
+| *(bridge)* | Install the immutable brief XPI, list plugins, immediately read startup diagnostics | `1.18.0-beta`; all steps `ok`, no failed steps or split step | XPI path | 2026-11-22 |
+| `01-verify-upgrade-legacy-prefs.js` | Item 1: checks retired prefs, current model, switches, WebDAV isolation and diagnostic surface | Seeded values byte-identical; switches unchanged; no `openaiSplit` diagnostic; folder false | state from `00` | `…openai-split-verify` |
+| `99-restore-upgrade-prefs.js` | Restores the exact pre-run values and user-value flags for retired/current model prefs and switches | Every captured value and flag matches baseline | state from `00` | `…openai-split-restore` |
+
 For the provider checks (case items 2–5), take the standard baseline and
 run the scripts in order. Use a disposable profile with both tested
 providers configured and off. Keep WebDAV off. Before muting, save the
@@ -11,15 +23,16 @@ volume, voice memory, native voice list and provider switches, including
 their user-value flags. Restore and compare them after `05` closes the
 settings window.
 
-| Script | Checks | Expects | Reads |
-| --- | --- | --- | --- |
-| `02-pane-structure-item2.js` | Item 2: opens the pane fresh (driving notes §1), every `groupbox` id in DOM order, the legacy menulist/groupbox gone, the three sections' headings/links/field ids/placeholders/buttons | 19 groupboxes, alphabetical order, no `ztts-openai-server`/`ztts-provider-openai` | — |
-| `03-test-connections-item3.js` | Item 3: Test connection for openai-official, mimo, compatible, and compatible with its address emptied then restored — each click wrapped in an `http-on-modify-request` observer (masked host tag + path + method + `Authorization`/`CF-Access-Client-Id` presence). Reuses `02`'s open pane | The case's two corrected failure strings (below); `mimo`/`compatible`'s real "Connected…" text once they hold working credentials | — |
-| `04-enable-verify-item4.js` | Item 4: enables both providers SEQUENTIALLY (see Limits — two live bugs fixed), `providerTiers()` labels, fields locked, the voice browser's tier column and each provider's voice list, then a fixture (`fixture-b.pdf`) proving the fallback debug line + header separation for one voice per provider (the #108 handoff: `selectTier` then `selectVoice` then resume/poll/pause, `Components.utils.waiveXrays`) | Both `.enabled` true, fields disabled, tier column has both entries at the documented counts, both fallback lines, correct header presence per provider | — |
-| `05-cleanup-restore.js` | Close and erase the fixture, disable the two test providers and close Settings | Both providers off and the fixture gone before restoring the baseline | `item4Fixture` |
+| Script | Checks | Expects | Reads | Last run |
+| --- | --- | --- | --- | --- |
+| `02-pane-structure-item2.js` | Item 2: opens the pane fresh (driving notes §1), every `groupbox` id in DOM order, the legacy menulist/groupbox gone, the three sections' headings/links/field ids/placeholders/buttons | 19 groupboxes, alphabetical order, no `ztts-openai-server`/`ztts-provider-openai` | — | 2026-09-16 re-run |
+| `03-test-connections-item3.js` | Item 3: Test connection for openai-official, mimo, compatible, and compatible with its address emptied then restored — each click wrapped in an `http-on-modify-request` observer (masked host tag + path + method + `Authorization`/`CF-Access-Client-Id` presence). Reuses `02`'s open pane | The case's two corrected failure strings (below); `mimo`/`compatible`'s real "Connected…" text once they hold working credentials | — | 2026-09-16 re-run |
+| `04-enable-verify-item4.js` | Item 4: enables both providers SEQUENTIALLY (see Limits — two live bugs fixed), `providerTiers()` labels, fields locked, the voice browser's tier column and each provider's voice list, then a fixture (`fixture-b.pdf`) proving the fallback debug line + header separation for one voice per provider (the #108 handoff: `selectTier` then `selectVoice` then resume/poll/pause, `Components.utils.waiveXrays`) | Both `.enabled` true, fields disabled, tier column has both entries at the documented counts, both fallback lines, correct header presence per provider | — | 2026-09-16 re-run |
+| `05-cleanup-restore.js` | Close and erase the fixture, disable the two test providers and close Settings | Both providers off and the fixture gone before restoring the baseline | `item4Fixture` | 2026-09-16 re-run |
 
 ## Before you start
 
+- Item 1 is independent of configured provider credentials and performs no synthesis. Run the reading-positions baseline/seed before this kit's seed script, then retain runner state through final cleanup.
 - Confirm the candidate version and all startup steps through the baseline.
 - Fixture: `fixture-b.pdf`, imported fresh in `04`, erased in `05`
   (baseline.md's general fixture procedure). `readAloud.memory` is set to
@@ -67,5 +80,6 @@ settings window.
 
 | Date | Build | Report | Items | Notes |
 | --- | --- | --- | --- | --- |
+| 2026-11-22 | 1.18.0-beta; Zotero 10.0.9 | main-session report | 1 PASS | Retired `mimo`/old-model prefs and current MiMo model stayed distinct; all three current provider switches and legacy `openai.enabled` were unchanged. `openaiSplit` diagnostic absent. No provider calls. Exact original values and user flags restored. |
 | 2026-09-16 (first) | 1.12.12-beta (buggy, 3c40365) | issue #113 verification reply | 1 first install PASS / second install FAIL (critical), 2 PASS, 3 mechanism PASS (2 case corrections), 4/5 NOT TESTABLE (owner's player open) | Found the migration-reruns bug; all five scripts kept |
 | 2026-09-16 (re-run) | 1.12.12-beta (fixed, 7f7d953) | this run's reply (issue #113 verification) | 0 PASS, 1 PASS (both installs byte-identical, fix holds), 2 PASS, 3 PASS (mimo/compatible now "Connected…", message corrections confirmed), 4 PASS (both enabled, 28/9 voices, both fallback lines + header separation), 5 PASS (all state restored byte-exact) | Two script bugs found and fixed live (see Limits); kit fully reusable |
