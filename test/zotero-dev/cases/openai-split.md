@@ -11,7 +11,7 @@ own — switch, Test connection, entry in the player's first dropdown and
 the voice browser's first column, voice ids `<id>::<voice>` — and all
 three can be on at once.
 
-1. **Upgrade with a retired OpenAI section (#115, 1.18.0).** Take the
+1. **Upgrade with a retired OpenAI section (#115, 1.17.3).** Take the
    baseline on the previous build in a disposable profile with WebDAV
    off. After startup, set synthetic `openai.server` and `openai.model`
    preferences alongside a different current `mimo.model`. Install

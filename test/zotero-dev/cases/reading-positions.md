@@ -18,7 +18,7 @@ Items 5.1–5.4 and 5.8 of the checklist, under their original numbers.
    last sentence read as its bookmark while Zotero has already rewound
    `_position` to the run's start (item 5.8).
 
-   **Upgrade from preference storage (#22, 1.18.0).** In a disposable
+   **Upgrade from preference storage (#22, 1.17.3).** In a disposable
    profile with WebDAV off, take the baseline on the previous build. Set
    a synthetic `readAloud.positions` preference after startup. Upgrade
    in place. Expect the synthetic preference to remain byte-identical,

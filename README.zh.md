@@ -1,4 +1,4 @@
-<!-- translated-from: README.md sha256:170b85bfcc6d -->
+<!-- translated-from: README.md sha256:a89387052be5 -->
 <p align="center"><img src="assets/icon.png" width="80" alt="Zotero-OpenReader 图标"></p>
 <h1 align="center">Zotero-OpenReader</h1>
 
@@ -46,7 +46,7 @@ Zotero-OpenReader 为 Zotero 10 增加了语音和播放器：每个服务商都
 
 > **更新提醒：**插件更新后可能出现运行异常，建议更新后重启 Zotero。
 
-**从旧版升级到 1.18.0 或更高版本**
+**从旧版升级到 1.17.3 或更高版本**
 
 - **1.9.x 及更早版本。**要保留阅读位置，请先安装 [1.17.2](https://github.com/xujialiu/Zotero-OpenReader/releases/tag/v1.17.2)，启动一次 Zotero，再继续升级。
 - **1.12.11 及更早版本。**先经过 1.17.2 升级，也能保留 OpenAI、Xiaomi MiMo 和 OpenAI Compatible 的设置。如果需要使用旧设置备份，请先在 1.17.2 中恢复，再重新备份。

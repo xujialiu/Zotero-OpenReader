@@ -26,7 +26,7 @@ reader opens — and a device adopts items only for the documents it has named.
 
 ### Position filenames during the transition
 
-Each table row is a separate format. Starting with plugin 1.18.0 and the
+Each table row is a separate format. Starting with plugin 1.17.3 and the
 corresponding OpenReader compatibility release, a writer reads both names
 for its format before adopting or writing anything. With equal timestamps
 the local item wins, then the item under the new name. Otherwise the newest

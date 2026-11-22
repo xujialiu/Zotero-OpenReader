@@ -50,7 +50,7 @@ is built for the way its author reads —
 > **Update reminder:** The plugin may not work correctly after an update.
 > We recommend restarting Zotero after every plugin update.
 
-**Upgrading an older installation to 1.18.0 or later**
+**Upgrading an older installation to 1.17.3 or later**
 
 - **1.9.x or earlier.** To keep reading positions, install
   [1.17.2](https://github.com/xujialiu/Zotero-OpenReader/releases/tag/v1.17.2)
