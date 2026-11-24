@@ -84,8 +84,10 @@ belong to another instance. A failed identity check ends the operation.
 Keep the instance running through the tester's report. After the tester
 releases it, or after a canceled run has stopped driving it, the main
 session runs `close`. The helper asks only that verified instance to
-quit, waits for exit and removes its temporary directories. If the bridge
-is unavailable while its PID is alive, retain the directory and verify
-the OS process's executable **and** profile/data arguments against the
-launch record before stopping that process. Retry `close` after exit.
+quit, waits for exit and removes its temporary directories. On Windows,
+Zotero can outlive the launcher PID in an early or older session record.
+If cleanup reports a surviving process or cannot verify its identity,
+retain the directory. Verify the OS process's executable **and** exact
+profile/data arguments against the launch inputs before stopping it.
+Retry `close` after exit.
 Report any retained directory. Keep test reports outside the session root.

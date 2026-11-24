@@ -1,5 +1,5 @@
 // Prepare a disposable Zotero and bind every tester call to its identity.
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import * as fs from 'node:fs/promises';
@@ -8,11 +8,13 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { promisify } from 'node:util';
 import AdmZip from 'adm-zip';
 
 const bridgeId = 'mcp-rdp@zotero.org';
 const readerId = 'zotero-tts@xujialiu.top';
 const temp = await fs.realpath(os.tmpdir());
+const windows = process.platform === 'win32';
 const usage = [
   'node scripts/test-zotero.mjs start ZOTERO_EXECUTABLE SERVER_PACKAGE_DIR BRIDGE.xpi OPENREADER.xpi [EXTRA.xpi ...]',
   'node scripts/test-zotero.mjs call SESSION_DIR TOOL [ARGUMENTS.json]  (use - for stdin)',
@@ -79,7 +81,7 @@ async function stageXpi(file, extensions, expectedId) {
   return result;
 }
 
-async function withBridge(root, session, work) {
+async function withBridge(root, session, work, bindWindowsPid = false) {
   const { entry, Client, StdioClientTransport } = mcpServer(session.serverPackage);
   const client = new Client({ name: 'openreader-test', version: '1' });
   const transport = new StdioClientTransport({
@@ -105,8 +107,19 @@ async function withBridge(root, session, work) {
       return JSON.parse(reply.slice('Result:\n'.length));
     };
     const identity = await observe('JSON.stringify({profile:PathUtils.profileDir, pid:Services.appinfo.processID})');
-    if (await fs.realpath(identity.profile) !== path.join(root, 'profile') || identity.pid !== session.pid) {
-      throw Error('Disposable Zotero profile or process differs from the launch record');
+    if (await fs.realpath(identity.profile) !== path.join(root, 'profile')) {
+      throw Error('Disposable Zotero profile differs from the launch record');
+    }
+    if (identity.pid !== session.pid) {
+      if (!bindWindowsPid || !(await windowsSessionPids(root, session.executable)).includes(identity.pid)) {
+        throw Error('Disposable Zotero process differs from the launch record');
+      }
+      // The launcher can exit before the bridge opens. Pin the verified runtime
+      // before setup calls and atomically replace the early recovery record.
+      const next = path.join(root, 'session.next');
+      await fs.writeFile(next, JSON.stringify({ ...session, pid: identity.pid }), { mode: 0o600 });
+      await fs.rename(next, path.join(root, 'session.json'));
+      session.pid = identity.pid;
     }
     return await work(call, observe);
   } finally {
@@ -119,10 +132,24 @@ function running(pid) {
   catch (error) { if (error.code === 'ESRCH') return false; throw error; }
 }
 
-async function removeAfterExit(root, pid) {
+async function windowsSessionPids(root, executable) {
+  const script = await fs.readFile(new URL('./windows-zotero-pids.ps1', import.meta.url), 'utf8');
+  const powershell = path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  const { stdout } = await promisify(execFile)(powershell, ['-NoProfile', '-NonInteractive', '-Command', script], {
+    windowsHide: true, timeout: 10000,
+    env: { ...process.env, OPENREADER_IMAGE_NAME: path.basename(executable || 'zotero.exe'),
+      OPENREADER_EXECUTABLE: executable || '', OPENREADER_SESSION_ROOT: root },
+  });
+  return stdout.trim() ? stdout.trim().split(/\s+/).map(Number) : [];
+}
+
+async function removeAfterExit(root, pid, executable) {
   for (let i = 0; i < 100 && running(pid); i++) await sleep(150);
   if (running(pid)) throw Error('Disposable process has not exited. Retained ' + root);
-  await fs.rm(root, { recursive: true });
+  if (windows && (await windowsSessionPids(root, executable)).length) {
+    throw Error('A disposable Zotero process is still using the session. Retained ' + root);
+  }
+  await fs.rm(root, { recursive: true, maxRetries: 3 });
 }
 
 // Serialized for zotero_execute_js and evaluated inside the verified instance.
@@ -150,6 +177,7 @@ async function start([binary, serverPackage, bridge, plugin, ...extra]) {
   const profile = path.join(root, 'profile'), data = path.join(root, 'data');
   const extensions = path.join(profile, 'extensions');
   let child;
+  let session;
   try {
     await fs.mkdir(extensions, { recursive: true });
     await fs.mkdir(data);
@@ -163,7 +191,7 @@ async function start([binary, serverPackage, bridge, plugin, ...extra]) {
     child = spawn(executable, ['-no-remote', '-profile', profile, '-datadir', data], { detached: true, stdio: 'ignore' });
     await once(child, 'spawn');
     child.unref();
-    const session = { pid: child.pid, port, serverPackage: server, addons };
+    session = { pid: child.pid, port, executable, serverPackage: server, addons };
     await fs.writeFile(path.join(root, 'session.json'), JSON.stringify(session), { flag: 'wx', mode: 0o600 });
     console.error('Disposable session: ' + root);
     const expectedPrefs = Object.fromEntries(Object.entries(prefs).filter(([key]) => key.startsWith('extensions.zotero.')));
@@ -172,9 +200,9 @@ async function start([binary, serverPackage, bridge, plugin, ...extra]) {
     const until = Date.now() + 60000;
     let lastError;
     do {
-      if (child.exitCode !== null || child.signalCode !== null) throw Error('Disposable Zotero exited during startup');
+      if (!windows && (child.exitCode !== null || child.signalCode !== null)) throw Error('Disposable Zotero exited during startup');
       try {
-        const ready = await withBridge(root, session, (_call, observe) => observe(probe));
+        const ready = await withBridge(root, session, (_call, observe) => observe(probe), windows && session.pid === child.pid);
         if (ready.failed?.length) throw Error('OpenReader startup failed: ' + ready.failed.length + ' step(s)');
         if (addons.every((a, i) => a.version === ready.active[i]) && ready.version === addons[1].version &&
             ready.steps > 0 && ready.failed?.length === 0 && ready.folder === false && ready.prefsOK) {
@@ -184,7 +212,7 @@ async function start([binary, serverPackage, bridge, plugin, ...extra]) {
           }
           await withBridge(root, session, (_call, observe) =>
             observe('(() => { Zotero.getMainWindow().minimize(); return JSON.stringify(true); })()'));
-          return { root, profile, data, executable, ...session, startupSteps: ready.steps, folder: false, volume: 0 };
+          return { root, profile, data, ...session, startupSteps: ready.steps, folder: false, volume: 0 };
         }
         lastError = Error('Waiting for active add-ons and isolated settings');
       } catch (error) { lastError = error; }
@@ -193,8 +221,15 @@ async function start([binary, serverPackage, bridge, plugin, ...extra]) {
     throw lastError;
   } catch (error) {
     if (child?.pid) {
-      child.kill();
-      await removeAfterExit(root, child.pid);
+      try {
+        if (windows && session) await closeSession(root, session);
+        else {
+          child.kill();
+          await removeAfterExit(root, child.pid, executable);
+        }
+      } catch (cleanupError) {
+        throw Error(error.message + '. Cleanup incomplete at ' + root + ': ' + cleanupError.message);
+      }
     } else await fs.rm(root, { recursive: true });
     throw error;
   }
@@ -225,6 +260,14 @@ async function setPluginPref(root, session, key, input) {
   });
 }
 
+async function closeSession(root, session) {
+  if (running(session.pid)) {
+    await withBridge(root, session, (_call, observe) =>
+      observe('(() => { Zotero.getMainWindow().setTimeout(() => Services.startup.quit(Services.startup.eAttemptQuit), 200); return JSON.stringify(true); })()'));
+  }
+  await removeAfterExit(root, session.pid, session.executable);
+}
+
 async function main([action, dir, ...args]) {
   if (action === 'start') return start([dir, ...args]);
   if (!dir || !['call', 'set-pref', 'close'].includes(action)) throw Error(usage);
@@ -235,11 +278,7 @@ async function main([action, dir, ...args]) {
       session.port <= 0 || session.port > 65535 || session.port === 6100) throw Error('Invalid session identity');
   if (action === 'close') {
     if (args.length) throw Error(usage);
-    if (running(session.pid)) {
-      await withBridge(root, session, (_call, observe) =>
-        observe('(() => { Zotero.getMainWindow().setTimeout(() => Services.startup.quit(Services.startup.eAttemptQuit), 200); return JSON.stringify(true); })()'));
-    }
-    await removeAfterExit(root, session.pid);
+    await closeSession(root, session);
     return { closed: root };
   }
   const [tool, input] = args;

@@ -888,3 +888,7 @@ then) and is in the git history before that day.
 - A reader can disappear between startup and a diagnostic or shutdown (issue #218)
 - A Play also checks the other readers (issue #218)
 - Reading start and both audio caches in Zotero 10.0.9 (issues #218 and #222)
+
+### [2026-11-24](NOTES_2026-11-24.md)
+
+- Windows Zotero can outlive its launcher (issue #264)
