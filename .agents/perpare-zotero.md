@@ -2,8 +2,6 @@
 
 Prepare one disposable Zotero for the named test. The main session assigns
 functional checks to `zotero-tester` and owns the session until disposal.
-If GLM runs out of quota during preparation, hand the current instance
-and its cleanup status to the [fallback preparer](glm-quota-fallback.md).
 
 ## Prepare
 
@@ -65,7 +63,8 @@ case, outstanding test actions and the following commands with the actual
 session path. Return **BLOCKED** with the failed check and cleanup status
 if setup fails. Before READY the preparer owns cleanup; afterward the main
 session forwards the record to the tester and owns final disposal. A resumed
-run uses its existing record.
+run uses its existing record. If another preparer takes over before READY,
+give it the current session root, remaining setup and cleanup status.
 
 ```sh
 node scripts/test-zotero.mjs call "$session" zotero_ping
