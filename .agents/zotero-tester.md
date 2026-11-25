@@ -181,7 +181,7 @@ a conflict yourself: report it. The carried-rule arrangement began on
   "finish the tests" and approval to merge or push preserve the assignment.
   The main session takes over live testing only on the user's explicit
   request to change the driver. On confirmed GLM quota exhaustion, hand
-  the session to the [fallback tester](glm-quota-fallback.md) through
+  the session to the [fallback tester](README.md) through
   the main session. Other model changes require an explicit user request.
   If the blocker persists, report it rather than substituting
   the main session's live run for this agent's verification.

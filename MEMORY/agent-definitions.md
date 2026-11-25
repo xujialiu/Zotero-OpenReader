@@ -29,7 +29,7 @@ restrictions and configuration fields, not just the workflow prose.
 
 These are desired policy, not a cache of whichever defaults are installed.
 These defaults apply at dispatch. If the assigned GLM provider reports
-quota exhaustion, follow the [GLM quota fallback](../.agents/glm-quota-fallback.md).
+quota exhaustion, follow the [GLM quota fallback](../.agents/README.md).
 Other changes require the user's explicit request.
 
 | Platform/scope | Required configuration |

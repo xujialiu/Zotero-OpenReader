@@ -4,7 +4,7 @@ Update Chinese translations and report the delta. Before acting, read
 `MEMORY/MEMORY.md` and `MEMORY/docs.md` in full; its Chinese translations
 section is the policy authority. This workflow supplies the procedure,
 not a second copy of those rules. Work ownership is in `MEMORY/agents.md`.
-If GLM runs out of quota, apply the [subagent handoff](glm-quota-fallback.md)
+If GLM runs out of quota, follow the [subagent handoff](README.md)
 with the remaining pages and any translations already edited.
 
 ## Input and write boundary

@@ -19,7 +19,7 @@ Delegation is per agent, not a general license to fan out. Research and
 verification have different drivers (2026-09-14); explicit personal-driving
 requests override verification delegation (2026-09-13). Use configured
 models and effort. On confirmed GLM quota exhaustion, apply the
-[approved fallback](../.agents/glm-quota-fallback.md). Other model or
+[approved fallback](../.agents/README.md). Other model or
 effort changes require the user's explicit request. Platform constraints
 and Codex generic-worker defaults are in [agent-definitions.md](agent-definitions.md).
 
